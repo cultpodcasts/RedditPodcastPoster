@@ -29,7 +29,9 @@ namespace Api.Services.Podcasts;
 /// The holder renews the marker every <see cref="LockHeartbeatInterval"/> while it works; a marker with no heartbeat
 /// for <see cref="LockStaleAfter"/> belongs to a transfer that died, and the next request takes it over and resumes.
 /// A holder whose renewal finds the marker taken over stops at once (without compensating: the new holder owns the
-/// rows). Resume is safe because destination writes are upserts under the source guids, an existing destination
+/// rows). A holder that cannot renew for <see cref="LockSelfFenceAfter"/> stops writing on its own before the
+/// marker can go stale, and a failed write is compensated only after a forced renewal proves the marker is still
+/// ours, so two attempts never write at once. Resume is safe because destination writes are upserts under the source guids, an existing destination
 /// parent of the requested kind is reused, source deletes skip rows already gone, and the podcast row is deleted
 /// last, only once a re-read finds no episodes left (episodes that arrive mid-transfer are moved too).
 /// </para>
@@ -57,6 +59,18 @@ public class PodcastKindTransferService(
 
     /// <summary>How often the holder renews its marker while it works.</summary>
     public static readonly TimeSpan LockHeartbeatInterval = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// A holder that has not renewed its marker for this long stops writing (self-fences), one heartbeat before
+    /// another request may take the marker over as stale.
+    /// </summary>
+    public static readonly TimeSpan LockSelfFenceAfter = LockStaleAfter - LockHeartbeatInterval;
+
+    /// <summary>First wait after a failed renewal; it doubles per consecutive failure up to <see cref="RenewRetryMaxDelay"/>.</summary>
+    public static readonly TimeSpan RenewRetryBaseDelay = TimeSpan.FromSeconds(5);
+
+    /// <summary>Longest wait between renewal attempts after failures.</summary>
+    public static readonly TimeSpan RenewRetryMaxDelay = TimeSpan.FromSeconds(30);
 
     /// <summary>Source episodes per bulk delete call; the marker is renewed between calls.</summary>
     public const int SourceDeleteChunkSize = 200;
@@ -194,12 +208,22 @@ public class PodcastKindTransferService(
                 _ => new PodcastKindTransferResult(PodcastKindTransferStatus.InvalidTarget)
             };
         }
-        catch (TransferLeaseLostException)
+        catch (TransferLeaseLostException ex) when (ex.TakenOver)
         {
             logger.LogError(
+                ex,
                 "{method}: Another request took over the kind transfer of podcast '{podcastId}'; this attempt stopped.",
                 nameof(TransferAsync), podcastId);
             return new PodcastKindTransferResult(PodcastKindTransferStatus.AlreadyRunning, podcastId, targetKind);
+        }
+        catch (TransferLeaseLostException ex)
+        {
+            logger.LogError(
+                ex,
+                "{method}: The kind transfer of podcast '{podcastId}' could not keep its marker renewed, so it stopped " +
+                "writing without compensating; re-run the transfer to finish.",
+                nameof(TransferAsync), podcastId);
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.Failed, podcastId);
         }
         catch (Exception ex)
         {
@@ -385,6 +409,20 @@ public class PodcastKindTransferService(
         }
         catch (Exception ex) when (ex is not TransferLeaseLostException)
         {
+            // Parallel.ForEachAsync surfaces the first failure, which can be a sibling's 429 or 5xx even after the
+            // marker was lost. Compensation deletes dest rows, so only run it while the marker is provably ours.
+            if (!await lease.ConfirmOwnership())
+            {
+                logger.LogError(
+                    ex,
+                    "{method}: Dest write failed for podcast '{podcastId}' to {targetKind} and the marker could not " +
+                    "be confirmed as ours; not compensating, because a newer attempt may own those rows.",
+                    nameof(MovePass),
+                    podcast.Id,
+                    target.Kind);
+                throw lease.Lost(ex);
+            }
+
             logger.LogError(
                 ex,
                 "{method}: Dest write failed for podcast '{podcastId}' to {targetKind}; compensating dest rows.",
@@ -525,13 +563,27 @@ public class PodcastKindTransferService(
         return new SearchSwapResult(uploaded && deleted, DeleteSourceRows: deleted);
     }
 
-    /// <summary>Thrown when a heartbeat finds the marker taken over: this attempt must stop writing.</summary>
-    private sealed class TransferLeaseLostException(Guid podcastId)
-        : Exception($"The kind transfer marker for podcast '{podcastId}' was taken over.");
+    /// <summary>
+    /// Thrown once this attempt no longer holds the marker and must stop writing. <see cref="TakenOver"/> is true when
+    /// another request owns it; false when this attempt stopped itself (renewals kept failing, or ownership could not
+    /// be confirmed before compensating).
+    /// </summary>
+    private sealed class TransferLeaseLostException(Guid podcastId, bool takenOver, Exception? inner = null)
+        : Exception(
+            takenOver
+                ? $"The kind transfer marker for podcast '{podcastId}' was taken over."
+                : $"The kind transfer of podcast '{podcastId}' could not keep its marker renewed and stopped writing.",
+            inner)
+    {
+        public bool TakenOver { get; } = takenOver;
+    }
 
     /// <summary>
     /// The held marker. <see cref="Heartbeat"/> renews it at most once per <see cref="LockHeartbeatInterval"/>
-    /// (progress-driven, so no timer) and throws <see cref="TransferLeaseLostException"/> once it is lost.
+    /// (progress-driven, so no timer), backs off after a failed renewal, and throws
+    /// <see cref="TransferLeaseLostException"/> once the marker is taken over or has gone unrenewed for
+    /// <see cref="LockSelfFenceAfter"/> (self-fencing). <see cref="ConfirmOwnership"/> forces a renewal before a
+    /// destructive step such as compensation.
     /// </summary>
     private sealed class TransferLease(
         IParentKindTransferLockStore store,
@@ -540,45 +592,116 @@ public class PodcastKindTransferService(
         ILogger logger)
     {
         private readonly SemaphoreSlim _gate = new(1, 1);
-        private DateTime _lastRenewedUtc = handle.StartedUtc;
+        private long _lastRenewedTicks = handle.StartedUtc.Ticks;
+        private long _retryNotBeforeTicks;
+        private int _consecutiveFailures;
         private volatile bool _lost;
+        private volatile bool _takenOver;
 
         public ParentKindTransferLockHandle Handle { get; private set; } = handle;
 
+        private DateTime LastRenewedUtc => new(Interlocked.Read(ref _lastRenewedTicks), DateTimeKind.Utc);
+
+        private DateTime Now() => timeProvider.GetUtcNow().UtcDateTime;
+
         public async Task Heartbeat()
+        {
+            ThrowIfLost();
+            var now = Now();
+            if (now - LastRenewedUtc >= LockHeartbeatInterval &&
+                now.Ticks >= Interlocked.Read(ref _retryNotBeforeTicks) &&
+                await _gate.WaitAsync(0))
+            {
+                try
+                {
+                    await TryRenew(now);
+                }
+                finally
+                {
+                    _gate.Release();
+                }
+            }
+
+            ThrowIfLost();
+            if (now - LastRenewedUtc >= LockSelfFenceAfter)
+            {
+                _lost = true;
+                logger.LogError(
+                    "Kind transfer marker for podcast '{podcastId}' not renewed since {lastRenewedUtc:O}; stopping " +
+                    "writes before it can be taken over as stale.",
+                    Handle.PodcastId, LastRenewedUtc);
+                ThrowIfLost();
+            }
+        }
+
+        /// <summary>Forces a renewal; true only when it succeeded, so the marker is ours right now.</summary>
+        public async Task<bool> ConfirmOwnership()
         {
             if (_lost)
             {
-                throw new TransferLeaseLostException(Handle.PodcastId);
+                return false;
             }
 
-            var now = timeProvider.GetUtcNow().UtcDateTime;
-            if (now - _lastRenewedUtc < LockHeartbeatInterval || !await _gate.WaitAsync(0))
+            await _gate.WaitAsync();
+            try
             {
-                return;
+                return await TryRenew(Now());
             }
+            finally
+            {
+                _gate.Release();
+            }
+        }
 
+        /// <summary>Marks the lease lost (if not already) and returns the exception that stops this attempt.</summary>
+        public TransferLeaseLostException Lost(Exception? inner = null)
+        {
+            _lost = true;
+            return new TransferLeaseLostException(Handle.PodcastId, _takenOver, inner);
+        }
+
+        private void ThrowIfLost()
+        {
+            if (_lost)
+            {
+                throw new TransferLeaseLostException(Handle.PodcastId, _takenOver);
+            }
+        }
+
+        // Callers hold _gate.
+        private async Task<bool> TryRenew(DateTime now)
+        {
             try
             {
                 var renewed = await store.Renew(Handle, now);
                 if (renewed is null)
                 {
+                    _takenOver = true;
                     _lost = true;
-                    throw new TransferLeaseLostException(Handle.PodcastId);
+                    return false;
                 }
 
                 Handle = renewed;
-                _lastRenewedUtc = now;
+                Interlocked.Exchange(ref _lastRenewedTicks, now.Ticks);
+                Interlocked.Exchange(ref _retryNotBeforeTicks, 0);
+                _consecutiveFailures = 0;
+                return true;
             }
-            catch (Exception ex) when (ex is not TransferLeaseLostException)
+            catch (Exception ex)
             {
-                // A transient renewal failure: the marker is still ours; try again on the next heartbeat.
-                logger.LogWarning(ex, "Failed to renew the kind transfer marker for podcast '{podcastId}'.",
-                    Handle.PodcastId);
-            }
-            finally
-            {
-                _gate.Release();
+                // Transient: the marker is still ours until LockSelfFenceAfter; back off so a throttled LookUps
+                // container is not hit once per playable write.
+                _consecutiveFailures++;
+                var delay = TimeSpan.FromTicks(Math.Min(
+                    RenewRetryMaxDelay.Ticks,
+                    RenewRetryBaseDelay.Ticks << Math.Min(_consecutiveFailures - 1, 10)));
+                Interlocked.Exchange(ref _retryNotBeforeTicks, (now + delay).Ticks);
+                logger.LogWarning(
+                    ex,
+                    "Failed to renew the kind transfer marker for podcast '{podcastId}' ({failures} in a row); " +
+                    "retrying after {retryDelayMs} ms.",
+                    Handle.PodcastId, _consecutiveFailures, (long)delay.TotalMilliseconds);
+                return false;
             }
         }
     }

@@ -13,6 +13,12 @@ public sealed class InMemoryParentKindTransferLockStore : IParentKindTransferLoc
     /// <summary>Heartbeats that renewed a marker, in call order.</summary>
     public List<DateTime> Renewals { get; } = [];
 
+    /// <summary>When set, every renewal throws it (a transient LookUps failure); the marker is left as it was.</summary>
+    public Exception? RenewError { get; set; }
+
+    /// <summary>Renewal calls, successful or not.</summary>
+    public int RenewAttempts { get; private set; }
+
     public void SeedMarker(Guid podcastId, DateTime startedUtc, CatalogueParentKind targetKind = CatalogueParentKind.TvShow)
     {
         lock (_markers)
@@ -78,6 +84,12 @@ public sealed class InMemoryParentKindTransferLockStore : IParentKindTransferLoc
     {
         lock (_markers)
         {
+            RenewAttempts++;
+            if (RenewError is { } error)
+            {
+                return Task.FromException<ParentKindTransferLockHandle?>(error);
+            }
+
             if (!_markers.TryGetValue(handle.PodcastId, out var existing) || existing.AttemptId != handle.AttemptId)
             {
                 return Task.FromResult<ParentKindTransferLockHandle?>(null);

@@ -1234,4 +1234,115 @@ public class PodcastKindTransferServiceRules
         VerifyLogged(LogLevel.Warning, "Failed to compensate", Times.Never);
         (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
     }
+
+    [Fact(DisplayName =
+        "When a dest write fails with a non-lease error (a 503) after another request has taken the marker over, " +
+        "the attempt re-checks the marker before compensating, finds it lost, and deletes no dest rows the new " +
+        "holder relies on; it returns AlreadyRunning.")]
+    public async Task write_failure_after_marker_taken_over_does_not_compensate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.Save(It.IsAny<NewsReport>()))
+            .Returns(() =>
+            {
+                _locks.StealMarker(podcast.Id, _now);
+                return Task.FromException(CosmosStatus(HttpStatusCode.ServiceUnavailable));
+            });
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.NewsOrganisation);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.AlreadyRunning);
+        _mocker.GetMock<INewsReportRepository>().Verify(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>()), Times.Never);
+        _mocker.GetMock<INewsOrganisationRepository>().Verify(r => r.Delete(It.IsAny<Guid>()), Times.Never);
+        _episodes.BulkDeletes.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        VerifyLogged(LogLevel.Error, "not compensating", Times.Once);
+        _locks.IsHeld(podcast.Id).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a dest write fails and the forced renewal before compensating fails too, ownership is unproven, so " +
+        "no dest rows are compensated away; the transfer fails and can be re-run to resume.")]
+    public async Task write_failure_with_unconfirmed_marker_does_not_compensate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        _locks.RenewError = CosmosStatus(HttpStatusCode.ServiceUnavailable);
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
+            .ThrowsAsync(CosmosStatus(HttpStatusCode.ServiceUnavailable));
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.TvShow);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Failed);
+        _locks.RenewAttempts.Should().Be(1);
+        _deletedTvEpisodeIds.Should().BeEmpty();
+        _deletedTvShowIds.Should().BeEmpty();
+        _episodes.BulkDeletes.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        VerifyLogged(LogLevel.Error, "not compensating", Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When renewals keep failing until the marker is close to stale, the attempt stops writing on its own " +
+        "(self-fences) before another request could take it over: no source or podcast deletes, no compensation, " +
+        "and the transfer fails so it can be re-run.")]
+    public async Task renewals_failing_past_fence_window_stop_writes()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episodes = Enumerable.Range(0, 40)
+            .Select(_ => _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast))
+            .ToArray();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episodes);
+        _locks.RenewError = CosmosStatus(HttpStatusCode.ServiceUnavailable);
+        _clockStep = PodcastKindTransferService.LockHeartbeatInterval;
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.TvShow);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Failed);
+        _savedTvEpisodes.Should().HaveCountLessThan(episodes.Length);
+        _deletedTvEpisodeIds.Should().BeEmpty();
+        _deletedTvShowIds.Should().BeEmpty();
+        _episodes.BulkDeletes.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        VerifyLogged(LogLevel.Error, "stopping writes", Times.AtLeastOnce);
+    }
+
+    [Fact(DisplayName =
+        "A transient renewal failure is retried with backoff rather than on every playable write, so a throttled " +
+        "LookUps container is not hit once per write; the transfer still completes.")]
+    public async Task transient_renewal_failures_back_off()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episodes = Enumerable.Range(0, 100)
+            .Select(_ => _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast))
+            .ToArray();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episodes);
+        _locks.RenewError = CosmosStatus(HttpStatusCode.TooManyRequests);
+        _clockStep = TimeSpan.FromSeconds(1);
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.TvShow);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _locks.RenewAttempts.Should().BeInRange(1, 6);
+        VerifyLogged(LogLevel.Warning, "Failed to renew", () => Times.Exactly(_locks.RenewAttempts));
+    }
 }
