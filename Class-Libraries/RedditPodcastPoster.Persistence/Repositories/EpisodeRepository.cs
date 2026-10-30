@@ -6,6 +6,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
@@ -217,6 +218,46 @@ public class EpisodeRepository(
         {
             // idempotent delete
         }
+    }
+
+    public async Task<EpisodeBulkDeleteResult> DeleteMany(Guid podcastId, IReadOnlyCollection<Episode> episodes)
+    {
+        // Check the whole batch first, so a refused call deletes nothing.
+        if (episodes.FirstOrDefault(episode => episode.PodcastId != podcastId) is { } stranger)
+        {
+            throw new InvalidOperationException(
+                $"Episode '{stranger.Id}' belongs to podcast '{stranger.PodcastId}', not '{podcastId}'.");
+        }
+
+        var deleted = 0;
+        var missing = 0;
+        var throttleRetries = 0;
+        var requestCharge = 0d;
+        var chargeGate = new object();
+        var partitionKey = ToPartitionKey(podcastId);
+        await Parallel.ForEachAsync(
+            episodes,
+            new ParallelOptions { MaxDegreeOfParallelism = CatalogueBulkWrite.Parallelism },
+            async (episode, _) =>
+            {
+                try
+                {
+                    var response = await CatalogueBulkWrite.RetryThrottled(
+                        () => container.DeleteItemAsync<Episode>(episode.Id.ToString(), partitionKey),
+                        () => Interlocked.Increment(ref throttleRetries));
+                    Interlocked.Increment(ref deleted);
+                    lock (chargeGate)
+                    {
+                        requestCharge += response?.RequestCharge ?? 0;
+                    }
+                }
+                catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+                {
+                    Interlocked.Increment(ref missing);
+                }
+            });
+
+        return new EpisodeBulkDeleteResult(deleted, missing, requestCharge, throttleRetries);
     }
 
     public async Task PatchGuests(Guid podcastId, Guid episodeId, string[] guests)
