@@ -71,6 +71,9 @@ public class RemovedNullCosmosPredicateRules
     [InlineData("x => (!x.Removed.IsDefined() || x.Removed == false || x.Removed == null)")]
     public void guard_accepts_predicates_with_null(string source)
     {
+        // Arrange
+        // source is the theory row: a predicate that already includes the null disjunct.
+
         // Act
         var offenders = Offenders(source).ToList();
 

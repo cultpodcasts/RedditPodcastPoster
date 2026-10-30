@@ -38,6 +38,9 @@ public class PublisherCosmosFiltersRemovedNullRules : IDisposable
         "because C# treats null as not removed and Cosmos drops null under 'removed = false' alone (#1102).")]
     public void recent_podcast_query_selects_a_stored_removed_null()
     {
+        // Arrange
+        // The filter is the shared recently-active publisher predicate; the client is synthetic.
+
         // Act
         var sql = ToCosmosSql<Podcast>();
 
@@ -52,6 +55,9 @@ public class PublisherCosmosFiltersRemovedNullRules : IDisposable
         "publishers share one 'not removed' rule (#1102).")]
     public void recent_parent_queries_select_a_stored_removed_null()
     {
+        // Arrange
+        // TV shows and news organisations use the same publisher filter.
+
         // Act
         var sqls = new[] { ToCosmosSql<TvShow>(), ToCosmosSql<NewsOrganisation>() };
 
