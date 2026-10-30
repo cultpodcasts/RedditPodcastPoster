@@ -12,21 +12,25 @@ public class YouTubeIdentityConsistencyRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "When a non-removed episode has a YouTube URL but no YouTube id, identity is inconsistent because catalog matching cannot trust one-sided YouTube data.")]
+        "When a non-removed episode has a YouTube URL but no stored YouTube id, identity is inconsistent because catalog matching cannot trust one-sided YouTube data.")]
     public void url_without_id_on_live_episode_is_inconsistent()
     {
         // Arrange
         var youTubeId = _fixture.CreateYouTubeId();
         var episode = _fixture.CreateEpisode(e =>
         {
-            EpisodeServicePresence.SetYouTubeIdentity(e, null);
+            // Upsert fills a missing ids.youtube from the url. Clear it so this row stays the
+            // unrepaired shape: a video url whose id is only visible via the read fallback.
             EpisodeServicePresence.Upsert(e, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(youTubeId), null);
+            EpisodeServicePresence.SetYouTubeIdentity(e, null); // pragma: allowlist secret
         });
 
         // Act
         var inconsistent = YouTubeUrlCategoriser.HasInconsistentYouTubeIdAndUrl(episode);
 
         // Assert
+        EpisodeServicePresence.NestedYouTubeId(episode).Should().BeNull(); // pragma: allowlist secret
+        EpisodeServicePresence.YouTubeEpisodeId(episode).Should().Be(youTubeId); // pragma: allowlist secret
         inconsistent.Should().BeTrue();
     }
 

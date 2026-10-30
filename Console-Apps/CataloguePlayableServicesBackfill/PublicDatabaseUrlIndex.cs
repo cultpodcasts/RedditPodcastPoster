@@ -41,7 +41,8 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
     /// <summary>
     /// Loads every top-level <c>*.json</c> under <paramref name="publicDatabaseDir"/>.
     /// Unreadable or invalid JSON files are skipped with a warning (run continues).
-    /// Duplicate GUID: first file wins; a warning names both paths.
+    /// Duplicate GUID: the lexicographically first path wins (ordinal); a warning names both paths.
+    /// Directory enumeration order is not stable across machines, so the kept file must not depend on it.
     /// </summary>
     public static FilePublicDatabaseUrlIndex Load(string publicDatabaseDir, ILogger? logger = null)
     {
@@ -54,7 +55,8 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
         }
 
         var byId = new Dictionary<Guid, PublicUrlHit>();
-        foreach (var path in Directory.EnumerateFiles(root, "*.json", SearchOption.TopDirectoryOnly))
+        foreach (var path in Directory.EnumerateFiles(root, "*.json", SearchOption.TopDirectoryOnly)
+                     .OrderBy(static path => path, StringComparer.Ordinal))
         {
             IndexFile(path, byId, logger);
         }
@@ -151,7 +153,7 @@ public sealed class FilePublicDatabaseUrlIndex : IPublicDatabaseUrlIndex
             return;
         }
 
-        // First hit wins; public files should not duplicate ids across parents.
+        // Lexicographically first path wins; public files should not duplicate ids across parents.
         if (!byId.TryAdd(id, new PublicUrlHit(path, urls)))
         {
             logger.LogWarning(
