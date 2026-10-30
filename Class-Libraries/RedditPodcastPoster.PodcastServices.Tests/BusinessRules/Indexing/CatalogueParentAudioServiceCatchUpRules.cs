@@ -77,7 +77,8 @@ public class CatalogueParentAudioServiceCatchUpRules
             .ReturnsAsync(true);
 
         var reports = _mocker.GetMock<INewsReportRepository>();
-        // First read per pass is the release window, any second read is the Spotify / Apple link holders read.
+        // Read 0 is the release window. A narrower window also reads the matcher's acceptance span before link
+        // holders; both of those later reads return holders here, which is enough for the holder rules.
         reports.Setup(x => x.GetByNewsOrganisationId(It.IsAny<Guid>(), It.IsAny<Expression<Func<NewsReport, bool>>>()))
             .Returns((Guid id, Expression<Func<NewsReport, bool>> _) =>
                 (_reportReads++ == 0 ? _storedReports : _holderReports)
@@ -440,7 +441,7 @@ public class CatalogueParentAudioServiceCatchUpRules
             [organisation.Id], new IndexingContext(DomainTestFixture.UtcDateDaysAgo(3), IndexSpotify: false));
 
         // Assert
-        _reportReads.Should().Be(2);
+        _reportReads.Should().Be(3);
         _spotifyCalls.Should().ContainSingle().Which.Window.Select(x => x.Id)
             .Should().BeEquivalentTo([candidate.Id, holder.Id]);
         _savedReports.Should().BeEmpty();
