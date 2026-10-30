@@ -429,12 +429,13 @@ public class YouTubeUrlCategoriser(
     }
 
     /// <summary>
-    /// True when YouTube id and URL disagree, or only one of them is present
-    /// (except a removed episode that has a URL and no id).
+    /// True when the stored YouTube id and URL disagree, or only one of them is present
+    /// (except a removed episode that has a URL and no stored id).
+    /// Compares the nested stored id, not the read fallback that extracts a video id from the URL.
     /// </summary>
     internal static bool HasInconsistentYouTubeIdAndUrl(EpisodeModel episode)
     {
-        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        var youTubeId = EpisodeServicePresence.NestedYouTubeId(episode); // pragma: allowlist secret
         var youTubeUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube);
         var idMissing = string.IsNullOrWhiteSpace(youTubeId);
         return (!episode.IsRemoved() && idMissing && youTubeUrl is not null) ||

@@ -32,23 +32,7 @@ public class PodcastIndexService(
         }
     }
 
-    private IndexingContext CreateIndexingContext()
-    {
-        if (_indexerOptions.ReleasedDaysAgo == null)
-        {
-            throw new InvalidOperationException("Unable to index with null released-days-ago.");
-        }
-
-        return _indexerOptions.ToIndexingContext() with
-        {
-            IndexSpotify = true,
-            SkipSpotifyUrlResolving = false,
-            SkipYouTubeUrlResolving = false,
-            SkipExpensiveYouTubeQueries = false,
-            SkipExpensiveSpotifyQueries = false,
-            SkipPodcastDiscovery = true
-        };
-    }
+    private IndexingContext CreateIndexingContext() => CuratorIndexingContext.Create(_indexerOptions);
 
     private async Task<PodcastIndexResult> IndexPodcast(
         CancellationToken c,

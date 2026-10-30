@@ -256,6 +256,7 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
     [Fact(DisplayName = "A cursor at or after the newest eligible episode wraps the next run to the oldest.")]
     public void cursor_at_newest_wraps_to_start()
     {
+        // Arrange
         var episodes = LiveEpisodes(3);
         var cursor = new YouTubeThumbnailRecheckCursor
         {
@@ -263,7 +264,11 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
             LastProbedEpisodeId = episodes[2].Id
         };
 
-        RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, cursor).Should().Be(0);
+        // Act
+        var start = RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, cursor); // pragma: allowlist secret
+
+        // Assert
+        start.Should().Be(0);
     }
 
     [Fact(DisplayName = "A cursor with a release time but no episode id resumes at the first episode with that release time.")]
@@ -275,13 +280,82 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
         RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, cursor).Should().Be(1);
     }
 
+    [Fact(DisplayName =
+        "When saving the round-robin cursor throws, the run still reports the probes it finished, because a lost " +
+        "cursor only makes the next run start from the oldest.")]
+    public async Task cursor_save_failure_does_not_fail_the_run()
+    {
+        // Arrange
+        _options.MaxStoredImageProbesPerRun = 1;
+        _cursorStore.ThrowOnSave = true;
+        var episodes = LiveEpisodes(2); // pragma: allowlist secret
+
+        // Act
+        var result = await Run(episodes); // pragma: allowlist secret
+
+        // Assert
+        result.Probed.Should().Be(1);
+        result.Failed.Should().Be(0);
+        result.CursorEpisodeId.Should().Be(episodes[0].Id); // pragma: allowlist secret
+        _cursorStore.Cursor.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When the probe budget is already spent, nothing is probed and there is no cursor to report, because the run deferred every eligible episode.")]
+    public async Task zero_probe_budget_leaves_no_cursor()
+    {
+        // Arrange
+        _options.MaxStoredImageProbesPerRun = 0;
+        var episodes = LiveEpisodes(2); // pragma: allowlist secret
+
+        // Act
+        var result = await Run(episodes); // pragma: allowlist secret
+
+        // Assert
+        result.Probed.Should().Be(0);
+        result.DeferredOverBudget.Should().Be(2);
+        result.CursorEpisodeId.Should().BeNull();
+        result.CursorReleaseUtc.Should().BeNull();
+        _cursorStore.Saves.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
+        "When the probe budget is already spent and a cursor already exists, the result keeps that cursor, because this run did not probe.")]
+    public async Task zero_probe_budget_keeps_the_previous_cursor()
+    {
+        // Arrange
+        _options.MaxStoredImageProbesPerRun = 0;
+        var episodes = LiveEpisodes(2); // pragma: allowlist secret
+        var previous = new YouTubeThumbnailRecheckCursor
+        {
+            LastProbedEpisodeId = episodes[0].Id, // pragma: allowlist secret
+            LastProbedReleaseUtc = episodes[0].ReleaseUtc // pragma: allowlist secret
+        };
+        _cursorStore.Cursor = previous;
+
+        // Act
+        var result = await Run(episodes); // pragma: allowlist secret
+
+        // Assert
+        result.Probed.Should().Be(0);
+        result.CursorEpisodeId.Should().Be(previous.LastProbedEpisodeId);
+        result.CursorReleaseUtc.Should().Be(previous.LastProbedReleaseUtc);
+        _cursorStore.Saves.Should().Be(0);
+    }
+
     [Fact(DisplayName = "No cursor, or a cursor with null fields, starts at the oldest.")]
     public void null_cursor_starts_at_zero()
     {
+        // Arrange
         var episodes = LiveEpisodes(2);
 
-        RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, null).Should().Be(0);
-        RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, new YouTubeThumbnailRecheckCursor()).Should().Be(0);
+        // Act
+        var fromNull = RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, null); // pragma: allowlist secret
+        var fromEmpty = RecentYouTubeThumbnailRechecker.RoundRobinStartIndex(episodes, new YouTubeThumbnailRecheckCursor()); // pragma: allowlist secret
+
+        // Assert
+        fromNull.Should().Be(0);
+        fromEmpty.Should().Be(0);
     }
 
     private async Task<YouTubeThumbnailRecheckResult> Run(IReadOnlyList<Episode> episodes) =>
@@ -322,13 +396,22 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
     {
         public YouTubeThumbnailRecheckCursor? Cursor { get; set; }
         public int Saves { get; private set; }
+        public bool ThrowOnSave { get; set; }
 
         public Task<YouTubeThumbnailRecheckCursor?> GetAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(Cursor);
 
-        public Task SaveAsync(YouTubeThumbnailRecheckCursor cursor, CancellationToken cancellationToken = default)
+        public Task SaveAsync(YouTubeThumbnailRecheckCursor cursor, CancellationToken cancellationToken = default) =>
+            SaveCore(cursor);
+
+        private Task SaveCore(YouTubeThumbnailRecheckCursor cursor)
         {
             Saves++;
+            if (ThrowOnSave)
+            {
+                throw new InvalidOperationException("cursor store unavailable");
+            }
+
             Cursor = cursor;
             return Task.CompletedTask;
         }

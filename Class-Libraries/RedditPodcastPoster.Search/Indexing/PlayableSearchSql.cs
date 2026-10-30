@@ -35,6 +35,72 @@ public static class PlayableSearchSql
             """;
     }
 
+    /// <summary>Prefix of a stored Spotify episode URL (<c>services.spotify.url</c>).</summary>
+    public const string SpotifyEpisodeUrlPrefix = "https://open.spotify.com/episode/";
+
+    /// <summary>
+    /// Spotify episode id from <c>services.spotify.url</c> (<c>https://open.spotify.com/episode/{id}</c>,
+    /// optional <c>?si=</c> query dropped). Sibling playables (news, TV) store no <c>ids</c> object, so the
+    /// pull path must derive the id the push path (<c>CataloguePlayableSearchDocument.For</c>) indexes.
+    /// Null when the URL is absent or not an episode URL.
+    /// </summary>
+    public static string SpotifyEpisodeIdFromUrl(string documentAlias = "c")
+    {
+        var url = $"{documentAlias}.services.spotify.url";
+        var start = SpotifyEpisodeUrlPrefix.Length;
+        return $"""
+            IIF(IS_DEFINED({url}) AND IS_STRING({url}) AND STARTSWITH({url}, "{SpotifyEpisodeUrlPrefix}") AND LENGTH({url}) > {start},
+                IIF(INDEX_OF({url}, "?") = -1,
+                    SUBSTRING({url}, {start}, LENGTH({url}) - {start}),
+                    IIF(INDEX_OF({url}, "?") > {start}, SUBSTRING({url}, {start}, INDEX_OF({url}, "?") - {start}), null)),
+                null)
+            """;
+    }
+
+    /// <summary>
+    /// Apple episode id from <c>services.apple.url</c>: the digits after <c>?i=</c> (any later <c>&amp;</c>
+    /// parameters dropped). Null when the URL is absent or has no <c>?i=</c>.
+    /// </summary>
+    public static string AppleEpisodeIdFromUrl(string documentAlias = "c")
+    {
+        var url = $"{documentAlias}.services.apple.url";
+        var start = $"(INDEX_OF({url}, \"?i=\") + 3)";
+        var amp = $"INDEX_OF({url}, \"&\", {start})";
+        return $"""
+            IIF(IS_DEFINED({url}) AND IS_STRING({url}) AND CONTAINS({url}, "?i=") AND LENGTH({url}) > {start},
+                IIF({amp} = -1,
+                    SUBSTRING({url}, {start}, LENGTH({url}) - {start}),
+                    IIF({amp} > {start}, SUBSTRING({url}, {start}, {amp} - {start}), null)),
+                null)
+            """;
+    }
+
+    /// <summary>
+    /// Apple podcast (show) id from <c>services.apple.url</c>. See <see cref="ApplePodcastIdFromUrlExpression"/>.
+    /// </summary>
+    public static string ApplePodcastIdFromUrl(string documentAlias = "c") =>
+        ApplePodcastIdFromUrlExpression($"{documentAlias}.services.apple.url");
+
+    /// <summary>
+    /// Apple podcast (show) id from an Apple episode URL expression: the text of the last <c>/id</c> path segment
+    /// before <c>?i=</c> (<c>…/podcast/{slug}/id{podcastId}?i={episodeId}</c>). Shared by the Episodes data source
+    /// and <see cref="SiblingQuery"/>. Cosmos has no <c>LAST_INDEX_OF</c>, so the part before <c>?i=</c> is reversed and
+    /// cut at the first <c>di/</c>: a slug that itself starts with "id" (<c>identity-crisis</c>, <c>idaho-…</c>)
+    /// cannot be taken for the id, and a slug-less <c>/podcast/id{podcastId}?i=</c> still works. Null when there is no
+    /// <c>?i=</c> or no <c>/id</c> before it. <see cref="PlayableServiceSearchIds.ApplePodcastId"/> is the C# twin.
+    /// </summary>
+    public static string ApplePodcastIdFromUrlExpression(string urlExpression)
+    {
+        var beforeEpisode = $"LEFT({urlExpression}, INDEX_OF({urlExpression}, \"?i=\"))";
+        var reversed = $"REVERSE({beforeEpisode})";
+        var cut = $"INDEX_OF({reversed}, \"di/\")";
+        return $"""
+            IIF(IS_DEFINED({urlExpression}) AND IS_STRING({urlExpression}) AND CONTAINS({urlExpression}, "?i="),
+                IIF({cut} > 0, REVERSE(LEFT({reversed}, {cut})), null),
+                null)
+            """;
+    }
+
     public static string SiblingQuery(
         SiblingProjection projection,
         IReadOnlyList<string> svcKeys,
@@ -55,6 +121,9 @@ public static class PlayableSearchSql
         var release = SearchIndexCosmosSql.ReleaseSort(documentAlias);
         var image = SearchIndexCosmosSql.ImageOrEmpty(imageCoalesceOrder, documentAlias);
         var svc = SearchIndexCosmosSql.SvcProjection(svcKeys, documentAlias);
+        var spotifyId = SpotifyEpisodeIdFromUrl(documentAlias);
+        var appleId = AppleEpisodeIdFromUrl(documentAlias);
+        var podcastAppleId = ApplePodcastIdFromUrl(documentAlias);
         var query = $"""
             SELECT
                 {documentAlias}.id,
@@ -69,6 +138,9 @@ public static class PlayableSearchSql
                 {svc} as svc,
                 {image} as image,
                 IIF(IS_DEFINED({documentAlias}.youTubeId) AND {documentAlias}.youTubeId != "", {documentAlias}.youTubeId, null) as youtubeId,
+                {spotifyId} as spotifyId,
+                {appleId} as appleId,
+                {podcastAppleId} as podcastAppleId,
                 {documentAlias}.subjects as subjects,
                 {documentAlias}.publisherSearchTerms as publisherSearchTerms,
                 {documentAlias}.searchTerms as episodeSearchTerms,

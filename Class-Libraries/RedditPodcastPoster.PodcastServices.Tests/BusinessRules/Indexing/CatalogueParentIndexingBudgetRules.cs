@@ -220,6 +220,151 @@ public class CatalogueParentIndexingBudgetRules
         _patches.Should().ContainSingle().Which.Patch.ChangedIndexingProperties.Should().BeEmpty();
     }
 
+    [Theory(DisplayName =
+        "On-demand parent index: a slow parent is cut off at the on-demand budget (150s), whatever the hourly budget " +
+        "settings, and the result is TimedOut with nothing saved, because one HTTP request must always finish well " +
+        "under the ~230s front-end timeout.")]
+    [InlineData(60, 3)]
+    [InlineData(0, 3)]
+    [InlineData(60, 0)]
+    [InlineData(600, 3)]
+    public async Task on_demand_index_is_cut_at_the_on_demand_budget(int perPodcastSeconds, int expensiveMultiplier)
+    {
+        // Arrange
+        _budget.PerPodcastBudgetSeconds = perPodcastSeconds;
+        _budget.ExpensivePassBudgetMultiplier = expensiveMultiplier;
+        _slowDiscovery = async context =>
+        {
+            await Task.Delay(Timeout.Infinite, context.CancellationToken);
+            return [];
+        };
+        var sut = _mocker.CreateInstance<CatalogueParentsUpdater>();
+
+        // Act
+        var run = sut.IndexParent(_slowOrganisation, ExpensiveContext());
+        _time.Advance(OnDemandBudget - TimeSpan.FromSeconds(1));
+        await Task.Delay(50);
+        var finishedEarly = run.IsCompleted;
+        _time.Advance(TimeSpan.FromSeconds(1));
+        var result = await run.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        finishedEarly.Should().BeFalse("the on-demand budget, not the hourly one, sets the cut");
+        result.Status.Should().Be(CatalogueParentIndexStatus.TimedOut);
+        result.Changed.Should().BeEmpty();
+        _savedReports.Should().BeEmpty();
+        _patches.Should().BeEmpty();
+        _logger.Entries.Should().ContainSingle(entry =>
+            entry.Message.StartsWith(CatalogueParentsUpdater.BudgetExceededMessagePrefix) &&
+            entry.Message.Contains($"budget-seconds='{PodcastUpdateBudgetOptions.MaxOnDemandBudgetSeconds}'"));
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when an update ignores its cancelled token and then stops during the drain, the " +
+        "answer waits for it and is TimedOut, and nothing is said to outlive the request, because the scoped " +
+        "repositories and cache must still be alive while it stops.")]
+    public async Task on_demand_index_waits_for_an_abandoned_update_to_settle()
+    {
+        // Arrange
+        var late = new TaskCompletionSource<IList<Episode>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _slowDiscovery = _ => late.Task;
+        var sut = _mocker.CreateInstance<CatalogueParentsUpdater>();
+
+        // Act
+        var run = sut.IndexParent(_slowOrganisation, ExpensiveContext());
+        _time.Advance(OnDemandBudget);
+        _time.Advance(_budget.OnDemandAbandonGrace);
+        await WaitFor(() => _logger.Entries.Any(entry =>
+            entry.Message.StartsWith(CatalogueParentsUpdater.BudgetExceededMessagePrefix)));
+        await Task.Delay(50);
+        var answeredBeforeSettling = run.IsCompleted;
+        late.SetCanceled();
+        var result = await run.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // Assert
+        answeredBeforeSettling.Should().BeFalse("the answer waits (bounded) for the abandoned update");
+        result.Status.Should().Be(CatalogueParentIndexStatus.TimedOut);
+        _logger.Entries.Should().Contain(entry =>
+            entry.Message.StartsWith(CatalogueParentsUpdater.BudgetExceededMessagePrefix) &&
+            entry.Message.Contains("abandoned='True'"));
+        _logger.Entries.Should().NotContain(entry =>
+            entry.Message.StartsWith(CatalogueParentsUpdater.AbandonedOutlivesRequestMessagePrefix));
+        _savedReports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when an abandoned update is still running after the drain, the answer is TimedOut " +
+        "anyway and a warning says it outlives the request, because the request must still answer within its cap.")]
+    public async Task on_demand_index_answers_after_the_drain_and_logs_an_update_that_outlives_it()
+    {
+        // Arrange
+        var late = new TaskCompletionSource<IList<Episode>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _slowDiscovery = _ => late.Task;
+        var sut = _mocker.CreateInstance<CatalogueParentsUpdater>();
+
+        // Act
+        var run = sut.IndexParent(_slowOrganisation, ExpensiveContext());
+        _time.Advance(OnDemandBudget);
+        _time.Advance(_budget.OnDemandAbandonGrace);
+        for (var step = 0; step < 100 && !run.IsCompleted; step++)
+        {
+            // The drain's timer starts after the cut is logged; step fake time until it fires.
+            _time.Advance(TimeSpan.FromSeconds(1));
+            await Task.Delay(10);
+        }
+
+        var result = await run.WaitAsync(TimeSpan.FromSeconds(10));
+        late.SetResult([NewVideo()]);
+        await WaitFor(() => _logger.Entries.Any(entry =>
+            entry.Message.StartsWith(CatalogueParentsUpdater.AbandonedCompletedMessagePrefix)));
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.TimedOut);
+        _logger.Entries.Should().ContainSingle(entry =>
+            entry.Message.StartsWith(CatalogueParentsUpdater.AbandonedOutlivesRequestMessagePrefix) &&
+            entry.Message.Contains($"parent-id='{_slowOrganisation.Id}'"));
+        _savedReports.Should().BeEmpty("the late update's cancelled token stops it before any write");
+    }
+
+    [Theory(DisplayName =
+        "On-demand budget options: the budget defaults to 150s, can only be lowered, and zero or less means the " +
+        "default; the grace is capped at 15s and the drain at 30s, so the worst case (195s) stays under ~230s.")]
+    [InlineData(150, 15, 30, 150, 15, 30)]
+    [InlineData(90, 5, 10, 90, 5, 10)]
+    [InlineData(0, 15, 30, 150, 15, 30)]
+    [InlineData(-1, -1, -1, 150, 0, 0)]
+    [InlineData(1000, 120, 600, 150, 15, 30)]
+    public void on_demand_budget_is_always_bounded(
+        int budgetSeconds, int graceSeconds, int drainSeconds,
+        int expectedBudget, int expectedGrace, int expectedDrain)
+    {
+        // Arrange
+        var options = new PodcastUpdateBudgetOptions
+        {
+            OnDemandBudgetSeconds = budgetSeconds,
+            AbandonGraceSeconds = graceSeconds,
+            OnDemandAbandonDrainSeconds = drainSeconds
+        };
+
+        // Act
+        var worstCase = options.OnDemandBudget + options.OnDemandAbandonGrace + options.OnDemandAbandonDrain;
+
+        // Assert
+        options.OnDemandBudget.Should().Be(TimeSpan.FromSeconds(expectedBudget));
+        options.OnDemandAbandonGrace.Should().Be(TimeSpan.FromSeconds(expectedGrace));
+        options.OnDemandAbandonDrain.Should().Be(TimeSpan.FromSeconds(expectedDrain));
+        worstCase.Should().BeLessThan(TimeSpan.FromSeconds(230));
+    }
+
+    private TimeSpan OnDemandBudget => _budget.OnDemandBudget;
+
+    /// <summary>The curator context allows every expensive query (the hourly pass would scale its budget).</summary>
+    private static IndexingContext ExpensiveContext() => new(ReleasedSince)
+    {
+        SkipExpensiveYouTubeQueries = false,
+        SkipExpensiveSpotifyQueries = false
+    };
+
     private TimeSpan Budget => TimeSpan.FromSeconds(_budget.PerPodcastBudgetSeconds);
 
     private static IndexingContext Context() => new(ReleasedSince);
