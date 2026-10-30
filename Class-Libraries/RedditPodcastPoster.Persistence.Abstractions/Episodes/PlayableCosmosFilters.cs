@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using Microsoft.Azure.Cosmos.Linq;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -7,13 +6,13 @@ namespace RedditPodcastPoster.Persistence.Abstractions.Episodes;
 
 /// <summary>
 /// Cosmos LINQ predicates for any playable container (TvShowEpisode, NewsReport, Film).
-/// Same dual-key release rule as <see cref="EpisodeCosmosFilters.ReleasedOnOrAfter"/>.
+/// Same release rule as <see cref="EpisodeCosmosFilters.ReleasedOnOrAfter"/>.
 /// </summary>
 public static class PlayableCosmosFilters
 {
     public static Expression<Func<TPlayable, bool>> ReleasedOnOrAfter<TPlayable>(DateTime since)
         where TPlayable : Playable =>
-        e => (e.ReleaseSort.IsDefined() ? e.ReleaseSort : e.ReleaseCosmosFallback) >= since;
+        e => e.ReleaseSort >= since;
 
     /// <summary>
     /// Playables released on or after <paramref name="since"/> that already hold a Spotify or Apple link. Read by the
@@ -24,5 +23,5 @@ public static class PlayableCosmosFilters
         where TPlayable : Playable =>
         e => e.Services != null &&
              (e.Services[ServiceKeys.Spotify].Url != null || e.Services[ServiceKeys.Apple].Url != null) &&
-             (e.ReleaseSort.IsDefined() ? e.ReleaseSort : e.ReleaseCosmosFallback) >= since;
+             e.ReleaseSort >= since;
 }

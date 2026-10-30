@@ -773,7 +773,7 @@ public partial class CreateSearchIndexProcessor(
                             e.services.internetArchive.url as internetArchive,
                             {svcProjection} as svc,
                             e.subjects as subjects,
-                            (e.publisherSearchTerms ?? e.podcastSearchTerms) as publisherSearchTerms,
+                            e.publisherSearchTerms as publisherSearchTerms,
                             e.searchTerms as episodeSearchTerms,
                             IIF({isYouTubeToken}, {youTubeToken},
                                 IIF({isSpotifyToken}, {spotifyToken},

@@ -196,10 +196,6 @@ public class CatalogueContentTypeModelRulesTests
         newsReport.ReleaseSort.Should().Be(dateOnly.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
         film.ReleaseSort.Should().Be(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-        episode.ReleaseCosmosFallback.Should().Be(episode.ReleaseSort);
-        tvShowEpisode.ReleaseCosmosFallback.Should().Be(tvShowEpisode.ReleaseSort);
-        newsReport.ReleaseCosmosFallback.Should().Be(newsReport.ReleaseSort);
-
         var from = DomainTestFixture.UtcDaysAgo(10);
         var to = DateTime.UtcNow;
         (episode.ReleaseSort >= from && episode.ReleaseSort <= to).Should().BeTrue();
@@ -210,8 +206,8 @@ public class CatalogueContentTypeModelRulesTests
 
     [Fact(DisplayName =
         "INTEGRITY InMemoryEpisodeRepository must rewrite Cosmos IsDefined before Compile so " +
-        "EpisodeCosmosFilters.ReleasedOnOrAfter (and ParentNotRemoved via And) include/exclude by " +
-        "ReleaseSort and ParentRemoved — without the rewrite, invoking the raw predicate throws.")]
+        "EpisodeCosmosFilters.ReleasedOnOrAfter and ParentNotRemoved (combined via And) include/exclude by " +
+        "ReleaseSort and ParentRemoved — without the rewrite, invoking the raw ParentNotRemoved predicate throws.")]
     public async Task InMemory_episode_filters_rewrite_IsDefined_before_compile()
     {
         // Arrange
@@ -237,7 +233,7 @@ public class CatalogueContentTypeModelRulesTests
         var filter = EpisodeCosmosFilters.And(
             EpisodeCosmosFilters.ReleasedOnOrAfter(since),
             EpisodeCosmosFilters.ParentNotRemoved);
-        var rawReleasedOnOrAfter = EpisodeCosmosFilters.ReleasedOnOrAfter(since).Compile();
+        var rawParentNotRemoved = EpisodeCosmosFilters.ParentNotRemoved.Compile();
 
         // Act
         var matches = new List<Episode>();
@@ -247,16 +243,15 @@ public class CatalogueContentTypeModelRulesTests
         }
 
         // Assert
-        var invokeRaw = () => rawReleasedOnOrAfter(included);
+        var invokeRaw = () => rawParentNotRemoved(included);
         invokeRaw.Should().Throw<NotImplementedException>(
             "Cosmos IsDefined must not run on CLR without the in-memory rewrite");
         matches.Select(e => e.Id).Should().BeEquivalentTo([included.Id]);
     }
 
     [Fact(DisplayName =
-        "INTEGRITY legacy Episode JSON with only release (no releaseSort) deserializes so ReleaseSort equals " +
-        "that UTC instant, because the Release setter syncs ReleaseSort in-memory — but Cosmos server-side " +
-        "filters must still dual-key releaseSort/release until backfill.")]
+        "INTEGRITY Episode JSON with only release (no releaseSort) deserializes so ReleaseSort equals " +
+        "that UTC instant, because the Release setter syncs ReleaseSort in-memory and the next save writes releaseSort.")]
     public void Legacy_release_only_json_hydrates_ReleaseSort_in_memory()
     {
         // Arrange
@@ -274,39 +269,34 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "INTEGRITY legacy Episode JSON with only podcastRemoved true deserializes ParentRemoved true, " +
-        "because the bridge is deserialize-only; Cosmos queries must dual-key parentRemoved/podcastRemoved.")]
-    public void Legacy_podcastRemoved_only_json_hydrates_ParentRemoved()
+        "Episode JSON carrying the retired podcastRemoved key no longer sets ParentRemoved, because the GATE 5 " +
+        "bridge drop reads parentRemoved only (the GATE 1 wire rewrite removed podcastRemoved from stored episodes).")]
+    public void Retired_podcastRemoved_key_does_not_set_ParentRemoved()
     {
         // Arrange
         var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-        var legacyJson = "{\"podcastRemoved\":true}";
+        var retiredJson = "{\"podcastRemoved\":true}";
 
         // Act
-        var episode = JsonSerializer.Deserialize<Episode>(legacyJson, options);
+        var episode = JsonSerializer.Deserialize<Episode>(retiredJson, options);
 
         // Assert
-        episode!.ParentRemoved.Should().BeTrue();
+        episode!.ParentRemoved.Should().BeNull();
     }
 
     [Fact(DisplayName =
-        "INTEGRITY Playable Cosmos SQL dual-key fragments require releaseSort-or-release and " +
-        "parentRemoved-and-podcastRemoved so Function/console queries stay correct against legacy Episode docs.")]
-    public void Playable_cosmos_dual_key_sql_fragments_cover_legacy_wire_names()
+        "Playable.CosmosParentNotRemovedSql filters on parentRemoved only, treats absent, null and false as not removed, " +
+        "and no longer mentions podcastRemoved, because Function and console queries read the new wire name after the " +
+        "GATE 5 bridge drop and must agree with the LINQ EpisodeCosmosFilters.ParentNotRemoved (null is not removed).")]
+    public void Playable_cosmos_parent_not_removed_sql_uses_parentRemoved_only()
     {
         // Arrange / Act
-        var releaseFragment = Playable.CosmosReleaseSortOrReleaseSql;
         var parentFragment = Playable.CosmosParentNotRemovedSql;
 
         // Assert
-        releaseFragment.Should().Contain("releaseSort");
-        releaseFragment.Should().Contain("release");
-        releaseFragment.Should().Contain("IS_DEFINED");
-        parentFragment.Should().Contain("parentRemoved");
-        parentFragment.Should().Contain("podcastRemoved");
-        parentFragment.Should().Contain("IS_DEFINED");
-        EpisodeCosmosFilters.ParentNotRemoved.Should().NotBeNull();
-        EpisodeCosmosFilters.ReleasedOnOrAfter(DomainTestFixture.UtcDaysAgo(1)).Should().NotBeNull();
+        parentFragment.Should().Be("(NOT IS_DEFINED(e.parentRemoved) OR IS_NULL(e.parentRemoved) OR e.parentRemoved=false)");
+        parentFragment.Should().NotContain("podcastRemoved");
+        typeof(Playable).GetField("CosmosReleaseSortOrReleaseSql").Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -389,13 +379,17 @@ public class CatalogueContentTypeModelRulesTests
 
     [Fact(DisplayName =
         "ReleaseSort is private-set and has a distinct JsonPropertyOrder from Release so callers cannot " +
-        "desync the Cosmos range key; ReleaseCosmosFallback is JsonIgnore LINQ-only dual-key for legacy release.")]
-    public void ReleaseSort_is_sync_only_with_distinct_property_order_and_cosmos_fallback()
+        "desync the Cosmos range key, and Release is the only member mapped to JSON release (the LINQ-only " +
+        "release fallback was dropped with the GATE 5 bridges).")]
+    public void ReleaseSort_is_sync_only_with_distinct_property_order_and_no_release_fallback()
     {
         // Arrange
         var releaseSort = typeof(Playable).GetProperty(nameof(Playable.ReleaseSort))!;
         var release = typeof(Playable).GetProperty(nameof(Playable.Release))!;
-        var fallback = typeof(Playable).GetProperty(nameof(Playable.ReleaseCosmosFallback))!;
+        var releaseJsonMembers = typeof(Playable).GetProperties()
+            .Where(p => p.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyNameAttribute>()?.Name == "release")
+            .Select(p => p.Name)
+            .ToList();
 
         // Act
         var releaseOrder = release.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyOrderAttribute>()!.Order;
@@ -405,9 +399,7 @@ public class CatalogueContentTypeModelRulesTests
         releaseSort.SetMethod.Should().NotBeNull();
         releaseSort.SetMethod!.IsPublic.Should().BeFalse();
         sortOrder.Should().NotBe(releaseOrder);
-        fallback.GetCustomAttribute<System.Text.Json.Serialization.JsonIgnoreAttribute>().Should().NotBeNull();
-        fallback.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyNameAttribute>()!.Name
-            .Should().Be("release");
+        releaseJsonMembers.Should().Equal(nameof(Playable.Release));
     }
 
     [Fact(DisplayName =
@@ -1035,10 +1027,10 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
-        "INTEGRITY PublisherSearchTerms JSON: Episode still deserializes legacy Cosmos podcastSearchTerms/" +
-        "podcastLanguage into PublisherSearchTerms/PublisherLanguage, and a subsequent serialize emits " +
-        "only publisher* (legacy keys are write-omitted).")]
-    public void Episode_legacy_podcast_wire_names_deserialize_into_publisher_members()
+        "Episode JSON carrying the retired podcastSearchTerms/podcastLanguage keys no longer fills " +
+        "PublisherSearchTerms/PublisherLanguage, and a subsequent serialize emits neither retired key, because " +
+        "the GATE 5 bridge drop reads publisher* only.")]
+    public void Episode_retired_podcast_wire_names_are_ignored()
     {
         // Arrange
         var searchTerms = _fixture.Create<string>();
@@ -1048,26 +1040,26 @@ public class CatalogueContentTypeModelRulesTests
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
-        var legacyJson =
+        var retiredJson =
             $"{{\"podcastSearchTerms\":\"{searchTerms}\",\"podcastLanguage\":\"{language}\"}}";
 
         // Act
-        var episode = JsonSerializer.Deserialize<Episode>(legacyJson, options);
+        var episode = JsonSerializer.Deserialize<Episode>(retiredJson, options);
         var rewrittenJson = JsonSerializer.Serialize(episode, options);
 
         // Assert
-        episode!.PublisherSearchTerms.Should().Be(searchTerms);
-        episode.PublisherLanguage.Should().Be(language);
-        rewrittenJson.Should().Contain("\"publisherSearchTerms\"");
-        rewrittenJson.Should().Contain("\"publisherLanguage\"");
+        episode!.PublisherSearchTerms.Should().BeNull();
+        episode.PublisherLanguage.Should().BeNull();
+        rewrittenJson.Should().NotContain(searchTerms);
+        rewrittenJson.Should().NotContain(language);
         rewrittenJson.Should().NotContain("podcastSearchTerms");
         rewrittenJson.Should().NotContain("podcastLanguage");
     }
 
     [Fact(DisplayName =
         "INTEGRITY Parent* JSON: Episode, TvShowEpisode, and NewsReport serialize parentMetadataVersion/" +
-        "parentRemoved only; Episode legacy podcastMetadataVersion/podcastRemoved deserialize into Parent* " +
-        "and rewrite without the legacy keys.")]
+        "parentRemoved only; Episode JSON with the retired podcastMetadataVersion/podcastRemoved keys leaves " +
+        "Parent* unset and rewrites without them.")]
     public void Parent_denormalised_fields_use_shared_wire_names()
     {
         // Arrange
@@ -1103,10 +1095,10 @@ public class CatalogueContentTypeModelRulesTests
             json.Should().NotContain("newsOrganisationRemoved");
         }
 
-        fromLegacy!.ParentMetadataVersion.Should().Be(metadataVersion);
-        fromLegacy.ParentRemoved.Should().BeTrue();
-        rewritten.Should().Contain("\"parentMetadataVersion\"");
-        rewritten.Should().Contain("\"parentRemoved\"");
+        fromLegacy!.ParentMetadataVersion.Should().BeNull();
+        fromLegacy.ParentRemoved.Should().BeNull();
+        rewritten.Should().NotContain("parentMetadataVersion");
+        rewritten.Should().NotContain("parentRemoved");
         rewritten.Should().NotContain("podcastMetadataVersion");
         rewritten.Should().NotContain("podcastRemoved");
     }

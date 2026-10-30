@@ -114,11 +114,22 @@ Shipping Phase 1 code without those keys on every Function app is the same class
 
 Phase 1 renames several Episode denorm wire names and adds `releaseSort`. **Deserialize bridges are not query-safe** — Cosmos SQL/LINQ evaluates stored JSON, not client setters. See epic § [Episode JSON cutover](./catalogue-content-types-epic.md#episode-json-cutover-phase-1).
 
-**Before Function code that filters on the new names ships:**
+**History:** Phase 1 shipped **dual-key** predicates and deserialize bridges so legacy docs kept matching; GATE 1 then ran the corpus wire rewrite (`films-refactor/EpisodeWireRewrite`). GATE 5 step 5 **dropped the bridges and dual-key** — code now reads and queries the new names only (`Playable.CosmosParentNotRemovedSql` = `parentRemoved` only, absent/null/false = not removed; `EpisodeCosmosFilters` / `PlayableCosmosFilters` filter on `releaseSort` only; search SQL projects `releaseSort as release` and `publisherSearchTerms` only).
 
-1. Prefer **dual-key** predicates (`Playable.CosmosParentNotRemovedSql`, `Playable.CosmosReleaseSortOrReleaseSql`, `EpisodeCosmosFilters`) so legacy docs keep matching.
-2. Optional corpus rewrite / `releaseSort` backfill is a separate tool (dry-run default; `--apply` only with explicit approval) — not required if dual-key is in place, but required before dropping dual-key or bridges.
-3. Order relative to container provision: containers + `cosmosdb__*` settings first (above), then dual-key-safe Function code, then optional backfill.
+**Before deploying code without the bridges:**
+
+1. Confirm the Episodes container has **no** legacy wire names and every Episode has `releaseSort` — read-only audit (Cosmos Data Explorer, expect `0`):
+   `SELECT VALUE COUNT(1) FROM c WHERE IS_DEFINED(c.podcastSearchTerms) OR IS_DEFINED(c.podcastLanguage) OR IS_DEFINED(c.podcastMetadataVersion) OR IS_DEFINED(c.podcastRemoved) OR NOT IS_DEFINED(c.releaseSort) OR IS_NULL(c.releaseSort)`
+   **Do not add a `c.type='Episode'` filter.** The Episodes container holds only Episode docs, but their stored `type` may be the string `"Episode"`, the number `2`, or absent (as `EpisodeWireRewrite.WireCutoverPlanner` accepts). On 30 Oct 2026 only 2,902 of 93,939 docs had `type='Episode'`, so a type filter checks about 3% of the corpus and can return `0` while legacy docs remain.
+   or the `EpisodeWireRewrite` dry run (`dotnet run --project films-refactor/EpisodeWireRewrite -- --all`, no `--apply`). If non-zero, re-run the rewrite (with explicit approval) before deploying.
+   The `release` fallback was also dropped for TV show episodes and news reports (`PlayableCosmosFilters`, homepage, social posts, sibling search SQL), so run the same read-only check on the TV-show-episode and news-report containers (expect `0` each):
+   `SELECT VALUE COUNT(1) FROM c WHERE NOT IS_DEFINED(c.releaseSort) OR IS_NULL(c.releaseSort)`
+   A non-zero count there means those items drop out of "released since" filters and get a null search `release`; re-save them (e.g. via the admin edit, which writes `releaseSort`) before deploying.
+2. Merge to `main`: the GitHub Actions **Provision and Deploy** workflow ([`deploy.yml`](../.github/workflows/deploy.yml), on push to `main`) auto-deploys the `api`, `discover` and `indexer` Function apps. The local `deploy-indexer.ps1` → `deploy-discover.ps1` → `deploy-api.ps1` chain is a **fallback only** (when Actions is unavailable). Then republish consoles that use these libraries (e.g. CreateSearchIndex, FindDuplicateEpisodes) before their next run.
+3. Deployed Azure Search datasources keep their older dual-key SQL until CreateSearchIndex is re-run; that SQL stays correct against a rewritten corpus, so a re-run is optional. (A re-run also picks up the `parentRemoved: null` = not-removed arm in the episode and sibling datasources.)
+4. No app settings were added for the bridges, so none need removing.
+
+**Result for #1151/#1152 (30 Oct 2026):** the read-only production audit at 14:41 GMT returned `0` on the Episodes container (with and without the `type` filter) and `0` on the TV-show-episode and news-report containers. DoD § F step F checks 1–5 passed; the PublicDatabase `update.ps1` preview ran clean 15:54–16:00 GMT (preview only, nothing published).
 
 ## Thin wrapper architecture
 
