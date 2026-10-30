@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.Episodes.TestSupport.Fakes;
 /// server-side. In-memory fakes must rewrite them before <see cref="Expression.Compile"/>.
 /// CLR objects always have the member: treat <c>IsDefined</c> as <c>true</c>.
 /// </summary>
-internal static class CosmosLinqInMemoryRewriter
+public static class CosmosLinqInMemoryRewriter
 {
     public static Expression<Func<T, bool>> ForInMemory<T>(Expression<Func<T, bool>> expression) =>
         Expression.Lambda<Func<T, bool>>(new Visitor().Visit(expression.Body)!, expression.Parameters);

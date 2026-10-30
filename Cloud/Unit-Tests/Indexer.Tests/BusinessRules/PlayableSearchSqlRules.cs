@@ -183,8 +183,9 @@ public class PlayableSearchSqlRules
 
     [Fact(DisplayName =
         "podcastAppleId is cut from the last /id segment before ?i= (the part before ?i= reversed, up to the first " +
-        "di/), so an Apple slug that itself starts with \"id\" (identity-crisis, idaho-...) cannot be taken for the " +
-        "show id, which the old first-/id expression got wrong on every content kind.")]
+        "di/) with SUBSTRING, so a missing ?i= or /id (INDEX_OF of -1) is an empty prefix and cut > 0 keeps an empty " +
+        "id null, and an Apple slug that itself starts with \"id\" (identity-crisis, idaho-...) cannot be taken for " +
+        "the show id, which the old first-/id expression got wrong on every content kind.")]
     public void podcast_apple_id_is_anchored_on_the_last_id_segment()
     {
         // Arrange
@@ -194,8 +195,10 @@ public class PlayableSearchSqlRules
         var sql = Normalise(PlayableSearchSql.ApplePodcastIdFromUrlExpression(urlExpression));
 
         // Assert
-        sql.Should().Contain("REVERSE(LEFT(e.services.apple.url, INDEX_OF(e.services.apple.url, \"?i=\")))");
-        sql.Should().Contain("INDEX_OF(REVERSE(LEFT(e.services.apple.url, INDEX_OF(e.services.apple.url, \"?i=\"))), \"di/\") > 0");
+        sql.Should().Contain("REVERSE(SUBSTRING(e.services.apple.url, 0, INDEX_OF(e.services.apple.url, \"?i=\")))");
+        sql.Should().Contain(
+            "INDEX_OF(REVERSE(SUBSTRING(e.services.apple.url, 0, INDEX_OF(e.services.apple.url, \"?i=\"))), \"di/\") > 0");
+        sql.Should().NotContain("LEFT(");
         sql.Should().NotContain("INDEX_OF(e.services.apple.url, \"/id\")");
         sql.Should().EndWith("null)");
     }

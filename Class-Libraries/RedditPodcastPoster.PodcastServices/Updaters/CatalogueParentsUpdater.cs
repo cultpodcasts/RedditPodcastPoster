@@ -5,6 +5,8 @@ using RedditPodcastPoster.Catalogue.Episodes;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.EpisodeLookup;
+using RedditPodcastPoster.Episodes.Matching; // pragma: allowlist secret
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
@@ -54,7 +56,12 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// an id already owned by another item is never assigned again also covers links held outside the window. The
 /// catch-up is bounded so it cannot eat the per-parent budget that discovery and the save need: at most
 /// <see cref="AudioCatchUpMaxCandidatesPerPass"/> items per pass (newest first, then longest first so a full episode
-/// claims its link before a shorter item), only items released in the last <see cref="AudioCatchUpRecency"/>, no item
+/// claims its link before a shorter item of the same title when both are looked up). A shorter item is kept out of a
+/// service while a strictly longer same-title item in the window still lacks that service and is not in this pass's
+/// capped set, including when that longer item is outside the recency window, outside the newest few, or older than
+/// this pass's release cutoff while still inside the matcher's 14-day acceptance (one release-filtered read; the
+/// provider cutoff and the parent's whole history stay as they are, and #1161 stays deferred). Only items released
+/// in the last <see cref="AudioCatchUpRecency"/> are looked up, no item
 /// shorter than <see cref="AudioCatchUpMinimumLength"/> (a clip is not looked up), and a soft stop once
 /// <see cref="AudioCatchUpBudgetShare"/> of the pass budget has elapsed. A stopped or failed catch-up never fails the
 /// pass. A Spotify rate limit hit during the catch-up does not mark the pass as bypassed (the bypass check uses the skip
@@ -610,11 +617,17 @@ public class CatalogueParentsUpdater(
         var discoverySkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var inScope = existing.Concat(addedEpisodes).ToList();
         indexingContext.ReportStage("enrich-audio-services", $"in-window={inScope.Count}");
+        // The provider already used this clone with the flow the batch passed in. Catch-up is the Index flow
+        // (newest pages, no title search), the same entry point as PodcastUpdater, on the clone IndexWithinBudget
+        // made so this pass's provider lookup is unchanged.
+        EpisodeLookupUseCases.ForIndex(indexingContext);
         var enrichedIds = await EnrichMissingAudioServices(
             parent,
             podcast,
             inScope,
             (since, ct) => LoadAudioLinkHolders(loadAudioLinkHolders, since, podcast, ct),
+            (since, ct) => LoadAudioLinkHolders(loadPlayables, since, podcast, ct),
+            repositoryReleasedSince,
             CatchUpDeadline(passStarted, expensivePass),
             indexingContext);
         cancellationToken.ThrowIfCancellationRequested();
@@ -765,6 +778,8 @@ public class CatalogueParentsUpdater(
         Podcast podcast,
         IReadOnlyList<Episode> inWindow,
         Func<DateTime, CancellationToken, Task<List<Episode>>> loadHolders,
+        Func<DateTime, CancellationToken, Task<List<Episode>>> loadReleasedOnOrAfter,
+        DateTime repositoryReleasedSince,
         long? softDeadline,
         IndexingContext indexingContext)
     {
@@ -788,45 +803,89 @@ public class CatalogueParentsUpdater(
             .Where(x => x.Length <= TimeSpan.Zero || x.Length >= AudioCatchUpMinimumLength)
             .ToList();
         var skippedShort = recent.Count - longEnough.Count;
-        // Newest first picks which items this pass looks up; longest first within them lets a full episode claim its
-        // link before a shorter item of the same story is offered.
-        var candidates = longEnough
+        // Newest first picks which items this pass looks up. A shorter item stays out of a service while a
+        // strictly longer same-title item still lacks that service and is not in this capped set. That longer
+        // item may sit outside the recency window, outside the newest few, or older than this pass's release
+        // cutoff while still inside the matcher's 14-day acceptance (#1161 leaves that tolerance unchanged).
+        // When both are in the set, longest first lets the full item claim the link before the shorter one.
+        var capped = longEnough
             .OrderByDescending(x => x.ReleaseUtc)
             .Take(AudioCatchUpMaxCandidatesPerPass)
-            .OrderByDescending(x => x.Length)
-            .ThenBy(x => x.ReleaseUtc)
             .ToList();
-        var skippedByCap = longEnough.Count - candidates.Count;
+        var skippedByCap = longEnough.Count - capped.Count;
+        var cappedIds = capped.Select(x => x.Id).ToHashSet();
+        var stillMissing = new List<Episode>(missing);
+        List<Episode> candidates = [];
+        var skippedShorter = 0;
         var holderCount = 0;
         var lookedUp = 0;
         var skippedByBudget = 0;
         string? failure = null;
-        if (candidates.Count > 0)
+        if (longEnough.Count > 0)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var holdersSince = candidates.Min(x => x.ReleaseUtc) - AudioCatchUpHolderLookback;
-                var inWindowIds = inWindow.Select(x => x.Id).ToHashSet();
-                var holders = (await loadHolders(holdersSince, cancellationToken))
-                    .Where(x => !inWindowIds.Contains(x.Id))
-                    .ToList();
-                holderCount = holders.Count;
-                // In-window instances come first and win: they carry this pass's merges and earlier catch-up links.
-                IReadOnlyList<Episode> requestEpisodes = [.. inWindow, .. holders];
-                foreach (var episode in candidates)
+                // Hourly passes cut the provider read at about two days, which is newer than the matcher's
+                // acceptance. One release-filtered read brings in older gaps; they are not lookup candidates.
+                // The matcher measures its 14 days from the probe's release, so the read reaches 14 days before
+                // the oldest item that could be offered (not 14 days before now).
+                var acceptanceSince = capped.Min(x => x.ReleaseUtc)
+                    - EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold;
+                if (repositoryReleasedSince > acceptanceSince)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (softDeadline is { } deadline && timeProvider.GetTimestamp() >= deadline)
-                    {
-                        skippedByBudget = candidates.Count - lookedUp;
-                        break;
-                    }
+                    var knownIds = inWindow.Select(x => x.Id).ToHashSet();
+                    var older = await loadReleasedOnOrAfter(acceptanceSince, cancellationToken);
+                    stillMissing.AddRange(older.Where(episode =>
+                        !knownIds.Contains(episode.Id) &&
+                        !episode.Removed &&
+                        ((lookUpSpotify && MissingSpotify(episode)) || (lookUpApple && MissingApple(episode)))));
+                }
 
-                    lookedUp++;
-                    if (await EnrichCandidate(podcast, requestEpisodes, episode, lookUpSpotify, lookUpApple, indexingContext))
+                bool OfferSpotify(Episode episode) =>
+                    lookUpSpotify &&
+                    MissingSpotify(episode) &&
+                    !DeferredBehindLongerSameTitle(episode, stillMissing, cappedIds, MissingSpotify);
+                bool OfferApple(Episode episode) =>
+                    lookUpApple &&
+                    MissingApple(episode) &&
+                    !DeferredBehindLongerSameTitle(episode, stillMissing, cappedIds, MissingApple);
+                candidates = capped
+                    .Where(episode => OfferSpotify(episode) || OfferApple(episode))
+                    .OrderByDescending(x => x.Length)
+                    .ThenBy(x => x.ReleaseUtc)
+                    .ToList();
+                skippedShorter = capped.Count - candidates.Count;
+                if (candidates.Count > 0)
+                {
+                    var holdersSince = candidates.Min(x => x.ReleaseUtc) - AudioCatchUpHolderLookback;
+                    var inWindowIds = inWindow.Select(x => x.Id).ToHashSet();
+                    var holders = (await loadHolders(holdersSince, cancellationToken))
+                        .Where(x => !inWindowIds.Contains(x.Id))
+                        .ToList();
+                    holderCount = holders.Count;
+                    // In-window instances come first and win: they carry this pass's merges and earlier catch-up links.
+                    IReadOnlyList<Episode> requestEpisodes = [.. inWindow, .. holders]; // pragma: allowlist secret
+                    foreach (var episode in candidates)
                     {
-                        enriched.Add(episode.Id);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (softDeadline is { } deadline && timeProvider.GetTimestamp() >= deadline)
+                        {
+                            skippedByBudget = candidates.Count - lookedUp;
+                            break;
+                        }
+
+                        lookedUp++;
+                        if (await EnrichCandidate(
+                                podcast,
+                                requestEpisodes, // pragma: allowlist secret
+                                episode,
+                                OfferSpotify(episode),
+                                OfferApple(episode),
+                                indexingContext))
+                        {
+                            enriched.Add(episode.Id);
+                        }
                     }
                 }
             }
@@ -840,9 +899,9 @@ public class CatalogueParentsUpdater(
         }
 
         logger.LogInformation(
-            "{Prefix} parent-id='{ParentId}' name='{ParentName}' missing='{Missing}' candidates='{Candidates}' looked-up='{LookedUp}' enriched='{Enriched}' holders='{Holders}' skipped-old='{SkippedOld}' skipped-short='{SkippedShort}' skipped-by-cap='{SkippedByCap}' skipped-by-budget='{SkippedByBudget}' failure='{Failure}'.",
+            "{Prefix} parent-id='{ParentId}' name='{ParentName}' missing='{Missing}' candidates='{Candidates}' looked-up='{LookedUp}' enriched='{Enriched}' holders='{Holders}' skipped-old='{SkippedOld}' skipped-short='{SkippedShort}' skipped-shorter='{SkippedShorter}' skipped-by-cap='{SkippedByCap}' skipped-by-budget='{SkippedByBudget}' failure='{Failure}'.",
             AudioCatchUpMessagePrefix, parent.Id, parent.Name, missing.Count, candidates.Count, lookedUp, enriched.Count,
-            holderCount, skippedOld, skippedShort, skippedByCap, skippedByBudget, failure);
+            holderCount, skippedOld, skippedShort, skippedShorter, skippedByCap, skippedByBudget, failure);
         return enriched;
     }
 
@@ -919,6 +978,49 @@ public class CatalogueParentsUpdater(
 
     private static EpisodeIds CopyIds(EpisodeIds ids) =>
         new() { Spotify = ids.Spotify, Apple = ids.Apple, YouTube = ids.YouTube };
+
+    /// <summary>
+    /// True when <paramref name="episode"/> lacks <paramref name="lacksService"/> and a strictly longer same-title
+    /// item in <paramref name="stillMissing"/> also lacks it and is not in this pass's capped set. That list is the
+    /// in-window gaps plus playables older than the release cutoff and still inside the matcher's acceptance window.
+    /// The shorter item must not be offered
+    /// that service: the matcher returns the first same-title row before it scores duration, so the shorter item
+    /// would take the link the longer item still needs.
+    /// </summary>
+    private static bool DeferredBehindLongerSameTitle(
+        Episode episode,
+        IReadOnlyList<Episode> stillMissing,
+        HashSet<Guid> cappedIds,
+        Func<Episode, bool> lacksService)
+    {
+        if (!lacksService(episode))
+        {
+            return false;
+        }
+
+        foreach (var longer in stillMissing)
+        {
+            if (longer.Id == episode.Id ||
+                longer.Length <= episode.Length ||
+                cappedIds.Contains(longer.Id) ||
+                !lacksService(longer) ||
+                !SameTitle(longer, episode))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Same comparison the catalogue matcher uses for an exact title (decoded, trimmed, ordinal).</summary>
+    private static bool SameTitle(Episode left, Episode right) =>
+        string.Equals(NormalisedTitle(left.Title), NormalisedTitle(right.Title), StringComparison.Ordinal);
+
+    private static string NormalisedTitle(string? title) =>
+        System.Net.WebUtility.HtmlDecode(title ?? string.Empty).Trim();
 
     private static bool MissingSpotify(Episode episode) =>
         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) == null ||

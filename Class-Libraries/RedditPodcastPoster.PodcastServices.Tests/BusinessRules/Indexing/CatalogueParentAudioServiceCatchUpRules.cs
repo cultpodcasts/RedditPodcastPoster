@@ -12,6 +12,7 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Episodes.Matching.Candidates; // pragma: allowlist secret
 using RedditPodcastPoster.PodcastServices.Abstractions.Matching;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Apple.Enrichers;
@@ -42,6 +43,8 @@ public class CatalogueParentAudioServiceCatchUpRules
     private List<NewsReport> _storedReports = [];
     private List<TvShowEpisode> _storedTvEpisodes = [];
     private readonly List<(Guid EpisodeId, IReadOnlyList<Episode> Window)> _spotifyCalls = [];
+    private readonly List<EpisodeLookupFlow> _spotifyLookupFlows = [];
+    private EpisodeLookupFlow? _providerLookupFlow;
     private readonly List<Guid> _appleCalls = [];
     private Action<EnrichmentRequest, EnrichmentContext> _spotifyMatch = (_, _) => { };
     private Action<EnrichmentRequest, EnrichmentContext> _appleMatch = (_, _) => { };
@@ -74,7 +77,8 @@ public class CatalogueParentAudioServiceCatchUpRules
             .ReturnsAsync(true);
 
         var reports = _mocker.GetMock<INewsReportRepository>();
-        // First read per pass is the release window, any second read is the Spotify / Apple link holders read.
+        // Read 0 is the release window. A narrower window also reads the matcher's acceptance span before link
+        // holders; both of those later reads return holders here, which is enough for the holder rules.
         reports.Setup(x => x.GetByNewsOrganisationId(It.IsAny<Guid>(), It.IsAny<Expression<Func<NewsReport, bool>>>()))
             .Returns((Guid id, Expression<Func<NewsReport, bool>> _) =>
                 (_reportReads++ == 0 ? _storedReports : _holderReports)
@@ -93,6 +97,8 @@ public class CatalogueParentAudioServiceCatchUpRules
         // By default no discovery and no merge: the catch-up step alone must fill the gap.
         _mocker.GetMock<IEpisodeProvider>()
             .Setup(x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .Callback((Podcast _, IEnumerable<Episode> _, IndexingContext context) =>
+                _providerLookupFlow = context.LookupFlow)
             .ReturnsAsync(() => [.. _discovered]);
         _mocker.GetMock<IEpisodeMerger>()
             .Setup(x => x.MergeEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IEnumerable<Episode>>()))
@@ -120,6 +126,7 @@ public class CatalogueParentAudioServiceCatchUpRules
             .Callback((EnrichmentRequest request, IndexingContext indexingContext, EnrichmentContext context) =>
             {
                 _spotifyCalls.Add((request.Episode.Id, request.Episodes.ToList()));
+                _spotifyLookupFlows.Add(indexingContext.LookupFlow);
                 _onSpotifyLookup(indexingContext);
                 _spotifyMatch(request, context);
             })
@@ -434,7 +441,7 @@ public class CatalogueParentAudioServiceCatchUpRules
             [organisation.Id], new IndexingContext(DomainTestFixture.UtcDateDaysAgo(3), IndexSpotify: false));
 
         // Assert
-        _reportReads.Should().Be(2);
+        _reportReads.Should().Be(3);
         _spotifyCalls.Should().ContainSingle().Which.Window.Select(x => x.Id)
             .Should().BeEquivalentTo([candidate.Id, holder.Id]);
         _savedReports.Should().BeEmpty();
@@ -615,6 +622,27 @@ public class CatalogueParentAudioServiceCatchUpRules
         saved.Description.Should().Be(mergedDescription);
         saved.Release.Should().Be(storedRelease);
         saved.Services![ServiceKeys.Apple].Url.Should().Be(AppleEpisodeUrl(appleEpisodeId));
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent audio catch-up: when an odd-hour pass looks up Spotify for a report missing it, then the " +
+        "Spotify enricher receives LookupFlow Index while the episode provider still sees Submit, because catch-up " +
+        "must use the indexer chain (newest pages, no title search) on the per-parent clone after the provider has " +
+        "already returned.")]
+    public async Task catch_up_spotify_enricher_uses_the_index_flow()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedOrganisation(ParentPodcast(applePodcast: false));
+        _storedReports = [StoredYouTubeOnlyReport(podcast, organisation, FullLength)];
+        var pass = OddHourPass();
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], pass);
+
+        // Assert
+        _providerLookupFlow.Should().Be(EpisodeLookupFlow.Submit);
+        _spotifyLookupFlows.Should().ContainSingle().Which.Should().Be(EpisodeLookupFlow.Index);
+        pass.LookupFlow.Should().Be(EpisodeLookupFlow.Submit);
     }
 
     /// <summary>Clock whose wall time and timestamps only move when a rule advances them.</summary>

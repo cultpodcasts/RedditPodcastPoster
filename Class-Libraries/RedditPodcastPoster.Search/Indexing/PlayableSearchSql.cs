@@ -85,18 +85,23 @@ public static class PlayableSearchSql
     /// Apple podcast (show) id from an Apple episode URL expression: the text of the last <c>/id</c> path segment
     /// before <c>?i=</c> (<c>…/podcast/{slug}/id{podcastId}?i={episodeId}</c>). Shared by the Episodes data source
     /// and <see cref="SiblingQuery"/>. Cosmos has no <c>LAST_INDEX_OF</c>, so the part before <c>?i=</c> is reversed and
-    /// cut at the first <c>di/</c>: a slug that itself starts with "id" (<c>identity-crisis</c>, <c>idaho-…</c>)
-    /// cannot be taken for the id, and a slug-less <c>/podcast/id{podcastId}?i=</c> still works. Null when there is no
-    /// <c>?i=</c> or no <c>/id</c> before it. <see cref="PlayableServiceSearchIds.ApplePodcastId"/> is the C# twin.
+    /// cut at the first <c>di/</c>. Both cuts use <c>SUBSTRING</c>: <c>INDEX_OF</c> is <c>-1</c> when <c>?i=</c> or
+    /// <c>/id</c> is missing, and a negative <c>SUBSTRING</c> length is <c>""</c> (<c>LEFT</c> does not document a
+    /// negative length). <c>cut &gt; 0</c> keeps an empty id null. A slug that itself starts with "id"
+    /// (<c>identity-crisis</c>, <c>idaho-…</c>) cannot be taken for the id, and a slug-less
+    /// <c>/podcast/id{podcastId}?i=</c> still works. Null when there is no <c>?i=</c> or no <c>/id</c> before it.
+    /// <see cref="PlayableServiceSearchIds.ApplePodcastId"/> is the C# twin.
     /// </summary>
     public static string ApplePodcastIdFromUrlExpression(string urlExpression)
     {
-        var beforeEpisode = $"LEFT({urlExpression}, INDEX_OF({urlExpression}, \"?i=\"))";
+        // SUBSTRING, not LEFT: INDEX_OF is -1 when ?i= or /id is missing, and only SUBSTRING
+        // documents a negative length (it returns ""). cut > 0 keeps that empty id null.
+        var beforeEpisode = $"SUBSTRING({urlExpression}, 0, INDEX_OF({urlExpression}, \"?i=\"))";
         var reversed = $"REVERSE({beforeEpisode})";
         var cut = $"INDEX_OF({reversed}, \"di/\")";
         return $"""
             IIF(IS_DEFINED({urlExpression}) AND IS_STRING({urlExpression}) AND CONTAINS({urlExpression}, "?i="),
-                IIF({cut} > 0, REVERSE(LEFT({reversed}, {cut})), null),
+                IIF({cut} > 0, REVERSE(SUBSTRING({reversed}, 0, {cut})), null),
                 null)
             """;
     }
