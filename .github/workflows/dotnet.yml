@@ -32,6 +32,24 @@ jobs:
       run: dotnet build --configuration Release
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal
+    # Reuses the Release build above. UTC runners hide the host-local DateTime
+    # conversion fixed in #1191; Auckland is east of UTC, where that bug threw.
+    - name: Test search indexing under a non-UTC host time zone (#1191)
+      env:
+        TZ: Pacific/Auckland
+      run: |
+        offset="$(date +%z)"
+        case "$offset" in
+          +1200|+1300)
+            echo "Host local offset is $offset (Pacific/Auckland)."
+            ;;
+          *)
+            echo "Expected Pacific/Auckland (+1200 or +1300); date reports $offset. TZ was not applied." >&2
+            exit 1
+            ;;
+        esac
+        dotnet test Cloud/Unit-Tests/FunctionHost.Tests --no-build --configuration Release --verbosity normal
+        dotnet test Cloud/Unit-Tests/Indexer.Tests --no-build --configuration Release --verbosity normal
     - name: Episode domain coverage gate
       shell: pwsh
       run: ./scripts/coverage-gate.ps1 -NoBuild -Verbose
