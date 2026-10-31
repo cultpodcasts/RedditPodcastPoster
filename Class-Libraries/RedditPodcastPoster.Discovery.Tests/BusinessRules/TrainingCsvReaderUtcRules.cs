@@ -35,4 +35,32 @@ public class TrainingCsvReaderUtcRules
             File.Delete(path);
         }
     }
+
+    [Fact(DisplayName =
+        "When a training row's discoveryBegan is not ISO-8601 (culture-formatted or time-only), then it is read as DateTime.MinValue rather than a guessed date, because the exporter always writes ISO (round-trip \"O\") text.")]
+    public void non_iso_discovery_began_is_not_guessed()
+    {
+        // Arrange
+        var path = Path.Combine(Path.GetTempPath(), $"training-{Path.GetRandomFileName()}.csv");
+        File.WriteAllLines(path,
+        [
+            "state,discoveryBegan",
+            "Accepted,10/11/2026",
+            "Rejected,12:30"
+        ]);
+
+        try
+        {
+            // Act
+            var rows = TrainingCsvReader.ReadLabeledRows(path).ToList();
+
+            // Assert
+            rows.Should().HaveCount(2);
+            rows.Should().OnlyContain(x => x.DiscoveryBegan == DateTime.MinValue);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

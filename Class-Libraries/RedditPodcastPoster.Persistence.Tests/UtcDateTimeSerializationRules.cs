@@ -203,19 +203,87 @@ public class UtcDateTimeSerializationRules
     }
 
     [Theory(DisplayName =
-        "When a date-time field holds text that is not a date-time or a non-string token, then reading fails with a JsonException, because a single parse decides what a valid date-time is.")]
+        "When a date-time field holds non-ISO text (culture-formatted, time-only or not a date) or a non-string token, then reading fails with a JsonException and TryParseIso rejects the text, because a guessed or clock-dependent instant must never be accepted.")]
     [InlineData("\"not-a-date\"")]
+    [InlineData("\"10/11/2026\"")]
+    [InlineData("\"Oct 31 2026\"")]
+    [InlineData("\"31 October 2026 9pm\"")]
+    [InlineData("\"12:30\"")]
+    [InlineData("\"\"")]
     [InlineData("12345")]
     [InlineData("true")]
-    public void invalid_date_time_tokens_throw_json_exception(string json)
+    public void non_iso_date_time_tokens_throw_json_exception(string json)
     {
         // Arrange
         var readDateTime = () => JsonSerializer.Deserialize<DateTime>(json, _options);
         var readDateTimeOffset = () => JsonSerializer.Deserialize<DateTimeOffset>(json, _options);
+        var readNullable = () => JsonSerializer.Deserialize<DateTime?>(json, _options);
+        var text = json.Trim('"');
 
-        // Act / Assert
+        // Act
+        var parsed = UtcDateTimes.TryParseIso(text, out _);
+
+        // Assert
         readDateTime.Should().Throw<JsonException>();
         readDateTimeOffset.Should().Throw<JsonException>();
+        readNullable.Should().Throw<JsonException>();
+        parsed.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "When a date-time field holds ISO-8601 text with a Z, an offset or no zone (with or without fractional seconds), then it is read as the UTC instant for DateTime, DateTimeOffset and TryParseIso, because strict ISO parsing must still accept every ISO form the API and stored data use.")]
+    [InlineData("Z", 0, false)]
+    [InlineData("", 0, false)]
+    [InlineData("+01:00", 1, false)]
+    [InlineData("-05:00", -5, false)]
+    [InlineData("Z", 0, true)]
+    [InlineData("+01:00", 1, true)]
+    [InlineData("", 0, true)]
+    public void iso_forms_are_read_as_utc(string zone, int offsetHours, bool fractional)
+    {
+        // Arrange
+        var value = CreateUtcInstant().AddTicks(fractional ? 1234567 : 0);
+        var wallClock = value.AddHours(offsetHours);
+        var text = $"{wallClock:yyyy-MM-ddTHH:mm:ss}{(fractional ? $"{wallClock:.fffffff}" : string.Empty)}{zone}";
+        var json = $"\"{text}\"";
+
+        // Act
+        var readDateTime = JsonSerializer.Deserialize<DateTime>(json, _options);
+        var readDateTimeOffset = JsonSerializer.Deserialize<DateTimeOffset>(json, _options);
+        var parsed = UtcDateTimes.TryParseIso(text, out var fromText);
+
+        // Assert
+        readDateTime.Should().Be(value);
+        readDateTime.Kind.Should().Be(DateTimeKind.Utc);
+        readDateTimeOffset.UtcDateTime.Should().Be(value);
+        readDateTimeOffset.Offset.Should().Be(TimeSpan.Zero);
+        parsed.Should().BeTrue();
+        fromText.Should().Be(value);
+        fromText.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [Theory(DisplayName =
+        "When offset text falls in the UK repeated October hour, then each occurrence is read as its own UTC instant, because an explicit offset must never be re-read through the host's time zone.")]
+    [InlineData("+01:00", 0)]
+    [InlineData("+00:00", 1)]
+    public void offset_in_repeated_october_hour_keeps_its_instant(string offset, int utcHour)
+    {
+        // Arrange
+        var year = DomainTestFixture.UtcToday.Year + 1;
+        var lastDay = new DateTime(year, 10, 31, 0, 0, 0, DateTimeKind.Utc);
+        var changeDay = lastDay.AddDays(-(int)lastDay.DayOfWeek);
+        var expected = changeDay.AddHours(utcHour).AddMinutes(30);
+        var text = $"{changeDay:yyyy-MM-dd}T01:30:00{offset}";
+
+        // Act
+        var read = JsonSerializer.Deserialize<DateTime>($"\"{text}\"", _options);
+        var parsed = UtcDateTimes.TryParseIso(text, out var fromText);
+
+        // Assert
+        read.Should().Be(expected);
+        read.Kind.Should().Be(DateTimeKind.Utc);
+        parsed.Should().BeTrue();
+        fromText.Should().Be(expected);
     }
 
     [Fact(DisplayName =

@@ -12,8 +12,8 @@ namespace RedditPodcastPoster.Models.Serialization;
 /// <item><see cref="DateTimeKind.Unspecified"/> is taken to be UTC already (as <c>CatalogueRelease</c> does).</item>
 /// <item><see cref="DateTimeKind.Local"/> is converted to UTC.</item>
 /// </list>
-/// Reading accepts an ISO-8601 date-time string, parsed once by <see cref="UtcDateTimes.ParseIso"/>. A value with no
-/// zone is read as UTC, and a value with an offset is adjusted to UTC; the result always has
+/// Reading accepts only an ISO-8601 date-time string, checked by <see cref="UtcDateTimes"/> with the System.Text.Json
+/// ISO-8601 parser; anything else is a <see cref="JsonException"/>. A value with no zone is read as UTC, and a value with an offset is adjusted to UTC; the result always has
 /// <see cref="DateTimeKind.Utc"/>. System.Text.Json applies this converter to <see cref="Nullable{T}"/> values too,
 /// and handles <c>null</c> itself.
 /// </summary>
