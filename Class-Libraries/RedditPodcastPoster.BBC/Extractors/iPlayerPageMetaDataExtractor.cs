@@ -14,6 +14,7 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
     private static readonly Regex DurationRegex = CreateDurationRegex();
     private static readonly Regex ReleaseRegex = CreateReleaseRegex();
     private static readonly CultureInfo Uk = new("en-GB");
+    private static readonly TimeZoneInfo UkTimeZone = ResolveUkTimeZone();
     private static readonly Regex NumericPrefix = CreateNumericPrefixRegex();
 
     public async Task<NonPodcastServiceItemMetaData> Extract(Uri url, HttpResponseMessage pageResponse)
@@ -136,6 +137,9 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
                             {
                                 release += TimeSpan.FromMinutes(_min);
                             }
+
+                            // iPlayer shows the broadcast time as UK wall-clock time (GMT/BST); store the UTC instant.
+                            release = UkWallClockToUtc(release.Value);
                         }
                     }
                 }
@@ -250,4 +254,38 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         Uri? Image,
         bool Explicit,
         string? Series);
+
+    /// <summary>
+    /// Converts a UK wall-clock time (no zone) to UTC: one hour earlier during BST, unchanged during GMT.
+    /// A wall-clock time in the spring-forward gap does not exist; it is read as GMT (BST minus an hour).
+    /// </summary>
+    internal static DateTime UkWallClockToUtc(DateTime ukWallClock)
+    {
+        var unspecified = DateTime.SpecifyKind(ukWallClock, DateTimeKind.Unspecified);
+        if (UkTimeZone.IsInvalidTime(unspecified))
+        {
+            return DateTime.SpecifyKind(unspecified - UkTimeZone.BaseUtcOffset, DateTimeKind.Utc);
+        }
+
+        return TimeZoneInfo.ConvertTimeToUtc(unspecified, UkTimeZone);
+    }
+
+    private static TimeZoneInfo ResolveUkTimeZone()
+    {
+        foreach (var id in new[] { "Europe/London", "GMT Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        throw new InvalidOperationException("Unable to resolve UK time zone (tried Europe/London / GMT Standard Time).");
+    }
 }

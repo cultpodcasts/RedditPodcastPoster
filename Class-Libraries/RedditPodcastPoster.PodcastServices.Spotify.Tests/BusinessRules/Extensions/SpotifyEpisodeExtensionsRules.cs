@@ -31,7 +31,7 @@ public class SpotifyEpisodeExtensionsRules
     }
 
     [Fact(DisplayName =
-        "When SimpleEpisode ReleaseDate is a valid Spotify date string, GetReleaseDate parses it " +
+        "When SimpleEpisode ReleaseDate is a valid Spotify date string, GetReleaseDate parses it as midnight UTC " +
         "because catalogue release comparisons depend on accurate dates.")]
     public void Simple_episode_valid_release_date_is_parsed()
     {
@@ -44,6 +44,7 @@ public class SpotifyEpisodeExtensionsRules
 
         // Assert
         result.Should().Be(DateTime.ParseExact(releaseDate, "yyyy-MM-dd", null));
+        result.Kind.Should().Be(DateTimeKind.Utc);
     }
 
     [Theory(DisplayName =
@@ -64,7 +65,7 @@ public class SpotifyEpisodeExtensionsRules
     }
 
     [Fact(DisplayName =
-        "When FullEpisode ReleaseDate is a valid Spotify date string, GetReleaseDate parses it " +
+        "When FullEpisode ReleaseDate is a valid Spotify date string, GetReleaseDate parses it as midnight UTC " +
         "because enricher and resolver paths share the same release-date semantics.")]
     public void Full_episode_valid_release_date_is_parsed()
     {
@@ -77,6 +78,7 @@ public class SpotifyEpisodeExtensionsRules
 
         // Assert
         result.Should().Be(DateTime.ParseExact(releaseDate, "yyyy-MM-dd", null));
+        result.Kind.Should().Be(DateTimeKind.Utc);
     }
 
     [Theory(DisplayName =
