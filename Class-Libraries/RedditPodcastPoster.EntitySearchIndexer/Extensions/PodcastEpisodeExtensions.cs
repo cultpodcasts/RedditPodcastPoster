@@ -1,6 +1,7 @@
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
@@ -49,13 +50,23 @@ public static class PodcastEpisodeExtensions
             PodcastAppleId = podcastEpisode.Podcast.AppleId?.ToString(),
             PodcastName = includeUnifiedPlayableFields ? null : podcastEpisode.Podcast.Name.Trim(),
             PublisherSearchTerms = podcastEpisode.Podcast.SearchTerms ?? string.Empty,
-            Release = podcastEpisode.Episode.ReleaseUtc,
+            Release = SearchRelease(podcastEpisode.Episode.ReleaseUtc),
             Svc = SearchEpisodeServices.Compact(podcastEpisode.Episode.Services),
             SpotifyId = NullIfWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode.Episode)),
             Subjects = podcastEpisode.Episode.Subjects?.ToArray() ?? [],
             YoutubeId = NullIfWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode))
         };
     }
+
+    /// <summary>
+    /// The search <c>release</c> as a UTC offset. <see cref="Episode.ReleaseUtc"/> is UTC by contract, but a playable
+    /// with no release has the default <see cref="DateTime.MinValue"/> with <see cref="DateTimeKind.Unspecified"/>.
+    /// The implicit <see cref="DateTime"/> to <see cref="DateTimeOffset"/> conversion reads a non-UTC kind as host-local
+    /// time, so east of UTC (e.g. Pacific/Auckland) that value threw out of range and the upload never ran, and any
+    /// other unspecified value moved by the host's offset. Unspecified is taken to be UTC, as everywhere else.
+    /// </summary>
+    private static DateTimeOffset SearchRelease(DateTime releaseUtc) =>
+        new(UtcDateTimes.ToUtc(releaseUtc), TimeSpan.Zero);
 
     private static string BbcSearchField(Episode episode) =>
         (EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcIplayer)) ??
