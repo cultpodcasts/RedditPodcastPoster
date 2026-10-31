@@ -36,8 +36,7 @@ internal static class CosmosSelectorAssemblyCatalog
     public static IReadOnlyList<string> UnscannedProductionProjects(out IReadOnlyList<string> declaringProjects)
     {
         var root = FindRepositoryRoot();
-        var baseNames = AllSelectorTypes().Select(t => StripArity(t.Name))
-            .Append(nameof(CosmosSelector))
+        var baseNames = AllSelectorTypes().Append(typeof(CosmosSelector)).Select(SourceName)
             .ToHashSet(StringComparer.Ordinal);
         var scanned = Assemblies.Select(a => a.GetName().Name!).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -132,7 +131,13 @@ internal static class CosmosSelectorAssemblyCatalog
     private static readonly Regex Parenthesised = new(@"\([^()]*\)", RegexOptions.Compiled);
     private static readonly Regex Comments = new(@"//[^\n]*|/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Singleline);
 
-    internal static bool DeclaresSubclassOf(string source, IReadOnlySet<string> baseNames)
+    /// <summary>
+    /// Whether <paramref name="source"/> declares a class whose base list names one of <paramref name="baseFullNames"/>
+    /// (full names as written in C#, e.g. <c>RedditPodcastPoster.Models.Cosmos.CosmosSelector</c>). An unqualified base
+    /// matches by simple name, as in-repo code writes it. A qualified base must be a suffix of a full name on whole
+    /// segments, so a third-party <c>SpotifyAPI.Web.Episode</c> does not count as our <c>Episode</c>.
+    /// </summary>
+    internal static bool DeclaresSubclassOf(string source, IReadOnlySet<string> baseFullNames)
     {
         foreach (Match header in ClassHeader.Matches(Comments.Replace(source, " ")))
         {
@@ -156,8 +161,8 @@ internal static class CosmosSelectorAssemblyCatalog
 
             var bases = Regex.Replace(text[(colon + 1)..], "<[^<>]*>", " ")
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(b => b.Split('.').Last().Trim());
-            if (bases.Any(baseNames.Contains))
+                .Select(b => b.Replace("global::", "", StringComparison.Ordinal).Replace(" ", "", StringComparison.Ordinal));
+            if (bases.Any(b => NamesKnownBase(b, baseFullNames)))
             {
                 return true;
             }
@@ -166,8 +171,18 @@ internal static class CosmosSelectorAssemblyCatalog
         return false;
     }
 
-    private static string StripArity(string name)
+    /// <summary>
+    /// The written base equals a known full name or is a whole-segment suffix of one. Unqualified names are a
+    /// one-segment suffix, so they match by simple name; a using-imported third-party type of the same simple name
+    /// still matches (fails loud, documented in the class-header theory), as resolving usings needs a compiler.
+    /// </summary>
+    private static bool NamesKnownBase(string written, IReadOnlySet<string> baseFullNames) =>
+        baseFullNames.Any(full => full == written || full.EndsWith("." + written, StringComparison.Ordinal));
+
+    /// <summary>A type's full name as C# source writes it: no generic arity, nested types joined by a dot.</summary>
+    internal static string SourceName(Type type)
     {
+        var name = (type.FullName ?? type.Name).Replace('+', '.');
         var tick = name.IndexOf('`');
         return tick < 0 ? name : name[..tick];
     }

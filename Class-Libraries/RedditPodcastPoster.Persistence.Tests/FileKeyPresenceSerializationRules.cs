@@ -99,13 +99,11 @@ public class FileKeyPresenceSerializationRules
     }
 
     [Fact(DisplayName =
-        "When any concrete CosmosSelector type in any assembly that references the models is inspected, then it declares a FileKey JSON property named fileKey if and only if it is IFileKeyed, because a new id-named type with a stray FileKey (or a key-named type without the interface) would silently drift from the backup and publish rules.")]
+        "When any concrete CosmosSelector type outside the public-database models, in any assembly that references the models, is inspected, then it declares a FileKey JSON property named fileKey if and only if it is IFileKeyed, because a new id-named type with a stray FileKey (or a key-named type without the interface) would silently drift from the backup and publish rules.")]
     public void every_cosmos_selector_has_file_key_iff_file_keyed()
     {
         // Arrange
-        var types = CosmosSelectorAssemblyCatalog.ConcreteSelectorTypes()
-            .Where(t => t.IsDefined(typeof(CosmosSelectorAttribute), true))
-            .ToList();
+        var types = CosmosDocumentTypes();
 
         // Act
         var mismatches = types
@@ -125,13 +123,29 @@ public class FileKeyPresenceSerializationRules
     }
 
     [Fact(DisplayName =
-        "When a concrete CosmosSelector without a [CosmosSelector] document attribute (a public-database projection) is inspected, then it is IFileKeyed and its FileKey is [JsonIgnore], because the publisher names each public file by key but the key is Cosmos bookkeeping that must not appear in the public JSON.")]
+        "When any concrete CosmosSelector type outside the public-database models is inspected, then it carries a [CosmosSelector] document attribute (directly or inherited), because public projections are identified by their namespace, so a new Cosmos document that forgot the attribute must fail here rather than slip out of the file-key rule.")]
+    public void every_cosmos_document_carries_the_cosmos_selector_attribute()
+    {
+        // Arrange
+        var types = CosmosDocumentTypes();
+
+        // Act
+        var unattributed = types
+            .Where(t => !t.IsDefined(typeof(CosmosSelectorAttribute), true))
+            .Select(t => t.FullName)
+            .ToList();
+
+        // Assert
+        types.Should().Contain([typeof(Models.Episodes.Episode), typeof(KnownTerms), typeof(global::Azure.Activity)]);
+        unattributed.Should().BeEmpty("every Cosmos document type needs [CosmosSelector(ModelType.…)]");
+    }
+
+    [Fact(DisplayName =
+        "When a concrete CosmosSelector in the public-database models namespace (a public projection) is inspected, then it is IFileKeyed and its FileKey is [JsonIgnore], because the publisher names each public file by key but the key is Cosmos bookkeeping that must not appear in the public JSON.")]
     public void public_projections_are_file_keyed_without_writing_file_key()
     {
         // Arrange
-        var projections = CosmosSelectorAssemblyCatalog.ConcreteSelectorTypes()
-            .Where(t => !t.IsDefined(typeof(CosmosSelectorAttribute), true))
-            .ToList();
+        var projections = CosmosSelectorAssemblyCatalog.ConcreteSelectorTypes().Where(IsPublicProjection).ToList();
 
         // Act
         var mismatches = projections
@@ -166,19 +180,28 @@ public class FileKeyPresenceSerializationRules
     {
         { "public sealed class Thing : CosmosSelector, IFileKeyed { }", true },
         { "public sealed class Thing(Guid id) : PublicCatalogueEntity(id, ModelType.Film) { }", true },
-        { "internal class Thing<T> : Ns.CosmosSelector where T : class { }", true },
+        { "internal class Thing<T> : Cosmos.CosmosSelector where T : class { }", true },
+        { "public class Thing : global::RedditPodcastPoster.Models.Episodes.Episode { }", true },
         { "public class Repo<T> where T : CosmosSelector { }", false },
         { "public class Thing : IComparable // : CosmosSelector\n{ }", false },
-        { "public class Thing(\n    ILogger<Thing> logger,\n    int count) : Base<int>, IThing { }", false }
+        { "public class Thing(\n    ILogger<Thing> logger,\n    int count) : Base<int>, IThing { }", false },
+        // A qualified third-party base with a selector's simple name is not ours.
+        { "public class SpotifyEpisodeDto : SpotifyAPI.Web.Episode { }", false },
+        { "public class Thing : Other.CosmosSelector { }", false },
+        // Accepted limitation: an unqualified base is matched by simple name (resolving usings needs a compiler),
+        // so a using-imported third-party Episode fails the cross-check loudly; qualify it to opt out.
+        { "using SpotifyAPI.Web;\npublic class SpotifyEpisodeDto : Episode { }", true }
     };
 
     [Theory(DisplayName =
-        "When a class header is checked for a CosmosSelector base, then only its base list counts (primary-constructor arguments, generic arguments, where-constraints and comments are ignored), because the source-tree cross-check must neither miss a subclass nor flag a generic constraint.")]
+        "When a class header is checked for a CosmosSelector base, then only its base list counts (primary-constructor arguments, generic arguments, where-constraints and comments are ignored) and a qualified base must name our type, because the source-tree cross-check must neither miss a subclass nor flag a generic constraint or a third-party type of the same simple name.")]
     [MemberData(nameof(ClassHeaders))]
     public void class_header_detection_reads_only_the_base_list(string source, bool expected)
     {
         // Arrange
-        var baseNames = new HashSet<string> { nameof(CosmosSelector), nameof(PublicCatalogueEntity) };
+        var baseNames = new[] { typeof(CosmosSelector), typeof(PublicCatalogueEntity), typeof(Models.Episodes.Episode) }
+            .Select(CosmosSelectorAssemblyCatalog.SourceName)
+            .ToHashSet();
 
         // Act
         var declares = CosmosSelectorAssemblyCatalog.DeclaresSubclassOf(source, baseNames);
@@ -186,6 +209,15 @@ public class FileKeyPresenceSerializationRules
         // Assert
         declares.Should().Be(expected);
     }
+
+    /// <summary>
+    /// Public-database projections are identified positively by namespace (<see cref="PublicCatalogueEntity"/> and
+    /// <see cref="PublicPodcast"/>, which derives from CosmosSelector directly), never by a missing attribute.
+    /// </summary>
+    private static bool IsPublicProjection(Type type) => type.Namespace == typeof(PublicCatalogueEntity).Namespace;
+
+    private static IReadOnlyList<Type> CosmosDocumentTypes() =>
+        CosmosSelectorAssemblyCatalog.ConcreteSelectorTypes().Where(t => !IsPublicProjection(t)).ToList();
 
     private static PropertyInfo? FileKeyProperty(Type type) =>
         type.GetProperty(nameof(IFileKeyed.FileKey), BindingFlags.Public | BindingFlags.Instance);
