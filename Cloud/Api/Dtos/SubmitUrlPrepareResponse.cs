@@ -41,4 +41,12 @@ public class SubmitUrlPrepareResponse
     [JsonPropertyName("showName")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ShowName { get; init; }
+
+    /// <summary>
+    /// True when the page describes a standalone film (e.g. JSON-LD <c>Movie</c>). The Worker caches it in
+    /// StreamMeta KV and returns it in <c>prefetchedMeta.madeAsFilm</c> on submit, so the classifier files
+    /// the URL as a Film rather than a podcast episode. Always written so a missing key means an old Worker.
+    /// </summary>
+    [JsonPropertyName("madeAsFilm")]
+    public bool MadeAsFilm { get; init; }
 }

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
@@ -179,6 +180,64 @@ public class SubmitUrlPrepareServiceTests
         result.Message.Should().Be("Failure");
         result.Meta.Should().BeNull();
         result.Service.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When live prepare extracts a film (MadeAsFilm=true), ToDto carries madeAsFilm=true on the wire, " +
+        "because the Worker caches the prepare body as prefetchedMeta and submit must still classify the URL as a Film.")]
+    public async Task prepare_film_returns_made_as_film_true_on_the_wire()
+    {
+        // Arrange
+        var url = ItvxUrl();
+        var title = _fixture.CreateTitle();
+        _liveMeta = new NonPodcastServiceItemMetaData(
+            Title: title,
+            Description: _fixture.Create<string>(),
+            Duration: TimeSpan.FromMinutes(43),
+            MadeAsFilm: true);
+        _resolvedAdapter = _adapter.Object;
+        var sut = _mocker.CreateInstance<SubmitUrlPrepareService>();
+
+        // Act
+        var result = await sut.PrepareAsync(url, CancellationToken.None);
+        var dto = result.Meta!.ToDto(result.Service!.Value);
+        using var wire = JsonDocument.Parse(JsonSerializer.Serialize(dto));
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlPrepareStatus.Ok);
+        dto.MadeAsFilm.Should().BeTrue();
+        dto.ShowName.Should().BeNull();
+        dto.PodcastName.Should().BeNull();
+        wire.RootElement.GetProperty("madeAsFilm").GetBoolean().Should().BeTrue();
+        wire.RootElement.GetProperty("title").GetString().Should().Be(title);
+    }
+
+    [Fact(DisplayName =
+        "When HTML extract returns a TV episode with a show name, ToDto writes madeAsFilm=false and keeps showName, " +
+        "so the episode stays a TV show episode after the Worker cache round-trip.")]
+    public async Task extract_tv_episode_returns_made_as_film_false_on_the_wire()
+    {
+        // Arrange
+        var url = ItvxUrl();
+        var html = _fixture.Create<string>();
+        var showName = _fixture.CreateTitle();
+        _liveMeta = new NonPodcastServiceItemMetaData(
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            ShowName: showName);
+        _resolvedAdapter = _adapter.Object;
+        var sut = _mocker.CreateInstance<SubmitUrlPrepareService>();
+
+        // Act
+        var result = await sut.ExtractAsync(url, html, CancellationToken.None);
+        var dto = result.Meta!.ToDto(result.Service!.Value);
+        using var wire = JsonDocument.Parse(JsonSerializer.Serialize(dto));
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlPrepareStatus.Ok);
+        dto.MadeAsFilm.Should().BeFalse();
+        wire.RootElement.GetProperty("madeAsFilm").GetBoolean().Should().BeFalse();
+        wire.RootElement.GetProperty("showName").GetString().Should().Be(showName);
     }
 
     private Uri ItvxUrl() =>
