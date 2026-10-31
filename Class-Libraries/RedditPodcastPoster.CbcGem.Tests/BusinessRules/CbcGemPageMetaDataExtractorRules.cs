@@ -227,6 +227,174 @@ public class CbcGemPageMetaDataExtractorRules
         meta.MadeAsFilm.Should().BeTrue();
     }
 
+    [Fact(DisplayName =
+        "A CBC Gem TVEpisode without partofSeries takes its ShowName from og:title '{title} | {series} | CBC Gem', " +
+        "so an episode is still filed under its show when JSON-LD omits the series.")]
+    public async Task episode_series_falls_back_to_og_title()
+    {
+        // Arrange
+        var series = _fixture.CreateTitle();
+        var title = _fixture.CreateTitle();
+        var html = Page(JsonLd("TVEpisode", ("name", title)), ogTitle: $"{title} | {series} | CBC Gem");
+        var sut = _mocker.CreateInstance<CbcGemPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(new Uri($"https://gem.cbc.ca/{CreateSlug()}/s01e03"), html);
+
+        // Assert
+        meta.ShowName.Should().Be(series);
+        meta.MadeAsFilm.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "A CBC Gem TVEpisode with no series anywhere, or whose only series is the publisher 'CBC Gem', fails extract, " +
+        "because an episode cannot be filed under a show it does not name.")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task episode_without_real_series_fails_extract(bool publisherAsSeries)
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var node = publisherAsSeries
+            ? JsonLd("TVEpisode", ("name", title), ("partofSeries", JsonLd("CreativeWorkSeries", ("name", "CBC Gem"))))
+            : JsonLd("TVEpisode", ("name", title));
+        var html = Page(node, ogTitle: $"{title} | CBC Gem");
+        var sut = _mocker.CreateInstance<CbcGemPageMetaDataExtractor>();
+
+        // Act
+        var act = async () =>
+            await sut.ExtractFromHtml(new Uri($"https://gem.cbc.ca/{CreateSlug()}/s01e01"), html);
+
+        // Assert
+        await act.Should().ThrowAsync<NonPodcastServiceMetaDataExtractionException>()
+            .WithMessage("*no series name*");
+    }
+
+    [Theory(DisplayName =
+        "A CBC Gem TVEpisode with no image of its own uses partofSeason's image, then partofSeries's, sized to 1200, " +
+        "because live episode pages carry artwork on the season or series rather than the episode.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task episode_image_falls_back_to_season_then_series(bool seasonHasImage)
+    {
+        // Arrange
+        var slug = CreateSlug();
+        var seasonImage = $"https://images.example.test/v1/{slug}-season.jpg?im=Resize=(_Size_)";
+        var seriesImage = $"https://images.example.test/v1/{slug}-series.jpg?im=Resize=(_Size_)";
+        var season = seasonHasImage
+            ? JsonLd("TVSeason", ("name", _fixture.CreateShortTitle()), ("image", seasonImage))
+            : JsonLd("TVSeason", ("name", _fixture.CreateShortTitle()));
+        var html = Page(JsonLd("TVEpisode",
+            ("name", _fixture.CreateTitle()),
+            ("partofSeason", season),
+            ("partofSeries", JsonLd("CreativeWorkSeries", ("name", _fixture.CreateTitle()), ("image", seriesImage)))),
+            ogTitle: null);
+        var sut = _mocker.CreateInstance<CbcGemPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(new Uri($"https://gem.cbc.ca/{slug}/s01e01"), html);
+
+        // Assert
+        var expected = (seasonHasImage ? seasonImage : seriesImage).Replace("(_Size_)", "1200");
+        meta.Image.Should().Be(new Uri(expected));
+    }
+
+    [Theory(DisplayName =
+        "CBC Gem JSON-LD wrapped in an array or an @graph is still read, " +
+        "so a change in how the block is wrapped does not break extract.")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task wrapped_json_ld_is_read(bool useGraph)
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var organisation = JsonLd("Organization", ("name", _fixture.CreateShortTitle()));
+        var movie = JsonLd("Movie", ("name", title));
+        object wrapped = useGraph
+            ? new Dictionary<string, object> { ["@context"] = "https://schema.org", ["@graph"] = new object[] { organisation, movie } }
+            : new object[] { organisation, movie };
+        var html = Page(wrapped, ogTitle: null);
+        var sut = _mocker.CreateInstance<CbcGemPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(new Uri($"https://gem.cbc.ca/{CreateSlug()}"), html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.MadeAsFilm.Should().BeTrue();
+    }
+
+    [Theory(DisplayName =
+        "A TVSeries node ahead of the item does not turn a CBC Gem episode or film into a rejected series hub: " +
+        "the node matching the URL shape wins, so extra series JSON-LD never blocks a valid submit.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task series_node_before_item_does_not_reject(bool episodeUrl)
+    {
+        // Arrange
+        var series = _fixture.CreateTitle();
+        var title = _fixture.CreateTitle();
+        var item = episodeUrl
+            ? JsonLd("TVEpisode", ("name", title), ("partofSeries", JsonLd("CreativeWorkSeries", ("name", series))))
+            : JsonLd("Movie", ("name", title));
+        var html = Pages(null, JsonLd("TVSeries", ("name", series)), item);
+        var slug = CreateSlug();
+        var url = new Uri(episodeUrl ? $"https://gem.cbc.ca/{slug}/s02e04" : $"https://gem.cbc.ca/{slug}");
+        var sut = _mocker.CreateInstance<CbcGemPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(url, html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.MadeAsFilm.Should().Be(!episodeUrl);
+    }
+
+    [Fact(DisplayName =
+        "An episode URL whose page has both Movie and TVEpisode JSON-LD is read as the TVEpisode, " +
+        "because the /{slug}/sNNeNN URL shape says it is an episode.")]
+    public async Task episode_url_prefers_tv_episode_over_movie()
+    {
+        // Arrange
+        var series = _fixture.CreateTitle();
+        var episodeTitle = _fixture.CreateTitle();
+        var html = Pages(null,
+            JsonLd("Movie", ("name", _fixture.CreateTitle())),
+            JsonLd("TVEpisode", ("name", episodeTitle), ("partofSeries", JsonLd("CreativeWorkSeries", ("name", series)))));
+        var sut = _mocker.CreateInstance<CbcGemPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(new Uri($"https://gem.cbc.ca/{CreateSlug()}/s01e01"), html);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(series);
+        meta.MadeAsFilm.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "A CBC Gem description falls back from JSON-LD abstract to JSON-LD description, then og:description, " +
+        "so a page missing abstract still gets a description.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task description_falls_back_when_abstract_missing(bool jsonLdDescription)
+    {
+        // Arrange
+        var description = _fixture.CreateShortTitle();
+        var node = jsonLdDescription
+            ? JsonLd("Movie", ("name", _fixture.CreateTitle()), ("description", description))
+            : JsonLd("Movie", ("name", _fixture.CreateTitle()));
+        var ogDescription = jsonLdDescription ? null : description;
+        var html = Pages(ogDescription, node);
+        var sut = _mocker.CreateInstance<CbcGemPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(new Uri($"https://gem.cbc.ca/{CreateSlug()}"), html);
+
+        // Assert
+        meta.Description.Should().Be(description);
+    }
+
     private string CreateSlug() =>
         Regex.Replace(_fixture.CreateTitle().ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
 
@@ -252,6 +420,19 @@ public class CbcGemPageMetaDataExtractorRules
                $"<meta property=\"og:image\" content=\"{GenericSocialImage}\"/>" +
                $"<script type=\"application/ld+json\">{json}</script>" +
                "</head><body></body></html>";
+    }
+
+    private static string Pages(string? ogDescription, params object[] jsonLdBlocks)
+    {
+        var og = ogDescription is null
+            ? string.Empty
+            : $"<meta property=\"og:description\" content=\"{WebUtility.HtmlEncode(ogDescription)}\"/>";
+        var blocks = string.Concat(jsonLdBlocks.Select(block =>
+            $"<script type=\"application/ld+json\">{JsonSerializer.Serialize(block)}</script>"));
+        return "<html><head>" + og +
+               "<meta property=\"og:type\" content=\"video.tv_show\"/>" +
+               $"<meta property=\"og:image\" content=\"{GenericSocialImage}\"/>" +
+               blocks + "</head><body></body></html>";
     }
 
     private static HttpResponseMessage OkHtml(string html) =>

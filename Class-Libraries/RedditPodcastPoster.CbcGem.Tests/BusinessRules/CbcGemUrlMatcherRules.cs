@@ -62,6 +62,26 @@ public class CbcGemUrlMatcherRules
     }
 
     [Theory(DisplayName =
+        "A legacy CBC Gem /media/{slug} or /media/{slug}/s{NN}e{NN} share link (CBC redirects it to the bare form) " +
+        "is a submit URL that canonicalises to https://gem.cbc.ca/{slug}[/sNNeNN], so old Reddit and news links still submit.")]
+    [InlineData("")]
+    [InlineData("/s01e01")]
+    public void legacy_media_link_canonicalises_to_bare_form(string episode)
+    {
+        // Arrange
+        var slug = CreateSlug();
+        var url = new Uri($"https://gem.cbc.ca/MEDIA/{slug}{episode.ToUpperInvariant()}?autoplay=1");
+
+        // Act
+        var canonical = CbcGemUrlMatcher.CanonicalUrl(url);
+
+        // Assert
+        CbcGemUrlMatcher.IsSubmitUrl(url).Should().BeTrue();
+        canonical.Should().Be(new Uri($"https://gem.cbc.ca/{slug}{episode}"));
+        CbcGemUrlMatcher.IsEpisodeUrl(url).Should().Be(episode.Length > 0);
+    }
+
+    [Theory(DisplayName =
         "CBC Gem roots, app shells, season hubs and deeper paths are not submit URLs, " +
         "because only /{slug} and /{slug}/s{NN}e{NN} are catalogue items.")]
     [InlineData("https://gem.cbc.ca/")]
@@ -72,6 +92,10 @@ public class CbcGemUrlMatcherRules
     [InlineData("https://gem.cbc.ca/example-show/s01e01/extra")]
     [InlineData("https://gem.cbc.ca/example-show/trailer")]
     [InlineData("https://gem.cbc.ca/example_show")]
+    [InlineData("https://gem.cbc.ca/media")]
+    [InlineData("https://gem.cbc.ca/media/live")]
+    [InlineData("https://gem.cbc.ca/media/example-show/s01")]
+    [InlineData("https://gem.cbc.ca/media/example-show/s01e01/extra")]
     public void non_catalogue_path_is_not_submit_url(string value)
     {
         // Arrange

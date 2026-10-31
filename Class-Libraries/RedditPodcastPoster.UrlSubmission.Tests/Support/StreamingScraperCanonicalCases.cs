@@ -93,9 +93,6 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> AbcIviewCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.AbcIview));
 
-    public static TheoryData<StreamingScraperCanonicalCase> CbcGemCases() =>
-        new(All.Where(c => c.Provider == StreamingScraperProvider.CbcGem));
-
     public static IEnumerable<StreamingScraperCanonicalCase> All =>
     [
         // BBC Sounds — brand programmes (homepage harvest added You're Dead To Me / Young Again)

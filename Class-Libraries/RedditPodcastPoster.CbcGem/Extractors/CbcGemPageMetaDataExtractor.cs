@@ -18,7 +18,7 @@ public interface ICbcGemPageMetaDataExtractor
 }
 
 /// <summary>
-/// CBC Gem pages are server-rendered with one schema.org JSON-LD block. <c>og:type</c> is
+/// CBC Gem pages are server-rendered with schema.org JSON-LD (one block today). <c>og:type</c> is
 /// <c>video.tv_show</c> on every page (films included) and <c>og:url</c> on an episode points at
 /// the series hub, so classification and metadata come from JSON-LD, not Open Graph.
 /// </summary>
@@ -55,7 +55,7 @@ internal static partial class CbcGemCatalogMeta
         var document = new HtmlDocument();
         document.LoadHtml(html);
 
-        var item = FindCatalogueItem(document);
+        var item = FindCatalogueItem(document, url);
         if (item is null)
         {
             throw new NonPodcastServiceMetaDataExtractionException(
@@ -63,7 +63,6 @@ internal static partial class CbcGemCatalogMeta
                 "CBC Gem page has no Movie or TVEpisode JSON-LD, so it is not a catalogue film or episode.");
         }
 
-        using var owner = item.Value.Document;
         var node = item.Value.Element;
         var type = item.Value.Type;
 
@@ -159,7 +158,13 @@ internal static partial class CbcGemCatalogMeta
         }
     }
 
-    private static (JsonDocument Document, JsonElement Element, string Type)? FindCatalogueItem(HtmlDocument document)
+    /// <summary>
+    /// Collects every Movie / TVEpisode / TVSeries node across all JSON-LD blocks (arrays and <c>@graph</c>
+    /// included) and picks the one matching the URL shape: an episode URL prefers TVEpisode, a slug URL
+    /// prefers Movie. TVSeries is chosen only when nothing else is present, so a series node that happens
+    /// to precede the item never turns a valid film or episode into a rejected hub.
+    /// </summary>
+    private static (JsonElement Element, string Type)? FindCatalogueItem(HtmlDocument document, Uri url)
     {
         var scripts = document.DocumentNode.SelectNodes("//script[contains(@type,'ld+json')]");
         if (scripts is null)
@@ -167,39 +172,41 @@ internal static partial class CbcGemCatalogMeta
             return null;
         }
 
+        var candidates = new List<(JsonElement Element, string Type)>();
         foreach (var script in scripts)
         {
-            JsonDocument json;
             try
             {
-                json = JsonDocument.Parse(script.InnerText);
+                using var json = JsonDocument.Parse(script.InnerText);
+                Collect(json.RootElement, candidates);
             }
             catch (JsonException)
             {
-                continue;
             }
+        }
 
-            if (TryFind(json.RootElement, out var element, out var type))
+        string[] preference = CbcGemUrlMatcher.IsEpisodeUrl(url)
+            ? ["TVEpisode", "Movie", "TVSeries"]
+            : ["Movie", "TVEpisode", "TVSeries"];
+        foreach (var type in preference)
+        {
+            var match = candidates.FirstOrDefault(candidate => candidate.Type == type);
+            if (match.Type is not null)
             {
-                return (json, element, type);
+                return match;
             }
-
-            json.Dispose();
         }
 
         return null;
     }
 
-    private static bool TryFind(JsonElement element, out JsonElement found, out string type)
+    private static void Collect(JsonElement element, List<(JsonElement Element, string Type)> candidates)
     {
         if (element.ValueKind == JsonValueKind.Array)
         {
             foreach (var child in element.EnumerateArray())
             {
-                if (TryFind(child, out found, out type))
-                {
-                    return true;
-                }
+                Collect(child, candidates);
             }
         }
         else if (element.ValueKind == JsonValueKind.Object)
@@ -208,21 +215,16 @@ internal static partial class CbcGemCatalogMeta
             {
                 if (HasType(element, candidate))
                 {
-                    found = element;
-                    type = candidate;
-                    return true;
+                    candidates.Add((element.Clone(), candidate));
+                    break;
                 }
             }
 
-            if (element.TryGetProperty("@graph", out var graph) && TryFind(graph, out found, out type))
+            if (element.TryGetProperty("@graph", out var graph))
             {
-                return true;
+                Collect(graph, candidates);
             }
         }
-
-        found = default;
-        type = string.Empty;
-        return false;
     }
 
     private static bool HasType(JsonElement element, string expected)

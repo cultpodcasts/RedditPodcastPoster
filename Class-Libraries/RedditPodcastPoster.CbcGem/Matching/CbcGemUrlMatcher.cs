@@ -10,12 +10,16 @@ namespace RedditPodcastPoster.CbcGem.Matching;
 /// <item><c>/{slug}</c>: a film or a series hub (the page JSON-LD decides which; the extractor rejects hubs).</item>
 /// <item><c>/{slug}/s{NN}e{NN}</c>: a series episode.</item>
 /// </list>
+/// Legacy share links <c>/media/{slug}[/s{NN}e{NN}]</c> (CBC redirects them to the bare form) are accepted
+/// and normalised by dropping the leading <c>media</c> segment.
 /// Season hubs (<c>/{slug}/s01</c>), app shells (<c>/live</c>, <c>/search</c>, …) and deeper paths are not submit URLs.
 /// The stored form is <c>https://gem.cbc.ca/{slug}[/sNNeNN]</c>, lower-case, with no query or fragment.
 /// </summary>
 public static partial class CbcGemUrlMatcher
 {
     public const string Host = "gem.cbc.ca";
+
+    private const string LegacyMediaSegment = "media";
 
     private static readonly HashSet<string> NonCatalogueSegments = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -49,6 +53,12 @@ public static partial class CbcGemUrlMatcher
         }
 
         var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length is 2 or 3 &&
+            string.Equals(parts[0], LegacyMediaSegment, StringComparison.OrdinalIgnoreCase))
+        {
+            parts = parts[1..];
+        }
+
         if (parts.Length is < 1 or > 2 ||
             !SlugRegex().IsMatch(parts[0]) ||
             NonCatalogueSegments.Contains(parts[0]))
