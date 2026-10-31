@@ -126,4 +126,23 @@ public class SearchReleaseUtcRules
         record.Release.Offset.Should().Be(TimeSpan.Zero);
         record.Release.UtcDateTime.Should().Be(release);
     }
+
+    [SearchReleaseGuardChildFact(DisplayName =
+        "When the search release rules run in the guard's child test host, then the host's local zone is Pacific/Auckland at +13 in January and +12 in July, because if the zone data is missing .NET silently falls back to UTC and every other rule here would pass without testing anything.")]
+    public void child_host_is_on_pacific_auckland_time()
+    {
+        // Arrange
+        var summer = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        var winter = new DateTime(2026, 7, 15, 0, 0, 0, DateTimeKind.Utc);
+
+        // Act
+        var summerOffset = TimeZoneInfo.Local.GetUtcOffset(summer);
+        var winterOffset = TimeZoneInfo.Local.GetUtcOffset(winter);
+
+        // Assert
+        summerOffset.Should().Be(TimeSpan.FromHours(13),
+            "TZ={0} should give NZDT; local zone was '{1}'", SearchReleaseGuard.EastOfUtcZone, TimeZoneInfo.Local.Id);
+        winterOffset.Should().Be(TimeSpan.FromHours(12),
+            "TZ={0} should give NZST; local zone was '{1}'", SearchReleaseGuard.EastOfUtcZone, TimeZoneInfo.Local.Id);
+    }
 }
