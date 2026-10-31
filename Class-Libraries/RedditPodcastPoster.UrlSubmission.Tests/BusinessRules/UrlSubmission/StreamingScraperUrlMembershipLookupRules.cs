@@ -202,7 +202,8 @@ public class StreamingScraperUrlMembershipLookupRules
                          or StreamingScraperProvider.Zdf
                          or StreamingScraperProvider.Ard
                          or StreamingScraperProvider.CanalPlus
-                         or StreamingScraperProvider.AbcIview))
+                         or StreamingScraperProvider.AbcIview
+                         or StreamingScraperProvider.CbcGem))
         {
             data.Add(canonical);
         }

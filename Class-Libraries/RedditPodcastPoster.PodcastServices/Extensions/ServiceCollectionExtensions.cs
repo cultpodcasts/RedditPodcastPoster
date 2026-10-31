@@ -40,6 +40,7 @@ using RedditPodcastPoster.PodcastServices.Models;
 using RedditPodcastPoster.PodcastServices.Providers;
 using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.AbcIview.Extensions;
+using RedditPodcastPoster.CbcGem.Extensions;
 using RedditPodcastPoster.TvnzPlus.Extensions;
 using RedditPodcastPoster.BcVideo.Extensions;
 using RedditPodcastPoster.Tubi.Extensions;
@@ -121,7 +122,8 @@ public static class ServiceCollectionExtensions
                 .AddZdfServices()
                 .AddArdServices()
                 .AddCanalPlusServices()
-                .AddAbcIviewServices();
+                .AddAbcIviewServices()
+                .AddCbcGemServices();
         }
 
         public IServiceCollection AddRemoteClient()

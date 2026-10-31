@@ -120,5 +120,9 @@ public enum StreamingService
 
     [JsonPropertyName("abcIview")]
     [StreamingServiceInfo("ABC iview", "abc-iview", true, "iview.abc.net.au")]
-    AbcIview
+    AbcIview,
+
+    [JsonPropertyName("cbcGem")]
+    [StreamingServiceInfo("CBC Gem", "cbc-gem", true, "gem.cbc.ca")]
+    CbcGem
 }
