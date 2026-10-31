@@ -4,8 +4,12 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.Subjects;
 
 [CosmosSelector(ModelType.Subject)]
-public sealed class Subject : CosmosSelector
+public sealed class Subject : CosmosSelector, IFileKeyed
 {
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey { get; set; } = "";
+
     public Subject(string name)
     {
         Name = name;

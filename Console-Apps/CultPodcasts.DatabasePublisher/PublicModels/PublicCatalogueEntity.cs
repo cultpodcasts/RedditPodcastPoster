@@ -8,7 +8,7 @@ namespace CultPodcasts.DatabasePublisher.PublicModels;
 /// <see cref="CosmosSelector"/> only so the file writer can name the file from <see cref="FileKey"/>; the
 /// Cosmos bookkeeping members (<c>type</c>, <c>fileKey</c>, <c>_ts</c>) are not part of the public JSON.
 /// </summary>
-public abstract class PublicCatalogueEntity : CosmosSelector
+public abstract class PublicCatalogueEntity : CosmosSelector, IFileKeyed
 {
     protected PublicCatalogueEntity(Guid id, ModelType modelType)
     {
@@ -23,5 +23,5 @@ public abstract class PublicCatalogueEntity : CosmosSelector
     public override ModelType ModelType { get; set; }
 
     [JsonIgnore]
-    public override string FileKey { get; set; } = "";
+    public string FileKey { get; set; } = "";
 }

@@ -4,7 +4,7 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.YouTubeQuota;
 
 [CosmosSelector(ModelType.YouTubeQuotaReport)]
-public sealed class YouTubeQuotaReport : CosmosSelector
+public sealed class YouTubeQuotaReport : CosmosSelector, IFileKeyed
 {
     public static readonly Guid _Id = Guid.Parse("6d1f4b8a-3c2e-4d7f-9a5b-8e0c1f2a3b4d");
 
@@ -42,5 +42,7 @@ public sealed class YouTubeQuotaReport : CosmosSelector
         Days.Sort((a, b) => b.ReportDate.CompareTo(a.ReportDate));
     }
 
-    public override string FileKey => nameof(YouTubeQuotaReport);
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => nameof(YouTubeQuotaReport);
 }

@@ -70,16 +70,25 @@ public sealed class FileKeyAllocator(
     private static async Task<HashSet<string>> Read<TEntity>(
         IFilterableRepository<TEntity> repository,
         string candidate,
-        Guid id) where TEntity : CosmosSelector
+        Guid id) where TEntity : CosmosSelector, IPublicEntity
     {
-        Expression<Func<TEntity, bool>> selector = x =>
-            x.FileKey != null && x.FileKey.StartsWith(candidate, StringComparison.OrdinalIgnoreCase) && x.Id != id;
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        await foreach (var key in repository.GetAllBy(selector, x => x.FileKey))
+        await foreach (var key in repository.GetAllBy(TakenKeySelector<TEntity>(candidate, id), x => x.FileKey))
         {
             keys.Add(key);
         }
 
         return keys;
     }
+
+    /// <summary>
+    /// Cosmos filter for keys already taken by other documents of the kind. Constrained to <see cref="IPublicEntity"/>
+    /// because only the public kinds (podcast, TV show, news organisation, film) get allocated keys. The SQL name comes
+    /// from the camelCase naming policy (or the concrete <c>[JsonPropertyName("fileKey")]</c>, which pins it
+    /// independently of that policy). Must translate to <c>c.fileKey</c> (pinned by
+    /// <c>FileKeyAllocatorCosmosFilterTranslationRules</c>).
+    /// </summary>
+    public static Expression<Func<TEntity, bool>> TakenKeySelector<TEntity>(string candidate, Guid id)
+        where TEntity : CosmosSelector, IPublicEntity =>
+        x => x.FileKey != null && x.FileKey.StartsWith(candidate, StringComparison.OrdinalIgnoreCase) && x.Id != id;
 }

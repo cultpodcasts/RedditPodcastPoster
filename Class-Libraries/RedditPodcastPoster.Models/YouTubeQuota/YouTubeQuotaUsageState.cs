@@ -4,7 +4,7 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.YouTubeQuota;
 
 [CosmosSelector(ModelType.YouTubeQuotaUsageState)]
-public sealed class YouTubeQuotaUsageState : CosmosSelector
+public sealed class YouTubeQuotaUsageState : CosmosSelector, IFileKeyed
 {
     public static readonly Guid _Id = Guid.Parse("b8d4e2f5-0c3a-4d7e-9a1b-2c5f8e3d6a7b");
 
@@ -46,7 +46,9 @@ public sealed class YouTubeQuotaUsageState : CosmosSelector
     [JsonPropertyOrder(17)]
     public int NonQuotaErrorCount { get; set; }
 
-    public override string FileKey => nameof(YouTubeQuotaUsageState);
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => nameof(YouTubeQuotaUsageState);
 }
 
 public sealed class YouTubeQuotaUsageEntry

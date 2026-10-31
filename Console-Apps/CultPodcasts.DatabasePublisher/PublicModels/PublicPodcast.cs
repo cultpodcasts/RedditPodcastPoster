@@ -3,7 +3,7 @@ using RedditPodcastPoster.Models.Cosmos;
 
 namespace CultPodcasts.DatabasePublisher.PublicModels;
 
-public sealed class PublicPodcast : CosmosSelector
+public sealed class PublicPodcast : CosmosSelector, IFileKeyed
 {
     public PublicPodcast(Guid id)
     {
@@ -18,7 +18,7 @@ public sealed class PublicPodcast : CosmosSelector
     public override ModelType ModelType { get; set; }
 
     [JsonIgnore]
-    public override string FileKey { get; set; } = "";
+    public string FileKey { get; set; } = "";
 
     [JsonPropertyName("name")]
     [JsonPropertyOrder(3)]

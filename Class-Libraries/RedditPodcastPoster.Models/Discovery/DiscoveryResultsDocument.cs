@@ -4,8 +4,12 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.Discovery;
 
 [CosmosSelector(ModelType.Discovery)]
-public sealed class DiscoveryResultsDocument : CosmosSelector
+public sealed class DiscoveryResultsDocument : CosmosSelector, IFileKeyed
 {
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey { get; set; } = "";
+
     public DiscoveryResultsDocument(
         DateTime discoveryBegan,
         IEnumerable<DiscoveryResult> discoveryResults)
