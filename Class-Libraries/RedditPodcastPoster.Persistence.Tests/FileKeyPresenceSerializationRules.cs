@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 using FluentAssertions;
+using CultPodcasts.DatabasePublisher.PublicModels;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Discovery;
@@ -98,18 +99,17 @@ public class FileKeyPresenceSerializationRules
     }
 
     [Fact(DisplayName =
-        "When any concrete CosmosSelector type is inspected, then it declares a FileKey JSON property named fileKey if and only if it is IFileKeyed, because a new id-named type with a stray FileKey (or a key-named type without the interface) would silently drift from the backup and publish rules.")]
+        "When any concrete CosmosSelector type in any assembly that references the models is inspected, then it declares a FileKey JSON property named fileKey if and only if it is IFileKeyed, because a new id-named type with a stray FileKey (or a key-named type without the interface) would silently drift from the backup and publish rules.")]
     public void every_cosmos_selector_has_file_key_iff_file_keyed()
     {
         // Arrange
-        var types = typeof(CosmosSelector).Assembly.GetTypes()
-            .Append(typeof(KnownTerms))
-            .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(CosmosSelector).IsAssignableFrom(t))
+        var types = CosmosSelectorAssemblyCatalog.ConcreteSelectorTypes()
+            .Where(t => t.IsDefined(typeof(CosmosSelectorAttribute), true))
             .ToList();
 
         // Act
         var mismatches = types
-            .Select(t => (Type: t, Property: t.GetProperty(nameof(IFileKeyed.FileKey), BindingFlags.Public | BindingFlags.Instance)))
+            .Select(t => (Type: t, Property: FileKeyProperty(t)))
             .Where(x => typeof(IFileKeyed).IsAssignableFrom(x.Type)
                 ? x.Property?.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name != "fileKey"
                 : x.Property != null)
@@ -117,15 +117,82 @@ public class FileKeyPresenceSerializationRules
             .ToList();
 
         // Assert
-        types.Should().Contain([typeof(Models.Episodes.Episode), typeof(Person), typeof(HomePageCache), typeof(Film)]);
+        types.Should().Contain([
+            typeof(Models.Episodes.Episode), typeof(Person), typeof(HomePageCache), typeof(Film), typeof(KnownTerms),
+            typeof(global::Azure.Activity), typeof(EpisodeServiceBackfill.LeftoverEpisodeDocument)
+        ]);
         mismatches.Should().BeEmpty();
     }
 
+    [Fact(DisplayName =
+        "When a concrete CosmosSelector without a [CosmosSelector] document attribute (a public-database projection) is inspected, then it is IFileKeyed and its FileKey is [JsonIgnore], because the publisher names each public file by key but the key is Cosmos bookkeeping that must not appear in the public JSON.")]
+    public void public_projections_are_file_keyed_without_writing_file_key()
+    {
+        // Arrange
+        var projections = CosmosSelectorAssemblyCatalog.ConcreteSelectorTypes()
+            .Where(t => !t.IsDefined(typeof(CosmosSelectorAttribute), true))
+            .ToList();
+
+        // Act
+        var mismatches = projections
+            .Where(t => !typeof(IFileKeyed).IsAssignableFrom(t) ||
+                        FileKeyProperty(t)?.GetCustomAttribute<JsonIgnoreAttribute>() is not
+                            { Condition: JsonIgnoreCondition.Always })
+            .Select(t => t.FullName)
+            .ToList();
+
+        // Assert
+        projections.Should().Contain([typeof(PublicPodcast), typeof(PublicFilm), typeof(PublicTvShow), typeof(PublicNewsOrganisation)]);
+        mismatches.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When the source tree is scanned for production classes deriving from CosmosSelector (or a subclass of it), then every declaring project's assembly is among those the file-key guards inspect, and the models, KnownTerms, Activity and public-database assemblies are among them, because a project the guards cannot see would let a stray or missing fileKey through unchecked.")]
+    public void every_project_declaring_cosmos_selectors_is_inspected()
+    {
+        // Arrange
+        var expected = new[] { typeof(CosmosSelector), typeof(KnownTerms), typeof(global::Azure.Activity), typeof(PublicPodcast) }
+            .Select(t => t.Assembly.GetName().Name!);
+
+        // Act
+        var unscanned = CosmosSelectorAssemblyCatalog.UnscannedProductionProjects(out var declaring);
+
+        // Assert
+        declaring.Should().Contain(expected);
+        unscanned.Should().BeEmpty("add a ProjectReference to each listed project in RedditPodcastPoster.Persistence.Tests");
+    }
+
+    public static TheoryData<string, bool> ClassHeaders() => new()
+    {
+        { "public sealed class Thing : CosmosSelector, IFileKeyed { }", true },
+        { "public sealed class Thing(Guid id) : PublicCatalogueEntity(id, ModelType.Film) { }", true },
+        { "internal class Thing<T> : Ns.CosmosSelector where T : class { }", true },
+        { "public class Repo<T> where T : CosmosSelector { }", false },
+        { "public class Thing : IComparable // : CosmosSelector\n{ }", false },
+        { "public class Thing(\n    ILogger<Thing> logger,\n    int count) : Base<int>, IThing { }", false }
+    };
+
+    [Theory(DisplayName =
+        "When a class header is checked for a CosmosSelector base, then only its base list counts (primary-constructor arguments, generic arguments, where-constraints and comments are ignored), because the source-tree cross-check must neither miss a subclass nor flag a generic constraint.")]
+    [MemberData(nameof(ClassHeaders))]
+    public void class_header_detection_reads_only_the_base_list(string source, bool expected)
+    {
+        // Arrange
+        var baseNames = new HashSet<string> { nameof(CosmosSelector), nameof(PublicCatalogueEntity) };
+
+        // Act
+        var declares = CosmosSelectorAssemblyCatalog.DeclaresSubclassOf(source, baseNames);
+
+        // Assert
+        declares.Should().Be(expected);
+    }
+
+    private static PropertyInfo? FileKeyProperty(Type type) =>
+        type.GetProperty(nameof(IFileKeyed.FileKey), BindingFlags.Public | BindingFlags.Instance);
+
     private static IReadOnlyList<Type> FixedKeySingletonTypes() =>
-        typeof(CosmosSelector).Assembly.GetTypes().Append(typeof(KnownTerms))
-            .Where(t => t is { IsClass: true, IsAbstract: false } &&
-                        typeof(CosmosSelector).IsAssignableFrom(t) &&
-                        typeof(IFileKeyed).IsAssignableFrom(t) &&
+        CosmosSelectorAssemblyCatalog.ConcreteSelectorTypes()
+            .Where(t => typeof(IFileKeyed).IsAssignableFrom(t) &&
                         t.GetConstructor(Type.EmptyTypes) != null &&
                         t.GetProperty(nameof(IFileKeyed.FileKey))!.SetMethod == null)
             .ToList();
