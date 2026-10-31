@@ -93,6 +93,9 @@ public static class StreamingScraperCanonicalCases
     public static TheoryData<StreamingScraperCanonicalCase> AbcIviewCases() =>
         new(All.Where(c => c.Provider == StreamingScraperProvider.AbcIview));
 
+    public static TheoryData<StreamingScraperCanonicalCase> CbcGemCases() =>
+        new(All.Where(c => c.Provider == StreamingScraperProvider.CbcGem));
+
     public static IEnumerable<StreamingScraperCanonicalCase> All =>
     [
         // BBC Sounds — brand programmes (homepage harvest added You're Dead To Me / Young Again)
@@ -387,6 +390,16 @@ public static class StreamingScraperCanonicalCases
             "https://iview.abc.net.au/show/you-cant-ask-that",
             "You Can't Ask That",
             "Show hub; ShowName from OG when present"),
+
+        // CBC Gem — /{slug} films (JSON-LD Movie); /{slug}/s{NN}e{NN} episodes (JSON-LD TVEpisode)
+        Case(StreamingScraperProvider.CbcGem, "queen-of-canada-film",
+            "https://gem.cbc.ca/queen-of-canada",
+            null,
+            "Film page; og:type is video.tv_show on every Gem page, JSON-LD Movie decides; ShowName must stay null"),
+        Case(StreamingScraperProvider.CbcGem, "schitts-creek-episode",
+            "https://gem.cbc.ca/schitts-creek/s01e01",
+            "Schitt's Creek",
+            "Episode page; ShowName from JSON-LD partofSeries (og:url points at the series hub)"),
     ];
 
     private static StreamingScraperCanonicalCase Case(
@@ -424,7 +437,8 @@ public enum StreamingScraperProvider
     Zdf,
     Ard,
     CanalPlus,
-    AbcIview
+    AbcIview,
+    CbcGem
 }
 
 public sealed record StreamingScraperCanonicalCase(

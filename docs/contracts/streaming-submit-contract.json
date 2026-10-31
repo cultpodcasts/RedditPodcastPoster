@@ -28,7 +28,8 @@
 		"zdf",
 		"ard",
 		"canalPlus",
-		"abcIview"
+		"abcIview",
+		"cbcGem"
 	],
 	"membershipKinds": [
 		"podcast-service",
@@ -90,7 +91,8 @@
 		"zdf": "https://www.zdf.de/serien/example-slug",
 		"ard": "https://www.ardmediathek.de/video/Y3JpZDovL2V4YW1wbGUvaWQ",
 		"canalPlus": "https://www.canalplus.com/series/example-slug/h/12345_67890",
-		"abcIview": "https://iview.abc.net.au/video/EXAMPLEVIDEO01"
+		"abcIview": "https://iview.abc.net.au/video/EXAMPLEVIDEO01",
+		"cbcGem": "https://gem.cbc.ca/example-slug"
 	},
 	"streamingMembershipShapeCaseIds": [
 		"membership-bbcSounds-known",
@@ -170,7 +172,10 @@
 		"membership-canalPlus-ambiguous",
 		"membership-abcIview-known",
 		"membership-abcIview-unknown",
-		"membership-abcIview-ambiguous"
+		"membership-abcIview-ambiguous",
+		"membership-cbcGem-known",
+		"membership-cbcGem-unknown",
+		"membership-cbcGem-ambiguous"
 	],
 	"streamingOrchestrationCaseIds": [
 		"stream-bbcSounds-unknown-prepare-submit",
@@ -198,7 +203,8 @@
 		"stream-zdf-unknown-prepare-submit",
 		"stream-ard-unknown-prepare-submit",
 		"stream-canalPlus-unknown-prepare-submit",
-		"stream-abcIview-unknown-prepare-submit"
+		"stream-abcIview-unknown-prepare-submit",
+		"stream-cbcGem-unknown-prepare-submit"
 	],
 	"rules": {
 		"podcastServicesOutOfScope": true,
