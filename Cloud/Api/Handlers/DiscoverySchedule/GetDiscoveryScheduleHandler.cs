@@ -8,6 +8,7 @@ namespace Api.Handlers.DiscoverySchedule;
 
 public class GetDiscoveryScheduleHandler(
     IDiscoveryScheduleGetService discoveryScheduleGetService,
+    TimeProvider timeProvider,
     ILogger<GetDiscoveryScheduleHandler> logger) : IGetDiscoveryScheduleHandler
 {
     private const int NextRunsPreviewCount = 6;
@@ -22,7 +23,8 @@ public class GetDiscoveryScheduleHandler(
                     DiscoveryScheduleResponseBuilder.Build(
                         result.Config!,
                         result.IsDefault,
-                        NextRunsPreviewCount),
+                        NextRunsPreviewCount,
+                        timeProvider.GetUtcNow().UtcDateTime),
                     c),
             DiscoveryScheduleGetStatus.Failed =>
                 ctx.InternalError(),

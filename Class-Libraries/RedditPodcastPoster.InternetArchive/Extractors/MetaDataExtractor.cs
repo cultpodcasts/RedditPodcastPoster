@@ -48,8 +48,10 @@ public class MetaDataExtractor(
                 {
                     try
                     {
+                        // Internet Archive upload dates are UTC; read them as UTC at the source.
                         release = DateTime.ParseExact(releaseNode.InnerText.Trim(), "yyyy-MM-dd HH:mm:ss",
-                            CultureInfo.InvariantCulture);
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
                     }
                     catch (Exception e)
                     {

@@ -220,7 +220,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IDiscoveryScheduleGetService, DiscoveryScheduleGetService>()
             .AddScoped<IDiscoveryScheduleUpdateService, DiscoveryScheduleUpdateService>()
             .AddScoped<IGetDiscoveryScheduleHandler, GetDiscoveryScheduleHandler>()
-            .AddScoped<IPutDiscoveryScheduleHandler, PutDiscoveryScheduleHandler>();
+            .AddScoped<IPutDiscoveryScheduleHandler, PutDiscoveryScheduleHandler>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiSupportedLanguages(this IServiceCollection services) =>
         services

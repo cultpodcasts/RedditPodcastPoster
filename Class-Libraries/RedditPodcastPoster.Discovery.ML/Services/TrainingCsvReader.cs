@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text;
+using RedditPodcastPoster.Models.Serialization;
 
 namespace RedditPodcastPoster.Discovery.ML.Services;
 
@@ -16,7 +18,8 @@ public static class TrainingCsvReader
                 continue;
             }
 
-            if (!DateTime.TryParse(CsvParser.GetField(fields, header, "discoveryBegan"), out var discoveryBegan))
+            // discoveryBegan is exported as UTC; read it as UTC (no zone = UTC) rather than as host-local time.
+            if (!UtcDateTimes.TryParseIso(CsvParser.GetField(fields, header, "discoveryBegan"), out var discoveryBegan))
             {
                 discoveryBegan = DateTime.MinValue;
             }
