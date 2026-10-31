@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -10,6 +12,7 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.People;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Providers;
+using RedditPodcastPoster.Text.KnownTerms;
 
 namespace RedditPodcastPoster.Persistence.Tests;
 
@@ -92,6 +95,86 @@ public class FileKeyPresenceSerializationRules
 
         // Assert
         json["fileKey"]!.GetValue<string>().Should().Be(nameof(HomePageCache));
+    }
+
+    [Fact(DisplayName =
+        "When any concrete CosmosSelector type is inspected, then it declares a FileKey JSON property named fileKey if and only if it is IFileKeyed, because a new id-named type with a stray FileKey (or a key-named type without the interface) would silently drift from the backup and publish rules.")]
+    public void every_cosmos_selector_has_file_key_iff_file_keyed()
+    {
+        // Arrange
+        var types = typeof(CosmosSelector).Assembly.GetTypes()
+            .Append(typeof(KnownTerms))
+            .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(CosmosSelector).IsAssignableFrom(t))
+            .ToList();
+
+        // Act
+        var mismatches = types
+            .Select(t => (Type: t, Property: t.GetProperty(nameof(IFileKeyed.FileKey), BindingFlags.Public | BindingFlags.Instance)))
+            .Where(x => typeof(IFileKeyed).IsAssignableFrom(x.Type)
+                ? x.Property?.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name != "fileKey"
+                : x.Property != null)
+            .Select(x => x.Type.FullName)
+            .ToList();
+
+        // Assert
+        types.Should().Contain([typeof(Models.Episodes.Episode), typeof(Person), typeof(HomePageCache), typeof(Film)]);
+        mismatches.Should().BeEmpty();
+    }
+
+    private static IReadOnlyList<Type> FixedKeySingletonTypes() =>
+        typeof(CosmosSelector).Assembly.GetTypes().Append(typeof(KnownTerms))
+            .Where(t => t is { IsClass: true, IsAbstract: false } &&
+                        typeof(CosmosSelector).IsAssignableFrom(t) &&
+                        typeof(IFileKeyed).IsAssignableFrom(t) &&
+                        t.GetConstructor(Type.EmptyTypes) != null &&
+                        t.GetProperty(nameof(IFileKeyed.FileKey))!.SetMethod == null)
+            .ToList();
+
+    public static TheoryData<Type> FixedKeySingletons() => new(FixedKeySingletonTypes());
+
+    [Theory(DisplayName =
+        "When a fixed-key singleton is read from JSON carrying a different stored fileKey, then it deserialises without error and keeps its fixed key, because the uploader reads stored look-ups and FileKey is now getter-only on these types.")]
+    [MemberData(nameof(FixedKeySingletons))]
+    public void fixed_key_singleton_reads_back_with_fixed_key(Type type)
+    {
+        // Arrange
+        var original = CreateWithRequiredStrings(type);
+        var json = JsonSerializer.SerializeToNode(original, type, _options)!.AsObject();
+        json["fileKey"] = _fixture.CreateTitle();
+
+        // Act
+        var read = (IFileKeyed)json.Deserialize(type, _options)!;
+
+        // Assert
+        read.FileKey.Should().Be(original.FileKey);
+        read.FileKey.Should().NotBe(json["fileKey"]!.GetValue<string>());
+    }
+
+    [Fact(DisplayName =
+        "When the fixed-key singletons are enumerated, then HomePageCache and KnownTerms are among them, because the read-back theory must not silently run over an empty set.")]
+    public void fixed_key_singletons_are_discovered()
+    {
+        // Arrange
+        var expected = new[] { typeof(HomePageCache), typeof(KnownTerms) };
+
+        // Act
+        var types = FixedKeySingletonTypes();
+
+        // Assert
+        types.Should().Contain(expected);
+    }
+
+    private IFileKeyed CreateWithRequiredStrings(Type type)
+    {
+        var instance = (IFileKeyed)Activator.CreateInstance(type)!;
+        foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                     .Where(x => x.PropertyType == typeof(string) && x.CanWrite &&
+                                 x.IsDefined(typeof(System.Runtime.CompilerServices.RequiredMemberAttribute))))
+        {
+            property.SetValue(instance, _fixture.CreateTitle());
+        }
+
+        return instance;
     }
 
     private CosmosSelector CreateIdNamed(string kind) =>

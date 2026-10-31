@@ -117,22 +117,6 @@ public class FileRepository : IFileRepository
         }
     }
 
-    public async IAsyncEnumerable<string> GetAllFileKeys<T>() where T : CosmosSelector, IFileKeyed
-    {
-        var filenames = GetFilenames<T>();
-        var keys = filenames.Select(x =>
-            x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
-        foreach (var item in keys)
-        {
-            var cosmosSelector = await Read<T>(item);
-            if (cosmosSelector != null)
-            {
-                yield return cosmosSelector.FileKey;
-            }
-        }
-    }
-
-
     public async Task<T?> GetBy<T>(Expression<Func<T, bool>> selector) where T : CosmosSelector
     {
         var items = await GetAll<T>().ToListAsync();

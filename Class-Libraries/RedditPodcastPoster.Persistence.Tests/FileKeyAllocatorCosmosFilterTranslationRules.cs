@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using System.Reflection;
+using System.Text.Json.Serialization;
 using FluentAssertions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
@@ -29,7 +31,7 @@ public class FileKeyAllocatorCosmosFilterTranslationRules
     public static TheoryData<string> PublicKinds => [nameof(Podcast), nameof(TvShow), nameof(NewsOrganisation), nameof(Film)];
 
     [Theory(DisplayName =
-        "When the file-key allocator reads taken keys for a public kind, then the Cosmos SQL filters on fileKey, because FileKey moved off CosmosSelector onto Publisher and a lost JSON name would match no stored key and hand out duplicate file names.")]
+        "When the file-key allocator reads taken keys for a public kind, then the Cosmos SQL filters on fileKey with STARTSWITH and an id exclusion, because a renamed member or a changed filter shape would match no stored key and hand out duplicate file names.")]
     [MemberData(nameof(PublicKinds))]
     public void taken_key_selector_translates_to_file_key(string kind)
     {
@@ -52,6 +54,21 @@ public class FileKeyAllocatorCosmosFilterTranslationRules
         sql.Should().Contain("STARTSWITH");
         sql.Should().Contain("[\"id\"]");
         sql.Should().NotContain("FileKey");
+    }
+
+    [Fact(DisplayName =
+        "When Publisher declares FileKey, then it carries JsonPropertyName fileKey, because the stored and queried name must not depend on the serializer's camelCase naming policy.")]
+    public void publisher_file_key_pins_json_name()
+    {
+        // Arrange
+        var property = typeof(Publisher).GetProperty(nameof(Publisher.FileKey))!;
+
+        // Act
+        var attribute = property.GetCustomAttribute<JsonPropertyNameAttribute>();
+
+        // Assert
+        attribute.Should().NotBeNull();
+        attribute!.Name.Should().Be("fileKey");
     }
 
     private static string Translate<TEntity>(CosmosClient client, string candidate, Guid id) where TEntity : Publisher

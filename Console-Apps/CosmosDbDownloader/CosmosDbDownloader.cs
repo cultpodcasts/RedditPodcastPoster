@@ -359,7 +359,7 @@ public class CosmosDbDownloader(
             return;
         }
 
-        // Person.FileKey is often empty — filename is id, same as episodes. Never Save() people.
+        // People are named by id (they have no file key), same as episodes. Never Save() people.
         await WriteAllParallelAsync(
             personRepository.GetAll(),
             person => WriteJson("person", person.Id.ToString(), person),

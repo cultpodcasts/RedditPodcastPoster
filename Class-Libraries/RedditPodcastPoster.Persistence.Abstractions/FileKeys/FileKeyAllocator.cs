@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
@@ -71,7 +70,7 @@ public sealed class FileKeyAllocator(
     private static async Task<HashSet<string>> Read<TEntity>(
         IFilterableRepository<TEntity> repository,
         string candidate,
-        Guid id) where TEntity : Publisher
+        Guid id) where TEntity : CosmosSelector, IPublicEntity
     {
         var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         await foreach (var key in repository.GetAllBy(TakenKeySelector<TEntity>(candidate, id), x => x.FileKey))
@@ -83,12 +82,13 @@ public sealed class FileKeyAllocator(
     }
 
     /// <summary>
-    /// Cosmos filter for keys already taken by other documents of the kind. Constrained to <see cref="Publisher"/>
-    /// (not <see cref="IFileKeyed"/>) so <c>x.FileKey</c> binds to <see cref="Publisher.FileKey"/>, whose
-    /// <c>[JsonPropertyName("fileKey")]</c> the Cosmos LINQ provider reads; an interface member carries no JSON name.
-    /// Must translate to <c>c.fileKey</c> (pinned by <c>FileKeyAllocatorCosmosFilterTranslationRules</c>).
+    /// Cosmos filter for keys already taken by other documents of the kind. Constrained to <see cref="IPublicEntity"/>
+    /// because only the public kinds (podcast, TV show, news organisation, film) get allocated keys. The SQL name comes
+    /// from the camelCase naming policy (or the concrete <c>[JsonPropertyName("fileKey")]</c>, which pins it
+    /// independently of that policy). Must translate to <c>c.fileKey</c> (pinned by
+    /// <c>FileKeyAllocatorCosmosFilterTranslationRules</c>).
     /// </summary>
     public static Expression<Func<TEntity, bool>> TakenKeySelector<TEntity>(string candidate, Guid id)
-        where TEntity : Publisher =>
+        where TEntity : CosmosSelector, IPublicEntity =>
         x => x.FileKey != null && x.FileKey.StartsWith(candidate, StringComparison.OrdinalIgnoreCase) && x.Id != id;
 }
