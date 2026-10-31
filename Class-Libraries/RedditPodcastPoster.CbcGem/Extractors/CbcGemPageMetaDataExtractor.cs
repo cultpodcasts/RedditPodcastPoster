@@ -160,9 +160,10 @@ internal static partial class CbcGemCatalogMeta
 
     /// <summary>
     /// Collects every Movie / TVEpisode / TVSeries node across all JSON-LD blocks (arrays and <c>@graph</c>
-    /// included) and picks the one matching the URL shape: an episode URL prefers TVEpisode, a slug URL
-    /// prefers Movie. TVSeries is chosen only when nothing else is present, so a series node that happens
-    /// to precede the item never turns a valid film or episode into a rejected hub.
+    /// included) and picks the one matching the URL shape. An episode URL prefers TVEpisode, then Movie, then
+    /// TVSeries, so a series node next to the episode never rejects a valid episode. A slug URL prefers Movie,
+    /// then TVSeries (rejected as a series hub), then TVEpisode, so a hub that also lists a featured episode
+    /// is rejected rather than filed as that episode.
     /// </summary>
     private static (JsonElement Element, string Type)? FindCatalogueItem(HtmlDocument document, Uri url)
     {
@@ -187,7 +188,7 @@ internal static partial class CbcGemCatalogMeta
 
         string[] preference = CbcGemUrlMatcher.IsEpisodeUrl(url)
             ? ["TVEpisode", "Movie", "TVSeries"]
-            : ["Movie", "TVEpisode", "TVSeries"];
+            : ["Movie", "TVSeries", "TVEpisode"];
         foreach (var type in preference)
         {
             var match = candidates.FirstOrDefault(candidate => candidate.Type == type);

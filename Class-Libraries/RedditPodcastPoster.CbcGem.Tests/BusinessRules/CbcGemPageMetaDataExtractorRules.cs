@@ -351,6 +351,48 @@ public class CbcGemPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "A CBC Gem slug URL whose JSON-LD has a TVSeries plus a TVEpisode (a show hub listing a featured episode) " +
+        "fails extract as a series page, because the /{slug} URL is the hub and must not be filed as that episode.")]
+    public async Task slug_url_with_series_and_episode_is_rejected_as_series()
+    {
+        // Arrange
+        var series = _fixture.CreateTitle();
+        var html = Pages(null,
+            JsonLd("TVSeries", ("name", series)),
+            JsonLd("TVEpisode", ("name", _fixture.CreateTitle()),
+                ("partofSeries", JsonLd("CreativeWorkSeries", ("name", series)))));
+        var sut = _mocker.CreateInstance<CbcGemPageMetaDataExtractor>();
+
+        // Act
+        var act = async () => await sut.ExtractFromHtml(new Uri($"https://gem.cbc.ca/{CreateSlug()}"), html);
+
+        // Assert
+        await act.Should().ThrowAsync<NonPodcastServiceMetaDataExtractionException>()
+            .WithMessage("*series page*");
+    }
+
+    [Fact(DisplayName =
+        "A CBC Gem slug URL whose JSON-LD has a TVSeries ahead of a Movie is read as the Movie, " +
+        "because a film page is never rejected for carrying related series JSON-LD.")]
+    public async Task slug_url_with_series_and_movie_gives_movie()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var html = Pages(null,
+            JsonLd("TVSeries", ("name", _fixture.CreateTitle())),
+            JsonLd("Movie", ("name", title)));
+        var sut = _mocker.CreateInstance<CbcGemPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.ExtractFromHtml(new Uri($"https://gem.cbc.ca/{CreateSlug()}"), html);
+
+        // Assert
+        meta.Title.Should().Be(title);
+        meta.MadeAsFilm.Should().BeTrue();
+        meta.ShowName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "An episode URL whose page has both Movie and TVEpisode JSON-LD is read as the TVEpisode, " +
         "because the /{slug}/sNNeNN URL shape says it is an episode.")]
     public async Task episode_url_prefers_tv_episode_over_movie()
