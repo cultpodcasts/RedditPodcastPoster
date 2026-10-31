@@ -80,6 +80,10 @@ public class DiscoveryUrlSubmitter(
         }
 
         var state = submitResultAdaptor.ToDiscoverySubmitResultState(submitResult);
+        // Defensive plumbing only: discovery does not kind-classify today (it never sets
+        // SubmitOptions.ClassificationSignals, so CatalogueKindSubmitter returns null and FilmSearchSource is null
+        // here). If discovery starts routing films / TV / news, carry PlayableId, ContentKind and
+        // CatalogueSearchSource too and test through this submitter.
         return new DiscoverySubmitResult(state, submitResult.Episode, FilmSearchSource: submitResult.FilmSearchSource);
     }
 

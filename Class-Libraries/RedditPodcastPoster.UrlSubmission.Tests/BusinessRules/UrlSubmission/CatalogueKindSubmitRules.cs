@@ -31,6 +31,11 @@ using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Subjects.Factories;
+using RedditPodcastPoster.Text.TitleCasing;
+using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Models.People;
+using RedditPodcastPoster.UrlSubmission.Enrichers;
 using Xunit;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
@@ -108,96 +113,234 @@ public class CatalogueKindSubmitRules
         TakenFileKeys<ITvShowRepository, TvShow>(_shows);
         TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(_organisations);
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
-        // Synthetic subject matcher: any description naming the subject gets it, like the real matcher's term hit.
+        // Synthetic subject matcher honouring the options the real SubjectEnricher reads: a term named in the
+        // description is applied unless the options ignore it; with no hit, the options' default subject applies.
         _mocker.GetMock<ISubjectEnricher>()
             .Setup(x => x.EnrichSubjects(It.IsAny<Episode>(), It.IsAny<SubjectEnrichmentOptions?>()))
-            .ReturnsAsync((Episode episode, SubjectEnrichmentOptions? _) =>
+            .ReturnsAsync((Episode episode, SubjectEnrichmentOptions? options) =>
             {
-                if (!episode.Description.Contains(SyntheticSubject, StringComparison.Ordinal))
+                _subjectOptions.Add(options);
+                var hits = new[] { SyntheticSubject, ParentIgnoredSubject, LanguageIgnoredSubject }
+                    .Where(term => episode.Description.Contains(term, StringComparison.Ordinal) ||
+                                   episode.Title.Contains(term, StringComparison.Ordinal))
+                    .Where(term => options?.IgnoredSubjects?.Contains(term, StringComparer.OrdinalIgnoreCase) != true)
+                    .ToList();
+                if (hits.Count == 0 && !string.IsNullOrWhiteSpace(options?.DefaultSubject))
                 {
-                    return new EnrichSubjectsResult([], []);
+                    hits.Add(options.DefaultSubject);
                 }
 
-                episode.Subjects.Add(SyntheticSubject);
-                return new EnrichSubjectsResult([SyntheticSubject], []);
+                episode.Subjects.AddRange(hits);
+                return new EnrichSubjectsResult([.. hits], []);
             });
+        // Synthetic guest matcher: a description naming the guest adds them; naming the "maybe" guest yields a
+        // low-confidence suggestion only, as the real enricher's SkippedLowConfidence.
         _mocker.GetMock<IEpisodeGuestEnricher>()
             .Setup(x => x.EnrichGuests(It.IsAny<Episode>(), It.IsAny<GuestEnrichmentOptions?>()))
             .ReturnsAsync((Episode episode, GuestEnrichmentOptions? _) =>
             {
-                episode.Guests = [SyntheticGuest];
-                return new EnrichGuestsResult([], []);
+                var additions = episode.Description.Contains(SyntheticGuest, StringComparison.Ordinal)
+                    ? new[] { new PersonMatch(new Person(SyntheticGuest), [new PersonMatchResult(SyntheticGuest, 1)]) }
+                    : [];
+                var suggestions = episode.Description.Contains(SuggestedGuest, StringComparison.Ordinal)
+                    ? new[] { new PersonMatch(new Person(SuggestedGuest), [new PersonMatchResult(SuggestedGuest, 1)]) }
+                    : [];
+                if (additions.Length > 0)
+                {
+                    episode.Guests = [SyntheticGuest];
+                }
+
+                return new EnrichGuestsResult(additions, suggestions);
             });
+        // Real options factory; only the per-language ignore list is synthetic.
+        var rules = new Mock<ITitleCasingRulesProvider>();
+        rules.Setup(x => x.GetIgnoredSubjectsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string? language, CancellationToken _) =>
+                language == IgnoringLanguage ? [LanguageIgnoredSubject] : []);
+        var rulesInstance = new Mock<IAsyncInstance<ITitleCasingRulesProvider>>();
+        rulesInstance.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(rules.Object);
+        _mocker.Use<ISubjectEnrichmentOptionsFactory>(new SubjectEnrichmentOptionsFactory(rulesInstance.Object));
         _mocker.Use<ICatalogueSubmitEnrichment>(_mocker.CreateInstance<CatalogueSubmitEnrichment>());
     }
 
+    private readonly List<SubjectEnrichmentOptions?> _subjectOptions = [];
     private const string SyntheticSubject = "Synthetic Subject Zeta";
-    private const string SyntheticGuest = "synthetic-guest";
+    private const string ParentIgnoredSubject = "Synthetic Ignored Subject";
+    private const string LanguageIgnoredSubject = "Synthetic Language Ignored";
+    private const string IgnoringLanguage = "fr";
+    private const string SyntheticGuest = "Synthetic Guest Ada";
+    private const string SuggestedGuest = "Synthetic Maybe Guest";
 
-    [Fact(DisplayName =
-        "A film submit gets the same subject and guest enrichment as a podcast episode before it is saved.")]
-    public async Task film_submit_is_subject_enriched()
+    public static TheoryData<string> Kinds => ["film", "tv", "news"];
+
+    private async Task<(SubmitResult Result, Publisher? Parent, object Saved)> SubmitKind(
+        string kind,
+        ResolvedNonPodcastServiceItem source,
+        CategorisedItem? categorised = null)
+    {
+        UseEnabledFlag();
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+        var item = categorised ?? Categorised(source);
+        switch (kind)
+        {
+            case "film":
+                var film = await sut.TrySubmit(item, FilmOptions(source.Url!));
+                return (film!, null, _films.Single());
+            case "tv":
+                var tv = await sut.TrySubmit(item, TvOptions(source.Url!));
+                return (tv!, _shows.LastOrDefault(), _episodes.Single());
+            default:
+                var news = await sut.TrySubmit(item, NewsOptions(source.Url!));
+                return (news!, _organisations.LastOrDefault(), _reports.Single());
+        }
+    }
+
+    private static (List<string> Subjects, string[]? Guests, string Description) Enriched(object saved) => saved switch
+    {
+        Film film => (film.Subjects, film.Guests, film.Description),
+        Playable playable => (playable.Subjects, playable.Guests, playable.Description),
+        _ => throw new InvalidOperationException()
+    };
+
+    private ResolvedNonPodcastServiceItem KindSource(string description) =>
+        Source(showName: _fixture.CreateTitle()) with { Description = description };
+
+    [Theory(DisplayName =
+        "When a film, TV episode or news report is submitted and its description names a subject and a guest, " +
+        "then both are saved on the item, because these kinds get the podcast-episode enrichment before save.")]
+    [MemberData(nameof(Kinds))]
+    public async Task description_subject_and_guest_are_enriched(string kind)
     {
         // Arrange
-        UseEnabledFlag();
-        var source = Source() with { Description = $"A documentary about {SyntheticSubject}." };
-        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+        var source = KindSource($"About {SyntheticSubject}, with {SyntheticGuest}.");
 
         // Act
-        await sut.TrySubmit(Categorised(source), FilmOptions(source.Url!));
+        var (_, _, saved) = await SubmitKind(kind, source);
 
         // Assert
-        _films.Should().ContainSingle().Which.Subjects.Should().Equal(SyntheticSubject);
-        _films[0].Guests.Should().Equal(SyntheticGuest);
+        var enriched = Enriched(saved);
+        enriched.Subjects.Should().Equal(SyntheticSubject);
+        enriched.Guests.Should().Equal(SyntheticGuest);
+    }
+
+    [Theory(DisplayName =
+        "When a submitted film, TV episode or news report has a blank description, then the fallback description " +
+        "from another resolved service is saved and used for subject matching, as for a podcast episode.")]
+    [MemberData(nameof(Kinds))]
+    public async Task blank_description_uses_fallback_before_matching(string kind)
+    {
+        // Arrange
+        var source = KindSource(string.Empty);
+        var categorised = Categorised(source);
+        var fallback = $"Fallback text about {SyntheticSubject}.";
+        _mocker.GetMock<IDescriptionHelper>()
+            .Setup(x => x.EnrichMissingDescription(categorised))
+            .Returns(fallback);
+
+        // Act
+        var (_, _, saved) = await SubmitKind(kind, source, categorised);
+
+        // Assert
+        var enriched = Enriched(saved);
+        enriched.Description.Should().Be(fallback);
+        enriched.Subjects.Should().Equal(SyntheticSubject);
+    }
+
+    [Theory(DisplayName =
+        "When a film, TV episode or news report submit tags subjects and guests, then the submit response carries " +
+        "the subject additions, guest additions and low-confidence guest suggestions, as the podcast path does.")]
+    [MemberData(nameof(Kinds))]
+    public async Task submit_response_carries_enrichment_details(string kind)
+    {
+        // Arrange
+        var source = KindSource($"{SyntheticSubject}; {SyntheticGuest}; {SuggestedGuest}.");
+
+        // Act
+        var (result, _, _) = await SubmitKind(kind, source);
+
+        // Assert
+        var details = result.SubmitEpisodeDetails;
+        details.Should().NotBeNull();
+        details!.Subjects.Should().Equal(SyntheticSubject);
+        details.People!.Select(x => x.Person.Name).Should().Equal(SyntheticGuest);
+        details.GuestSuggestions!.Select(x => x.Person.Name).Should().Equal(SuggestedGuest);
+    }
+
+    [Theory(DisplayName =
+        "When a film, TV episode or news report description names no subject or guest, then none is saved, " +
+        "because guest and subject enrichment read the item's own text.")]
+    [MemberData(nameof(Kinds))]
+    public async Task no_terms_means_no_subjects_or_guests(string kind)
+    {
+        // Act
+        var (result, _, saved) = await SubmitKind(kind, KindSource("Nothing relevant here."));
+
+        // Assert
+        var enriched = Enriched(saved);
+        enriched.Subjects.Should().BeEmpty();
+        enriched.Guests.Should().BeNullOrEmpty();
+        result.SubmitEpisodeDetails!.People.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "A TV show episode submit gets the same subject and guest enrichment as a podcast episode before it is saved.")]
-    public async Task tv_episode_submit_is_subject_enriched()
+        "When a TV episode is submitted under an existing show with a default subject and no subject term matches, " +
+        "then it gets the show's default subject, because subject options come from the parent.")]
+    public async Task tv_episode_under_existing_show_gets_default_subject()
     {
         // Arrange
-        UseEnabledFlag();
-        var source = Source(showName: _fixture.CreateTitle()) with { Description = $"Tonight: {SyntheticSubject}." };
-        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+        var series = _fixture.CreateTitle();
+        var show = new TvShow(series) { DefaultSubject = SyntheticSubject };
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
+            .Returns(Yield([show]));
 
         // Act
-        await sut.TrySubmit(Categorised(source), TvOptions(source.Url!));
+        var (_, _, saved) = await SubmitKind("tv", Source(showName: series) with { Description = "Plain." });
 
         // Assert
-        _episodes.Should().ContainSingle().Which.Subjects.Should().Equal(SyntheticSubject);
-        _episodes[0].Guests.Should().Equal(SyntheticGuest);
+        Enriched(saved).Subjects.Should().Equal(SyntheticSubject);
+        _subjectOptions.Should().ContainSingle().Which!.DefaultSubject.Should().Be(SyntheticSubject);
     }
 
     [Fact(DisplayName =
-        "A news report submit gets the same subject and guest enrichment as a podcast episode before it is saved.")]
-    public async Task news_report_submit_is_subject_enriched()
+        "When a news report is submitted under an existing organisation that ignores a subject, then that subject " +
+        "is not applied even though the description names it, because the parent's ignore list is honoured.")]
+    public async Task news_report_honours_parent_ignored_subjects()
     {
         // Arrange
-        UseEnabledFlag();
-        var source = Source(showName: _fixture.CreateTitle()) with { Description = $"Report on {SyntheticSubject}." };
-        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+        var name = _fixture.CreateTitle();
+        var organisation = new NewsOrganisation(name) { IgnoredSubjects = [ParentIgnoredSubject] };
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
+            .Returns(Yield([organisation]));
 
         // Act
-        await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+        var (_, _, saved) = await SubmitKind(
+            "news", Source(showName: name) with { Description = $"{ParentIgnoredSubject} and {SyntheticSubject}." });
 
         // Assert
-        _reports.Should().ContainSingle().Which.Subjects.Should().Equal(SyntheticSubject);
-        _reports[0].Guests.Should().Equal(SyntheticGuest);
+        Enriched(saved).Subjects.Should().Equal(SyntheticSubject);
     }
 
-    [Fact(DisplayName = "A film whose description names no subject is saved with no subjects.")]
-    public async Task film_without_subject_term_gets_none()
+    [Fact(DisplayName =
+        "When a TV episode's language has a per-language subject ignore list, then a subject on that list is not " +
+        "applied, because subject options merge the language ignore list as for a podcast episode.")]
+    public async Task tv_episode_honours_language_ignored_subjects()
     {
         // Arrange
-        UseEnabledFlag();
-        var source = Source();
-        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+        var series = _fixture.CreateTitle();
+        var show = new TvShow(series) { Language = IgnoringLanguage };
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
+            .Returns(Yield([show]));
 
         // Act
-        await sut.TrySubmit(Categorised(source), FilmOptions(source.Url!));
+        var (_, _, saved) = await SubmitKind(
+            "tv", Source(showName: series) with { Description = $"{LanguageIgnoredSubject} and {SyntheticSubject}." });
 
         // Assert
-        _films.Should().ContainSingle().Which.Subjects.Should().BeEmpty();
+        Enriched(saved).Subjects.Should().Equal(SyntheticSubject);
+        _subjectOptions.Single()!.IgnoredSubjects.Should().Contain(LanguageIgnoredSubject);
     }
 
     [Fact(DisplayName =

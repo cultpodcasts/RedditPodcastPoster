@@ -125,13 +125,17 @@ public class CatalogueKindSubmitter(
 
             identityEnricher.ApplyMissing(film, filmIdentity.Admission.Ids);
             film.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.Film, film.Name, film.Id);
-            await enrichment.Enrich(film);
+            var filmDetails = await enrichment.Enrich(film, categorisedItem);
             await films.Save(film);
             return CreatedPlayable(
                 SubmitClassification.Film,
                 film.Id,
                 parentCreated: false,
-                filmAdmission.Admission.SetsDefaultLanguage) with { FilmSearchSource = film };
+                filmAdmission.Admission.SetsDefaultLanguage) with
+            {
+                FilmSearchSource = film,
+                SubmitEpisodeDetails = filmDetails
+            };
         }
 
         if (classified.ContentKind == SubmitClassification.TvShowEpisode)
@@ -142,7 +146,7 @@ public class CatalogueKindSubmitter(
                 return AlreadyExists(SubmitClassification.TvShowEpisode, existing.Id);
             }
 
-            var saved = await SaveTvShowEpisode(source, submitOptions);
+            var saved = await SaveTvShowEpisode(source, categorisedItem, submitOptions);
             if (saved.Stop != null)
             {
                 return saved.Stop;
@@ -154,7 +158,7 @@ public class CatalogueKindSubmitter(
                 saved.Episode!.Id,
                 saved.ParentCreated,
                 saved.SetsDefaultLanguage,
-                saved.SearchSource);
+                saved.SearchSource) with { SubmitEpisodeDetails = saved.Details };
         }
 
         if (classified.ContentKind == SubmitClassification.NewsReport)
@@ -165,7 +169,7 @@ public class CatalogueKindSubmitter(
                 return AlreadyExists(SubmitClassification.NewsReport, existing.Id);
             }
 
-            var saved = await SaveNewsReport(source, submitOptions);
+            var saved = await SaveNewsReport(source, categorisedItem, submitOptions);
             if (saved.Stop != null)
             {
                 return saved.Stop;
@@ -177,7 +181,7 @@ public class CatalogueKindSubmitter(
                 saved.Report!.Id,
                 saved.ParentCreated,
                 saved.SetsDefaultLanguage,
-                saved.SearchSource);
+                saved.SearchSource) with { SubmitEpisodeDetails = saved.Details };
         }
 
         return null;
@@ -244,8 +248,9 @@ public class CatalogueKindSubmitter(
         return film;
     }
 
-    private async Task<(TvShowEpisode? Episode, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage, CatalogueSearchSource? SearchSource)> SaveTvShowEpisode(
+    private async Task<(TvShowEpisode? Episode, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage, CatalogueSearchSource? SearchSource, SubmitEpisodeDetails? Details)> SaveTvShowEpisode(
         ResolvedNonPodcastServiceItem source,
+        CategorisedItem categorisedItem,
         SubmitOptions submitOptions)
     {
         var name = TvSeriesName(source, submitOptions);
@@ -273,13 +278,13 @@ public class CatalogueKindSubmitter(
             SubmitClassification.TvShowEpisode);
         if (admitted.Stop != null)
         {
-            return (null, creatingParent, admitted.Stop, false, null);
+            return (null, creatingParent, admitted.Stop, false, null, null);
         }
 
         var identity = await AdmitIdentityTv(show, RequiredTitle(source), submitOptions, SubmitClassification.TvShowEpisode);
         if (identity.Stop != null)
         {
-            return (null, creatingParent, identity.Stop, false, null);
+            return (null, creatingParent, identity.Stop, false, null, null);
         }
 
         if (submitOptions.LanguageProbe)
@@ -291,9 +296,10 @@ public class CatalogueKindSubmitter(
                     SubmitClassification.TvShowEpisode,
                     admitted.Admission.SetsDefaultLanguage),
                 false,
-                null);
+                null, null);
         }
 
+        var saveParent = false;
         if (creatingParent)
         {
             if (admitted.Admission.LanguageCode != null)
@@ -303,11 +309,11 @@ public class CatalogueKindSubmitter(
 
             identityEnricher.ApplyMissing(show, identity.Admission.ParentIds ?? identity.Admission.Ids);
             show.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.TvShow, show.Name, show.Id);
-            await tvShows.Save(show);
+            saveParent = true;
         }
         else if (identityEnricher.ApplyMissing(show, identity.Admission.ParentIds))
         {
-            await tvShows.Save(show);
+            saveParent = true;
         }
 
         var episode = new TvShowEpisode(RequiredTitle(source))
@@ -330,18 +336,27 @@ public class CatalogueKindSubmitter(
         }
 
         identityEnricher.ApplyMissing(episode, identity.Admission.Ids);
-        await enrichment.Enrich(episode);
+        // Enrich before anything is persisted (as the podcast create path does): the enrichers read Cosmos, and a
+        // throw here must not leave a new parent saved with no child under it.
+        var details = await enrichment.Enrich(episode, show, show.Indexing, categorisedItem);
+        if (saveParent)
+        {
+            await tvShows.Save(show);
+        }
+
         await tvShowEpisodes.Save(episode);
         return (
             episode,
             creatingParent,
             null,
             admitted.Admission.SetsDefaultLanguage,
-            ImmediateSearchSource(show, episode, CatalogueParentKind.TvShow));
+            ImmediateSearchSource(show, episode, CatalogueParentKind.TvShow),
+            details);
     }
 
-    private async Task<(NewsReport? Report, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage, CatalogueSearchSource? SearchSource)> SaveNewsReport(
+    private async Task<(NewsReport? Report, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage, CatalogueSearchSource? SearchSource, SubmitEpisodeDetails? Details)> SaveNewsReport(
         ResolvedNonPodcastServiceItem source,
+        CategorisedItem categorisedItem,
         SubmitOptions submitOptions)
     {
         var name = NewsOutletName(source, submitOptions);
@@ -374,7 +389,7 @@ public class CatalogueKindSubmitter(
             SubmitClassification.NewsReport);
         if (admitted.Stop != null)
         {
-            return (null, creatingParent, admitted.Stop, false, null);
+            return (null, creatingParent, admitted.Stop, false, null, null);
         }
 
         if (submitOptions.LanguageProbe)
@@ -386,7 +401,7 @@ public class CatalogueKindSubmitter(
                     SubmitClassification.NewsReport,
                     admitted.Admission.SetsDefaultLanguage),
                 false,
-                null);
+                null, null);
         }
 
         if (creatingParent)
@@ -398,7 +413,6 @@ public class CatalogueKindSubmitter(
 
             organisation.FileKey = await fileKeyAllocator.Allocate(
                 FileKeyKind.NewsOrganisation, organisation.Name, organisation.Id);
-            await newsOrganisations.Save(organisation);
         }
 
         var report = new NewsReport(RequiredTitle(source))
@@ -420,14 +434,21 @@ public class CatalogueKindSubmitter(
             report.SetRelease(CatalogueRelease.FromDateTimeUtc(release));
         }
 
-        await enrichment.Enrich(report);
+        // Enrich before anything is persisted; see SaveTvShowEpisode.
+        var details = await enrichment.Enrich(report, organisation, organisation.Indexing, categorisedItem);
+        if (creatingParent)
+        {
+            await newsOrganisations.Save(organisation);
+        }
+
         await newsReports.Save(report);
         return (
             report,
             creatingParent,
             null,
             admitted.Admission.SetsDefaultLanguage,
-            ImmediateSearchSource(organisation, report, CatalogueParentKind.NewsOrganisation));
+            ImmediateSearchSource(organisation, report, CatalogueParentKind.NewsOrganisation),
+            details);
     }
 
     /// <summary>

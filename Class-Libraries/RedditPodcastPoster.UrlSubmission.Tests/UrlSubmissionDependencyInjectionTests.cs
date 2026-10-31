@@ -94,6 +94,7 @@ public class UrlSubmissionDependencyInjectionTests
         // Hosts get this from AddRepositories.
         services.AddSingleton(Mock.Of<IFileKeyAllocator>());
         services.AddSingleton(Mock.Of<RedditPodcastPoster.Subjects.Enrichers.ISubjectEnricher>());
+        services.AddSingleton(Mock.Of<RedditPodcastPoster.Subjects.Factories.ISubjectEnrichmentOptionsFactory>());
         // Catalogue identity comes from AddCatalogueServices at the composition root, not AddUrlSubmission.
         services.AddSingleton(Mock.Of<ICatalogueIdentityEnricher>());
         services.AddUrlSubmission();
@@ -167,6 +168,7 @@ public class UrlSubmissionDependencyInjectionTests
         // Hosts get this from AddRepositories.
         services.AddSingleton(Mock.Of<IFileKeyAllocator>());
         services.AddSingleton(Mock.Of<RedditPodcastPoster.Subjects.Enrichers.ISubjectEnricher>());
+        services.AddSingleton(Mock.Of<RedditPodcastPoster.Subjects.Factories.ISubjectEnrichmentOptionsFactory>());
         return services;
     }
 }
