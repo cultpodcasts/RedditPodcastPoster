@@ -153,13 +153,14 @@ public class CatalogueKindSubmitRules
                 return new EnrichGuestsResult(additions, suggestions);
             });
         // Real options factory; only the per-language ignore list is synthetic.
-        var rules = new Mock<ITitleCasingRulesProvider>();
-        rules.Setup(x => x.GetIgnoredSubjectsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        _mocker.GetMock<ITitleCasingRulesProvider>()
+            .Setup(x => x.GetIgnoredSubjectsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string? language, CancellationToken _) =>
                 language == IgnoringLanguage ? [LanguageIgnoredSubject] : []);
-        var rulesInstance = new Mock<IAsyncInstance<ITitleCasingRulesProvider>>();
-        rulesInstance.Setup(x => x.GetAsync(It.IsAny<CancellationToken>())).ReturnsAsync(rules.Object);
-        _mocker.Use<ISubjectEnrichmentOptionsFactory>(new SubjectEnrichmentOptionsFactory(rulesInstance.Object));
+        _mocker.GetMock<IAsyncInstance<ITitleCasingRulesProvider>>()
+            .Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(_mocker.GetMock<ITitleCasingRulesProvider>().Object);
+        _mocker.Use<ISubjectEnrichmentOptionsFactory>(_mocker.CreateInstance<SubjectEnrichmentOptionsFactory>());
         _mocker.Use<ICatalogueSubmitEnrichment>(_mocker.CreateInstance<CatalogueSubmitEnrichment>());
     }
 
