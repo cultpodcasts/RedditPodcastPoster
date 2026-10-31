@@ -174,8 +174,77 @@ public class UtcDateTimeSerializationRules
         readBack.Local.Should().Be(bst);
     }
 
+    [Fact(DisplayName =
+        "When only the DateTime and DateTimeOffset converters are registered, then nullable values still go through them and null stays null, because System.Text.Json wraps a registered converter for Nullable<T>.")]
+    public void nullable_values_use_the_non_nullable_converters()
+    {
+        // Arrange
+        var value = CreateUtcInstant();
+        var options = new JsonSerializerOptions().AddUtcDateTimeConverters();
+        DateTime? local = value.ToLocalTime();
+        DateTimeOffset? withOffset = new DateTimeOffset(value).ToOffset(TimeSpan.FromHours(1));
+        var expected = $"\"{value:yyyy-MM-ddTHH:mm:ss}Z\"";
+
+        // Act
+        var localJson = JsonSerializer.Serialize(local, options);
+        var offsetJson = JsonSerializer.Serialize(withOffset, options);
+        var nullJson = JsonSerializer.Serialize((DateTime?)null, options);
+        var readZoneLess = JsonSerializer.Deserialize<DateTime?>($"\"{value:yyyy-MM-ddTHH:mm:ss}\"", options);
+        var readNull = JsonSerializer.Deserialize<DateTimeOffset?>("null", options);
+
+        // Assert
+        options.Converters.Should().HaveCount(2);
+        localJson.Should().Be(expected);
+        offsetJson.Should().Be(expected);
+        nullJson.Should().Be("null");
+        readZoneLess.Should().Be(value);
+        readZoneLess!.Value.Kind.Should().Be(DateTimeKind.Utc);
+        readNull.Should().BeNull();
+    }
+
     [Theory(DisplayName =
-        "When a Cosmos LINQ filter compares a date-time with a UTC or unspecified-kind constant, then the SQL literal is the UTC instant with a Z, because stored date-times are compared as UTC Z text.")]
+        "When a date-time field holds text that is not a date-time or a non-string token, then reading fails with a JsonException, because a single parse decides what a valid date-time is.")]
+    [InlineData("\"not-a-date\"")]
+    [InlineData("12345")]
+    [InlineData("true")]
+    public void invalid_date_time_tokens_throw_json_exception(string json)
+    {
+        // Arrange
+        var readDateTime = () => JsonSerializer.Deserialize<DateTime>(json, _options);
+        var readDateTimeOffset = () => JsonSerializer.Deserialize<DateTimeOffset>(json, _options);
+
+        // Act / Assert
+        readDateTime.Should().Throw<JsonException>();
+        readDateTimeOffset.Should().Throw<JsonException>();
+    }
+
+    [Fact(DisplayName =
+        "When exported UTC text is parsed with TryParseIso, then zone-less text is UTC, offset text is adjusted to UTC and blank text fails, because every reader of exported date-times must agree.")]
+    public void try_parse_iso_reads_utc()
+    {
+        // Arrange
+        var value = CreateUtcInstant();
+        var zoneLess = $"{value:yyyy-MM-ddTHH:mm:ss}";
+        var withOffset = new DateTimeOffset(value).ToOffset(TimeSpan.FromHours(_fixture.Create<int>() % 12 + 1))
+            .ToString("O");
+
+        // Act
+        var zoneLessOk = UtcDateTimes.TryParseIso(zoneLess, out var fromZoneLess);
+        var offsetOk = UtcDateTimes.TryParseIso(withOffset, out var fromOffset);
+        var blankOk = UtcDateTimes.TryParseIso(string.Empty, out _);
+
+        // Assert
+        zoneLessOk.Should().BeTrue();
+        fromZoneLess.Should().Be(value);
+        fromZoneLess.Kind.Should().Be(DateTimeKind.Utc);
+        offsetOk.Should().BeTrue();
+        fromOffset.Should().Be(value);
+        fromOffset.Kind.Should().Be(DateTimeKind.Utc);
+        blankOk.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "When a Cosmos LINQ filter compares a date-time with a UTC, unspecified-kind or local constant, then the SQL literal is the UTC instant with a Z, because stored date-times are compared as UTC Z text.")]
     [InlineData(DateTimeKind.Utc)]
     [InlineData(DateTimeKind.Unspecified)]
     [InlineData(DateTimeKind.Local)]

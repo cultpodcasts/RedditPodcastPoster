@@ -307,9 +307,12 @@ public static class DiscoverySchedule
     private static DiscoverySlot CreateSlot(DateOnly dayUk, TimeOnly runTimeUk, TimeZoneInfo tz)
     {
         var local = dayUk.ToDateTime(runTimeUk);
-        // Ambiguous (fall-back): pick the first occurrence for stable slot identity.
+        // Ambiguous (fall-back, e.g. 01:00-01:59 UK on the last Sunday of October): pick the SECOND occurrence,
+        // i.e. the smaller (standard-time, GMT) offset, for stable slot identity. This is the same choice
+        // TimeZoneInfo.ConvertTimeToUtc makes and the iPlayer extractor documents. Taking the minimum rather than
+        // index [0] keeps it independent of the order GetAmbiguousTimeOffsets returns.
         var offset = tz.IsAmbiguousTime(local)
-            ? tz.GetAmbiguousTimeOffsets(local)[0]
+            ? tz.GetAmbiguousTimeOffsets(local).Min()
             : tz.GetUtcOffset(local);
         var slotUk = new DateTimeOffset(local, offset);
         var slotId = $"{dayUk:yyyy-MM-dd} {runTimeUk:HH\\:mm} UK";

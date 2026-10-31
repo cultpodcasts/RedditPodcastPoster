@@ -1,12 +1,14 @@
 using System.Text.Json;
 using Api;
 using Api.Dtos;
+using Api.Dtos.Mapping;
 using Api.Extensions;
 using FluentAssertions;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Serialization;
 using Xunit;
 
@@ -73,12 +75,10 @@ public class UtcJsonHttpResponseRules
         // Assert
         options.Converters.Should().ContainSingle(c => c is UtcDateTimeConverter);
         options.Converters.Should().ContainSingle(c => c is UtcDateTimeOffsetConverter);
-        options.Converters.Should().ContainSingle(c => c is NullableUtcDateTimeConverter);
-        options.Converters.Should().ContainSingle(c => c is NullableUtcDateTimeOffsetConverter);
     }
 
     [Theory(DisplayName =
-        "When the discovery schedule is returned, then slotStartUtc is UTC with a Z and slotStartUk keeps its UK offset, because curators set run times in UK local time, which moves against UTC when the clocks change.")]
+        "When a discovery schedule response holds a slot with a UK offset, then the serializer writes slotStartUtc with a Z and slotStartUk with its own offset, because the slotStartUk property opts out of the UTC converters.")]
     [InlineData(1)]
     [InlineData(0)]
     public void discovery_schedule_keeps_uk_local_offset(int ukOffsetHours)
@@ -117,5 +117,74 @@ public class UtcJsonHttpResponseRules
         var run = doc.RootElement.GetProperty("nextRuns")[0];
         run.GetProperty("slotStartUtc").GetString().Should().Be($"{value:yyyy-MM-ddTHH:mm:ss}Z");
         run.GetProperty("slotStartUk").GetString().Should().Be($"{slotUk:yyyy-MM-ddTHH:mm:ss}{expectedOffset}");
+    }
+    /// <summary>The last Sunday of <paramref name="month"/> next year: the UK clock-change day (October or March).</summary>
+    private static DateTime LastSundayNextYear(int month)
+    {
+        var year = DomainTestFixture.UtcToday.Year + 1;
+        var last = new DateTime(year, month, DateTime.DaysInMonth(year, month), 0, 0, 0, DateTimeKind.Utc);
+        return last.AddDays(-(int)last.DayOfWeek);
+    }
+
+    private static JsonElement BuildAndSerializeNextRuns(string runTime, DateTime utcNow)
+    {
+        var services = new ServiceCollection();
+        services.AddFunctionsWorkerCore();
+        services.AddUtcJsonDateTimes();
+        using var provider = services.BuildServiceProvider();
+        var config = new DiscoveryScheduleConfig
+        {
+            RunTimes = [runTime],
+            TimeZoneId = "Europe/London",
+            Enabled = true
+        };
+        var response = DiscoveryScheduleResponseBuilder.Build(config, isDefault: false, nextRunsPreviewCount: 2, utcNow);
+        using var doc = JsonDocument.Parse(Serialize(provider, response));
+        return doc.RootElement.GetProperty("nextRuns").Clone();
+    }
+
+    [Theory(DisplayName =
+        "When the discovery schedule is built across a UK clock change, then slotStartUk keeps the 09:00 run time with the new UK offset and slotStartUtc moves by an hour, because curators set run times in UK local time, which moves against UTC when the clocks change.")]
+    [InlineData(10, "+01:00", "08:00:00Z", "+00:00", "09:00:00Z")]
+    [InlineData(3, "+00:00", "09:00:00Z", "+01:00", "08:00:00Z")]
+    public void discovery_schedule_keeps_local_run_time_across_clock_change(
+        int month,
+        string beforeOffset,
+        string beforeUtc,
+        string afterOffset,
+        string afterUtc)
+    {
+        // Arrange
+        var changeDay = LastSundayNextYear(month);
+        var dayBefore = changeDay.AddDays(-1);
+        var utcNow = dayBefore;
+
+        // Act
+        var nextRuns = BuildAndSerializeNextRuns("09:00", utcNow);
+
+        // Assert
+        nextRuns.GetArrayLength().Should().Be(2);
+        nextRuns[0].GetProperty("slotStartUk").GetString().Should().Be($"{dayBefore:yyyy-MM-dd}T09:00:00{beforeOffset}");
+        nextRuns[0].GetProperty("slotStartUtc").GetString().Should().Be($"{dayBefore:yyyy-MM-dd}T{beforeUtc}");
+        nextRuns[1].GetProperty("slotStartUk").GetString().Should().Be($"{changeDay:yyyy-MM-dd}T09:00:00{afterOffset}");
+        nextRuns[1].GetProperty("slotStartUtc").GetString().Should().Be($"{changeDay:yyyy-MM-dd}T{afterUtc}");
+    }
+
+    [Fact(DisplayName =
+        "When a discovery run time falls in the repeated hour on the October clock-change day, then the slot is the second occurrence (GMT, +00:00), because slot identity must be stable and match how UK wall-clock times are converted elsewhere.")]
+    public void discovery_schedule_ambiguous_october_hour_is_second_occurrence()
+    {
+        // Arrange
+        var changeDay = LastSundayNextYear(10);
+        var dayBefore = changeDay.AddDays(-1);
+
+        // Act
+        var nextRuns = BuildAndSerializeNextRuns("01:30", dayBefore);
+
+        // Assert
+        nextRuns[0].GetProperty("slotStartUk").GetString().Should().Be($"{dayBefore:yyyy-MM-dd}T01:30:00+01:00");
+        nextRuns[0].GetProperty("slotStartUtc").GetString().Should().Be($"{dayBefore:yyyy-MM-dd}T00:30:00Z");
+        nextRuns[1].GetProperty("slotStartUk").GetString().Should().Be($"{changeDay:yyyy-MM-dd}T01:30:00+00:00");
+        nextRuns[1].GetProperty("slotStartUtc").GetString().Should().Be($"{changeDay:yyyy-MM-dd}T01:30:00Z");
     }
 }

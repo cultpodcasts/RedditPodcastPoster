@@ -124,14 +124,13 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
                     var date = matches.Groups["date"]?.Value;
                     if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, Uk, out var _dateTime))
                     {
+                        // Date only (no time on the page): deliberately left as midnight with an unspecified kind,
+                        // which the UTC converters write as 00:00Z. It is a calendar date, not a UK instant, so it is
+                        // not shifted by the BST offset.
                         release = _dateTime;
                         if (!string.IsNullOrWhiteSpace(hour) && int.TryParse(hour, out var _hour))
                         {
-                            release += TimeSpan.FromHours(_hour);
-                            if (pm == "pm")
-                            {
-                                release += TimeSpan.FromHours(12);
-                            }
+                            release += TimeSpan.FromHours(To24Hour(_hour, pm == "pm"));
 
                             if (!string.IsNullOrWhiteSpace(min) && int.TryParse(min, out var _min))
                             {
@@ -255,9 +254,16 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         bool Explicit,
         string? Series);
 
+    /// <summary>Converts a 12-hour clock hour (1-12) with am/pm to 0-23: 12am is 00, 12pm is 12.</summary>
+    internal static int To24Hour(int hour12, bool pm) => hour12 % 12 + (pm ? 12 : 0);
+
     /// <summary>
     /// Converts a UK wall-clock time (no zone) to UTC: one hour earlier during BST, unchanged during GMT.
-    /// A wall-clock time in the spring-forward gap does not exist; it is read as GMT (BST minus an hour).
+    /// <list type="bullet">
+    /// <item>Spring-forward gap (01:00-01:59 on the last Sunday of March): the time does not exist; it is read as GMT.</item>
+    /// <item>Fall-back repeated hour (01:00-01:59 on the last Sunday of October): the time happens twice; the
+    /// <b>second</b> occurrence (GMT) is chosen deliberately, the same choice <c>DiscoverySchedule</c> makes for slots.</item>
+    /// </list>
     /// </summary>
     internal static DateTime UkWallClockToUtc(DateTime ukWallClock)
     {
@@ -265,6 +271,12 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         if (UkTimeZone.IsInvalidTime(unspecified))
         {
             return DateTime.SpecifyKind(unspecified - UkTimeZone.BaseUtcOffset, DateTimeKind.Utc);
+        }
+
+        if (UkTimeZone.IsAmbiguousTime(unspecified))
+        {
+            var gmt = UkTimeZone.GetAmbiguousTimeOffsets(unspecified).Min();
+            return DateTime.SpecifyKind(unspecified - gmt, DateTimeKind.Utc);
         }
 
         return TimeZoneInfo.ConvertTimeToUtc(unspecified, UkTimeZone);

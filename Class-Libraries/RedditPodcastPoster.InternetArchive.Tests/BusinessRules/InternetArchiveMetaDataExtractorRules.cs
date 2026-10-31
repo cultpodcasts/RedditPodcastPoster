@@ -94,6 +94,40 @@ public class InternetArchiveMetaDataExtractorRules
         meta.ShowName.Should().NotBe(meta.Title);
     }
 
+    [Fact(DisplayName =
+        "Internet Archive extract reads the upload date as UTC, " +
+        "because Internet Archive upload dates are UTC and the API stores and emits UTC instants.")]
+    public async Task upload_date_is_read_as_utc()
+    {
+        // Arrange
+        var uploaded = DomainTestFixture.UtcAtTime(-(_fixture.Create<int>() % 300 + 1),
+            TimeSpan.FromMinutes(_fixture.Create<int>() % 1439 + 1));
+        var itemTitle = _fixture.CreateTitle();
+        _playlist =
+        [
+            new PlayListItem
+            {
+                Title = itemTitle,
+                Orig = $"/download/{_fixture.CreateYouTubeId()}",
+                Duration = TimeSpan.FromMinutes(42)
+            }
+        ];
+        var url = new Uri($"https://archive.org/details/{_fixture.CreateYouTubeId()}");
+        var html =
+            $"<html><body>" +
+            $"<span itemprop=\"name\">{itemTitle}</span>" +
+            $"<span itemprop=\"uploadDate\">{uploaded:yyyy-MM-dd HH:mm:ss}</span>" +
+            $"</body></html>";
+        var sut = _mocker.CreateInstance<MetaDataExtractor>();
+
+        // Act
+        var meta = await sut.Extract(url, HtmlResponse(html));
+
+        // Assert
+        meta.Release.Should().Be(uploaded);
+        meta.Release!.Value.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
     private static HttpResponseMessage HtmlResponse(string html) =>
         new(HttpStatusCode.OK)
         {
