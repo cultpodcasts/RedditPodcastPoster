@@ -9,6 +9,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
@@ -89,6 +90,146 @@ public class SubmitUrlServiceTests
         _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
             s => s.IndexEpisode(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact(DisplayName =
+        "A saved film is indexed immediately as a Film search document keyed by the film id, without the podcast-episode indexer.")]
+    public async Task film_is_indexed_immediately()
+    {
+        // Arrange
+        var film = new Film("Synthetic Film " + _fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        IReadOnlyList<EpisodeSearchRecord>? uploaded = null;
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Callback((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) => uploaded = docs)
+            .ReturnsAsync(true);
+        SetupSubmitResult(FilmResult(film));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(SyntheticRequest(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        uploaded.Should().ContainSingle();
+        uploaded![0].Id.Should().Be(film.Id.ToString());
+        uploaded[0].ContentKind.Should().Be(SearchContentKind.Film);
+        _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
+            s => s.IndexEpisode(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "A removed film is not uploaded to search on submit.")]
+    public async Task removed_film_is_not_indexed()
+    {
+        // Arrange
+        var film = new Film("Synthetic Film " + _fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Removed = true };
+        SetupSubmitResult(FilmResult(film));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(SyntheticRequest(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        _mocker.GetMock<IPlayableSearchDocumentSwap>().Verify(
+            s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName = "A failed or rejected immediate film index is logged and the submit still succeeds.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task film_index_failure_still_ok(bool throws)
+    {
+        // Arrange
+        var film = new Film("Synthetic Film " + _fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var upload = _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()));
+        if (throws)
+        {
+            upload.ThrowsAsync(new InvalidOperationException("synthetic"));
+        }
+        else
+        {
+            upload.ReturnsAsync(false);
+        }
+
+        SetupSubmitResult(FilmResult(film));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(SyntheticRequest(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        result.Result!.PlayableId.Should().Be(film.Id);
+    }
+
+    [Fact(DisplayName =
+        "A created podcast episode is still indexed immediately by the episode indexer, with no playable document upload.")]
+    public async Task podcast_episode_is_still_indexed_immediately()
+    {
+        // Arrange
+        var episode = _fixture.CreateEpisode();
+        SetupSubmitResult(new SubmitResult(SubmitResultState.Created, SubmitResultState.None, Episode: episode));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(SyntheticRequest(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
+            s => s.IndexEpisode(episode.Id, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<IPlayableSearchDocumentSwap>().Verify(
+            s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A routed TV episode is still indexed immediately as a TvShowEpisode document.")]
+    public async Task routed_tv_episode_is_still_indexed_immediately()
+    {
+        // Arrange
+        var show = new RedditPodcastPoster.Models.TvShows.TvShow("Synthetic Show " + _fixture.CreateTitle());
+        var episode = _fixture.CreateEpisode();
+        IReadOnlyList<EpisodeSearchRecord>? uploaded = null;
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Callback((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) => uploaded = docs)
+            .ReturnsAsync(true);
+        SetupSubmitResult(new SubmitResult(
+            SubmitResultState.Created,
+            SubmitResultState.None,
+            ContentKind: SubmitClassification.TvShowEpisode,
+            PlayableId: episode.Id,
+            CatalogueSearchSource: new CatalogueSearchSource(
+                new CatalogueIndexingSource().ToTransientPodcast(show), episode, CatalogueParentKind.TvShow)));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(SyntheticRequest(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        uploaded.Should().ContainSingle();
+        uploaded![0].ContentKind.Should().Be(SearchContentKind.TvShowEpisode);
+    }
+
+    private void SetupSubmitResult(SubmitResult submitResult) =>
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(It.IsAny<Uri>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(submitResult);
+
+    private static SubmitResult FilmResult(Film film) =>
+        new(
+            SubmitResultState.Created,
+            SubmitResultState.None,
+            ContentKind: SubmitClassification.Film,
+            PlayableId: film.Id,
+            FilmSearchSource: film);
+
+    private SubmitUrlRequest SyntheticRequest() =>
+        new() { Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}") };
 
     [Fact(DisplayName =
         "A failed immediate index of a routed item is logged and the submit still succeeds.")]

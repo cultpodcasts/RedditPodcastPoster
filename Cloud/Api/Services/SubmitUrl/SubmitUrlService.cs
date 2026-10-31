@@ -137,6 +137,11 @@ public class SubmitUrlService(
                 await IndexCatalogueParentItem(searchSource, cancellationToken);
             }
 
+            if (result.FilmSearchSource is { } film)
+            {
+                await CatalogueSubmitSearchIndexing.IndexFilmAsync(playableSearch, film, logger, cancellationToken);
+            }
+
             if (result.PlayableId.HasValue && result.Episode == null)
             {
                 return new SubmitUrlResult(SubmitUrlStatus.Ok, result);

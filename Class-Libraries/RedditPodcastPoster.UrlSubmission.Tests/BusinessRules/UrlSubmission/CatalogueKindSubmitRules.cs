@@ -207,6 +207,7 @@ public class CatalogueKindSubmitRules
         result.ContentKind.Should().Be(SubmitClassification.Film);
         result.PlayableId.Should().Be(_films[0].Id);
         _films.Should().ContainSingle();
+        result.FilmSearchSource.Should().BeSameAs(_films[0], "the host indexes the saved film immediately");
         _films[0].Name.Should().Be(source.Title);
         _films[0].Services.Should().ContainKey("netflix");
         _films[0].Services!["netflix"].Url.Should().Be(source.Url);

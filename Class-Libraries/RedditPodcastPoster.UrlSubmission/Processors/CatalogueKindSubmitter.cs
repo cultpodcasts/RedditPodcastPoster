@@ -129,7 +129,7 @@ public class CatalogueKindSubmitter(
                 SubmitClassification.Film,
                 film.Id,
                 parentCreated: false,
-                filmAdmission.Admission.SetsDefaultLanguage);
+                filmAdmission.Admission.SetsDefaultLanguage) with { FilmSearchSource = film };
         }
 
         if (classified.ContentKind == SubmitClassification.TvShowEpisode)

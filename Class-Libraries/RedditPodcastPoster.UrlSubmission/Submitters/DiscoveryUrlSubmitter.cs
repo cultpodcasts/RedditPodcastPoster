@@ -80,7 +80,7 @@ public class DiscoveryUrlSubmitter(
         }
 
         var state = submitResultAdaptor.ToDiscoverySubmitResultState(submitResult);
-        return new DiscoverySubmitResult(state, submitResult.Episode);
+        return new DiscoverySubmitResult(state, submitResult.Episode, FilmSearchSource: submitResult.FilmSearchSource);
     }
 
     private async Task<RoutedUrl?> Route(Uri? url, IndexingContext indexingContext) =>

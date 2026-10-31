@@ -10,6 +10,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -113,6 +114,28 @@ public class DiscoveryCatalogueParentRules
         outcome.Message.Should().Be(nameof(DiscoverySubmitResultState.CreatedEpisode));
         _uploaded.Should().ContainSingle();
         _indexedEpisodeIds.Should().NotContain(episode.Id);
+    }
+
+    [Fact(DisplayName =
+        "A discovery result stored as a film is indexed straight away as a Film document, not through the podcast-episode indexer.")]
+    public async Task film_is_indexed_immediately()
+    {
+        // Arrange
+        var request = ArrangeOneResult();
+        var film = new Film("Synthetic Film " + _fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        _submitResult = new DiscoverySubmitResult(DiscoverySubmitResultState.CreatedEpisode,
+            ContentKind: SubmitClassification.Film, PlayableId: film.Id, FilmSearchSource: film);
+        var sut = _mocker.CreateInstance<DiscoveryCurationSubmitService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
+        var uploaded = _uploaded.Should().ContainSingle().Subject;
+        uploaded.Id.Should().Be(film.Id.ToString());
+        uploaded.ContentKind.Should().Be(SearchContentKind.Film);
+        _indexedEpisodeIds.Should().NotContain(film.Id);
     }
 
     [Fact(DisplayName =
