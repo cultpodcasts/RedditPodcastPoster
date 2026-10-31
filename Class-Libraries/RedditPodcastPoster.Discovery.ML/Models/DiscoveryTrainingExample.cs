@@ -7,6 +7,10 @@ public sealed class DiscoveryTrainingExample
 {
     public DateTime DiscoveryBegan { get; set; }
 
+    /// <summary>Training only: key for point-in-time show history. Not a model column.</summary>
+    [NoColumn]
+    public string? ShowName { get; set; }
+
     [ColumnName("Label")]
     public bool Label { get; set; }
 
@@ -26,6 +30,9 @@ public sealed class DiscoveryTrainingExample
     public float SourceTaddy { get; set; }
 
     public float ShowAcceptRate { get; set; }
+
+    /// <summary>Scaled log count of the show's prior labelled results (0 = never seen). Feature version 2+.</summary>
+    public float ShowSeenCount { get; set; }
 
     public float ExampleWeight { get; set; } = 1f;
 }

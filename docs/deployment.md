@@ -155,7 +155,11 @@ All shared behaviour (dotnet publish, `New-LinuxFunctionAppZip`, blob upload to 
 
 ### Discovery scorer model (blob)
 
-Infrastructure creates container **`discovery-models`** on `cultpodcastsstg`. Discover function app settings (bicep) point `discover__scorer__*` at `current/` blobs. Upload after training:
+Infrastructure creates container **`discovery-models`** on `cultpodcastsstg`. Discover function app settings (bicep) point `discover__scorer__*` at `current/` blobs. <!-- pragma: allowlist secret -->
+
+**Feature-version bump:** deploy `discover-infra` first, wait until instances are on that build, then upload. A feature-version-2 bundle expects smoothed show features, `ShowSeenCount`, Platt-scaled probabilities, and the manifest threshold. Workers still on the previous binary load that zip with version-1 feature construction and the settings threshold, so probabilities and auto-hide are wrong until the new code is live. <!-- pragma: allowlist secret -->
+
+**First-time scorer enablement** on a build that already understands the bundle: upload, then apply `discover__scorer__*` (bicep, or `apply-discover-scorer-settings.ps1` when bicep is not deploying). Do not use upload-then-enable for a feature-version bump. <!-- pragma: allowlist secret -->
 
 ```powershell
 az login
@@ -163,7 +167,9 @@ az login
   -ModelDirectory "C:\path\to\analysis\model"
 ```
 
-Required blobs under `current/`: `discovery-accept.model.zip`, `discovery-accept.manifest.json`, `model.onnx`, `vocab.txt` (optional: `show-accept-rates.csv`). Create the container first with `.\scripts\provision-storage-containers.ps1` if CI has not provisioned infrastructure. Flip `discover__scorer__Enabled` in bicep to enable auto-hide in production.
+The script copies the live `current/` bundle to `archive/<ModelVersion>/` and waits until each copy reports success before it overwrites `current/` (`-SkipArchive` skips the copy). `-WhatIf` does not upload. A failed manifest check or a failed upload stops the script; it does not treat those as an empty live bundle.
+
+Required blobs under `current/`: `discovery-accept.model.zip`, `discovery-accept.manifest.json`, `model.onnx`, `vocab.txt`, and `show-accept-rates.csv` (required for feature version 2; a version-1 bundle may omit the rates file). Optional: `training-metrics.txt`. Create the container first with `.\scripts\provision-storage-containers.ps1` if CI has not provisioned infrastructure. Flip `discover__scorer__Enabled` in bicep to enable auto-hide in production. <!-- pragma: allowlist secret -->
 
 | `scripts/.deploy-local/` | Gitignored build artifacts |
 

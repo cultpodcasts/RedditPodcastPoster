@@ -1,4 +1,4 @@
-using System.Text;
+using System.Globalization;
 
 namespace RedditPodcastPoster.Discovery.ML.Services;
 
@@ -6,17 +6,33 @@ public static class TrainingCsvReader
 {
     public static IEnumerable<TrainingCsvRow> ReadLabeledRows(string csvPath)
     {
-        var header = CsvParser.ParseHeader(csvPath);
-        foreach (var fields in CsvParser.ReadRows(csvPath))
+        using var reader = new StreamReader(csvPath);
+        foreach (var row in ReadLabeledRows(reader))
         {
-            var state = CsvParser.GetField(fields, header, "state");
+            yield return row;
+        }
+    }
+
+    public static IEnumerable<TrainingCsvRow> ReadLabeledRows(TextReader reader)
+    {
+        Dictionary<string, int>? header = null;
+        foreach (var fields in TrainingCsv.ReadRecords(reader))
+        {
+            if (header == null)
+            {
+                header = TrainingCsv.ToHeaderIndex(fields);
+                continue;
+            }
+
+            var state = TrainingCsv.GetField(fields, header, "state");
             if (!string.Equals(state, "Accepted", StringComparison.OrdinalIgnoreCase) &&
                 !string.Equals(state, "Rejected", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            if (!DateTime.TryParse(CsvParser.GetField(fields, header, "discoveryBegan"), out var discoveryBegan))
+            if (!DateTime.TryParse(TrainingCsv.GetField(fields, header, "discoveryBegan"), CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out var discoveryBegan))
             {
                 discoveryBegan = DateTime.MinValue;
             }
@@ -25,22 +41,54 @@ public static class TrainingCsvReader
             {
                 Accepted = string.Equals(state, "Accepted", StringComparison.OrdinalIgnoreCase),
                 DiscoveryBegan = discoveryBegan,
-                ShowName = CsvParser.GetField(fields, header, "showName"),
-                EpisodeName = CsvParser.GetField(fields, header, "episodeName"),
-                Description = CsvParser.GetField(fields, header, "episodeDescription"),
-                ShowDescription = null,
-                MatchingPodcastIds = CsvParser.GetField(fields, header, "matchingPodcastIds"),
-                DiscoverySubjects = CsvParser.GetField(fields, header, "discoverySubjects"),
-                Sources = CsvParser.GetField(fields, header, "sources")
+                ShowName = TrainingCsv.GetField(fields, header, "showName"),
+                EpisodeName = TrainingCsv.GetField(fields, header, "episodeName"),
+                Description = TrainingCsv.GetField(fields, header, "episodeDescription"),
+                ShowDescription = TrainingCsv.GetField(fields, header, "showDescription"),
+                MatchingPodcastIds = TrainingCsv.GetField(fields, header, "matchingPodcastIds"),
+                DiscoverySubjects = TrainingCsv.GetField(fields, header, "discoverySubjects"),
+                Sources = TrainingCsv.GetField(fields, header, "sources"),
+                AutoHidden = string.Equals(TrainingCsv.GetField(fields, header, "autoHidden"), "true",
+                    StringComparison.OrdinalIgnoreCase)
             };
         }
     }
 
-    public static IReadOnlyDictionary<string, float> LoadShowAcceptRates(string path)
+    /// <summary>
+    /// A rejected result the scorer auto-hid was never shown to a curator, so its "Rejected" state is not a
+    /// curator decision. Training on it teaches the model its own past mistakes.
+    /// </summary>
+    public static bool IsCuratorLabel(TrainingCsvRow row) => row.Accepted || !row.AutoHidden;
+
+    /// <summary>
+    /// Curator labels only, unless <paramref name="includeHiddenRejects"/> is set, then an optional row cap.
+    /// Auto-hidden skips and max-row truncation are counted separately.
+    /// </summary>
+    public static TrainingRowWindow SelectForTraining(
+        IReadOnlyList<TrainingCsvRow> labeled,
+        bool includeHiddenRejects,
+        int? maxRows)
     {
-        return ShowAcceptRateLookup.Load(path);
+        IReadOnlyList<TrainingCsvRow> curatorRows = includeHiddenRejects
+            ? labeled
+            : labeled.Where(IsCuratorLabel).ToList();
+        var autoHiddenSkips = labeled.Count - curatorRows.Count;
+        if (maxRows is not > 0 || curatorRows.Count <= maxRows.Value)
+        {
+            return new TrainingRowWindow(curatorRows, autoHiddenSkips, 0);
+        }
+
+        return new TrainingRowWindow(
+            curatorRows.Take(maxRows.Value).ToList(),
+            autoHiddenSkips,
+            curatorRows.Count - maxRows.Value);
     }
 }
+
+public readonly record struct TrainingRowWindow(
+    IReadOnlyList<TrainingCsvRow> Rows,
+    int AutoHiddenSkips,
+    int Truncated);
 
 public sealed class TrainingCsvRow
 {
@@ -53,71 +101,5 @@ public sealed class TrainingCsvRow
     public string? MatchingPodcastIds { get; init; }
     public string? DiscoverySubjects { get; init; }
     public string? Sources { get; init; }
-}
-
-internal static class CsvParser
-{
-    public static IEnumerable<string[]> ReadRows(string path)
-    {
-        using var reader = new StreamReader(path);
-        _ = reader.ReadLine();
-        while (reader.ReadLine() is { } line)
-        {
-            yield return ParseLine(line);
-        }
-    }
-
-    public static Dictionary<string, int> ParseHeader(string path)
-    {
-        using var reader = new StreamReader(path);
-        var header = reader.ReadLine()
-                     ?? throw new InvalidOperationException($"Empty CSV: '{path}'.");
-        return header
-            .Split(',')
-            .Select((name, index) => (name, index))
-            .ToDictionary(x => x.name, x => x.index, StringComparer.OrdinalIgnoreCase);
-    }
-
-    public static string GetField(string[] fields, IReadOnlyDictionary<string, int> header, string name)
-    {
-        return header.TryGetValue(name, out var index) && index < fields.Length
-            ? fields[index]
-            : string.Empty;
-    }
-
-    private static string[] ParseLine(string line)
-    {
-        var fields = new List<string>();
-        var current = new StringBuilder();
-        var inQuotes = false;
-
-        for (var i = 0; i < line.Length; i++)
-        {
-            var c = line[i];
-            if (c == '"')
-            {
-                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
-                {
-                    current.Append('"');
-                    i++;
-                }
-                else
-                {
-                    inQuotes = !inQuotes;
-                }
-            }
-            else if (c == ',' && !inQuotes)
-            {
-                fields.Add(current.ToString());
-                current.Clear();
-            }
-            else
-            {
-                current.Append(c);
-            }
-        }
-
-        fields.Add(current.ToString());
-        return fields.ToArray();
-    }
+    public bool AutoHidden { get; init; }
 }

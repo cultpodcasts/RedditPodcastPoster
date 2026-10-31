@@ -29,22 +29,30 @@ public class DiscoveryTrainingTrainProcessor
             await OnnxModelDownloader.EnsureMiniLmModelAsync(onnxDirectory);
         }
 
-        var showRatesPath = request.ShowAcceptRatesPath != null
-            ? Path.GetFullPath(request.ShowAcceptRatesPath)
-            : Path.Combine(Path.GetDirectoryName(csvPath) ?? outputPath, "show-accept-rates.csv");
-        var showRates = ShowAcceptRateLookup.Load(showRatesPath);
-
         Console.WriteLine($"Loading labeled rows from {csvPath}...");
 
-        var rows = TrainingCsvReader.ReadLabeledRows(csvPath)
+        var labeled = TrainingCsvReader.ReadLabeledRows(csvPath)
             .OrderBy(x => x.DiscoveryBegan)
             .ToList();
-        if (request.MaxRows is > 0)
+        var selected = TrainingCsvReader.SelectForTraining(labeled, request.IncludeHiddenRejects, request.MaxRows);
+        var rows = selected.Rows;
+        var truncation = request.MaxRows is > 0
+            ? $"; truncated {selected.Truncated:N0} rows to --max-rows {request.MaxRows.Value}"
+            : string.Empty;
+
+        var withDescription = rows.Count(x => !string.IsNullOrWhiteSpace(x.Description));
+        Console.WriteLine(
+            $"Loaded {labeled.Count:N0} labeled rows; skipped {selected.AutoHiddenSkips:N0} auto-hidden rejects never shown to a curator" +
+            (request.IncludeHiddenRejects ? " (none: --include-hidden-rejects)" : string.Empty) +
+            truncation + ".");
+        if (withDescription == 0)
         {
-            rows = rows.Take(request.MaxRows.Value).ToList();
+            Console.WriteLine(
+                "WARNING: no row has an episode description. Live scoring embeds descriptions, so this CSV predates the " +
+                "description export; re-run DiscoveryTrainingExport.");
         }
 
-        Console.WriteLine($"Loaded {rows.Count:N0} rows. Embedding with MiniLM ONNX (this is the slow step)...");
+        Console.WriteLine($"Training on {rows.Count:N0} rows ({withDescription:N0} with descriptions). Embedding with MiniLM ONNX (this is the slow step)...");
         var onnxPath = Path.Combine(onnxDirectory, "model.onnx");
         var vocabPath = Path.Combine(onnxDirectory, "vocab.txt");
         using var embedder = new MiniLmOnnxEmbedder(onnxPath, vocabPath);
@@ -58,20 +66,9 @@ public class DiscoveryTrainingTrainProcessor
             var text = DiscoveryFeatureBuilder.BuildEmbeddingText(
                 row.ShowName, row.EpisodeName, row.Description, row.ShowDescription);
             var embedding = embedder.Embed(text);
-            var numeric = BuildNumericFeatures(row, showRates);
-            examples.Add(new DiscoveryTrainingExample
-            {
-                DiscoveryBegan = row.DiscoveryBegan,
-                Label = row.Accepted,
-                Embedding = embedding,
-                HasMatchingPodcast = numeric.HasMatchingPodcast,
-                SubjectCount = numeric.SubjectCount,
-                SourceListenNotes = numeric.SourceListenNotes,
-                SourceSpotify = numeric.SourceSpotify,
-                SourceYouTube = numeric.SourceYouTube,
-                SourceTaddy = numeric.SourceTaddy,
-                ShowAcceptRate = numeric.ShowAcceptRate
-            });
+            var example = DiscoveryFeatureBuilder.ToExample(embedding, BuildNumericFeatures(row), row.Accepted, row.DiscoveryBegan);
+            example.ShowName = row.ShowName;
+            examples.Add(example);
 
             var completed = i + 1;
             var dueByCount = completed % ProgressRowInterval == 0;
@@ -89,25 +86,24 @@ public class DiscoveryTrainingTrainProcessor
 
         Console.WriteLine("Training LightGBM model...");
         var trainer = new DiscoveryAcceptModelTrainer();
-        var result = await trainer.TrainAsync(examples, outputPath, request.AutoHideThreshold);
+        var result = await trainer.TrainAsync(examples, outputPath, new DiscoveryAcceptTrainOptions
+        {
+            TargetRecall = request.TargetRecall,
+            FixedThreshold = request.FixedThreshold
+        });
 
         File.Copy(onnxPath, Path.Combine(outputPath, "model.onnx"), overwrite: true);
         File.Copy(vocabPath, Path.Combine(outputPath, "vocab.txt"), overwrite: true);
-        if (File.Exists(showRatesPath))
-        {
-            File.Copy(showRatesPath, Path.Combine(outputPath, "show-accept-rates.csv"), overwrite: true);
-        }
 
         Console.WriteLine($"Model: {result.ModelPath}");
+        Console.WriteLine($"Show accept rates: {result.ShowAcceptRatesPath}");
         Console.WriteLine($"Metrics: {result.MetricsPath}");
-        Console.WriteLine($"Test AUC: {result.Metrics.AreaUnderRocCurve:F4}");
-        Console.WriteLine($"Test precision @ {request.AutoHideThreshold}: {result.TestPrecisionAtThreshold:P2}");
-        Console.WriteLine($"Test recall @ {request.AutoHideThreshold}: {result.TestRecallAtThreshold:P2}");
+        Console.WriteLine();
+        Console.WriteLine(await File.ReadAllTextAsync(result.MetricsPath));
     }
 
-    private static DiscoveryNumericFeatures BuildNumericFeatures(
-        TrainingCsvRow row,
-        IReadOnlyDictionary<string, float> showRates)
+    /// <summary>Show features are filled in by the trainer from point-in-time history.</summary>
+    private static DiscoveryNumericFeatures BuildNumericFeatures(TrainingCsvRow row)
     {
         var matchingCount = string.IsNullOrWhiteSpace(row.MatchingPodcastIds)
             ? 0
@@ -117,12 +113,7 @@ public class DiscoveryTrainingTrainProcessor
             : row.DiscoverySubjects.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var sources = ParseSources(row.Sources ?? string.Empty);
 
-        return DiscoveryFeatureBuilder.BuildNumericFeatures(
-            matchingCount,
-            subjects,
-            sources,
-            row.ShowName,
-            showRates);
+        return DiscoveryFeatureBuilder.BuildNumericFeatures(matchingCount, subjects, sources, default);
     }
 
     private static DiscoverService[] ParseSources(string sources)

@@ -77,14 +77,19 @@ public static class DiscoveryModelBlobSync
 
             if (!blobClient.Exists())
             {
-                if (fileName == settings.ShowAcceptRatesFileName)
+                if (fileName == settings.ShowAcceptRatesFileName && !ShowAcceptRatesAreRequired(localManifestPath))
                 {
-                    logger.LogWarning("Optional scorer blob '{BlobName}' not found; continuing.", blobName);
+                    logger.LogWarning(
+                        "Optional scorer blob '{BlobName}' not found; continuing. Feature version 1 does not require show accept rates.",
+                        blobName);
                     continue;
                 }
 
+                var requirement = fileName == settings.ShowAcceptRatesFileName
+                    ? " Feature version 2 and later require this file; without it every show looks unseen."
+                    : string.Empty;
                 throw new FileNotFoundException(
-                    $"Discovery scorer blob '{blobName}' was not found in container '{settings.BlobContainerName}'.");
+                    $"Discovery scorer blob '{blobName}' was not found in container '{settings.BlobContainerName}'.{requirement}"); // pragma: allowlist secret
             }
 
             if (shouldDownloadAll || !File.Exists(localPath))
@@ -102,13 +107,37 @@ public static class DiscoveryModelBlobSync
             if (manifest != null)
             {
                 logger.LogInformation(
-                    "Discovery scorer model ready from blob cache (trained {TrainedAt:O}, {Rows:N0} rows).",
+                    "Discovery scorer model {ModelVersion} ready from blob cache (trained {TrainedAt:O}, {Rows:N0} rows).",
+                    manifest.ModelVersion,
                     manifest.TrainedAt,
                     manifest.TrainingRows);
             }
         }
 
         return cacheDirectory;
+    }
+
+    /// <summary>
+    /// Feature version 2+ scores unseen shows from the rates file. A missing file must fail the sync
+    /// rather than load an empty table. Version 1 bundles omit the file. A missing or unreadable manifest
+    /// fails closed.
+    /// </summary>
+    private static bool ShowAcceptRatesAreRequired(string localManifestPath)
+    {
+        if (!File.Exists(localManifestPath))
+        {
+            return true;
+        }
+
+        try
+        {
+            var manifest = JsonSerializer.Deserialize<DiscoveryAcceptManifest>(File.ReadAllText(localManifestPath)); // pragma: allowlist secret
+            return manifest?.RequiresShowAcceptRates ?? true;
+        }
+        catch (JsonException)
+        {
+            return true;
+        }
     }
 
     private static bool ShouldDownloadAll(string localManifestPath, string remoteEtag, DateTimeOffset remoteLastModified)

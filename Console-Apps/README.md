@@ -571,10 +571,13 @@ FilmSearchPusher --full      # push all films and remove orphaned film documents
 | `-c, --csv-path` | Path to `discovery-results.csv` (required) |
 | `-o, --output-path` | Model bundle output directory (required) |
 | `-m, --onnx-model-directory` | MiniLM ONNX + vocab dir (default `<output-path>/onnx`) |
-| `-s, --show-rates-path` | Optional `show-accept-rates.csv` |
 | `--max-rows` | Limit rows for a quick training run |
-| `--threshold` | Auto-hide probability threshold in manifest (default `0.05`) |
+| `--target-recall` | Share of accepted results the hide threshold must keep visible, chosen on the calibration slice (default `0.97`) |
+| `--threshold` | Fixed hide threshold; overrides `--target-recall` |
+| `--include-hidden-rejects` | Also train on rejected results the scorer auto-hid (excluded by default: no curator saw them) |
 | `--skip-download` | Skip ONNX download if files exist |
+
+Rows are split by discovery run (a whole run stays in one slice): train 70%, calibration 10%, test 20%. Show accept rates are computed point-in-time from earlier runs only and smoothed toward the training accept rate. The LightGBM score is Platt-calibrated, so `acceptProbability` estimates the real accept rate. Output: model zip, manifest (feature version 2, `ModelVersion` like `2.20261023T2130Z`, chosen threshold), `show-accept-rates.csv` and `training-metrics.txt` (precision and recall by threshold, plus shows with no history). Export a fresh CSV first: it needs the `episodeDescription` and `autoHidden` columns. <!-- pragma: allowlist secret -->
 
 ---
 
