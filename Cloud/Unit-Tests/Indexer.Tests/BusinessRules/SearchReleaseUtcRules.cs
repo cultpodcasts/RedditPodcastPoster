@@ -3,6 +3,7 @@ using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
@@ -12,7 +13,9 @@ namespace Indexer.Tests.BusinessRules;
 
 /// <summary>
 /// The search document's <c>release</c> is built from the playable's UTC release and must not depend on the host's
-/// time zone (#1191). Run it under a non-UTC TZ (e.g. TZ=Pacific/Auckland) to prove that.
+/// time zone (#1191). These facts only catch a regression when the host is not on UTC: on a UTC host the implicit
+/// <see cref="DateTime"/> to <see cref="DateTimeOffset"/> conversion applies a zero offset and passes anyway. CI runs
+/// on UTC, so <see cref="SearchReleaseEastOfUtcHostGuard"/> re-runs this class under TZ=Pacific/Auckland on every build.
 /// </summary>
 public class SearchReleaseUtcRules
 {
@@ -87,5 +90,40 @@ public class SearchReleaseUtcRules
 
         // Assert
         document.Release.Should().Be(new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero));
+    }
+
+    [Fact(DisplayName =
+        "When a podcast episode with no release is pushed to search, then the record's release is DateTimeOffset.MinValue at offset zero on any host time zone, because the episode search record shares the release conversion and an unset episode release is an unspecified-kind DateTime.MinValue too.")]
+    public void podcast_episode_without_release_has_min_release_at_utc()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => e.Release = null);
+
+        // Act
+        var record = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+
+        // Assert
+        episode.ReleaseSort.Should().Be(default);
+        record.Release.Should().Be(DateTimeOffset.MinValue);
+        record.Release.Offset.Should().Be(TimeSpan.Zero);
+    }
+
+    [Fact(DisplayName =
+        "When a podcast episode's release is set from an unspecified-kind time, then the search record's release is that wall-clock time read as UTC at offset zero, because an unspecified release is UTC by contract and must not move by the host's offset.")]
+    public void podcast_episode_unspecified_release_is_read_as_utc()
+    {
+        // Arrange
+        var release = DomainTestFixture.UtcAtTime(-DaysAgo(), _fixture.CreateNonMidnightTimeOfDay());
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast,
+            e => e.ReleaseUtc = DateTime.SpecifyKind(release, DateTimeKind.Unspecified));
+
+        // Act
+        var record = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord();
+
+        // Assert
+        record.Release.Offset.Should().Be(TimeSpan.Zero);
+        record.Release.UtcDateTime.Should().Be(release);
     }
 }
