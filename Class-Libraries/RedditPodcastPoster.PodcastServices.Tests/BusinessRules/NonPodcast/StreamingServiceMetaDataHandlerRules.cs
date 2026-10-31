@@ -230,6 +230,26 @@ public class StreamingServiceMetaDataHandlerRules
             .Verify(x => x.GetMetaData(It.IsAny<Uri>()), Times.Never);
     }
 
+    [Fact(DisplayName =
+        "When prefetched metadata says MadeAsFilm, the resolved item keeps MadeAsFilm=true without an extract, " +
+        "because prefetchedMeta replaces the scrape and the submit classifier reads the flag to file a Film.")]
+    public async Task prefetched_made_as_film_reaches_resolved_item()
+    {
+        // Arrange
+        var url = BbcSoundsUrl();
+        var prefetched = CreateMetaData() with { ShowName = null, MadeAsFilm = true };
+        var sut = _mocker.CreateInstance<StreamingServiceMetaDataHandler>();
+
+        // Act
+        var resolved = await sut.ResolveServiceItem(null, [], url, prefetched);
+
+        // Assert
+        resolved.MadeAsFilm.Should().BeTrue();
+        resolved.ShowName.Should().BeNull();
+        _mocker.GetMock<IBBCPageMetaDataExtractor>()
+            .Verify(x => x.GetMetaData(It.IsAny<Uri>()), Times.Never);
+    }
+
     private NonPodcastServiceItemMetaData CreateMetaData() =>
         new(
             _fixture.CreateTitle(),

@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.PodcastServices.Extensions;
 
@@ -219,6 +220,35 @@ public class StreamingSubmitContractRules
             membershipIds.Should().Contain($"membership-{key}-ambiguous");
             orchestrationIds.Should().Contain($"stream-{key}-unknown-prepare-submit");
         }
+    }
+
+    [Fact(DisplayName =
+        "Streaming-submit contract v2 lists prefetchedMeta fields including madeAsFilm, and every listed field binds " +
+        "to a NonPodcastServiceItemMetaData parameter, so the Worker cache cannot silently drop the film flag again.")]
+    public void streaming_contract_prefetched_meta_fields_bind_to_item_metadata()
+    {
+        // Arrange
+        var root = Contract.RootElement;
+        var fields = root.GetProperty("prefetchedMetaFields")
+            .EnumerateArray()
+            .Select(e => e.GetString()!)
+            .ToArray();
+        var parameters = typeof(NonPodcastServiceItemMetaData)
+            .GetConstructors()
+            .Single()
+            .GetParameters()
+            .Select(p => p.Name!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Act
+        var unbound = fields.Where(f => !parameters.Contains(f)).ToArray();
+
+        // Assert
+        root.GetProperty("version").GetInt32().Should().Be(2);
+        root.GetProperty("streamMetaKvKeyPrefix").GetString().Should().Be("stream-meta:v2:");
+        root.GetProperty("rules").GetProperty("prefetchedMetaCarriesMadeAsFilm").GetBoolean().Should().BeTrue();
+        fields.Should().Contain("madeAsFilm");
+        unbound.Should().BeEmpty();
     }
 
     private static JsonDocument LoadContract()

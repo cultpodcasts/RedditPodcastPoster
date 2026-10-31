@@ -1,5 +1,5 @@
 {
-	"version": 1,
+	"version": 2,
 	"copyFromTs": "Api/tests/fixtures/streaming-submit-contract.ts",
 	"copyFromJson": "Api/tests/fixtures/streaming-submit-contract.json",
 	"streamingServiceKeys": [
@@ -206,6 +206,18 @@
 		"stream-abcIview-unknown-prepare-submit",
 		"stream-cbcGem-unknown-prepare-submit"
 	],
+	"streamMetaKvKeyPrefix": "stream-meta:v2:",
+	"prefetchedMetaFields": [
+		"title",
+		"description",
+		"duration",
+		"release",
+		"image",
+		"explicit",
+		"publisher",
+		"showName",
+		"madeAsFilm"
+	],
 	"rules": {
 		"podcastServicesOutOfScope": true,
 		"membershipReturnsService": true,
@@ -214,6 +226,7 @@
 		"prepareFetchModeFromEnvAllowlist": true,
 		"prepareUrlRewriteBeforeRegionalScrape": true,
 		"submitUsesPrefetchedMetaWhenCached": true,
+		"prefetchedMetaCarriesMadeAsFilm": true,
 		"azureDoesNotCallCloudflare": true
 	}
 }

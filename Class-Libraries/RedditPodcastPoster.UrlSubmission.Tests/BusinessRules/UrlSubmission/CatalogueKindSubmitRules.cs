@@ -1,5 +1,7 @@
 using System.Linq.Expressions;
+using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -18,6 +20,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Handlers;
 using RedditPodcastPoster.Tubi.Matching;
 using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -1005,6 +1008,138 @@ public class CatalogueKindSubmitRules
         _organisations.Should().BeEmpty();
         _reports.Should().BeEmpty();
         episode.Services![StreamingServiceWire.ToKey(StreamingService.Tubi)].Url.Should().Be(canonical);
+    }
+
+    [Fact(DisplayName =
+        "When submit carries Worker prefetchedMeta with madeAsFilm=true and no show name, the resolved item, " +
+        "classification signals and persist all treat it as a Film, so a cached streaming film is never filed as a podcast episode.")]
+    public async Task prefetched_made_as_film_is_classified_and_saved_as_film()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateGuid():N}");
+        var title = _fixture.CreateTitle();
+        var prefetched = WorkerPrefetchedMeta(new
+        {
+            title,
+            description = _fixture.Create<string>(),
+            duration = "00:43:00",
+            madeAsFilm = true
+        });
+
+        // Act
+        var (categorised, options) = await ResolveFromPrefetched(url, prefetched);
+        var classified = SubmitContentClassifier.Classify(options.ClassificationSignals!);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+        var result = await sut.TrySubmit(categorised, options);
+
+        // Assert
+        categorised.ResolvedNonPodcastServiceItem!.MadeAsFilm.Should().BeTrue();
+        options.ClassificationSignals!.MadeAsFilm.Should().BeTrue();
+        options.ClassificationSignals.Series.Should().BeFalse();
+        classified.ContentKind.Should().Be(SubmitClassification.Film);
+        result.Should().NotBeNull();
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.Episode.Should().BeNull();
+        result.Podcast.Should().BeNull();
+        var film = _films.Should().ContainSingle().Subject;
+        film.Name.Should().Be(title);
+        result.PlayableId.Should().Be(film.Id);
+        _episodes.Should().BeEmpty();
+        _shows.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When submit carries Worker prefetchedMeta for a TV episode (show name set, madeAsFilm=false), " +
+        "it is still classified and saved as a TvShow episode and no Film is written.")]
+    public async Task prefetched_tv_episode_with_show_name_stays_tv_show_episode()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateGuid():N}");
+        var showName = _fixture.CreateTitle();
+        var prefetched = WorkerPrefetchedMeta(new
+        {
+            title = _fixture.CreateTitle(),
+            description = _fixture.Create<string>(),
+            showName,
+            madeAsFilm = false
+        });
+
+        // Act
+        var (categorised, options) = await ResolveFromPrefetched(url, prefetched);
+        var classified = SubmitContentClassifier.Classify(options.ClassificationSignals!);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+        var result = await sut.TrySubmit(categorised, options);
+
+        // Assert
+        options.ClassificationSignals!.MadeAsFilm.Should().BeFalse();
+        options.ClassificationSignals.Series.Should().BeTrue();
+        classified.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.Should().NotBeNull();
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        _shows.Should().ContainSingle().Which.Name.Should().Be(showName);
+        _episodes.Should().ContainSingle();
+        _films.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When Worker prefetchedMeta has no madeAsFilm key (a pre-fix cache entry) and no show name, the signals fall back " +
+        "to the podcast-episode path, which is the regression the madeAsFilm field and stream-meta:v2 key prevent.")]
+    public async Task prefetched_meta_without_made_as_film_falls_back_to_podcast_episode()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateGuid():N}");
+        var prefetched = WorkerPrefetchedMeta(new
+        {
+            title = _fixture.CreateTitle(),
+            description = _fixture.Create<string>()
+        });
+
+        // Act
+        var (categorised, options) = await ResolveFromPrefetched(url, prefetched);
+        var classified = SubmitContentClassifier.Classify(options.ClassificationSignals!);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+        var result = await sut.TrySubmit(categorised, options);
+
+        // Assert
+        classified.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.Should().BeNull();
+        _films.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Deserialises the Worker's <c>prefetchedMeta</c> JSON the way the Isolated host binds submit bodies
+    /// (<c>PropertyNameCaseInsensitive = true</c>).
+    /// </summary>
+    private static NonPodcastServiceItemMetaData WorkerPrefetchedMeta(object workerJson) =>
+        JsonSerializer.Deserialize<NonPodcastServiceItemMetaData>(
+            JsonSerializer.Serialize(workerJson),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+    /// <summary>
+    /// The UrlSubmitter chain for a streaming URL with prefetched meta: handler (no scrape; the Netflix
+    /// test adapter throws if extract is called) → CategorisedItem → classifier signals on SubmitOptions.
+    /// </summary>
+    private async Task<(CategorisedItem Categorised, SubmitOptions Options)> ResolveFromPrefetched(
+        Uri url,
+        NonPodcastServiceItemMetaData prefetched)
+    {
+        var handler = new StreamingServiceMetaDataHandler(
+            NonPodcastSubmitAdapterResolverSupport.Create(),
+            NullLogger<StreamingServiceMetaDataHandler>.Instance);
+        var resolved = await handler.ResolveServiceItem(null, [], url, prefetched);
+        var categorised = new CategorisedItem(null, null, null, null, null, null, resolved, Service.Other);
+        var options = new SubmitOptions(
+            null,
+            MatchOtherServices: false,
+            PersistToDatabase: true,
+            PrefetchedMeta: prefetched,
+            ClassificationSignals: SubmitContentClassifier.FromSubmission(url, categorised));
+        return (categorised, options);
     }
 
     private void VerifyHeroPromoted(Guid playableId, bool expectPromoted) =>

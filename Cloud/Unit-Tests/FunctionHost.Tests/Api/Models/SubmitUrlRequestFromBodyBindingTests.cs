@@ -230,6 +230,61 @@ public class SubmitUrlRequestFromBodyBindingTests
         bound.PrefetchedMeta.Publisher.Should().Be(publisher);
     }
 
+    [Fact(DisplayName =
+        "Isolated [FromBody] SubmitUrlRequest: Worker prefetchedMeta.madeAsFilm=true binds NonPodcastServiceItemMetaData.MadeAsFilm " +
+        "and survives ToModel, because the classifier reads that flag to file a streaming film as a Film, not a podcast episode.")]
+    public async Task prefetched_meta_made_as_film_binds_and_survives_to_model()
+    {
+        // Arrange
+        var url = $"https://gem.cbc.ca/{_fixture.CreateYouTubeId()}";
+        var title = _fixture.CreateTitle();
+        var description = _fixture.Create<string>();
+        var json = JsonSerializer.Serialize(new
+        {
+            url,
+            prefetchedMeta = new
+            {
+                title,
+                description,
+                duration = "00:43:00",
+                madeAsFilm = true
+            }
+        });
+
+        // Act
+        var bound = await BindAsync(json);
+        var model = global::Api.Dtos.Extensions.RequestModelExtensions.ToModel(bound);
+
+        // Assert
+        bound.PrefetchedMeta.Should().NotBeNull();
+        bound.PrefetchedMeta!.MadeAsFilm.Should().BeTrue();
+        bound.PrefetchedMeta.ShowName.Should().BeNull();
+        model.PrefetchedMeta.Should().NotBeNull();
+        model.PrefetchedMeta!.MadeAsFilm.Should().BeTrue();
+        model.PrefetchedMeta.Title.Should().Be(title);
+        model.PrefetchedMeta.Duration.Should().Be(TimeSpan.FromMinutes(43));
+    }
+
+    [Fact(DisplayName =
+        "Isolated [FromBody] SubmitUrlRequest: prefetchedMeta without madeAsFilm (an older Worker cache entry) binds MadeAsFilm=false, " +
+        "which is why the Worker must bump its StreamMeta key prefix rather than reuse flagless entries.")]
+    public async Task prefetched_meta_without_made_as_film_binds_false()
+    {
+        // Arrange
+        var json = JsonSerializer.Serialize(new
+        {
+            url = $"https://gem.cbc.ca/{_fixture.CreateYouTubeId()}",
+            prefetchedMeta = new { title = _fixture.CreateTitle(), description = _fixture.Create<string>() }
+        });
+
+        // Act
+        var bound = await BindAsync(json);
+
+        // Assert
+        bound.PrefetchedMeta.Should().NotBeNull();
+        bound.PrefetchedMeta!.MadeAsFilm.Should().BeFalse();
+    }
+
     private static async Task<global::Api.Dtos.SubmitUrlRequest> BindAsync(string json)
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
