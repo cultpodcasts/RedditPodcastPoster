@@ -83,5 +83,8 @@ public enum ModelType
     FilmSearchPushWatermark = 26,
 
     [JsonPropertyName(nameof(ParentKindTransferLock))]
-    ParentKindTransferLock = 27
+    ParentKindTransferLock = 27,
+
+    [JsonPropertyName(nameof(XOAuth2TokenState))]
+    XOAuth2TokenState = 28
 }
