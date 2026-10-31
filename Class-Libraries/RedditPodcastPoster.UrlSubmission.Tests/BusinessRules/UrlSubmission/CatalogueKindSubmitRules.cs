@@ -268,6 +268,61 @@ public class CatalogueKindSubmitRules
     }
 
     [Theory(DisplayName =
+        "When a film, TV episode or news report is submitted from a streaming service, then the submit response's " +
+        "service details name that service, because the item's links are copied onto the enrichment projection.")]
+    [MemberData(nameof(Kinds))]
+    public async Task submit_response_names_the_items_service(string kind)
+    {
+        // Arrange
+        var source = KindSource("Plain.") with
+        {
+            StreamingService = StreamingService.CbcGem,
+            Url = new Uri($"https://gem.cbc.ca/synthetic-{_fixture.CreateGuid():N}")
+        };
+
+        // Act
+        var (result, _, saved) = await SubmitKind(kind, source);
+
+        // Assert
+        var details = result.SubmitEpisodeDetails!;
+        details.ExtraServiceKeys.Should().Equal(StreamingServiceWire.ToKey(StreamingService.CbcGem));
+        details.Spotify.Should().BeFalse();
+        details.Apple.Should().BeFalse();
+        details.YouTube.Should().BeFalse();
+        var services = saved switch
+        {
+            Film film => film.Services,
+            Playable playable => playable.Services,
+            _ => null
+        };
+        services.Should().ContainSingle();
+    }
+
+    public static TheoryData<string> NewParentKinds => ["tv", "news"];
+
+    [Theory(DisplayName =
+        "When enrichment throws on a TV episode or news report submit that would create a new parent, then neither " +
+        "the parent nor the item is saved, because the child is enriched before anything is persisted.")]
+    [MemberData(nameof(NewParentKinds))]
+    public async Task enrichment_failure_saves_nothing(string kind)
+    {
+        // Arrange
+        _mocker.GetMock<ISubjectEnricher>()
+            .Setup(x => x.EnrichSubjects(It.IsAny<Episode>(), It.IsAny<SubjectEnrichmentOptions?>()))
+            .ThrowsAsync(new InvalidOperationException("synthetic subject store failure"));
+
+        // Act
+        var act = () => SubmitKind(kind, KindSource($"About {SyntheticSubject}."));
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        _shows.Should().BeEmpty();
+        _organisations.Should().BeEmpty();
+        _episodes.Should().BeEmpty();
+        _reports.Should().BeEmpty();
+    }
+
+    [Theory(DisplayName =
         "When a film, TV episode or news report description names no subject or guest, then none is saved, " +
         "because guest and subject enrichment read the item's own text.")]
     [MemberData(nameof(Kinds))]

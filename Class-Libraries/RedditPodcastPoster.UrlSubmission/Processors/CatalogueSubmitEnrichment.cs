@@ -3,6 +3,7 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Factories;
@@ -53,7 +54,7 @@ public sealed class CatalogueSubmitEnrichment(
         }
 
         var (projection, details) = await EnrichProjection(
-            film.Id, film.Name, film.Description, film.Language,
+            film.Id, film.Name, film.Description, film.Language, film.Services,
             new CatalogueIndexingSource().ToTransientPodcast(film), "film");
         film.Subjects = [.. projection.Subjects];
         film.Matches = [.. projection.Matches];
@@ -75,7 +76,7 @@ public sealed class CatalogueSubmitEnrichment(
         }
 
         var (projection, details) = await EnrichProjection(
-            playable.Id, playable.Title, playable.Description, playable.Language,
+            playable.Id, playable.Title, playable.Description, playable.Language, playable.Services,
             (parentIndexing ?? new CatalogueIndexingSource()).ToTransientPodcast(parent), playable.GetType().Name);
         playable.Subjects = [.. projection.Subjects];
         playable.Matches = [.. projection.Matches];
@@ -84,7 +85,13 @@ public sealed class CatalogueSubmitEnrichment(
     }
 
     private async Task<(Episode Projection, SubmitEpisodeDetails Details)> EnrichProjection(
-        Guid id, string? title, string? description, string? language, Podcast transient, string kind)
+        Guid id,
+        string? title,
+        string? description,
+        string? language,
+        Dictionary<string, ServiceLink>? services,
+        Podcast transient,
+        string kind)
     {
         var projection = new Episode
         {
@@ -93,7 +100,12 @@ public sealed class CatalogueSubmitEnrichment(
             Description = description ?? string.Empty,
             // As Episode.SetPodcastProperties(inheritLanguageIfUnset: true): an item with no language of its own
             // reads as its parent's, so the per-language subject ignore list matches the podcast path.
-            Language = string.IsNullOrWhiteSpace(language) ? transient.Language : language
+            Language = string.IsNullOrWhiteSpace(language) ? transient.Language : language,
+            // The item's platform links (cloned, so nothing on the projection is shared back), so the submit
+            // response's Spotify / Apple / YouTube flags and extra service keys describe the item.
+            Services = services?.ToDictionary(
+                pair => pair.Key,
+                pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language })
         };
         var subjectsResult = await subjectEnricher.EnrichSubjects(
             projection,
