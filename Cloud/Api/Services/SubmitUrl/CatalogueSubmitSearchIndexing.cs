@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlSubmission.Models;
 
@@ -39,6 +40,42 @@ public static class CatalogueSubmitSearchIndexing
         {
             logger.LogError(ex, "Failed to index {ContentKind} '{PlayableId}' after submission.", contentKind,
                 source.Episode.Id);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Indexes a film a submit just saved with the same document as the curator edit and the film push
+    /// (<see cref="CataloguePlayableSearchDocument.For(Film)"/>). A removed film is skipped. A failure is logged,
+    /// never thrown: the film is already stored.
+    /// </summary>
+    /// <returns>True when the document was uploaded.</returns>
+    public static async Task<bool> IndexFilmAsync(
+        IPlayableSearchDocumentSwap playableSearch,
+        Film film,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        if (CataloguePlayableSearchDocument.ShouldExcludeFromSearch(film))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (await playableSearch.UploadAsync([CataloguePlayableSearchDocument.For(film)], cancellationToken))
+            {
+                return true;
+            }
+
+            logger.LogError("Failed to index {ContentKind} '{PlayableId}' after submission.", SearchContentKind.Film,
+                film.Id);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to index {ContentKind} '{PlayableId}' after submission.", SearchContentKind.Film,
+                film.Id);
         }
 
         return false;

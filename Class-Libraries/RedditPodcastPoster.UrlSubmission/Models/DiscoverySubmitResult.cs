@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.UrlSubmission.Languages;
 
 namespace RedditPodcastPoster.UrlSubmission.Models;
@@ -13,6 +14,7 @@ namespace RedditPodcastPoster.UrlSubmission.Models;
 /// <param name="PlayableId">The news report / TV episode id (with <paramref name="ContentKind"/>).</param>
 /// <param name="ParentId">The news organisation / TV show id (with <paramref name="ContentKind"/>).</param>
 /// <param name="CatalogueSearchSource">Set when a news report / TV episode was saved: the host indexes it now.</param>
+/// <param name="FilmSearchSource">Set when a film was saved: the host indexes it now.</param>
 public record DiscoverySubmitResult(
     DiscoverySubmitResultState State,
     Episode? Episode = null,
@@ -21,5 +23,6 @@ public record DiscoverySubmitResult(
     Guid? ParentId = null,
     CatalogueSearchSource? CatalogueSearchSource = null,
     CatalogueLanguageHold? LanguageHold = null,
-    CatalogueIdentityHold? IdentityHold = null
+    CatalogueIdentityHold? IdentityHold = null,
+    Film? FilmSearchSource = null
 );

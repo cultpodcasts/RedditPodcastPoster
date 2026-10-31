@@ -100,6 +100,90 @@ public class FilmSearchPusherRules
         _mocker.CreateInstance<RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush.FilmSearchPusher>()
             .Push(new FilmSearchPushRequest(full, dryRun, batchSize), CancellationToken.None);
 
+    private Task<FilmSearchPushResult> PushOne(Guid filmId, bool dryRun = false, bool full = false) =>
+        _mocker.CreateInstance<RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush.FilmSearchPusher>()
+            .Push(new FilmSearchPushRequest(full, dryRun, FilmId: filmId), CancellationToken.None);
+
+    [Fact(DisplayName =
+        "When a film id is given, then only that film's document is pushed and the watermark is neither read nor saved, so the scheduled run is unaffected.")]
+    public async Task single_film_push_leaves_watermark_alone()
+    {
+        // Arrange
+        CreateStoredFilm(timestamp: 100);
+        var target = CreateStoredFilm(timestamp: 50);
+        GivenWatermark(200);
+
+        // Act
+        var result = await PushOne(target.Id);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        _pushed.Should().ContainSingle().Which.Id.Should().Be(target.Id.ToString());
+        _pushed[0].ContentKind.Should().Be(SearchContentKind.Film);
+        _savedWatermarks.Should().BeEmpty();
+        _mocker.GetMock<IFilmSearchPushWatermarkStore>().Verify(
+            x => x.GetAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _fullReadUsed.Should().BeFalse();
+        _incrementalReadUsed.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "When the film id is a removed film, then its document is deleted, not pushed.")]
+    public async Task single_removed_film_is_deleted()
+    {
+        // Arrange
+        var target = CreateStoredFilm(timestamp: 50, removed: true);
+
+        // Act
+        var result = await PushOne(target.Id);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        _pushed.Should().BeEmpty();
+        _deleted.Should().Equal(target.Id.ToString());
+    }
+
+    [Fact(DisplayName = "When the film id is not in Cosmos, then the run fails and writes nothing.")]
+    public async Task single_missing_film_fails_without_writes()
+    {
+        // Act
+        var result = await PushOne(_fixture.CreateGuid());
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        _pushed.Should().BeEmpty();
+        _deleted.Should().BeEmpty();
+        _savedWatermarks.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName = "When a single-film push is a dry run, then nothing is written.")]
+    public async Task single_film_dry_run_writes_nothing()
+    {
+        // Arrange
+        var target = CreateStoredFilm(timestamp: 50);
+
+        // Act
+        var result = await PushOne(target.Id, dryRun: true);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        result.ToPush.Should().Be(1);
+        _pushed.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName = "When a film id is combined with --full, then the push is refused.")]
+    public async Task single_film_with_full_is_refused()
+    {
+        // Arrange
+        var target = CreateStoredFilm(timestamp: 50);
+
+        // Act
+        var act = () => PushOne(target.Id, full: true);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        _pushed.Should().BeEmpty();
+    }
+
     [Fact(DisplayName =
         "When a watermark is saved, then only films whose _ts is at or after it are pushed, and the watermark moves to the highest _ts read, because a daily run should only send what changed.")]
     public async Task incremental_run_pushes_only_films_changed_since_watermark()

@@ -15,4 +15,8 @@ public class FilmSearchPusherRequest
     [Option('b', "batch-size", Required = false, Default = 500,
         HelpText = "Documents per search index request (1-1000).")]
     public int BatchSize { get; set; } = 500;
+
+    [Option("id", Required = false,
+        HelpText = "Push only this film's search document (deleted if the film is removed). The watermark is not changed. Not with --full.")]
+    public Guid? Id { get; set; }
 }

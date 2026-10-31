@@ -251,6 +251,13 @@ public class DiscoveryCurationSubmitService(
                     await CatalogueSubmitSearchIndexing.IndexAsync(playableSearch, searchSource, logger,
                         CancellationToken.None);
                 }
+
+                if (result.FilmSearchSource is { } film)
+                {
+                    // A film is not in the episodes container either: index its document directly.
+                    await CatalogueSubmitSearchIndexing.IndexFilmAsync(playableSearch, film, logger,
+                        CancellationToken.None);
+                }
             }
             catch (Exception ex)
             {

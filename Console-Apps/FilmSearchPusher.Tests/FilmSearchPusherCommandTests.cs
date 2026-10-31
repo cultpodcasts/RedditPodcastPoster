@@ -25,6 +25,19 @@ public class FilmSearchPusherCommandTests
         mapped.Should().Be(new FilmSearchPushRequest(request.Full, request.DryRun, request.BatchSize));
     }
 
+    [Fact(DisplayName = "When --id is given, then the push request carries that film id.")]
+    public void id_option_maps_to_film_id()
+    {
+        // Arrange
+        var request = new FilmSearchPusherRequest { Id = _fixture.Create<Guid>() };
+
+        // Act
+        var mapped = FilmSearchPusherCommand.ToPushRequest(request);
+
+        // Assert
+        mapped.FilmId.Should().Be(request.Id);
+    }
+
     [Theory(DisplayName =
         "When a push finishes, then the exit code is 0 on success and 1 on failure, so a scheduled task can tell a failed run.")]
     [InlineData(true, 0)]
