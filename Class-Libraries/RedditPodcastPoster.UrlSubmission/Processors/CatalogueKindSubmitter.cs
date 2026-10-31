@@ -33,6 +33,7 @@ public class CatalogueKindSubmitter(
     ICatalogueIdentityEnricher identityEnricher,
     IHeroEpisodePromoter heroEpisodePromoter,
     IFileKeyAllocator fileKeyAllocator,
+    ICatalogueSubmitEnrichment enrichment,
     TimeProvider timeProvider,
     ILogger<CatalogueKindSubmitter> logger) : ICatalogueKindSubmitter
 {
@@ -124,6 +125,7 @@ public class CatalogueKindSubmitter(
 
             identityEnricher.ApplyMissing(film, filmIdentity.Admission.Ids);
             film.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.Film, film.Name, film.Id);
+            await enrichment.Enrich(film);
             await films.Save(film);
             return CreatedPlayable(
                 SubmitClassification.Film,
@@ -328,6 +330,7 @@ public class CatalogueKindSubmitter(
         }
 
         identityEnricher.ApplyMissing(episode, identity.Admission.Ids);
+        await enrichment.Enrich(episode);
         await tvShowEpisodes.Save(episode);
         return (
             episode,
@@ -417,6 +420,7 @@ public class CatalogueKindSubmitter(
             report.SetRelease(CatalogueRelease.FromDateTimeUtc(release));
         }
 
+        await enrichment.Enrich(report);
         await newsReports.Save(report);
         return (
             report,

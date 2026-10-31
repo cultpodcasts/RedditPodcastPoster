@@ -27,6 +27,10 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Processors;
+using RedditPodcastPoster.People.Enrichers;
+using RedditPodcastPoster.People.Models;
+using RedditPodcastPoster.Subjects.Enrichers;
+using RedditPodcastPoster.Subjects.Models;
 using Xunit;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
@@ -104,6 +108,96 @@ public class CatalogueKindSubmitRules
         TakenFileKeys<ITvShowRepository, TvShow>(_shows);
         TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(_organisations);
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
+        // Synthetic subject matcher: any description naming the subject gets it, like the real matcher's term hit.
+        _mocker.GetMock<ISubjectEnricher>()
+            .Setup(x => x.EnrichSubjects(It.IsAny<Episode>(), It.IsAny<SubjectEnrichmentOptions?>()))
+            .ReturnsAsync((Episode episode, SubjectEnrichmentOptions? _) =>
+            {
+                if (!episode.Description.Contains(SyntheticSubject, StringComparison.Ordinal))
+                {
+                    return new EnrichSubjectsResult([], []);
+                }
+
+                episode.Subjects.Add(SyntheticSubject);
+                return new EnrichSubjectsResult([SyntheticSubject], []);
+            });
+        _mocker.GetMock<IEpisodeGuestEnricher>()
+            .Setup(x => x.EnrichGuests(It.IsAny<Episode>(), It.IsAny<GuestEnrichmentOptions?>()))
+            .ReturnsAsync((Episode episode, GuestEnrichmentOptions? _) =>
+            {
+                episode.Guests = [SyntheticGuest];
+                return new EnrichGuestsResult([], []);
+            });
+        _mocker.Use<ICatalogueSubmitEnrichment>(_mocker.CreateInstance<CatalogueSubmitEnrichment>());
+    }
+
+    private const string SyntheticSubject = "Synthetic Subject Zeta";
+    private const string SyntheticGuest = "synthetic-guest";
+
+    [Fact(DisplayName =
+        "A film submit gets the same subject and guest enrichment as a podcast episode before it is saved.")]
+    public async Task film_submit_is_subject_enriched()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source() with { Description = $"A documentary about {SyntheticSubject}." };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), FilmOptions(source.Url!));
+
+        // Assert
+        _films.Should().ContainSingle().Which.Subjects.Should().Equal(SyntheticSubject);
+        _films[0].Guests.Should().Equal(SyntheticGuest);
+    }
+
+    [Fact(DisplayName =
+        "A TV show episode submit gets the same subject and guest enrichment as a podcast episode before it is saved.")]
+    public async Task tv_episode_submit_is_subject_enriched()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source(showName: _fixture.CreateTitle()) with { Description = $"Tonight: {SyntheticSubject}." };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), TvOptions(source.Url!));
+
+        // Assert
+        _episodes.Should().ContainSingle().Which.Subjects.Should().Equal(SyntheticSubject);
+        _episodes[0].Guests.Should().Equal(SyntheticGuest);
+    }
+
+    [Fact(DisplayName =
+        "A news report submit gets the same subject and guest enrichment as a podcast episode before it is saved.")]
+    public async Task news_report_submit_is_subject_enriched()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source(showName: _fixture.CreateTitle()) with { Description = $"Report on {SyntheticSubject}." };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), NewsOptions(source.Url!));
+
+        // Assert
+        _reports.Should().ContainSingle().Which.Subjects.Should().Equal(SyntheticSubject);
+        _reports[0].Guests.Should().Equal(SyntheticGuest);
+    }
+
+    [Fact(DisplayName = "A film whose description names no subject is saved with no subjects.")]
+    public async Task film_without_subject_term_gets_none()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var source = Source();
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        await sut.TrySubmit(Categorised(source), FilmOptions(source.Url!));
+
+        // Assert
+        _films.Should().ContainSingle().Which.Subjects.Should().BeEmpty();
     }
 
     [Fact(DisplayName =

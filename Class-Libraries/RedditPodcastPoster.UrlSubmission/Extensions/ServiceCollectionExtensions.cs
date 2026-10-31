@@ -70,6 +70,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ICatalogueLanguageGate, CatalogueLanguageGate>()
             .AddScoped<IPodcastAndEpisodeFactory, PodcastAndEpisodeFactory>()
             .AddScoped<IPodcastProcessor, PodcastProcessor>()
+            .AddScoped<ICatalogueSubmitEnrichment, CatalogueSubmitEnrichment>()
             .AddScoped<ICatalogueKindSubmitter, CatalogueKindSubmitter>()
             .AddScoped<ICatalogueParentLookup, CatalogueParentLookup>()
             .AddScoped<IEpisodeUrlRouter, EpisodeUrlRouter>()
