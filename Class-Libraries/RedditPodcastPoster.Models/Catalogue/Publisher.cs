@@ -10,8 +10,12 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// <see cref="News.NewsOrganisation"/>, and <see cref="Films.Film"/> subclass this.
 /// Film uses <see cref="Name"/> as its display title (no separate <c>title</c> member).
 /// </summary>
-public abstract class Publisher : CosmosSelector
+public abstract class Publisher : CosmosSelector, IPublicEntity
 {
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey { get; set; } = "";
+
     [JsonPropertyName("name")]
     [JsonPropertyOrder(20)]
     public string Name { get; set; } = string.Empty;

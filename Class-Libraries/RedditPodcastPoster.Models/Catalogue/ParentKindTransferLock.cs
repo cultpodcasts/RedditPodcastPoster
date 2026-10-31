@@ -9,7 +9,7 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// than the stale window (measured from its last heartbeat) belongs to a transfer that died; the next transfer takes it over (etag-checked) and resumes.
 /// </summary>
 [CosmosSelector(ModelType.ParentKindTransferLock)]
-public sealed class ParentKindTransferLock : CosmosSelector
+public sealed class ParentKindTransferLock : CosmosSelector, IFileKeyed
 {
     public ParentKindTransferLock()
     {
@@ -37,5 +37,7 @@ public sealed class ParentKindTransferLock : CosmosSelector
     [JsonIgnore]
     public DateTime LastAliveUtc => HeartbeatUtc ?? StartedUtc;
 
-    public override string FileKey => nameof(ParentKindTransferLock);
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => nameof(ParentKindTransferLock);
 }

@@ -10,7 +10,7 @@ namespace RedditPodcastPoster.Models.TitleCasing;
 /// </summary>
 [JsonConverter(typeof(TitleCasingRulesDocumentConverter))]
 [CosmosSelector(ModelType.LanguageTitleCasingRules)]
-public abstract class TitleCasingRulesDocument : CosmosSelector
+public abstract class TitleCasingRulesDocument : CosmosSelector, IFileKeyed
 {
     /// <summary>Reserved partition key for known-terms that apply to every language.</summary>
     public const string UniversalLanguageKey = "*";
@@ -36,7 +36,9 @@ public abstract class TitleCasingRulesDocument : CosmosSelector
     [JsonPropertyOrder(30)]
     public List<KnownTermEntry> KnownTerms { get; set; } = [];
 
-    public override string FileKey => IsUniversal(Language)
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => IsUniversal(Language)
         ? "TitleCasingRules-universal"
         : $"TitleCasingRules-{Language}";
 

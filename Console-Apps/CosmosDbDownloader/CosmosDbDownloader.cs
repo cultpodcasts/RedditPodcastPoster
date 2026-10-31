@@ -519,9 +519,9 @@ public class CosmosDbDownloader(
         progress.StopTask();
     }
 
-    private async Task<List<CosmosSelector>> LoadLookUpDocuments()
+    private async Task<List<IFileKeyed>> LoadLookUpDocuments()
     {
-        CosmosSelector?[] candidates =
+        IFileKeyed?[] candidates =
         [
             await lookupRepository.GetEliminationTerms(),
             await lookupRepository.GetDiscoveryScheduleConfig(),
@@ -534,7 +534,7 @@ public class CosmosDbDownloader(
             await lookupRepository.GetYouTubeThumbnailRecheckCursor(),
         ];
 
-        return candidates.OfType<CosmosSelector>().ToList();
+        return candidates.OfType<IFileKeyed>().ToList();
     }
 
     private async Task DownloadTitleCasingRules(ProgressTask progress)
@@ -648,7 +648,7 @@ public class CosmosDbDownloader(
         return safe;
     }
 
-    private async Task WriteEntityAsync<T>(T data) where T : RedditPodcastPoster.Models.Cosmos.CosmosSelector
+    private async Task WriteEntityAsync<T>(T data) where T : RedditPodcastPoster.Models.Cosmos.CosmosSelector, IFileKeyed
     {
         var path = fileRepository.GetFilePath(data);
         EnsureWritable(path, data.FileKey);

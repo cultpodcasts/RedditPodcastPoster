@@ -7,7 +7,7 @@ public class SafeFileEntityWriter(
     IFileRepository fileRepository
 ) : ISafeFileEntityWriter
 {
-    public async Task Write<T>(T data) where T : CosmosSelector
+    public async Task Write<T>(T data) where T : CosmosSelector, IFileKeyed
     {
         if (string.IsNullOrWhiteSpace(data.FileKey))
         {
