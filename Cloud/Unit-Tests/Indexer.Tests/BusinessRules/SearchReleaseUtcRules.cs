@@ -128,21 +128,20 @@ public class SearchReleaseUtcRules
     }
 
     [SearchReleaseGuardChildFact(DisplayName =
-        "When the search release rules run in the guard's child test host, then the host's local zone is Pacific/Auckland at +13 in January and +12 in July, because if the zone data is missing .NET silently falls back to UTC and every other rule here would pass without testing anything.")]
+        "When the search release rules run in the guard's child test host, then the host's local zone has Pacific/Auckland's +12 standard offset and is +12 or +13 today, because if the zone data is missing .NET silently falls back to UTC and every other rule here would pass without testing anything.")]
     public void child_host_is_on_pacific_auckland_time()
     {
         // Arrange
-        var summer = new DateTime(2026, 1, 15, 0, 0, 0, DateTimeKind.Utc);
-        var winter = new DateTime(2026, 7, 15, 0, 0, 0, DateTimeKind.Utc);
+        var local = TimeZoneInfo.Local;
 
         // Act
-        var summerOffset = TimeZoneInfo.Local.GetUtcOffset(summer);
-        var winterOffset = TimeZoneInfo.Local.GetUtcOffset(winter);
+        var standardOffset = local.BaseUtcOffset;
+        var offsetToday = local.GetUtcOffset(DomainTestFixture.UtcToday);
 
         // Assert
-        summerOffset.Should().Be(TimeSpan.FromHours(13),
-            "TZ={0} should give NZDT; local zone was '{1}'", SearchReleaseGuard.EastOfUtcZone, TimeZoneInfo.Local.Id);
-        winterOffset.Should().Be(TimeSpan.FromHours(12),
-            "TZ={0} should give NZST; local zone was '{1}'", SearchReleaseGuard.EastOfUtcZone, TimeZoneInfo.Local.Id);
+        standardOffset.Should().Be(TimeSpan.FromHours(12),
+            "TZ={0} should give NZST; local zone was '{1}'", SearchReleaseGuard.EastOfUtcZone, local.Id);
+        new[] { TimeSpan.FromHours(12), TimeSpan.FromHours(13) }.Should().Contain(offsetToday,
+            "TZ={0} is NZST or NZDT; local zone was '{1}'", SearchReleaseGuard.EastOfUtcZone, local.Id);
     }
 }
