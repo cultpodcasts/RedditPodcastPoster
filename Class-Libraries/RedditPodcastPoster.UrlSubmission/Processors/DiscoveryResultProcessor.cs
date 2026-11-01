@@ -21,7 +21,7 @@ public class DiscoveryResultProcessor(
     IAppleUrlCategoriser appleUrlCategoriser,
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
     ICategorisedItemProcessor categorisedItemProcessor,
-    IOptions<SubmitContentTypesOptions>? submitContentTypes = null) : IDiscoveryResultProcessor
+    IOptions<SubmitContentTypesOptions> submitContentTypes) : IDiscoveryResultProcessor
 {
     public async Task<SubmitResult> CreateSubmitResult(DiscoveryResult discoveryResult, IndexingContext indexingContext,
         SubmitOptions submitOptions, Podcast? spotifyPodcast, Podcast? applePodcast, Podcast? youTubePodcast)
@@ -44,11 +44,12 @@ public class DiscoveryResultProcessor(
             categorisedItem = await ExtractYouTube(categorisedItem, discoveryResult.Urls, indexingContext);
         }
 
-        if (submitContentTypes?.Value is { Enabled: true } && submitOptions.ClassificationSignals is null)
+        if (submitContentTypes.Value is { Enabled: true } && submitOptions.ClassificationSignals is null)
         {
-            // Same signals as the toolbar submit (UrlSubmitter), from the URL the item was categorised from, so a
-            // discovered film, TV show episode or news report is kind-classified by CatalogueKindSubmitter rather
-            // than always taking the podcast-episode path.
+            // Same signals as the toolbar submit (UrlSubmitter), from the URL the item was categorised from (the
+            // primary URL only, for now), so CatalogueKindSubmitter can kind-classify a discovered film or TV show
+            // episode. Until a Spotify / Apple / YouTube kind signal exists (#1200's product rule) these URLs always
+            // classify as a podcast-service episode and keep the podcast path.
             submitOptions = submitOptions with
             {
                 ClassificationSignals = SubmitContentClassifier.FromSubmission(result.CategorisedUrl, categorisedItem)

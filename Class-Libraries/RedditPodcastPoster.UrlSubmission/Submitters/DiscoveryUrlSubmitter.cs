@@ -80,11 +80,22 @@ public class DiscoveryUrlSubmitter(
             return ProbeResult(submitResult);
         }
 
+        // Defensive: Reject / RequiresCurator come only from Netflix title hubs and Vimeo, which a discovery URL
+        // (Spotify / Apple / YouTube) cannot be today. A readable reason beats the adaptor's "Unknown state".
         if (submitResult.Rejected || submitResult.RequiresCurator)
         {
             throw new InvalidOperationException(
                 $"Discovery-result '{discoveryResult.Id}' was classified as {submitResult.ContentKind} but " +
                 (submitResult.Rejected ? "the URL is not accepted for submit." : "needs a curator to confirm it."));
+        }
+
+        if (IsKind(submitResult.ContentKind) &&
+            submitResult is { EpisodeResult: SubmitResultState.None, PodcastResult: SubmitResultState.None })
+        {
+            // Defensive: classified as a film / TV show episode / news report, but nothing could be stored (no
+            // resolved non-podcast item). Not reachable from discovery today.
+            throw new InvalidOperationException(
+                $"Discovery-result '{discoveryResult.Id}' was classified as {submitResult.ContentKind} but no {submitResult.ContentKind} could be stored.");
         }
 
         var state = submitResultAdaptor.ToDiscoverySubmitResultState(submitResult);
@@ -101,11 +112,14 @@ public class DiscoveryUrlSubmitter(
         DiscoverySubmitResultState state,
         SubmitResult submitResult)
     {
-        var isKind = submitResult.ContentKind is
-            SubmitClassification.Film or SubmitClassification.TvShowEpisode or SubmitClassification.NewsReport;
-        if (!isKind)
+        if (!IsKind(submitResult.ContentKind))
         {
-            return new DiscoverySubmitResult(state, submitResult.Episode);
+            // A podcast episode that already owns the URL comes back from the kind submitter as an id only: keep it
+            // (with a null content kind) so the host still records the episode.
+            return new DiscoverySubmitResult(
+                state,
+                submitResult.Episode,
+                PlayableId: submitResult.Episode == null ? submitResult.PlayableId : null);
         }
 
         return new DiscoverySubmitResult(
@@ -195,6 +209,11 @@ public class DiscoveryUrlSubmitter(
             ParentId: parent.Parent.Id,
             CatalogueSearchSource: searchSource);
     }
+
+    /// <summary>NewsReport is kept defensively: discovery's signals can reach only Film and TvShowEpisode.</summary>
+    private static bool IsKind(string? contentKind) =>
+        contentKind is SubmitClassification.Film or SubmitClassification.TvShowEpisode
+            or SubmitClassification.NewsReport;
 
     /// <summary>The item's state across its URLs: Created, then Enriched, then EpisodeAlreadyExists, then anything else.</summary>
     private static SubmitResultState Strongest(SubmitResultState current, SubmitResultState next) =>

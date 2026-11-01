@@ -9,6 +9,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
@@ -32,6 +33,9 @@ namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 /// submit, so a discovered film or TV show episode is kind-classified and its result carries what the curation host
 /// records and indexes. Every rule runs through the real <see cref="DiscoveryUrlSubmitter"/> and
 /// <see cref="DiscoveryResultProcessor"/>; the categoriser output and all ids and names are synthetic.
+/// Until a Spotify / Apple / YouTube kind signal exists (#1200's product rule), the categoriser states that yield a
+/// film or TV show episode here are synthetic: the real <see cref="UrlCategoriser"/> never resolves a non-podcast item
+/// for a discovery URL, so these tests pin the plumbing, not that discovery creates films or TV episodes today.
 /// </summary>
 public class DiscoveryKindClassificationRules
 {
@@ -311,6 +315,107 @@ public class DiscoveryKindClassificationRules
 
         // Assert
         _processedOptions.Should().ContainSingle().Which.ClassificationSignals.Should().BeSameAs(supplied);
+    }
+
+    [Fact(DisplayName =
+        "With content types on and the real pipeline, a discovered Spotify episode of a stored podcast is declined by the kind submitter and added through the podcast pipeline: no film or TV item is saved, the content kind is null and the episode is returned.")]
+    public async Task podcast_episode_on_real_pipeline_keeps_podcast_path()
+    {
+        // Arrange
+        UseFlag(true);
+        var url = SpotifyUrl();
+        var podcast = _fixture.CreatePodcast();
+        CategoriserReturns(url, new CategorisedItem(podcast, [], null, null, null, null, null, Service.Spotify));
+        var episode = _fixture.CreateStoredEpisode(podcast);
+        _mocker.GetMock<IPodcastProcessor>()
+            .Setup(p => p.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()))
+            .ReturnsAsync(new SubmitResult(SubmitResultState.Created, SubmitResultState.None, Episode: episode));
+        UseRealPipeline();
+        var sut = _mocker.CreateInstance<DiscoveryUrlSubmitter>();
+
+        // Act
+        var result = await sut.Submit(Result(spotify: url), new IndexingContext(), DiscoveryOptions());
+
+        // Assert
+        _mocker.GetMock<IPodcastProcessor>().Verify(p => p.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()),
+            Times.Once);
+        _mocker.GetMock<IEpisodeRepository>().Verify(r => r.Save(episode), Times.Once);
+        _films.Should().BeEmpty();
+        _shows.Should().BeEmpty();
+        _tvEpisodes.Should().BeEmpty();
+        result.State.Should().Be(DiscoverySubmitResultState.CreatedEpisode);
+        result.Episode.Should().BeSameAs(episode);
+        result.ContentKind.Should().BeNull();
+        result.PlayableId.Should().BeNull();
+        result.CatalogueSearchSource.Should().BeNull();
+        result.FilmSearchSource.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a podcast episode already owns a discovered URL the kind submitter would classify as a film, the result is EpisodeAlreadyExists with that episode's id and a null content kind, so the host records the existing episode instead of losing its id.")]
+    public async Task existing_podcast_episode_id_is_kept()
+    {
+        // Arrange
+        UseFlag(true);
+        var url = YouTubeUrl();
+        var existing = _fixture.CreateStoredEpisode(_fixture.CreatePodcast());
+        CategoriserReturns(url,
+            new CategorisedItem(null, null, existing, null, null, null, FilmSource(), Service.Other));
+        UseRealPipeline();
+        var sut = _mocker.CreateInstance<DiscoveryUrlSubmitter>();
+
+        // Act
+        var result = await sut.Submit(Result(youTube: url), new IndexingContext(), DiscoveryOptions());
+
+        // Assert
+        _films.Should().BeEmpty();
+        result.State.Should().Be(DiscoverySubmitResultState.EpisodeAlreadyExists);
+        result.Episode.Should().BeNull();
+        result.ContentKind.Should().BeNull();
+        result.PlayableId.Should().Be(existing.Id);
+    }
+
+    [Fact(DisplayName =
+        "A Vimeo item the real kind submitter holds for a curator (caller-supplied signals, not curator-confirmed) fails with a curator reason, so the defensive guard is exercised from a real classification.")]
+    public async Task vimeo_curator_hold_through_real_kind_submitter_fails_with_reason()
+    {
+        // Arrange
+        UseFlag(true);
+        var url = YouTubeUrl();
+        CategoriserReturns(url, NonPodcastItem(FilmSource()));
+        UseRealPipeline();
+        var vimeo = new SubmitClassificationSignals(new Uri($"https://vimeo.com/{Math.Abs(_fixture.Create<int>())}"));
+        var sut = _mocker.CreateInstance<DiscoveryUrlSubmitter>();
+
+        // Act
+        var act = () => sut.Submit(Result(youTube: url), new IndexingContext(),
+            DiscoveryOptions() with { ClassificationSignals = vimeo });
+
+        // Assert
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("curator");
+        _films.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "An item classified as a film with no resolved non-podcast item stores nothing and fails with a readable reason rather than the adaptor's unknown-state error.")]
+    public async Task classified_kind_that_stores_nothing_fails_with_reason()
+    {
+        // Arrange
+        UseFlag(true);
+        var url = SpotifyUrl();
+        CategoriserReturns(url, new CategorisedItem(null, null, null, null, null, null, null, Service.Spotify));
+        UseRealPipeline();
+        var film = new SubmitClassificationSignals(url, MadeAsFilm: true);
+        var sut = _mocker.CreateInstance<DiscoveryUrlSubmitter>();
+
+        // Act
+        var act = () => sut.Submit(Result(spotify: url), new IndexingContext(),
+            DiscoveryOptions() with { ClassificationSignals = film });
+
+        // Assert
+        (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should()
+            .Contain("could be stored");
+        _films.Should().BeEmpty();
     }
 
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)
