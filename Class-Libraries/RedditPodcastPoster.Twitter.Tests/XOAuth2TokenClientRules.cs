@@ -87,6 +87,31 @@ public class XOAuth2TokenClientRules
             .And.Contain($"oauth_token_secret={Uri.EscapeDataString(oauth1Secret)}");
     }
 
+    [Fact(DisplayName =
+        "The authorization-code grant posts the code, the PKCE verifier and the same redirect URI, with Basic client authentication.")]
+    public async Task authorization_code_posts_pkce_verifier()
+    {
+        // Arrange
+        var code = _fixture.Create<string>();
+        var verifier = _fixture.Create<string>();
+        var redirect = "http://127.0.0.1:8739/callback";
+        _x.Respond(HttpStatusCode.OK, TokenJson(_fixture.Create<string>(), _fixture.Create<string>(), 7200));
+        var sut = _mocker.CreateInstance<XOAuth2TokenClient>();
+
+        // Act
+        var result = await sut.ExchangeAuthorizationCode(code, verifier, redirect);
+
+        // Assert
+        result.Outcome.Should().Be(XOAuth2TokenOutcome.Success);
+        result.Grant!.Source.Should().Be(XOAuth2TokenClient.AuthorizationSource);
+        var request = _x.Requests.Single();
+        request.Authorization!.Scheme.Should().Be("Basic");
+        request.Body.Should().Contain("grant_type=authorization_code")
+            .And.Contain($"code={Uri.EscapeDataString(code)}")
+            .And.Contain($"code_verifier={Uri.EscapeDataString(verifier)}")
+            .And.Contain($"redirect_uri={Uri.EscapeDataString(redirect)}");
+    }
+
     [Theory(DisplayName = "Token endpoint failures are classified so callers know whether to retry, re-exchange or fix the client credentials.")]
     [InlineData(HttpStatusCode.BadRequest, "invalid_grant", XOAuth2TokenOutcome.Rejected)]
     [InlineData(HttpStatusCode.BadRequest, "invalid_request", XOAuth2TokenOutcome.Rejected)]

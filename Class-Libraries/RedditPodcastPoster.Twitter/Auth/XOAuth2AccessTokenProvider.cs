@@ -70,7 +70,7 @@ public sealed class XOAuth2AccessTokenProvider(
             if (snapshot is null || !snapshot.State.HasTokens)
             {
                 logger.LogError(
-                    "X OAuth 2.0 is selected (twitter:AuthMode=OAuth2) but no token pair is saved. Run the XOAuth2TokenExchange console.");
+                    "X OAuth 2.0 is selected (twitter:AuthMode=OAuth2) but no token pair is saved. Run XOAuth2Authorize. XOAuth2TokenExchange still works until OAuth 1.0a ends on 1 Jan 2027.");
                 return null;
             }
 
@@ -78,7 +78,7 @@ public sealed class XOAuth2AccessTokenProvider(
             if (state.NeedsReauth)
             {
                 logger.LogWarning(
-                    "X OAuth 2.0: the saved grant needs re-authorisation since {Since:O} ({Reason}); not calling X. Run the XOAuth2TokenExchange console.",
+                    "X OAuth 2.0: the saved grant needs re-authorisation since {Since:O} ({Reason}); not calling X. Run XOAuth2Authorize with --execute.",
                     state.NeedsReauthSinceUtc, state.NeedsReauthReason);
                 return null;
             }
@@ -155,7 +155,7 @@ public sealed class XOAuth2AccessTokenProvider(
             if (marked)
             {
                 logger.LogCritical(
-                    "X OAuth 2.0: X refused the saved grant ({Error}) and it could not be recovered automatically. Posting to X is paused until the XOAuth2TokenExchange console saves a new pair.",
+                    "X OAuth 2.0: X refused the saved grant ({Error}) and it could not be recovered automatically. Posting to X is paused until XOAuth2Authorize saves a new pair.",
                     result.Error);
             }
 

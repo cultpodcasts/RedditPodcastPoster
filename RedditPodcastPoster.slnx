@@ -308,6 +308,7 @@
 
     <Project Path="Console-Apps/ThrowawayConsole/ThrowawayConsole.csproj" />
 
+    <Project Path="Console-Apps/XOAuth2Authorize/XOAuth2Authorize.csproj" />
     <Project Path="Console-Apps/XOAuth2TokenExchange/XOAuth2TokenExchange.csproj" />
 
   </Folder>

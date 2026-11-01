@@ -799,6 +799,21 @@ Once both are committed to PublicDatabase `main`, remove this "Pending" list and
 
 Needs `twitter:AccessToken`, `twitter:AccessTokenSecret`, `twitter:OAuth2ClientId`, `twitter:OAuth2ClientSecret` (the shared console user secrets, or `RedditPodcastPoster_twitter__*` environment variables) and the usual Cosmos settings.
 
+### XOAuth2Authorize
+
+**Purpose:** OAuth 2.0 PKCE login for the X posting account (confidential client). Saves the user-context token pair to the same LookUps `XOAuth2TokenState` document as `XOAuth2TokenExchange`. This is the only way to obtain or replace that pair after X stops accepting OAuth 1.0a on 1 Jan 2027. Do this before setting `twitter:AuthMode` to `OAuth2` if the exchange console can no longer run. Never prints the code verifier, the authorization code, or token values.
+
+**Run:** `dotnet run --project Console-Apps/XOAuth2Authorize --` · PATH: `XOAuth2Authorize`
+
+| Option | Description |
+|--------|-------------|
+| *(none)* | Dry run (default): reports which client settings are present (by name only) and the saved pair, and sends nothing |
+| `--execute` | Opens the X login (PKCE S256), listens on the loopback redirect for 5 minutes, and saves the new pair. Each run invalidates the previous OAuth 2.0 pair and holds the refresh lease until consent finishes or is abandoned |
+| `--redirect-uri` | Loopback redirect registered on the X app. Default `http://127.0.0.1:8739/callback`. Must be `http://127.0.0.1` or `http://localhost`, with a port and no query |
+| `--manual` | Do not listen. Print the URL and read a pasted callback URL or code from the console. Use this when the loopback listener cannot start |
+
+Needs `twitter:OAuth2ClientId` and `twitter:OAuth2ClientSecret` (the shared console user secrets) and the usual Cosmos settings. The redirect URI has to be registered under the X app's User authentication settings before `--execute`. Sign in as the posting account. Scopes requested: `tweet.read`, `tweet.write`, `users.read`, `offline.access`.
+
 ### ThrowawayConsole
 
 **Purpose:** Ad-hoc scratch tool (currently probes a YouTube video from an Internet Archive-style URL argument). **Excluded from** `publish-console-apps.ps1`.
