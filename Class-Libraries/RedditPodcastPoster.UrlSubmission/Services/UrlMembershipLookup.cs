@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
@@ -130,12 +131,23 @@ public class UrlMembershipLookup(
         string? serviceKey,
         CancellationToken cancellationToken)
     {
-        if (!ContentTypesEnabled || string.IsNullOrWhiteSpace(serviceKey))
+        if (!ContentTypesEnabled)
         {
             return null;
         }
 
-        var owner = await QueryCatalogueOwner(CanonicalStoredUrl(url), serviceKey, cancellationToken);
+        // Streaming URLs carry their catalog key. YouTube, Spotify and Apple URLs reach here only when no podcast
+        // episode stores them, e.g. an episode attached to a film as a trailer (its row is deleted on attach).
+        var ownerKey = serviceKey ??
+                       (kind == UrlMembershipLookupKinds.PodcastService
+                           ? ServiceCatalog.TryResolvePodcastPlatformKey(url)
+                           : null);
+        if (string.IsNullOrWhiteSpace(ownerKey))
+        {
+            return null;
+        }
+
+        var owner = await QueryCatalogueOwner(CanonicalStoredUrl(url), ownerKey, cancellationToken);
         if (owner is null)
         {
             return null;
@@ -155,8 +167,8 @@ public class UrlMembershipLookup(
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var film = await films.GetBy(item =>
-            item.Services != null && item.Services[serviceKey].Url == canonical);
+        var trailerUrl = TrailerStoredUrl(canonical, serviceKey);
+        var film = await films.GetBy(FilmCosmosFilters.HoldsServiceOrTrailerUrl(serviceKey, canonical, trailerUrl));
         if (film != null)
         {
             return new CatalogueServiceUrlOwner(SubmitClassification.Film, null);
@@ -179,6 +191,34 @@ public class UrlMembershipLookup(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The form a <see cref="FilmTrailer.Url"/> takes when the trailer came from a podcast episode: that episode's
+    /// stored service URL (<c>youtube.com/watch?v={id}</c>, or the cleaned Spotify / Apple episode URL). A pasted
+    /// <c>youtu.be</c> or tracking-tagged link must still match it.
+    /// </summary>
+    private static Uri TrailerStoredUrl(Uri url, string serviceKey)
+    {
+        if (serviceKey == ServiceKeys.YouTube)
+        {
+            var videoId = YouTubeIdResolver.Extract(url);
+            return string.IsNullOrWhiteSpace(videoId)
+                ? url
+                : new Uri($"https://www.youtube.com/watch?v={videoId}");
+        }
+
+        if (serviceKey == ServiceKeys.Spotify)
+        {
+            return string.IsNullOrWhiteSpace(SpotifyIdResolver.GetEpisodeId(url)) ? url : url.CleanSpotifyUrl();
+        }
+
+        if (serviceKey == ServiceKeys.Apple)
+        {
+            return url.CleanAppleUrl();
+        }
+
+        return url;
     }
 
     private Uri CanonicalStoredUrl(Uri url) =>
