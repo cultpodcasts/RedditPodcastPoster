@@ -3,13 +3,13 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
 using RedditPodcastPoster.PodcastServices.Updaters;
@@ -207,17 +207,12 @@ public class IndexerSkipsCatalogueOwnedUrlsRules
                 }
             ]
         };
-        var films = new Mock<IFilmRepository>();
-        films.Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
+        var lookupMocker = new AutoMocker();
+        lookupMocker.Use(Options.Create(new SubmitContentTypesOptions()));
+        lookupMocker.GetMock<IFilmRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .ReturnsAsync((Expression<Func<Film, bool>> predicate) => predicate.Compile()(film) ? film : null);
-        var lookup = new UrlMembershipLookup(
-            Mock.Of<IEpisodeRepository>(),
-            Mock.Of<IPodcastRepository>(),
-            Mock.Of<INonPodcastServiceAdapterResolver>(),
-            Options.Create(new SubmitContentTypesOptions()),
-            films.Object,
-            Mock.Of<ITvShowEpisodeRepository>(),
-            Mock.Of<INewsReportRepository>());
+        var lookup = lookupMocker.CreateInstance<UrlMembershipLookup>();
         harness.UrlMembershipLookup
             .Setup(x => x.FindCatalogueServiceUrlOwner(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
             .Returns((Uri url, CancellationToken token) => lookup.FindCatalogueServiceUrlOwner(url, token));
