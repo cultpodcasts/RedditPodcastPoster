@@ -6,12 +6,10 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
-using RedditPodcastPoster.Persistence.Abstractions.Episodes;
+using RedditPodcastPoster.Persistence.Abstractions.Playables;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
-using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Resolvers;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
 using RedditPodcastPoster.PodcastServices.Spotify.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -166,59 +164,33 @@ public class UrlMembershipLookup(
         string serviceKey,
         CancellationToken cancellationToken)
     {
+        var stored = PodcastServiceUrlNormaliser.Stored(canonical, serviceKey);
+
         cancellationToken.ThrowIfCancellationRequested();
-        var trailerUrl = TrailerStoredUrl(canonical, serviceKey);
-        var film = await films.GetBy(FilmCosmosFilters.HoldsServiceOrTrailerUrl(serviceKey, canonical, trailerUrl));
+        var film = await films.GetBy(
+            PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(serviceKey, canonical, stored));
         if (film != null)
         {
-            return new CatalogueServiceUrlOwner(SubmitClassification.Film, null);
+            return new CatalogueServiceUrlOwner(SubmitClassification.Film, null, film.Id);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        var episode = await tvShowEpisodes.GetBy(item =>
-            item.Services != null && item.Services[serviceKey].Url == canonical);
+        var episode = await tvShowEpisodes.GetBy(
+            PlayableServiceUrlFilters.HoldsServiceUrl<TvShowEpisode>(serviceKey, canonical, stored));
         if (episode != null)
         {
-            return new CatalogueServiceUrlOwner(SubmitClassification.TvShowEpisode, episode.TvShowName);
+            return new CatalogueServiceUrlOwner(SubmitClassification.TvShowEpisode, episode.TvShowName, episode.Id);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        var report = await newsReports.GetBy(item =>
-            item.Services != null && item.Services[serviceKey].Url == canonical);
+        var report = await newsReports.GetBy(
+            PlayableServiceUrlFilters.HoldsServiceUrl<NewsReport>(serviceKey, canonical, stored));
         if (report != null)
         {
-            return new CatalogueServiceUrlOwner(SubmitClassification.NewsReport, report.NewsOrganisationName);
+            return new CatalogueServiceUrlOwner(SubmitClassification.NewsReport, report.NewsOrganisationName, report.Id);
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// The form a <see cref="FilmTrailer.Url"/> takes when the trailer came from a podcast episode: that episode's
-    /// stored service URL (<c>youtube.com/watch?v={id}</c>, or the cleaned Spotify / Apple episode URL). A pasted
-    /// <c>youtu.be</c> or tracking-tagged link must still match it.
-    /// </summary>
-    private static Uri TrailerStoredUrl(Uri url, string serviceKey)
-    {
-        if (serviceKey == ServiceKeys.YouTube)
-        {
-            var videoId = YouTubeIdResolver.Extract(url);
-            return string.IsNullOrWhiteSpace(videoId)
-                ? url
-                : new Uri($"https://www.youtube.com/watch?v={videoId}");
-        }
-
-        if (serviceKey == ServiceKeys.Spotify)
-        {
-            return string.IsNullOrWhiteSpace(SpotifyIdResolver.GetEpisodeId(url)) ? url : url.CleanSpotifyUrl();
-        }
-
-        if (serviceKey == ServiceKeys.Apple)
-        {
-            return url.CleanAppleUrl();
-        }
-
-        return url;
     }
 
     private Uri CanonicalStoredUrl(Uri url) =>
@@ -267,7 +239,7 @@ public class UrlMembershipLookup(
     private static Expression<Func<Episode, bool>> SpotifyStoredEquals(Uri url)
     {
         var episodeId = SpotifyIdResolver.GetEpisodeId(url);
-        var cleaned = string.IsNullOrWhiteSpace(episodeId) ? url : url.CleanSpotifyUrl();
+        var cleaned = PodcastServiceUrlNormaliser.Stored(url, ServiceKeys.Spotify);
         if (string.IsNullOrWhiteSpace(episodeId))
         {
             return episode =>
@@ -284,7 +256,7 @@ public class UrlMembershipLookup(
     private static Expression<Func<Episode, bool>> AppleStoredEquals(Uri url)
     {
         var episodeId = AppleIdResolver.GetEpisodeId(url);
-        var cleaned = url.CleanAppleUrl();
+        var cleaned = PodcastServiceUrlNormaliser.Stored(url, ServiceKeys.Apple);
         if (episodeId is null)
         {
             return episode =>

@@ -19,6 +19,7 @@ public class UrlSubmitter(
     ICatalogueParentLookup catalogueParentLookup,
     ICatalogueParentSubmitter catalogueParentSubmitter,
     IEpisodeUrlRouter episodeUrlRouter,
+    IUrlMembershipLookup urlMembershipLookup,
     IOptions<SubmitContentTypesOptions>? submitContentTypes = null)
     : IUrlSubmitter
 {
@@ -36,6 +37,18 @@ public class UrlSubmitter(
                     SubmitResultState.None,
                     SubmitResultState.None,
                     ContentKind: SubmitClassification.NewsReport);
+            }
+
+            // An item moved out of a podcast (to a film, film trailer, TV episode or news report) keeps its
+            // YouTube / Spotify / Apple URL there, and its episode row is gone. Re-submitting that URL must not
+            // re-create the podcast episode (#1089). Same ownership rule as the indexer.
+            var catalogueOwner = IsPodcastPlatformUrl(url)
+                ? await urlMembershipLookup.FindCatalogueServiceUrlOwner(url, CancellationToken.None)
+                : null;
+            if (catalogueOwner != null && catalogueOwner.ContentKind == SubmitClassification.Film)
+            {
+                // Films (and their trailers) have no podcast-platform resubmit path, so a film owner always stops here.
+                return CatalogueOwned(url, catalogueOwner);
             }
 
             if (submitOptions.Parent is { } target)
@@ -111,6 +124,13 @@ public class UrlSubmitter(
             {
                 // Never create a podcast for a channel / show a news organisation or TV show owns.
                 parent = await episodeUrlRouter.FindOwningParent(url, owner, indexingContext);
+            }
+
+            if (parent == null && catalogueOwner != null)
+            {
+                // A TV episode / news report owns the URL but routing found no parent to re-submit it under (that
+                // path matches and enriches the stored item). Never file it as a podcast episode.
+                return CatalogueOwned(url, catalogueOwner);
             }
 
             if (parent != null)
@@ -212,6 +232,18 @@ public class UrlSubmitter(
             logger.LogError(e, "Error ingesting '{url}'.", url);
             return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
         }
+    }
+
+    private SubmitResult CatalogueOwned(Uri url, CatalogueServiceUrlOwner owner)
+    {
+        logger.LogInformation(
+            "Submit of '{Url}' skipped: already in the catalogue as {ContentKind} '{PlayableId}'.",
+            url, owner.ContentKind, owner.PlayableId);
+        return new SubmitResult(
+            SubmitResultState.EpisodeAlreadyExists,
+            SubmitResultState.None,
+            ContentKind: owner.ContentKind,
+            PlayableId: owner.PlayableId);
     }
 
     /// <summary>Spotify, YouTube or Apple Podcasts: the URLs that can be routed to a news organisation or TV show.</summary>
