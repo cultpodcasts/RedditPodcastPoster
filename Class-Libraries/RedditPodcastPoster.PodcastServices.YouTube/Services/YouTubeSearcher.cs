@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Serialization;
 using System.Net;
 using Google;
 using Google.Apis.YouTube.v3;
@@ -52,11 +53,13 @@ public class YouTubeSearcher(
         IndexingContext indexingContext,
         SearchResource.ListRequest.VideoDurationEnum duration)
     {
+        // Unspecified-kind ReleasedSince is UTC (#1194); the implicit conversion would read it as host-local time.
+        var releasedSince = UtcDateTimes.ToUtcOffset(indexingContext.ReleasedSince);
         var results = new List<YouTubeItemDetails>();
         var nextPageToken = "";
         while (nextPageToken != null && (!results.Any() ||
                                          results.Last().SearchResult.Snippet.PublishedAtDateTimeOffset >=
-                                         indexingContext.ReleasedSince))
+                                         releasedSince))
         {
             SearchListResponse response;
             try
@@ -67,12 +70,12 @@ public class YouTubeSearcher(
                 searchListRequest.Type = "video";
                 searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
                 searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-                searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+                searchListRequest.PublishedAfterDateTimeOffset = releasedSince;
                 searchListRequest.Q = query;
                 searchListRequest.VideoDuration = duration;
                 if (indexingContext.ReleasedSince.HasValue)
                 {
-                    searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+                    searchListRequest.PublishedAfterDateTimeOffset = releasedSince;
                 }
 
                 response = await searchListRequest.ExecuteAsync();
@@ -92,7 +95,7 @@ public class YouTubeSearcher(
             }
 
             var releasedInTimeFrame = response.Items.Where(x =>
-                x.Snippet.PublishedAtDateTimeOffset >= indexingContext.ReleasedSince);
+                x.Snippet.PublishedAtDateTimeOffset >= releasedSince);
 
 
             results.AddRange(releasedInTimeFrame.Select(x => new YouTubeItemDetails(x)));

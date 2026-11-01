@@ -77,6 +77,7 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - Cosmos container name is `LookUps` (not `knownTerms`). `KnownTerms` and elimination terms are items in `LookUps`. Infrastructure includes a `PushSubscriptions` container.
 - Use detached `Podcast` / `Episode` models and the `PodcastEpisode` pair. Canonical repositories are the split-container implementations in `RedditPodcastPoster.Persistence`. Do not reintroduce `Persistence.Legacy` or embedded-container repositories.
 - Episode ID is globally unique. Azure Search indexing does not use soft-delete.
+- Date-times are UTC. An unspecified-kind `DateTime` is UTC (`UtcDateTimes.ToUtc`). Never convert `DateTime` to `DateTimeOffset` implicitly or with `new DateTimeOffset(dateTime)`: both read unspecified as host-local time (#1191, #1194). Use `UtcDateTimes.ToUtcOffset`. The API writes every date-time as ISO-8601 with `Z` (contract: `FunctionHost.Tests` `UtcJsonDtoContractRules`); the only exception is the discovery schedule's UK-local `slotStartUk`. Date-only releases stay at midnight UTC on that date.
 - `podcast.Removed` is the removal flag. Do not trust episode-level `podcastRemoved` when deciding whether an episode can be posted.
 - Container factories are explicit: `CreatePodcastsContainer()` and `CreateEpisodesContainer()`.
 - Cosmos settings bind to the `cosmosdb` configuration section.

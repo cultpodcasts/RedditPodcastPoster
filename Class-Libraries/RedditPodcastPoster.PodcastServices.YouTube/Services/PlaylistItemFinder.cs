@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Serialization;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
@@ -188,12 +189,16 @@ public partial class PlaylistItemFinder(
         return null;
     }
 
-    private PlaylistItem? MatchOnPublishTimeComparedToPublishDelay(
+    /// <summary>
+    /// The playlist item published closest to the episode's release plus the publish delay, if it is less than a day
+    /// after it. The release is UTC (unspecified kind is UTC, #1194), never host-local time.
+    /// </summary>
+    internal static PlaylistItem? MatchOnPublishTimeComparedToPublishDelay(
         EpisodeModel episode,
         IList<PlaylistItem> searchResults,
         TimeSpan youTubePublishDelay)
     {
-        var expectedPublish = episode.ReleaseUtc.Add(youTubePublishDelay);
+        var expectedPublish = UtcDateTimes.ToUtcOffset(episode.ReleaseUtc.Add(youTubePublishDelay));
         var closestEpisode = searchResults
             .Where(x => x.Snippet.PublishedAtDateTimeOffset.HasValue)
             .MinBy(x => Math.Abs(x.Snippet.PublishedAtDateTimeOffset!.Value.Subtract(expectedPublish).Ticks));

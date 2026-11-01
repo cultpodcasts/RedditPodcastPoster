@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Serialization;
 ﻿using System.Net;
 using Google;
 using Google.Apis.YouTube.v3;
@@ -43,7 +44,7 @@ public class YouTubeChannelVideoSnippetsService(
                 searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
                 if (indexingContext.ReleasedSince.HasValue)
                 {
-                    searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+                    searchListRequest.PublishedAfterDateTimeOffset = UtcDateTimes.ToUtcOffset(indexingContext.ReleasedSince);
                 }
 
                 searchListRequest.PageToken = nextPageToken;

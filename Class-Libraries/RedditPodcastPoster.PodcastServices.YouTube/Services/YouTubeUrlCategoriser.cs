@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Serialization;
 using Microsoft.Extensions.Logging;
 using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 using Google.Apis.YouTube.v3.Data;
@@ -233,10 +234,7 @@ public class YouTubeUrlCategoriser(
             // Compare video ids: a playlist item's Id is the playlist-item id, not the video id.
             var unassignedChannelUploads =
                 items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Snippet?.ResourceId?.VideoId ?? x.Id)).ToArray();
-            var publishedWithin = unassignedChannelUploads.Where(x =>
-                    x.Snippet.PublishedAtDateTimeOffset > expectedPublish.Subtract(PublishThreshold) &&
-                    x.Snippet.PublishedAtDateTimeOffset < expectedPublish.Add(PublishThreshold))
-                .ToArray();
+            var publishedWithin = PublishedWithinThreshold(unassignedChannelUploads, expectedPublish);
             PlaylistItem? match;
             if (publishedWithin.Any())
             {
@@ -532,5 +530,18 @@ public class YouTubeUrlCategoriser(
                (youTubeUrl is null && !idMissing) ||
                (!idMissing && youTubeUrl is not null &&
                 YouTubeIdResolver.Extract(youTubeUrl) != youTubeId);
+    }
+
+    /// <summary>
+    /// The uploads published within <see cref="PublishThreshold"/> either side of <paramref name="expectedPublish"/>.
+    /// <paramref name="expectedPublish"/> is UTC (unspecified kind is UTC, #1194), never host-local time.
+    /// </summary>
+    internal static PlaylistItem[] PublishedWithinThreshold(IEnumerable<PlaylistItem> uploads, DateTime expectedPublish)
+    {
+        var expected = UtcDateTimes.ToUtcOffset(expectedPublish);
+        return uploads.Where(x =>
+                x.Snippet.PublishedAtDateTimeOffset > expected.Subtract(PublishThreshold) &&
+                x.Snippet.PublishedAtDateTimeOffset < expected.Add(PublishThreshold))
+            .ToArray();
     }
 }
