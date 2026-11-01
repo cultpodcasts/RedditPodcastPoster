@@ -730,6 +730,19 @@ flowchart LR
 | `-e, --episode-guid` / `-d, --dry-run` | Single episode shortener create |
 | `-r, --read` | Read by short-guid |
 
+### XOAuth2TokenExchange
+
+**Purpose:** One-off move of the X posting account from OAuth 1.0a to OAuth 2.0 (X retires OAuth 1.0a on 1 Jan 2027). Exchanges the configured OAuth 1.0a access token for an OAuth 2.0 user-context token pair and saves it to the LookUps `XOAuth2TokenState` document, where the Indexer, API and Poster refresh it once `twitter:AuthMode` is `OAuth2`. Never prints token values.
+
+**Run:** `dotnet run --project Console-Apps/XOAuth2TokenExchange --` · PATH: `XOAuth2TokenExchange`
+
+| Option | Description |
+|--------|-------------|
+| *(none)* | Dry run (default): reports which `twitter:*` settings are present (by name only) and the saved pair's expiry, and sends nothing |
+| `--execute` | Sends the exchange to `https://api.x.com/2/oauth2/token` and saves the new pair. Each run invalidates the previous OAuth 2.0 pair, so run it once; it refuses while a refresh lease is live |
+
+Needs `twitter:AccessToken`, `twitter:AccessTokenSecret`, `twitter:OAuth2ClientId`, `twitter:OAuth2ClientSecret` (the shared console user secrets, or `RedditPodcastPoster_twitter__*` environment variables) and the usual Cosmos settings.
+
 ### ThrowawayConsole
 
 **Purpose:** Ad-hoc scratch tool (currently probes a YouTube video from an Internet Archive-style URL argument). **Excluded from** `publish-console-apps.ps1`.

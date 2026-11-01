@@ -5,7 +5,7 @@ namespace RedditPodcastPoster.Twitter.Clients;
 
 public interface ITwitterClient
 {
-    Task<PostTweetResponse> Send(string tweet);
-    Task<GetTweetsResponseWrapper> GetTweets();
-    Task<bool> DeleteTweet(Tweet tweet);
+    Task<PostTweetResponse> Send(string tweet, CancellationToken cancellationToken = default);
+    Task<GetTweetsResponseWrapper> GetTweets(CancellationToken cancellationToken = default);
+    Task<bool> DeleteTweet(Tweet tweet, CancellationToken cancellationToken = default);
 }

@@ -78,6 +78,18 @@ param twitterConsumerKey string
 param twitterConsumerSecret string
 @secure()
 param twitterTwitterId string
+@description('X auth: OAuth1 (default, unchanged) or OAuth2. Flip to OAuth2 only after XOAuth2TokenExchange --execute has saved a token pair (issue #1201).')
+@allowed([
+  'OAuth1'
+  'OAuth2'
+])
+param twitterAuthMode string = 'OAuth1'
+@description('X OAuth 2.0 confidential-client Client ID. Key Vault secret Twitter-OAuth2ClientId. Empty until the OAuth 2.0 switch (issue #1201).')
+@secure()
+param twitterOAuth2ClientId string = ''
+@description('X OAuth 2.0 confidential-client Client Secret. Key Vault secret Twitter-OAuth2ClientSecret. Empty until the OAuth 2.0 switch (issue #1201).')
+@secure()
+param twitterOAuth2ClientSecret string = ''
 @secure()
 param youTubeApiKey0 string
 @secure()
@@ -407,6 +419,9 @@ var twitter= {
     twitter__TwitterId: twitterTwitterId
     twitter__WithEpisodeUrl: 'true'
     twitter__ShortUrlOnlyWhenShareImage: 'false'
+    twitter__AuthMode: twitterAuthMode
+    twitter__OAuth2ClientId: twitterOAuth2ClientId
+    twitter__OAuth2ClientSecret: twitterOAuth2ClientSecret
 }
 
 var youtube= {
