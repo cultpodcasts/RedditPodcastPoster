@@ -66,7 +66,7 @@ async Task<int> Run(XOAuth2AuthorizeRequest request)
     string? callback;
     if (request.Manual)
     {
-        Console.WriteLine("Paste the full callback URL (or the code) and press Enter.");
+        Console.WriteLine("Paste the full callback URL and press Enter.");
         callback = Console.ReadLine();
     }
     else
@@ -79,8 +79,14 @@ async Task<int> Run(XOAuth2AuthorizeRequest request)
         }
         catch (HttpListenerException)
         {
-            Console.WriteLine("The loopback listener did not start. Paste the full callback URL (or the code) and press Enter.");
+            Console.WriteLine("The loopback listener did not start. Paste the full callback URL and press Enter.");
             callback = Console.ReadLine();
+        }
+        catch (OperationCanceledException)
+        {
+            await authorizer.Abandon(begun.Session);
+            Console.WriteLine("The wait for consent ended. Nothing was saved.");
+            return 1;
         }
     }
 
@@ -117,32 +123,61 @@ static async Task<string?> WaitForCallback(Uri redirect, TimeSpan timeout)
     using var listener = new HttpListener();
     listener.Prefixes.Add(redirect.GetLeftPart(UriPartial.Authority) + "/");
     listener.Start();
+    using var cancel = new CancellationTokenSource(timeout);
     try
     {
-        using var cancel = new CancellationTokenSource(timeout);
-        var context = await listener.GetContextAsync().WaitAsync(cancel.Token);
-        var code = context.Request.QueryString["code"];
-        var state = context.Request.QueryString["state"];
-        var error = context.Request.QueryString["error"];
-        var page = Encoding.UTF8.GetBytes("<html><body><p>You can close this window.</p></body></html>");
-        context.Response.ContentType = "text/html; charset=utf-8";
-        context.Response.ContentLength64 = page.Length;
-        await context.Response.OutputStream.WriteAsync(page);
-        context.Response.Close();
-        if (!string.IsNullOrEmpty(error))
+        while (true)
         {
-            return "error=" + error + (string.IsNullOrEmpty(state) ? "" : "&state=" + state);
-        }
+            var context = await listener.GetContextAsync().WaitAsync(cancel.Token);
+            if (!IsRedirectPath(redirect, context.Request.Url))
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                context.Response.Close();
+                continue;
+            }
 
-        if (string.IsNullOrEmpty(code))
-        {
-            return null;
-        }
+            var code = context.Request.QueryString["code"];
+            var state = context.Request.QueryString["state"];
+            var error = context.Request.QueryString["error"];
+            if (string.IsNullOrEmpty(code) && string.IsNullOrEmpty(error))
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                context.Response.Close();
+                continue;
+            }
 
-        return "code=" + code + "&state=" + state;
+            var page = Encoding.UTF8.GetBytes("<html><body><p>You can close this window.</p></body></html>");
+            context.Response.ContentType = "text/html; charset=utf-8";
+            context.Response.ContentLength64 = page.Length;
+            await context.Response.OutputStream.WriteAsync(page);
+            context.Response.Close();
+            if (!string.IsNullOrEmpty(error))
+            {
+                return "error=" + Uri.EscapeDataString(error) +
+                       (string.IsNullOrEmpty(state) ? "" : "&state=" + Uri.EscapeDataString(state));
+            }
+
+            return "code=" + Uri.EscapeDataString(code!) + "&state=" + Uri.EscapeDataString(state ?? "");
+        }
     }
     finally
     {
         listener.Stop();
     }
+}
+
+static bool IsRedirectPath(Uri redirect, Uri? requestUrl)
+{
+    if (requestUrl is null)
+    {
+        return false;
+    }
+
+    static string Normalize(string path)
+    {
+        var trimmed = path.TrimEnd('/');
+        return trimmed.Length == 0 ? "/" : trimmed;
+    }
+
+    return string.Equals(Normalize(requestUrl.AbsolutePath), Normalize(redirect.AbsolutePath), StringComparison.Ordinal);
 }

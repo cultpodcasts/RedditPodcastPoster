@@ -150,7 +150,9 @@ public sealed class XOAuth2Authorizer(
         if (!XOAuth2AuthorizationCallback.TryRead(callbackOrCode, out var code, out var state, out var error))
         {
             await tokenStore.ReleaseRefreshLease(session.Leased, CancellationToken.None);
-            report.Add("No authorization code was received. Nothing was saved.");
+            report.Add(string.IsNullOrWhiteSpace(callbackOrCode)
+                ? "No authorization code was received. Nothing was saved."
+                : "The callback must be the full redirect URL, including this login's state. Nothing was saved.");
             return new XOAuth2AuthorizeResult(XOAuth2AuthorizeOutcome.ConsentFailed, report);
         }
 
@@ -161,7 +163,7 @@ public sealed class XOAuth2Authorizer(
             return new XOAuth2AuthorizeResult(XOAuth2AuthorizeOutcome.ConsentFailed, report);
         }
 
-        if (!string.IsNullOrEmpty(state) && !string.Equals(state, session.State, StringComparison.Ordinal))
+        if (!string.Equals(state, session.State, StringComparison.Ordinal))
         {
             await tokenStore.ReleaseRefreshLease(session.Leased, CancellationToken.None);
             report.Add("The returned state did not match this login. Nothing was saved.");
@@ -254,10 +256,6 @@ public static class XOAuth2AuthorizationCallback
             query.TryGetValue("code", out code);
             query.TryGetValue("state", out state);
             query.TryGetValue("error", out error);
-        }
-        else
-        {
-            code = text;
         }
 
         return !string.IsNullOrEmpty(code) || !string.IsNullOrEmpty(error);

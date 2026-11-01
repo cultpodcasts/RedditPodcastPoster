@@ -163,6 +163,53 @@ public class XOAuth2AuthorizerRules
                 It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact(DisplayName = "A callback with no state saves nothing and does not exchange.")]
+    public async Task callback_with_no_state_saves_nothing()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<XOAuth2Authorizer>();
+        var begun = await sut.Begin(execute: true, _redirect);
+        var code = _fixture.Create<string>();
+
+        // Act
+        var result = await sut.Complete(begun.Session!,
+            $"{_redirect.AbsoluteUri}?code={Uri.EscapeDataString(code)}");
+
+        // Assert
+        result.Outcome.Should().Be(XOAuth2AuthorizeOutcome.ConsentFailed);
+        _mocker.GetMock<IXOAuth2TokenClient>().Verify(
+            x => x.ExchangeAuthorizationCode(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<IXOAuth2TokenStore>().Verify(
+            x => x.ReleaseRefreshLease(_saved, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<IXOAuth2TokenStore>().Verify(
+            x => x.SaveTokens(It.IsAny<XOAuth2TokenSnapshot>(), It.IsAny<XOAuth2TokenGrant>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "A pasted code with no callback state saves nothing and does not exchange.")]
+    public async Task pasted_code_without_state_saves_nothing()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<XOAuth2Authorizer>();
+        var begun = await sut.Begin(execute: true, _redirect);
+        var pasted = _fixture.Create<string>().Replace("&", "").Replace("=", "").Replace("?", "");
+
+        // Act
+        var result = await sut.Complete(begun.Session!, pasted);
+
+        // Assert
+        result.Outcome.Should().Be(XOAuth2AuthorizeOutcome.ConsentFailed);
+        _mocker.GetMock<IXOAuth2TokenClient>().Verify(
+            x => x.ExchangeAuthorizationCode(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<IXOAuth2TokenStore>().Verify(
+            x => x.ReleaseRefreshLease(_saved, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<IXOAuth2TokenStore>().Verify(
+            x => x.SaveTokens(It.IsAny<XOAuth2TokenSnapshot>(), It.IsAny<XOAuth2TokenGrant>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact(DisplayName = "A non-loopback redirect is refused before any lease is taken.")]
     public async Task remote_redirect_is_refused()
     {
