@@ -141,6 +141,13 @@ public class TweetRunStopRules
     [InlineData(HttpStatusCode.InternalServerError, TweetSendStatus.Failed)]
     public void failure_status_codes_are_classified(HttpStatusCode code, TweetSendStatus expected)
     {
-        TweetSendFailureClassifier.Classify(code).Should().Be(expected);
+        // Arrange
+        var statusCode = code;
+
+        // Act
+        var status = TweetSendFailureClassifier.Classify(statusCode);
+
+        // Assert
+        status.Should().Be(expected);
     }
 }
