@@ -67,10 +67,28 @@ $issueNumber = [int]$Matches[3]
 
 $itemsPath = "/users/$Owner/projectsV2/$ProjectNumber/items"
 
+# Runs gh with stdout and stderr merged, then splits them so only stdout is parsed as JSON or
+# numbers. Stderr (notices, deprecation lines) is kept for failure messages only.
+function Invoke-Gh {
+    $merged = & gh @args 2>&1
+    $exitCode = $LASTEXITCODE
+    $stdout = @($merged | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_" })
+    $stderr = @($merged | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_" })
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Stdout   = ($stdout -join "`n")
+        Stderr   = ($stderr -join "`n")
+        All      = (@($stdout) + @($stderr)) -join "`n"
+    }
+}
+
+# Lists every issue number on the board. The items endpoint pages at 100, so --paginate is
+# required (the board passed 100 items in Oct 2026; #1224). The --jq filter emits one scalar
+# per item so paged output concatenates cleanly; draft items have no content.number.
 function Get-BoardIssueNumbers {
-    $raw = & gh api "$($itemsPath)?per_page=100" --jq '[.[] | .content.number]' 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "Board list failed: $raw" }
-    return @($raw | ConvertFrom-Json)
+    $r = Invoke-Gh api --paginate "$($itemsPath)?per_page=100" --jq '.[] | .content.number // empty'
+    if ($r.ExitCode -ne 0) { throw "Board list failed: $($r.All)" }
+    return @($r.Stdout -split "`n" | Where-Object { $_ -match '^\s*\d+\s*$' } | ForEach-Object { [int]$_.Trim() })
 }
 
 function Get-PropertyValue($Object, [string] $Name) {
@@ -115,15 +133,14 @@ if (-not $statusOption) {
 }
 
 function Add-ItemViaRest {
-    $out = & gh api -X POST $itemsPath -f type=Issue -F id=$($issue.id) 2>&1
-    $joined = $out -join "`n"
-    if ($LASTEXITCODE -eq 0) {
-        return ($joined | ConvertFrom-Json).id
+    $r = Invoke-Gh api -X POST $itemsPath -f type=Issue -F id=$($issue.id)
+    if ($r.ExitCode -eq 0) {
+        return ($r.Stdout | ConvertFrom-Json).id
     }
-    if ($joined -match 'already exists') {
+    if ($r.All -match 'already exists') {
         return $null   # ghost or pre-existing link
     }
-    throw "REST add failed: $joined"
+    throw "REST add failed: $($r.All)"
 }
 
 Write-Host "Adding via REST …"
@@ -164,13 +181,14 @@ query($owner: String!, $name: String!, $number: Int!) {
 
 Write-Host "Item $itemDbId created. Setting Status=$StatusName …"
 $body = @{ fields = @(@{ id = $statusField.id; value = $statusOption.id }) } | ConvertTo-Json -Compress
-$body | & gh api -X PATCH "$itemsPath/$itemDbId" --input - | Out-Null
+$patchOut = $body | & gh api -X PATCH "$itemsPath/$itemDbId" --input - 2>&1
+if ($LASTEXITCODE -ne 0) { throw "Status PATCH failed for item ${itemDbId}: $($patchOut -join "`n")" }
 
 # Confirm the item itself persisted with the right status (direct GET, index-independent).
 # The item GET returns only the Title field unless field ids are requested with fields[] (#1043).
-$itemCheckRaw = & gh api "$itemsPath/$($itemDbId)?fields[]=$($statusField.id)" 2>&1
-if ($LASTEXITCODE -ne 0) { throw "Item GET failed for item ${itemDbId}: $($itemCheckRaw -join "`n")" }
-$itemCheck = ($itemCheckRaw -join "`n") | ConvertFrom-Json
+$itemCheckRaw = Invoke-Gh api "$itemsPath/$($itemDbId)?fields[]=$($statusField.id)"
+if ($itemCheckRaw.ExitCode -ne 0) { throw "Item GET failed for item ${itemDbId}: $($itemCheckRaw.All)" }
+$itemCheck = $itemCheckRaw.Stdout | ConvertFrom-Json
 $appliedStatus = Get-ItemStatusName -Item $itemCheck -StatusFieldId $statusField.id
 if ($appliedStatus -ne $StatusName) { throw "Status did not persist (got '$appliedStatus')." }
 Write-Host "Item persisted with Status=$appliedStatus. Waiting for the board list to index it …"
