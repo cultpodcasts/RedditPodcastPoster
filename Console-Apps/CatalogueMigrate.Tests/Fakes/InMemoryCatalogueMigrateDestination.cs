@@ -96,9 +96,9 @@ public sealed class InMemoryCatalogueMigrateDestination : ICatalogueMigrateDesti
         Task.FromResult(kind switch
         {
             SubmitClassification.NewsReport => NewsOrganisations.Values
-                .FirstOrDefault(x => (x.Name == name || x.FileKey == fileKey) && x.Id != excludeId)?.Id,
+                .FirstOrDefault(x => (string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase) || x.FileKey == fileKey) && x.Id != excludeId)?.Id,
             SubmitClassification.TvShowEpisode => TvShows.Values
-                .FirstOrDefault(x => (x.Name == name || x.FileKey == fileKey) && x.Id != excludeId)?.Id,
+                .FirstOrDefault(x => (string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase) || x.FileKey == fileKey) && x.Id != excludeId)?.Id,
             _ => (Guid?)null
         });
 
