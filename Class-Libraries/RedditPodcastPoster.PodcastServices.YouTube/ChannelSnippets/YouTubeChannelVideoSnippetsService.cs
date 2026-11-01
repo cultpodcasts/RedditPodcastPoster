@@ -1,5 +1,5 @@
-using RedditPodcastPoster.Models.Serialization;
 ﻿using System.Net;
+using RedditPodcastPoster.Models.Serialization;
 using Google;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;

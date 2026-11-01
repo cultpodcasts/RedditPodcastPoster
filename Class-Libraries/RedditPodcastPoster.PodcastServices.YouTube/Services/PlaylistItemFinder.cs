@@ -1,5 +1,5 @@
-using RedditPodcastPoster.Models.Serialization;
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.Models.Serialization;
 using Microsoft.Extensions.Logging;
 using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 using Google.Apis.YouTube.v3.Data;

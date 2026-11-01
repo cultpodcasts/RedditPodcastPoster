@@ -11,15 +11,26 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Episodes.TestSupport.TimeZones;
+using RedditPodcastPoster.Models.Serialization;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Extensions;
 
 /// <summary>
-/// Contract fixture for #1212: every <see cref="DateTime"/> / <see cref="DateTimeOffset"/> property on an Api DTO or
-/// model is written by the HTTP serializer as UTC ISO-8601 ending in <c>Z</c>, never zone-less and never with an offset.
-/// A new property-level <c>[JsonConverter]</c>, or a type-level converter, that writes an offset fails here. The only
-/// allowed exception is the discovery schedule's UK-local <c>slotStartUk</c>.
+/// Contract fixture for #1212: every top-level <see cref="DateTime"/> / <see cref="DateTimeOffset"/> property on a type
+/// in <c>Api.Dtos</c> or <c>Api.Models</c> is written by the HTTP serializer as UTC ISO-8601 ending in <c>Z</c>, never
+/// zone-less and never with an offset. A new property-level <c>[JsonConverter]</c> on such a property, or a type-level
+/// converter on such a type, that writes an offset fails here. The only allowed exception is the discovery schedule's
+/// UK-local <c>slotStartUk</c>.
+/// <para>
+/// Scope: nested domain types reachable from the DTOs (for example <c>RedditPodcastPoster.Models</c>) are not
+/// instantiated; their date-times are covered only by the globally registered UTC converters, not by this scan.
+/// </para>
+/// <para>
+/// <see cref="UtcJsonDtoContractEastOfUtcHostGuard"/> re-runs this class under
+/// <see cref="EastOfUtcChildTestHost.EastOfUtcZone"/>, so the zone-less and Local-kind cases bite as well.
+/// </para>
 /// </summary>
 public partial class UtcJsonDtoContractRules
 {
@@ -31,7 +42,7 @@ public partial class UtcJsonDtoContractRules
 
     private readonly DomainTestFixture _fixture = new();
 
-    private static IReadOnlyList<Type> ScanContractTypes() =>
+    internal static IReadOnlyList<Type> ScanContractTypes() =>
         typeof(Ioc).Assembly.GetTypes()
             .Where(t => t.Namespace is "Api.Dtos" or "Api.Models")
             .Where(t => t is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false })
@@ -102,7 +113,7 @@ public partial class UtcJsonDtoContractRules
             // Typed as object per branch: a shared DateTime/DateTimeOffset type would convert implicitly (#1194).
             var value = (Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType) == typeof(DateTime)
                 ? kind == 0 ? DateTime.SpecifyKind(instant, DateTimeKind.Unspecified) : (object)instant.ToLocalTime()
-                : new DateTimeOffset(instant).ToOffset(TimeSpan.FromHours(kind + 1));
+                : UtcDateTimes.ToUtcOffset(instant).ToOffset(TimeSpan.FromHours(kind + 1));
             property.SetValue(instance, value);
         }
 
@@ -118,6 +129,21 @@ public partial class UtcJsonDtoContractRules
             "every date-time property on {0} should be written:\n{1}", type.FullName, json);
         written.Should().AllSatisfy(text => text.Should().Be($"{instant:yyyy-MM-ddTHH:mm:ss}Z",
             "{0} should write UTC with a Z:\n{1}", type.FullName, json));
+    }
+
+    [UtcJsonDtoContractGuardChildFact(DisplayName =
+        "When this class runs in the guard's child test host, then the host really is on Pacific/Auckland time, because a missing tzdata would silently fall back to UTC and the zone-less and local cases would pass without proving anything.")]
+    public void child_host_is_east_of_utc()
+    {
+        // Arrange
+        var local = TimeZoneInfo.Local;
+
+        // Act
+        var standardOffset = local.BaseUtcOffset;
+
+        // Assert
+        standardOffset.Should().Be(TimeSpan.FromHours(12),
+            "TZ={0} should give NZST; local zone was '{1}'", EastOfUtcChildTestHost.EastOfUtcZone, local.Id);
     }
 
     [GeneratedRegex(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")]

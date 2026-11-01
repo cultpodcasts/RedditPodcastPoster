@@ -116,7 +116,7 @@ public class YouTubeReleaseTimeUtcRules
     }
 
     [Fact(DisplayName =
-        "When a playlist is matched on publish time, then a video published 20 hours after the episode's release plus delay matches on any host zone, because the release is a UTC instant and reading it as host-local time east of UTC would push the gap past a day.")]
+        "When a playlist is matched on publish time, then a video published 20 hours after the episode's release plus delay matches on any host zone, which pins the explicit UTC conversion; Episode.ReleaseUtc is already UTC kind, so this rule does not fail if that conversion is reverted.")]
     public void playlist_publish_time_match_reads_release_as_utc()
     {
         // Arrange

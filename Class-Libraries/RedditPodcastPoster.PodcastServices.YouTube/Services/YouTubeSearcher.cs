@@ -1,5 +1,5 @@
-using RedditPodcastPoster.Models.Serialization;
 using System.Net;
+using RedditPodcastPoster.Models.Serialization;
 using Google;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
@@ -73,10 +73,6 @@ public class YouTubeSearcher(
                 searchListRequest.PublishedAfterDateTimeOffset = releasedSince;
                 searchListRequest.Q = query;
                 searchListRequest.VideoDuration = duration;
-                if (indexingContext.ReleasedSince.HasValue)
-                {
-                    searchListRequest.PublishedAfterDateTimeOffset = releasedSince;
-                }
 
                 response = await searchListRequest.ExecuteAsync();
             }

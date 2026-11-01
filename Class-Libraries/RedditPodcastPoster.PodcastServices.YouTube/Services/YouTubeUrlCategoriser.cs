@@ -1,9 +1,9 @@
-using RedditPodcastPoster.Models.Serialization;
 using Microsoft.Extensions.Logging;
 using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 using Google.Apis.YouTube.v3.Data;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -214,8 +214,11 @@ public class YouTubeUrlCategoriser(
 
             var expectedPublish = criteria.Release.Add(matchingPodcast.YouTubePublishingDelay());
             var band = EpisodeReleaseTolerance.GetSubmitMatchBand(expectedPublish);
-            var publishedAfter = new DateTimeOffset(DateTime.SpecifyKind(band.Start, DateTimeKind.Utc));
-            var publishedBefore = new DateTimeOffset(DateTime.SpecifyKind(band.End.AddDays(1), DateTimeKind.Utc));
+            // The submit band is whole calendar days (EpisodeReleaseTolerance compares .Date), so its
+            // bounds are UTC midnights by definition: relabel the day as UTC rather than converting it.
+            // A Local-kind day must not shift to the previous UTC day (date-only release rule, #1212).
+            var publishedAfter = UtcDateTimes.ToUtcOffset(DateTime.SpecifyKind(band.Start, DateTimeKind.Utc));
+            var publishedBefore = UtcDateTimes.ToUtcOffset(DateTime.SpecifyKind(band.End.AddDays(1), DateTimeKind.Utc));
             var items = await LoadSubmitMatchCandidates(
                 matchingPodcast,
                 indexingContext,
