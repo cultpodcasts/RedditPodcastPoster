@@ -715,6 +715,62 @@ flowchart LR
 - **`-Apply`** first checks, before anything is copied: nothing staged and no modified or untracked top-level `*.json`, and a checked-out branch (not a detached `HEAD`). It records `HEAD` as the undo point. It then publishes afresh (so it can differ from the preview if the data changed), copies the result into the repo, stages only the top-level `*.json`, re-checks the renames against the manifest, and commits `New episodes <date>` (the date is `-CommitDate`, default today) **locally; it never pushes and does not contact the remote**. After the commit it shows `git show --stat HEAD` and the short stat against the undo point, and prints the review commands, the undo command (`git reset --keep <pre-sha>`, safe because nothing else was staged and the JSON was clean, and `--keep` refuses rather than discard unrelated edits such as `update.ps1` itself) and the next step (`.\update.ps1 -Push`). If the copy, the staging or the commit fails part way (an `index.lock`, no `user.name`/`user.email`, a hook), it prints how to put the repo back before rethrowing: `git reset --keep <pre-sha>` if a commit was made, otherwise `git restore --source=HEAD --staged --worktree -- ':(glob)*.json'` and `git clean -f -- ':(glob)*.json'`.
 - **`-Push`** is a separate run after the commit has been reviewed. It does not run the publisher or need the exe. It refuses if anything is staged or a top-level `*.json` is modified or untracked, if `HEAD` is detached, or if the branch has no upstream on a remote. It then runs `git fetch` and refuses if the branch is behind its upstream (printing how to undo the local publish, pull and apply again) or has nothing to push. It shows `git log --oneline @{u}..HEAD` and `git diff --stat -M @{u}..HEAD`, and warns about any commit to be pushed that is a merge, is not a `New episodes ...` commit, or changes anything other than top-level `*.json`; with any such warning it asks `Push anyway? [y/N]` and refuses unless the answer is yes. Finally it pushes explicitly with `git push <remote> HEAD:<upstream branch>` (never a bare `git push`).
 - It needs `git` and the publisher's own Cosmos access (the publisher reads its secrets as it always has).
+- **Publisher exit codes** stop the run, and the repo is not changed (only `-Apply` gets as far as touching it, and only after a `0`):
+  - `1`: refused, because the data is inconsistent or an item would vanish unexplained. For a removal you have checked, rerun with `-AcceptRemoval <fileKey or id>`.
+  - `2`: unusable arguments or folder.
+  - `3`: unexpected failure. The working folder may be partly updated (staged `*.json.tmp` files may remain); it is rebuilt from the repo on the next run.
+
+  The script never passes `--discard-staging`; that flag is for an operator who has looked at the folder.
+- **`--initial`** (a publish into an empty folder) is only for a genuine first publish. The weekly script never passes it; the working folder always starts as a copy of the repo's previous publish.
+- **`-PublisherExe` and `-SourceRepo`**: pass them when the RedditPodcastPoster clone or the publisher exe isn't in the default place (see above).
+
+#### PublicDatabase repo: README and `.gitignore` (process)
+
+**PublicDatabase changes are never branches or PRs.** Nothing is pushed to the PublicDatabase repo except by Jon. Changes to its README, `.gitignore` or `update.ps1` copy are prepared here, in RedditPodcastPoster. After the next weekly publish has been pushed (`.\update.ps1 -Push` done), Jon commits them straight to PublicDatabase `main` and pushes that commit himself (#1040). Not between `-Apply` and `-Push`: `-Push` would then see a commit that isn't `New episodes ...` and touches files other than top-level `*.json`, and it would warn and ask `Push anyway? [y/N]`. The commit must not touch the top-level `*.json` files, which `-Apply`/`-Push` treat as published data.
+
+Pending (#1040, to apply after the next weekly publish has been pushed):
+
+1. **`.gitignore`:** add `*.json.tmp`. The script publishes outside the repo, so this is only a backstop. An interrupted publisher run inside the checkout leaves staged `{key}.json.tmp` files, and a manual `git add -A` would otherwise commit them.
+
+   ```gitignore
+   # Staged files an interrupted publisher run can leave behind (RedditPodcastPoster #1040).
+   *.json.tmp
+   ```
+
+2. **`README.md`:** the "Weekly update script" section there still describes the old flow (delete every `*.json`, run the publisher with `--use-v2`, `git add -A`, commit and push in one go). Replace that section with:
+
+   ~~~~markdown
+   ## Weekly update script
+
+   `update.ps1` runs the weekly publish. Its source of truth is [`Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1`](https://github.com/cultpodcasts/RedditPodcastPoster/blob/main/Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1) in RedditPodcastPoster. Copy it here again after every change; on every run it warns when this copy differs from the script at `HEAD` of your local RedditPodcastPoster clone (`-SourceRepo`; pull it first to compare with the latest `main`). The script's own help (`Get-Help .\update.ps1 -Full`) has the details.
+
+   It works in three separate runs. The dry run changes nothing in this repo, `-Apply` commits only locally, and only `-Push` pushes:
+
+   ```powershell
+   .\update.ps1            # dry run: publish into a working folder and report what would change
+   .\update.ps1 -Apply     # the same, then copy the result into this repo and commit LOCALLY (never pushes)
+   .\update.ps1 -Push      # after reviewing that commit: push it (does not run the publisher)
+   ```
+
+   - The existing `*.json` files in this repo are **not** deleted first. The publisher uses the files it published last time as its baseline. The script copies them into a working folder outside the repo (default `PublicDatabase-publish` beside it, or `-WorkFolder`) and runs `CultPodcasts.DatabasePublisher` there with `--migrations-out`.
+   - The script refuses a publisher exe too old to know `--migrations-out` (from before RedditPodcastPoster #1039).
+   - It reports the files added, removed and changed, plus the moved files and whether git records them as renames.
+   - With `-Apply` it checks the repo is clean, copies the working folder's `*.json` in, stages only the top-level `*.json`, checks the renames against the manifest and commits `New episodes <date>`. It prints how to review the commit and how to undo it.
+   - Publisher exit codes stop the run, and the repo is not changed:
+     - `1`: refused, because the data is inconsistent or an item would vanish unexplained. For a removal you have checked, rerun with `-AcceptRemoval <fileKey or id>`.
+     - `2`: unusable arguments or folder.
+     - `3`: unexpected failure. The working folder may be partly updated; it is rebuilt from the repo on the next run.
+   - `--initial` (a publish into an empty folder) is only for a genuine first publish. The weekly script never passes it.
+   - Use `-PublisherExe` and `-SourceRepo` when the RedditPodcastPoster clone or the publisher exe isn't in the default place.
+
+   To override the date in the commit message:
+
+   ```powershell
+   .\update.ps1 -Apply -CommitDate (Get-Date '2026-04-19')
+   ```
+   ~~~~
+
+Once both are committed to PublicDatabase `main`, remove this "Pending" list and close #1040.
 
 ## Ops utilities
 
