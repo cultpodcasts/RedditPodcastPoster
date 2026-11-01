@@ -78,16 +78,16 @@ param twitterConsumerKey string
 param twitterConsumerSecret string
 @secure()
 param twitterTwitterId string
-@description('X auth: OAuth1 (default, unchanged) or OAuth2. Flip to OAuth2 only after XOAuth2TokenExchange --execute has saved a token pair (issue #1201).')
+@description('X auth. functions.bicepparam sets OAuth2. The default OAuth1 remains if that param is omitted. Set OAuth2 only after XOAuth2Authorize --execute has saved a token pair (issue #1201).')
 @allowed([
   'OAuth1'
   'OAuth2'
 ])
 param twitterAuthMode string = 'OAuth1'
-@description('X OAuth 2.0 confidential-client Client ID. Key Vault secret Twitter-OAuth2ClientId. Empty until the OAuth 2.0 switch (issue #1201).')
+@description('X OAuth 2.0 confidential-client Client ID. Key Vault secret Twitter-OAuth2ClientId.')
 @secure()
 param twitterOAuth2ClientId string = ''
-@description('X OAuth 2.0 confidential-client Client Secret. Key Vault secret Twitter-OAuth2ClientSecret. Empty until the OAuth 2.0 switch (issue #1201).')
+@description('X OAuth 2.0 confidential-client Client Secret. Key Vault secret Twitter-OAuth2ClientSecret.')
 @secure()
 param twitterOAuth2ClientSecret string = ''
 @secure()
