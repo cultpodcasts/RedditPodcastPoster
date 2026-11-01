@@ -23,11 +23,14 @@ namespace RedditPodcastPoster.SocialPosting.Templates;
 public sealed class SocialPostRemovalFingerprint
 {
     private readonly Regex? _siteLink;
+    private readonly IReadOnlyList<IReadOnlyList<string>> _textFragmentSets;
 
-    private SocialPostRemovalFingerprint(Guid id, IReadOnlyList<string> textFragments, string? siteLinkShortId)
+    private SocialPostRemovalFingerprint(Guid id, IReadOnlyList<IReadOnlyList<string>> textFragmentSets,
+        string? siteLinkShortId)
     {
         Id = id;
-        TextFragments = textFragments;
+        _textFragmentSets = textFragmentSets;
+        TextFragments = textFragmentSets.Count > 0 ? textFragmentSets[0] : [];
         SiteLinkShortId = siteLinkShortId;
         if (siteLinkShortId != null)
         {
@@ -39,28 +42,41 @@ public sealed class SocialPostRemovalFingerprint
     /// <summary>Item id, for logs.</summary>
     public Guid Id { get; }
 
-    /// <summary>Text a post must contain all of. Empty for a film.</summary>
+    /// <summary>
+    /// Text a post must contain all of. Empty for a film. A podcast-episode post may instead match the same
+    /// fragments with the release date in the invariant culture (see <see cref="For"/>).
+    /// </summary>
     public IReadOnlyList<string> TextFragments { get; }
 
     /// <summary>Short id at the end of the catalogue site link; null for a podcast episode.</summary>
     public string? SiteLinkShortId { get; }
 
-    public static SocialPostRemovalFingerprint For(PodcastEpisode item)
+    /// <param name="item">The item the post was made for.</param>
+    /// <param name="postedParentName">
+    /// The parent name as the poster wrote it (the tweet and Bluesky builders write
+    /// <c>ITextSanitiser.SanitisePodcastName</c>). Null or blank uses <c>item.Podcast.Name</c>.
+    /// </param>
+    public static SocialPostRemovalFingerprint For(PodcastEpisode item, string? postedParentName = null)
     {
         ArgumentNullException.ThrowIfNull(item);
         var episode = item.Episode;
+        var parentName = string.IsNullOrWhiteSpace(postedParentName) ? item.Podcast.Name : postedParentName;
         if (!item.IsCataloguePlayable)
         {
-            return new SocialPostRemovalFingerprint(episode.Id,
-            [
-                item.Podcast.Name,
-                episode.Length.ToString(SocialPostKindTemplate.LengthFormat, CultureInfo.InvariantCulture),
-                episode.ReleaseUtc.ToString(SocialPostKindTemplate.ReleaseFormat)
-            ], null);
+            var length = episode.Length.ToString(SocialPostKindTemplate.LengthFormat, CultureInfo.InvariantCulture);
+            // The podcast release line is written in the host's culture (SocialPostKindTemplate.ReleaseLine), so a
+            // post made under one culture is still found when removed under another (e.g. "Sept" vs "Sep").
+            var release = episode.ReleaseUtc.ToString(SocialPostKindTemplate.ReleaseFormat);
+            var invariantRelease =
+                episode.ReleaseUtc.ToString(SocialPostKindTemplate.ReleaseFormat, CultureInfo.InvariantCulture);
+            IReadOnlyList<IReadOnlyList<string>> sets = release == invariantRelease
+                ? [[parentName, length, release]]
+                : [[parentName, length, release], [parentName, length, invariantRelease]];
+            return new SocialPostRemovalFingerprint(episode.Id, sets, null);
         }
 
-        IReadOnlyList<string> fragments = SocialPostKindTemplate.HasParentLine(item)
-            ? [item.Podcast.Name, SocialPostKindTemplate.ReleaseLine(item)]
+        IReadOnlyList<IReadOnlyList<string>> fragments = SocialPostKindTemplate.HasParentLine(item)
+            ? [[parentName, SocialPostKindTemplate.ReleaseLine(item)]]
             : [];
         return new SocialPostRemovalFingerprint(episode.Id, fragments,
             CatalogueShortId.Encode(episode.Id, item.ContentKind));
@@ -76,7 +92,8 @@ public sealed class SocialPostRemovalFingerprint
             return true;
         }
 
-        return !string.IsNullOrEmpty(text) && TextFragments.Count > 0 &&
-               TextFragments.All(fragment => text.Contains(fragment, StringComparison.Ordinal));
+        return !string.IsNullOrEmpty(text) &&
+               _textFragmentSets.Any(set => set.Count > 0 &&
+                                            set.All(fragment => text.Contains(fragment, StringComparison.Ordinal)));
     }
 }

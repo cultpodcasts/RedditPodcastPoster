@@ -113,16 +113,12 @@ public class EpisodeUpdateService(
                 }
             }
 
-            await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
-
-            // Reddit.NET live un-post / flair sync is retired. Cosmos `posted` is already
-            // applied via EpisodeChangeApplier; title/comment constructors remain for Devvit.
-
             var removeTweetResult = RemoveTweetState.Unknown;
             if (changeState.UnTweet)
             {
                 try
                 {
+                    // Delete first while Tweeted and the stored tweet id are still on the episode (#1204).
                     removeTweetResult = await tweetManager.RemoveTweet(podcastEpisode);
                     if (removeTweetResult != RemoveTweetState.Deleted)
                     {
@@ -137,12 +133,24 @@ public class EpisodeUpdateService(
                         podcastEpisodeResolverResponse.Episode.Id);
                     removeTweetResult = RemoveTweetState.Other;
                 }
+
+                // Only clear Tweeted when the tweet is gone (or already absent); otherwise the hourly job would
+                // re-post an item whose tweet is still live.
+                if (removeTweetResult is RemoveTweetState.Deleted or RemoveTweetState.NotFound)
+                {
+                    podcastEpisode.Episode.ClearTweetState();
+                }
             }
+
+            await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
+
+            // Reddit.NET live un-post / flair sync is retired. Cosmos `posted` is already
+            // applied via EpisodeChangeApplier; title/comment constructors remain for Devvit.
 
             var outcome = new EpisodeUpdateOutcome();
             if (changeState.UnTweet)
             {
-                outcome.TweetDeleted = removeTweetResult == RemoveTweetState.Deleted;
+                outcome.TweetDeleted = removeTweetResult is RemoveTweetState.Deleted or RemoveTweetState.NotFound;
             }
 
             if (changeState.UnBlueskyPost)

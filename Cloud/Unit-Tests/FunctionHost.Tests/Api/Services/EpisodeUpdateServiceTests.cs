@@ -15,6 +15,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Twitter.Managers;
+using RedditPodcastPoster.Twitter.Models;
 using Xunit;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
@@ -194,6 +195,105 @@ public class EpisodeUpdateServiceTests
         result.Outcome!.BlueskyPostDeleted.Should().BeFalse();
         episode.BlueskyPost.Should().Be(atUri);
         episode.BlueskyPosted.Should().BeTrue();
+    }
+
+    [Theory(DisplayName =
+        "Plain English rule: when an un-tweet finds the tweet gone (deleted now or already absent), then the tweet manager sees the stored tweet id and Tweeted and the id are cleared before Save (#1204).")]
+    [InlineData(RemoveTweetState.Deleted)]
+    [InlineData(RemoveTweetState.NotFound)]
+    public async Task update_untweet_deletes_then_clears_when_gone(RemoveTweetState state)
+    {
+        // Arrange
+        const string tweetId = "1234567890123456789";
+        var (episode, podcast) = ResolvedOldPair(e =>
+        {
+            e.Tweeted = true;
+            e.TweetId = tweetId;
+        });
+        string? idSeenByRemove = null;
+        var tweetedSeenByRemove = false;
+        bool? tweetedAtSave = null;
+        _mocker.GetMock<ITweetManager>()
+            .Setup(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()))
+            .Callback<PodcastEpisode>(pe =>
+            {
+                idSeenByRemove = pe.Episode.TweetId;
+                tweetedSeenByRemove = pe.Episode.Tweeted;
+            })
+            .ReturnsAsync(state);
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.Save(It.IsAny<Episode>()))
+            .Callback<Episode>(saved => tweetedAtSave = saved.Tweeted)
+            .Returns(Task.CompletedTask);
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id, new EpisodeChangeRequest { Tweeted = false }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        result.Outcome!.TweetDeleted.Should().BeTrue();
+        idSeenByRemove.Should().Be(tweetId);
+        tweetedSeenByRemove.Should().BeTrue();
+        tweetedAtSave.Should().BeFalse();
+        episode.Tweeted.Should().BeFalse();
+        episode.TweetId.Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "Plain English rule: when an un-tweet fails, then the episode is saved still tweeted with its tweet id, because clearing it would let the hourly job re-post while the old tweet is live (#1204).")]
+    [InlineData(RemoveTweetState.Other)]
+    [InlineData(RemoveTweetState.TooManyRequests)]
+    public async Task update_untweet_keeps_tweeted_when_delete_fails(RemoveTweetState state)
+    {
+        // Arrange
+        const string tweetId = "1234567890123456789";
+        var (episode, podcast) = ResolvedOldPair(e =>
+        {
+            e.Tweeted = true;
+            e.TweetId = tweetId;
+        });
+        _mocker.GetMock<ITweetManager>()
+            .Setup(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()))
+            .ReturnsAsync(state);
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id, new EpisodeChangeRequest { Tweeted = false }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        result.Outcome!.TweetDeleted.Should().BeFalse();
+        _saved.Should().Be(episode);
+        episode.Tweeted.Should().BeTrue();
+        episode.TweetId.Should().Be(tweetId);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when the tweet manager throws during an un-tweet, then the episode is still saved and stays tweeted, because an unknown result must not forget a live tweet.")]
+    public async Task update_untweet_keeps_tweeted_when_remove_throws()
+    {
+        // Arrange
+        var (episode, podcast) = ResolvedOldPair(e => e.Tweeted = true);
+        _mocker.GetMock<ITweetManager>()
+            .Setup(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()))
+            .ThrowsAsync(new InvalidOperationException("synthetic"));
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id, new EpisodeChangeRequest { Tweeted = false }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        result.Outcome!.TweetDeleted.Should().BeFalse();
+        _saved.Should().Be(episode);
+        episode.Tweeted.Should().BeTrue();
     }
 
     [Fact(DisplayName =

@@ -2,4 +2,5 @@
 
 namespace RedditPodcastPoster.Twitter.Models;
 
-public record GetTweetsResponseWrapper(GetTweetsState State, Tweet[]? Tweets = null);
+/// <param name="NextToken">X's <c>meta.next_token</c>: set when there is another page of the timeline.</param>
+public record GetTweetsResponseWrapper(GetTweetsState State, Tweet[]? Tweets = null, string? NextToken = null);

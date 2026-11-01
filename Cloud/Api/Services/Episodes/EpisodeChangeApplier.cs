@@ -88,10 +88,14 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         {
             if (!episodeChangeRequest.Tweeted.Value && episode.Tweeted)
             {
+                // Do not clear Tweeted here — EpisodeUpdateService deletes first, then clears only when the tweet
+                // is gone (#1204). Clearing first let a failed delete be re-posted by the hourly job.
                 changeState.UnTweet = true;
             }
-
-            episode.Tweeted = episodeChangeRequest.Tweeted.Value;
+            else
+            {
+                episode.Tweeted = episodeChangeRequest.Tweeted.Value;
+            }
         }
 
         if (episodeChangeRequest.UnBluesky == true && episode.BlueskyPosted)

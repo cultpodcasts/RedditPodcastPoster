@@ -24,7 +24,7 @@ public class FindDuplicateEpisodesProcessor(
         $"{Playable.CosmosParentNotRemovedSql} and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
 
     private static readonly HashSet<string> ExcludedComparisonFields =
-        new(StringComparer.Ordinal) { "id", "_rid", "_self", "_etag", "_attachments", "_ts", "posted", "tweeted", "bluesky", "blueskyPost", "description" };
+        new(StringComparer.Ordinal) { "id", "_rid", "_self", "_etag", "_attachments", "_ts", "posted", "tweeted", "tweetId", "bluesky", "blueskyPost", "description" };
 
     private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
     private readonly JsonSerializerOptions _jsonSerializerOptions = jsonSerializerOptionsProvider.GetJsonSerializerOptions();

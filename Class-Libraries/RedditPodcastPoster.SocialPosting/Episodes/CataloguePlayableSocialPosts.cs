@@ -35,8 +35,17 @@ public class CataloguePlayableSocialPosts(
         return items.Where(x => !x.Episode.BlueskyPosted).ToArray();
     }
 
-    public Task MarkTweeted(PodcastEpisode item) =>
-        Update(item, playable => playable.Tweeted = true, film => film.Tweeted = true);
+    public Task MarkTweeted(PodcastEpisode item, string? tweetId) =>
+        Update(item, playable => SetTweeted(playable, tweetId), film => SetTweeted(film, tweetId));
+
+    private static void SetTweeted(IPromotable stored, string? tweetId)
+    {
+        stored.Tweeted = true;
+        if (!string.IsNullOrWhiteSpace(tweetId))
+        {
+            stored.TweetId = tweetId;
+        }
+    }
 
     public Task MarkBlueskyPosted(PodcastEpisode item, string blueskyPostUri) =>
         Update(item, playable => playable.BlueskyPost = blueskyPostUri, film => film.BlueskyPost = blueskyPostUri);

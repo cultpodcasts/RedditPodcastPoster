@@ -37,7 +37,7 @@ public class TwitterClient(
         if (response.IsSuccessStatusCode)
         {
             logger.LogInformation("Tweet sent successfully! Tweet: '{Tweet}'.", tweet);
-            return new PostTweetResponse(TweetSendStatus.Sent);
+            return new PostTweetResponse(TweetSendStatus.Sent, TweetId: await ReadPostedTweetId(response));
         }
 
         if (response.StatusCode == HttpStatusCode.Forbidden)
@@ -133,5 +133,103 @@ public class TwitterClient(
 
         logger.LogError("Failed to delete tweet with id '{TweetId}'. Status-code: '{ResponseStatusCode}'.", tweet.Id, response.StatusCode);
         return false;
+    }
+
+    public async Task<GetTweetsResponseWrapper> GetTimelineSince(DateTimeOffset startTime, string? paginationToken)
+    {
+        var oauth = new OAuthMessageHandler(_options.ConsumerKey, _options.ConsumerSecret, _options.AccessToken,
+            _options.AccessTokenSecret);
+
+        var query = new StringBuilder(
+            $"https://api.twitter.com/2/users/{_options.TwitterId}/tweets?tweet.fields=entities&max_results={TimelinePageSize}");
+        query.Append("&start_time=").Append(Uri.EscapeDataString(
+            startTime.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture)));
+        if (!string.IsNullOrWhiteSpace(paginationToken))
+        {
+            query.Append("&pagination_token=").Append(Uri.EscapeDataString(paginationToken));
+        }
+
+        using var getTweetsRequest = new HttpRequestMessage(HttpMethod.Get, query.ToString());
+        using var httpClient = new HttpClient(oauth);
+        using var response = await httpClient.SendAsync(getTweetsRequest);
+        if (response.IsSuccessStatusCode)
+        {
+            var tweetsResponse = await response.Content.ReadFromJsonAsync<GetTweetsResponse>();
+            if (tweetsResponse == null)
+            {
+                logger.LogError("Twitter GetTimelineSince (since '{StartTime:O}') returned success but no body.", startTime);
+                return new GetTweetsResponseWrapper(GetTweetsState.Other);
+            }
+
+            // An empty window has no "data"; that is a complete, empty page rather than an error.
+            var nextToken = string.IsNullOrWhiteSpace(tweetsResponse.MetaData?.NextToken)
+                ? null
+                : tweetsResponse.MetaData.NextToken;
+            return new GetTweetsResponseWrapper(GetTweetsState.Retrieved, tweetsResponse.Tweets ?? [], nextToken);
+        }
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            return new GetTweetsResponseWrapper(GetTweetsState.TooManyRequests);
+        }
+
+        logger.LogError("Twitter GetTimelineSince (since '{StartTime:O}') failed. Status-code: '{ResponseStatusCode}'.",
+            startTime, response.StatusCode);
+        return new GetTweetsResponseWrapper(GetTweetsState.Other);
+    }
+
+    public async Task<DeleteTweetState> DeleteTweetById(string tweetId)
+    {
+        if (!TweetResponseReader.IsTweetId(tweetId))
+        {
+            logger.LogError("Not deleting tweet: '{TweetId}' is not an X post id.", tweetId);
+            return DeleteTweetState.Failed;
+        }
+
+        var oauth = new OAuthMessageHandler(_options.ConsumerKey, _options.ConsumerSecret, _options.AccessToken,
+            _options.AccessTokenSecret);
+
+        using var deleteTweetRequest =
+            new HttpRequestMessage(HttpMethod.Delete, $"https://api.twitter.com/2/tweets/{tweetId}");
+        using var httpClient = new HttpClient(oauth);
+        using var response = await httpClient.SendAsync(deleteTweetRequest);
+        var state = TweetResponseReader.ReadDeleteState(response.StatusCode,
+            await response.Content.ReadAsStringAsync());
+        if (state == DeleteTweetState.Deleted)
+        {
+            logger.LogInformation("Deleted tweet with id '{TweetId}'.", tweetId);
+        }
+        else
+        {
+            logger.LogWarning("Delete of tweet with id '{TweetId}': {State}. Status-code: '{ResponseStatusCode}'.",
+                tweetId, state, response.StatusCode);
+        }
+
+        return state;
+    }
+
+    /// <summary>X's maximum page size for the user posts timeline.</summary>
+    private const int TimelinePageSize = 100;
+
+    private async Task<string?> ReadPostedTweetId(HttpResponseMessage response)
+    {
+        string? body;
+        try
+        {
+            body = await response.Content.ReadAsStringAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Tweet was sent but its response body could not be read; tweet id not stored.");
+            return null;
+        }
+
+        var tweetId = TweetResponseReader.ReadPostedTweetId(body);
+        if (tweetId == null)
+        {
+            logger.LogWarning("Tweet was sent but the response had no post id; tweet id not stored.");
+        }
+
+        return tweetId;
     }
 }

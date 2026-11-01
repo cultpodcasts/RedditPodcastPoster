@@ -179,9 +179,54 @@ public class PostStatusRules
         result.Outcome!.TweetDeleted.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "PATCH news report tweeted=false clears tweeted and the stored tweet id and reports tweetDeleted=true when the tweet is already gone, as Bluesky does (#1204).")]
+    public async Task untweet_not_found_clears_flag()
+    {
+        // Arrange
+        var report = CreateReport(r =>
+        {
+            r.Tweeted = true;
+            r.TweetId = "1234567890123456789";
+        });
+        _tweets.Setup(t => t.RemoveTweet(It.IsAny<PodcastEpisode>())).ReturnsAsync(RemoveTweetState.NotFound);
+
+        // Act
+        var result = await Update(report, new NewsReportChangeRequest { Tweeted = false });
+
+        // Assert
+        result.Status.Should().Be(NewsReportUpdateStatus.Accepted);
+        _savedReport!.Tweeted.Should().BeFalse();
+        _savedReport.TweetId.Should().BeNull();
+        result.Outcome!.TweetDeleted.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "PATCH news report tweeted=false hands the stored tweet id to the tweet manager, because the tweet is deleted by id when one was stored (#1058).")]
+    public async Task untweet_passes_the_stored_tweet_id()
+    {
+        // Arrange
+        const string tweetId = "1234567890123456789";
+        var report = CreateReport(r =>
+        {
+            r.Tweeted = true;
+            r.TweetId = tweetId;
+        });
+        string? seen = null;
+        _tweets.Setup(t => t.RemoveTweet(It.IsAny<PodcastEpisode>()))
+            .Callback<PodcastEpisode>(item => seen = item.Episode.TweetId)
+            .ReturnsAsync(RemoveTweetState.Deleted);
+
+        // Act
+        await Update(report, new NewsReportChangeRequest { Tweeted = false });
+
+        // Assert
+        seen.Should().Be(tweetId);
+        _savedReport!.TweetId.Should().BeNull();
+    }
+
     [Theory(DisplayName =
         "PATCH news report tweeted=false keeps tweeted=true and reports tweetDeleted=false when the tweet was not deleted, because a live tweet must never be forgotten and the curator can retry.")]
-    [InlineData(RemoveTweetState.NotFound)]
     [InlineData(RemoveTweetState.TooManyRequests)]
     [InlineData(RemoveTweetState.Other)]
     public async Task untweet_not_deleted_keeps_flag(RemoveTweetState state)

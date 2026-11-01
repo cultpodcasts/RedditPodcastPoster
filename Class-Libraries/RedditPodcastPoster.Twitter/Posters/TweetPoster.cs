@@ -35,11 +35,17 @@ public class TweetPoster(
         if (tweetStatus.TweetSendStatus is TweetSendStatus.Sent or TweetSendStatus.DuplicateForbidden)
         {
             podcastEpisode.Episode.Tweeted = true;
+            // The id is only known for a new post. A duplicate-content refusal keeps any id already stored.
+            if (tweetStatus.TweetSendStatus == TweetSendStatus.Sent && !string.IsNullOrWhiteSpace(tweetStatus.TweetId))
+            {
+                podcastEpisode.Episode.TweetId = tweetStatus.TweetId;
+            }
+
             try
             {
                 if (podcastEpisode.IsCataloguePlayable)
                 {
-                    await cataloguePlayableSocialPosts.MarkTweeted(podcastEpisode);
+                    await cataloguePlayableSocialPosts.MarkTweeted(podcastEpisode, podcastEpisode.Episode.TweetId);
                 }
                 else
                 {

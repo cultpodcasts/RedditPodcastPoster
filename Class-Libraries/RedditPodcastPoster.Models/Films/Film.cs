@@ -72,6 +72,11 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     [JsonPropertyOrder(41)]
     public bool Tweeted { get; set; }
 
+    /// <summary>Id of the X post made for this film. See <see cref="Catalogue.Playable.TweetId"/>.</summary>
+    [JsonPropertyName("tweetId")]
+    [JsonPropertyOrder(41)]
+    public string? TweetId { get; set; }
+
     [JsonPropertyName("bluesky")]
     [JsonPropertyOrder(42)]
     public bool? OldBlueskyPosted { get; set; }
@@ -161,5 +166,11 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     {
         BlueskyPost = null;
         OldBlueskyPosted = null;
+    }
+
+    public void ClearTweetState()
+    {
+        Tweeted = false;
+        TweetId = null;
     }
 }
