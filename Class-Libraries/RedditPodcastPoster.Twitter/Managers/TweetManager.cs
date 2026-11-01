@@ -28,7 +28,7 @@ public class TweetManager(
     public const int MaxTimelinePages = 3;
 
     /// <summary>X does not accept a <c>start_time</c> before this.</summary>
-    private static readonly DateTimeOffset EarliestStartTime = new(2010, 11, 6, 0, 0, 1, TimeSpan.Zero);
+    public static readonly DateTimeOffset EarliestStartTime = new(2010, 11, 6, 0, 0, 1, TimeSpan.Zero);
 
     public async Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode)
     {

@@ -63,8 +63,11 @@ public class TweetIdRules
     [InlineData("{\"data\":{\"id\":\"12345678901234567890\"}}")]
     public void bad_post_response_reads_no_id(string? body)
     {
+        // Arrange
+        var responseBody = body;
+
         // Act
-        var id = TweetResponseReader.ReadPostedTweetId(body);
+        var id = TweetResponseReader.ReadPostedTweetId(responseBody);
 
         // Assert
         id.Should().BeNull();
@@ -82,8 +85,11 @@ public class TweetIdRules
     [InlineData(HttpStatusCode.Unauthorized, "", DeleteTweetState.Failed)]
     public void delete_response_maps(HttpStatusCode status, string body, DeleteTweetState expected)
     {
+        // Arrange
+        var responseBody = body;
+
         // Act
-        var state = TweetResponseReader.ReadDeleteState(status, body);
+        var state = TweetResponseReader.ReadDeleteState(status, responseBody);
 
         // Assert
         state.Should().Be(expected);
@@ -335,22 +341,26 @@ public class TweetIdRules
     public void timeline_start()
     {
         // Arrange
-        var release = new DateTime(2026, 10, 30, 9, 0, 0, DateTimeKind.Utc);
+        var release = DomainTestFixture.UtcAtTime(-3, TimeSpan.FromHours(9));
 
         // Act
         var start = TweetManager.TimelineStart(release);
         var floor = TweetManager.TimelineStart(DateTime.MinValue);
 
         // Assert
-        start.Should().Be(new DateTimeOffset(2026, 10, 29, 9, 0, 0, TimeSpan.Zero));
-        floor.Should().Be(new DateTimeOffset(2010, 11, 6, 0, 0, 1, TimeSpan.Zero));
+        start.Should().Be(new DateTimeOffset(release.AddDays(-1), TimeSpan.Zero));
+        floor.Should().Be(TweetManager.EarliestStartTime);
     }
 
     [Fact(DisplayName = "A podcast post written with the invariant month name still matches when removed under a culture with a different one.")]
     public void fingerprint_matches_either_culture()
     {
         // Arrange
-        var item = PodcastItem(e => e.ReleaseUtc = new DateTime(2026, 9, 14, 8, 0, 0, DateTimeKind.Utc));
+        // September: en-GB writes "Sept", the invariant culture "Sep".
+        var september = Enumerable.Range(1, 366)
+            .Select(days => DomainTestFixture.UtcAtTime(-days, TimeSpan.FromHours(8)))
+            .First(date => date.Month == 9);
+        var item = PodcastItem(e => e.ReleaseUtc = september);
         var invariantLine =
             $"{item.Episode.ReleaseUtc.ToString(SocialPostKindTemplate.ReleaseFormat, CultureInfo.InvariantCulture)} " +
             item.Episode.Length.ToString(SocialPostKindTemplate.LengthFormat, CultureInfo.InvariantCulture);
