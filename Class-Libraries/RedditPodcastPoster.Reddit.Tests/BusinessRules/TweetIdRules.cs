@@ -213,7 +213,7 @@ public class TweetIdRules
     {
         // Arrange
         var item = PodcastItem(e => e.TweetId = SyntheticTweetId);
-        _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweetById(SyntheticTweetId)).ReturnsAsync(deleteState);
+        _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweetById(SyntheticTweetId, It.IsAny<CancellationToken>())).ReturnsAsync(deleteState);
         var sut = _mocker.CreateInstance<TweetManager>();
 
         // Act
@@ -222,8 +222,8 @@ public class TweetIdRules
         // Assert
         result.Should().Be(expected);
         _mocker.GetMock<ITwitterClient>().Verify(
-            x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), It.IsAny<string?>()), Times.Never);
-        _mocker.GetMock<ITwitterClient>().Verify(x => x.GetTweets(), Times.Never);
+            x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<ITwitterClient>().Verify(x => x.GetTweets(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ---- timeline fallback ----------------------------------------------------------------------
@@ -236,11 +236,11 @@ public class TweetIdRules
         var match = TweetFor(item, "1850000000000000010");
         var other = new Tweet { Id = "1850000000000000011", Text = "\"Unrelated\"\nSomeone Else\n1 Jan 2001 [0:01:00]" };
         var client = _mocker.GetMock<ITwitterClient>();
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [other], "page-2"));
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "page-2"))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "page-2", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [match]));
-        client.Setup(x => x.DeleteTweetById(match.Id)).ReturnsAsync(DeleteTweetState.Deleted);
+        client.Setup(x => x.DeleteTweetById(match.Id, It.IsAny<CancellationToken>())).ReturnsAsync(DeleteTweetState.Deleted);
         var sut = _mocker.CreateInstance<TweetManager>();
 
         // Act
@@ -249,8 +249,8 @@ public class TweetIdRules
         // Assert
         result.Should().Be(RemoveTweetState.Deleted);
         var expectedStart = new DateTimeOffset(DateTime.SpecifyKind(item.Episode.ReleaseUtc, DateTimeKind.Utc).AddDays(-1));
-        client.Verify(x => x.GetTimelineSince(expectedStart, null, null), Times.Once);
-        client.Verify(x => x.DeleteTweetById(other.Id), Times.Never);
+        client.Verify(x => x.GetTimelineSince(expectedStart, null, null, It.IsAny<CancellationToken>()), Times.Once);
+        client.Verify(x => x.DeleteTweetById(other.Id, It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "Without a stored id, a timeline read to its end with no match is NotFound, because the whole window since release was checked.")]
@@ -259,7 +259,7 @@ public class TweetIdRules
         // Arrange
         var item = PodcastItem();
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, []));
         var sut = _mocker.CreateInstance<TweetManager>();
 
@@ -268,7 +268,7 @@ public class TweetIdRules
 
         // Assert
         result.Should().Be(RemoveTweetState.NotFound);
-        _mocker.GetMock<ITwitterClient>().Verify(x => x.DeleteTweetById(It.IsAny<string>()), Times.Never);
+        _mocker.GetMock<ITwitterClient>().Verify(x => x.DeleteTweetById(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "Without a stored id, hitting the page cap with more pages left is Other, not NotFound, so the item stays marked tweeted.")]
@@ -277,7 +277,7 @@ public class TweetIdRules
         // Arrange
         var item = PodcastItem();
         var client = _mocker.GetMock<ITwitterClient>();
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), It.IsAny<string?>()))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [], "more"));
         var sut = _mocker.CreateInstance<TweetManager>();
 
@@ -286,7 +286,7 @@ public class TweetIdRules
 
         // Assert
         result.Should().Be(RemoveTweetState.Other);
-        client.Verify(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), It.IsAny<string?>()),
+        client.Verify(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Exactly(TweetManager.MaxTimelinePages));
     }
 
@@ -298,7 +298,7 @@ public class TweetIdRules
         // Arrange
         var item = PodcastItem();
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(state));
         var sut = _mocker.CreateInstance<TweetManager>();
 
@@ -307,7 +307,7 @@ public class TweetIdRules
 
         // Assert
         result.Should().Be(expected);
-        _mocker.GetMock<ITwitterClient>().Verify(x => x.DeleteTweetById(It.IsAny<string>()), Times.Never);
+        _mocker.GetMock<ITwitterClient>().Verify(x => x.DeleteTweetById(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "Without a stored id, two matching tweets are ambiguous: nothing is deleted.")]
@@ -316,7 +316,7 @@ public class TweetIdRules
         // Arrange
         var item = PodcastItem();
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved,
                 [TweetFor(item, "1850000000000000020"), TweetFor(item, "1850000000000000021")]));
         var sut = _mocker.CreateInstance<TweetManager>();
@@ -326,7 +326,7 @@ public class TweetIdRules
 
         // Assert
         result.Should().Be(RemoveTweetState.Other);
-        _mocker.GetMock<ITwitterClient>().Verify(x => x.DeleteTweetById(It.IsAny<string>()), Times.Never);
+        _mocker.GetMock<ITwitterClient>().Verify(x => x.DeleteTweetById(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "Without a stored id, the timeline match uses the sanitised podcast name, because that is what the tweet builder writes.")]
@@ -344,9 +344,9 @@ public class TweetIdRules
             Text = $"\"Synthetic title\"\n{posted}\n{SocialPostKindTemplate.ReleaseLine(item)}\nhttps://t.co/synthetic"
         };
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [tweet]));
-        _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweetById(tweet.Id)).ReturnsAsync(DeleteTweetState.Deleted);
+        _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweetById(tweet.Id, It.IsAny<CancellationToken>())).ReturnsAsync(DeleteTweetState.Deleted);
         var sut = _mocker.CreateInstance<TweetManager>();
 
         // Act
@@ -362,10 +362,10 @@ public class TweetIdRules
         // Arrange
         var item = PodcastItem();
         var client = _mocker.GetMock<ITwitterClient>();
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved,
                 [TweetFor(item, "1850000000000000040")], "page-2"));
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "page-2"))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "page-2", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [TweetFor(item, "1850000000000000041")]));
         var sut = _mocker.CreateInstance<TweetManager>();
 
@@ -374,7 +374,7 @@ public class TweetIdRules
 
         // Assert
         result.Should().Be(RemoveTweetState.Other);
-        client.Verify(x => x.DeleteTweetById(It.IsAny<string>()), Times.Never);
+        client.Verify(x => x.DeleteTweetById(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName = "Without a stored id, a single match is deleted only after the rest of the window is read, so a second copy would be caught.")]
@@ -384,11 +384,11 @@ public class TweetIdRules
         var item = PodcastItem();
         var match = TweetFor(item, "1850000000000000050");
         var client = _mocker.GetMock<ITwitterClient>();
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [match], "page-2"));
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "page-2"))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "page-2", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, []));
-        client.Setup(x => x.DeleteTweetById(match.Id)).ReturnsAsync(DeleteTweetState.Deleted);
+        client.Setup(x => x.DeleteTweetById(match.Id, It.IsAny<CancellationToken>())).ReturnsAsync(DeleteTweetState.Deleted);
         var sut = _mocker.CreateInstance<TweetManager>();
 
         // Act
@@ -396,7 +396,7 @@ public class TweetIdRules
 
         // Assert
         result.Should().Be(RemoveTweetState.Deleted);
-        client.Verify(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "page-2"), Times.Once);
+        client.Verify(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "page-2", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "Without a stored id, a single match with pages left at the cap is deleted but reported as Other, so the item stays tweeted.")]
@@ -406,11 +406,11 @@ public class TweetIdRules
         var item = PodcastItem();
         var match = TweetFor(item, "1850000000000000060");
         var client = _mocker.GetMock<ITwitterClient>();
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [match], "more"));
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "more"))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), "more", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [], "more"));
-        client.Setup(x => x.DeleteTweetById(match.Id)).ReturnsAsync(DeleteTweetState.Deleted);
+        client.Setup(x => x.DeleteTweetById(match.Id, It.IsAny<CancellationToken>())).ReturnsAsync(DeleteTweetState.Deleted);
         var sut = _mocker.CreateInstance<TweetManager>();
 
         // Act
@@ -418,8 +418,8 @@ public class TweetIdRules
 
         // Assert
         result.Should().Be(RemoveTweetState.Other);
-        client.Verify(x => x.DeleteTweetById(match.Id), Times.Once);
-        client.Verify(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), It.IsAny<string?>()),
+        client.Verify(x => x.DeleteTweetById(match.Id, It.IsAny<CancellationToken>()), Times.Once);
+        client.Verify(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Exactly(TweetManager.MaxTimelinePages));
     }
 
@@ -430,7 +430,7 @@ public class TweetIdRules
         var item = PodcastItem(e => e.ReleaseUtc = DomainTestFixture.UtcAtTime(-30, TimeSpan.FromHours(9)));
         var expectedEnd = new DateTimeOffset(item.Episode.ReleaseUtc.AddDays(TweetDays + TweetManager.EndTimeSlackDays), TimeSpan.Zero);
         var client = _mocker.GetMock<ITwitterClient>();
-        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+        client.Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, []));
         var sut = _mocker.CreateInstance<TweetManager>();
 
@@ -439,7 +439,7 @@ public class TweetIdRules
 
         // Assert
         result.Should().Be(RemoveTweetState.Other);
-        client.Verify(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), expectedEnd, null), Times.Once);
+        client.Verify(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), expectedEnd, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "end_time is release + tweet-days + slack for an older podcast episode, and absent for a recent one, a catalogue item, or unset tweet-days.")]
@@ -567,7 +567,7 @@ public class TweetIdRules
             .Setup(x => x.BuildTweet(item, It.IsAny<Uri?>(), It.IsAny<bool>()))
             .ReturnsAsync("tweet");
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.Send("tweet"))
+            .Setup(x => x.Send("tweet", It.IsAny<CancellationToken>()))
             .ReturnsAsync(response);
     }
 }

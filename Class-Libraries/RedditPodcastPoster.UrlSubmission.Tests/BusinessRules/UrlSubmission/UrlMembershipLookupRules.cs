@@ -801,6 +801,246 @@ public class UrlMembershipLookupRules
             Times.Never);
     }
 
+    [Fact(DisplayName =
+        "When submit content types are on and a youtu.be link points at a video a film holds as a trailer, URL membership lookup reports it as part of that film, because the trailer's episode row was deleted on attach and must not come back as a new podcast episode.")]
+    public async Task flag_on_youtube_short_link_to_a_film_trailer_returns_the_film()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var film = FilmWithTrailer(new Uri($"https://www.youtube.com/watch?v={videoId}"));
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        SetupFilms(film);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(new Uri($"https://youtu.be/{videoId}"), CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.ParentName.Should().BeNull();
+        result.PodcastId.Should().BeNull();
+        result.PodcastName.Should().BeNull();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService);
+        result.Service.Should().BeNull();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on and a Spotify episode URL is a film's trailer URL, URL membership lookup reports Film with no parent name.")]
+    public async Task flag_on_spotify_film_trailer_url_returns_the_film()
+    {
+        // Arrange
+        var url = SpotifyServiceUrl();
+        var film = FilmWithTrailer(url);
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        SetupFilms(film);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.ParentName.Should().BeNull();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on and a YouTube URL is neither a stored episode nor a film trailer, URL membership lookup leaves it unknown, because another video on the same film must not match.")]
+    public async Task flag_on_youtube_url_for_a_different_video_is_not_a_film_trailer()
+    {
+        // Arrange
+        var film = FilmWithTrailer(new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}"));
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        SetupFilms(film);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(
+            new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}"),
+            CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.ContentKind.Should().BeNull();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on and a YouTube URL is still stored on a podcast episode, URL membership lookup reports that episode and does not query films.")]
+    public async Task flag_on_youtube_url_on_a_podcast_episode_does_not_query_films()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube)!;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.PodcastId.Should().Be(podcast.Id);
+        _mocker.GetMock<IFilmRepository>().Verify(
+            x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are off, a YouTube URL a film holds as a trailer is still a catalogue service-url owner with no parent, because the indexer must not re-add the episode that was attached as the trailer.")]
+    public async Task flag_off_youtube_film_trailer_url_is_a_catalogue_owner()
+    {
+        // Arrange
+        var url = YouTubeServiceUrl();
+        var film = FilmWithTrailer(url);
+        SetupFilms(film);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindCatalogueServiceUrlOwner(url, CancellationToken.None);
+
+        // Assert
+        owner.Should().NotBeNull();
+        owner!.ContentKind.Should().Be(SubmitClassification.Film);
+        owner.ParentName.Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "When submit content types are on and an Apple episode URL (cleaned, or with a storefront segment and the &uo=4 tracking suffix) is a film's trailer URL, URL membership lookup reports Film.")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task flag_on_apple_film_trailer_url_returns_the_film(bool withTrackingSuffix)
+    {
+        // Arrange
+        // Stored Apple links are cleaned: no storefront segment and no &uo=4 suffix.
+        var path = $"/podcast/synthetic-show/id{_fixture.CreateAppleId()}?i={_fixture.CreateAppleId()}";
+        var stored = new Uri($"https://podcasts.apple.com{path}");
+        var pasted = withTrackingSuffix ? new Uri($"https://podcasts.apple.com/us{path}&uo=4") : stored;
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        SetupFilms(FilmWithTrailer(stored));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(pasted, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.ParentName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on and a youtu.be link points at a video stored as a TV episode's YouTube link, URL membership lookup reports TvShowEpisode with the show name, because the service-link check uses the stored URL form too.")]
+    public async Task flag_on_youtube_short_link_on_a_tv_episode_returns_the_show()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var showName = _fixture.CreateTitle();
+        var tvEpisode = new TvShowEpisode(_fixture.CreateTitle())
+        {
+            TvShowName = showName,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = new Uri($"https://www.youtube.com/watch?v={videoId}") }
+            }
+        };
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
+            .ReturnsAsync((Expression<Func<TvShowEpisode, bool>> predicate) =>
+                predicate.Compile()(tvEpisode) ? tvEpisode : null);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(new Uri($"https://youtu.be/{videoId}"), CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.ParentName.Should().Be(showName);
+        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on and a YouTube URL with extra query parameters is a news report's YouTube link, URL membership lookup reports NewsReport with the organisation name.")]
+    public async Task flag_on_youtube_url_with_extra_params_on_a_news_report_returns_the_organisation()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var organisationName = _fixture.CreateTitle();
+        var report = new NewsReport(_fixture.CreateTitle())
+        {
+            NewsOrganisationName = organisationName,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = new Uri($"https://www.youtube.com/watch?v={videoId}") }
+            }
+        };
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<NewsReport, bool>>>()))
+            .ReturnsAsync((Expression<Func<NewsReport, bool>> predicate) =>
+                predicate.Compile()(report) ? report : null);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(
+            new Uri($"https://www.youtube.com/watch?v={videoId}&si={_fixture.CreateYouTubeId()}"),
+            CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.ParentName.Should().Be(organisationName);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are off, URL membership lookup of a film trailer's YouTube URL stays unknown and does not query films, because submit membership stays podcast-only until the flag is on.")]
+    public async Task flag_off_lookup_of_a_film_trailer_url_does_not_query_films()
+    {
+        // Arrange
+        var url = YouTubeServiceUrl();
+        SetupFilms(FilmWithTrailer(url));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeFalse();
+        result.ContentKind.Should().BeNull();
+        _mocker.GetMock<IFilmRepository>().Verify(
+            x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()),
+            Times.Never);
+    }
+
+    private Film FilmWithTrailer(Uri trailerUrl) =>
+        new(_fixture.CreateTitle())
+        {
+            Trailers =
+            [
+                new FilmTrailer
+                {
+                    Id = _fixture.CreateGuid(),
+                    Title = _fixture.CreateTitle(),
+                    Url = trailerUrl
+                }
+            ]
+        };
+
+    private void SetupFilms(Film film) =>
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
+            .ReturnsAsync((Expression<Func<Film, bool>> predicate) =>
+                predicate.Compile()(film) ? film : null);
+
     private Uri SpotifyServiceUrl() =>
         EpisodeServicePresence.TryGetUrl(
             _fixture.CreateStoredEpisodeWithSpotifyOnly(_fixture.CreatePodcast()),

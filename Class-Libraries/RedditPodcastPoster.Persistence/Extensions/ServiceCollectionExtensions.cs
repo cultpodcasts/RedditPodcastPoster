@@ -119,6 +119,10 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IFilmSearchPushWatermarkStore>(s =>
                     new FilmSearchPushWatermarkStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))
+                .AddSingleton<IXOAuth2TokenStore>(s =>
+                    new XOAuth2TokenStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<XOAuth2TokenStore>>()))
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
                 .AddSingleton<IValidateOptions<CosmosDbSettings>, CosmosDbSettingsValidator>();
             services.AddOptions<CosmosDbSettings>().ValidateOnStart();

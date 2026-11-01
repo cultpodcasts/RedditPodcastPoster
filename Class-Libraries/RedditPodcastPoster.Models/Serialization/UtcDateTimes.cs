@@ -20,6 +20,16 @@ public static class UtcDateTimes
     };
 
     /// <summary>
+    /// The same instant as <see cref="ToUtc(DateTime)"/>, at offset zero. Use this instead of the implicit
+    /// <see cref="DateTime"/> to <see cref="DateTimeOffset"/> conversion, which reads an unspecified-kind value as
+    /// host-local time (and throws east of UTC on <see cref="DateTime.MinValue"/>).
+    /// </summary>
+    public static DateTimeOffset ToUtcOffset(DateTime value) => new(ToUtc(value), TimeSpan.Zero);
+
+    /// <summary><see cref="ToUtcOffset(DateTime)"/> for a nullable value; <c>null</c> stays <c>null</c>.</summary>
+    public static DateTimeOffset? ToUtcOffset(DateTime? value) => value.HasValue ? ToUtcOffset(value.Value) : null;
+
+    /// <summary>
     /// Parses ISO-8601 text (the System.Text.Json profile): no zone means UTC, an offset is adjusted to UTC.
     /// Returns <c>false</c> for null, blank or non-ISO text.
     /// </summary>

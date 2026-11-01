@@ -1,15 +1,21 @@
+using System.Linq.Expressions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
 using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
@@ -177,6 +183,54 @@ public class IndexerSkipsCatalogueOwnedUrlsRules
             Times.Never);
         harness.EpisodeRepository.SavedEpisodes.Select(episode => episode.Id)
             .Should().OnlyContain(id => id == stored.Id);
+    }
+
+    [Fact(DisplayName =
+        "When a newly found episode's YouTube URL is a film trailer's URL, the indexer does not save it and logs the skip as Film, because attaching an episode as a trailer deletes its row and the feed must not bring it back (#1089).")]
+    public async Task newly_found_episode_whose_youtube_url_is_a_film_trailer_is_not_saved()
+    {
+        // Arrange
+        var logger = new CapturedInformationLogger();
+        var harness = new PodcastUpdaterTestHarness(logger: logger);
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        harness.PodcastRepository.Seed(podcast);
+        var discovered = CreateDiscoveredEpisode(ServiceKeys.YouTube);
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Trailers =
+            [
+                new FilmTrailer
+                {
+                    Id = discovered.Id,
+                    Title = discovered.Title,
+                    Url = EpisodeServicePresence.TryGetUrl(discovered, ServiceKeys.YouTube)!
+                }
+            ]
+        };
+        var lookupMocker = new AutoMocker();
+        lookupMocker.Use(Options.Create(new SubmitContentTypesOptions()));
+        lookupMocker.GetMock<IFilmRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
+            .ReturnsAsync((Expression<Func<Film, bool>> predicate) => predicate.Compile()(film) ? film : null);
+        var lookup = lookupMocker.CreateInstance<UrlMembershipLookup>();
+        harness.UrlMembershipLookup
+            .Setup(x => x.FindCatalogueServiceUrlOwner(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
+            .Returns((Uri url, CancellationToken token) => lookup.FindCatalogueServiceUrlOwner(url, token));
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(podcast, It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync([discovered]);
+
+        // Act
+        await harness.Updater.Update(
+            podcast,
+            enrichOnly: false,
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert
+        harness.EpisodeRepository.SavedEpisodes.Should().NotContain(episode => episode.Id == discovered.Id);
+        logger.Messages.Should().ContainSingle(message =>
+                message.StartsWith(PodcastUpdater.CatalogueOwnedUrlSkippedMessagePrefix, StringComparison.Ordinal))
+            .Which.Should().Contain(SubmitClassification.Film).And.Contain(discovered.Id.ToString());
     }
 
     private Episode CreateDiscoveredEpisode(string serviceKey) =>

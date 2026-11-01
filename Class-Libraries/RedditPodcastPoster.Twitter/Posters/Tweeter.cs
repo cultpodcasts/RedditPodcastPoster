@@ -38,18 +38,18 @@ public class Tweeter(
         }
 
         var tweeted = false;
-        var tooManyRequests = false;
+        var stopRun = false;
         foreach (var podcastEpisode in untweeted.ToArray())
         {
-            if (tweeted || tooManyRequests)
+            if (tweeted || stopRun)
             {
                 break;
             }
 
-            (tweeted, tooManyRequests) = await TryTweet(podcastEpisode);
+            (tweeted, stopRun) = await TryTweet(podcastEpisode);
         }
 
-        if (tweeted || tooManyRequests)
+        if (tweeted || stopRun)
         {
             return;
         }
@@ -69,16 +69,21 @@ public class Tweeter(
 
         foreach (var item in catalogueUntweeted)
         {
-            if (tweeted || tooManyRequests)
+            if (tweeted || stopRun)
             {
                 break;
             }
 
-            (tweeted, tooManyRequests) = await TryTweet(item);
+            (tweeted, stopRun) = await TryTweet(item);
         }
     }
 
-    private async Task<(bool Tweeted, bool TooManyRequests)> TryTweet(PodcastEpisode podcastEpisode)
+    /// <summary>
+    /// Sends one candidate. <c>StopRun</c> is true when X refused for a reason that applies to every candidate
+    /// (rate limit, depleted credits, rejected credentials), so the run ends without trying, and paying for, the rest.
+    /// The candidate keeps <c>Tweeted=false</c> and is tried again on the next run.
+    /// </summary>
+    private async Task<(bool Tweeted, bool StopRun)> TryTweet(PodcastEpisode podcastEpisode)
     {
         try
         {
@@ -102,8 +107,13 @@ public class Tweeter(
             }
 
             var tweetStatus = await tweetPoster.PostTweet(podcastEpisode, shortUrl, hasShareImage);
-            return (tweetStatus.TweetSendStatus == TweetSendStatus.Sent,
-                tweetStatus.TweetSendStatus == TweetSendStatus.TooManyRequests);
+            var stopRun = StopsRun(tweetStatus.TweetSendStatus);
+            if (stopRun)
+            {
+                LogRunStopped(tweetStatus.TweetSendStatus, podcastEpisode);
+            }
+
+            return (tweetStatus.TweetSendStatus == TweetSendStatus.Sent, stopRun);
         }
         catch (Exception ex)
         {
@@ -113,5 +123,23 @@ public class Tweeter(
                 podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name);
             return (false, false);
         }
+    }
+
+    /// <summary>Statuses that mean no further post can succeed in this run.</summary>
+    public static bool StopsRun(TweetSendStatus status) =>
+        status is TweetSendStatus.TooManyRequests or TweetSendStatus.PaymentRequired
+            or TweetSendStatus.AuthenticationFailed;
+
+    private void LogRunStopped(TweetSendStatus status, PodcastEpisode podcastEpisode)
+    {
+        var reason = status switch
+        {
+            TweetSendStatus.PaymentRequired => "X credits depleted (402 Payment Required)",
+            TweetSendStatus.AuthenticationFailed => "X rejected the credentials (401/403)",
+            _ => "X rate limit reached (429 Too Many Requests)"
+        };
+        logger.LogWarning(
+            "{Reason}; stopping tweet run. {ContentKind} with id '{EpisodeId}' stays untweeted and is retried next run.",
+            reason, podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id);
     }
 }

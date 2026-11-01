@@ -505,9 +505,12 @@ public class CatalogueSocialPostRules
             await _mocker.CreateInstance<TweetBuilder>().BuildTweet(item, CataloguePlayableSiteLink.For(item)));
         var unrelated = new Tweet { Id = "2", Text = "\"Something else\"\n1998\nhttps://t.co/other" };
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
+            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null,
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [unrelated, tweet]));
-        _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweetById(tweet.Id)).ReturnsAsync(DeleteTweetState.Deleted);
+        _mocker.GetMock<ITwitterClient>()
+            .Setup(x => x.DeleteTweetById(tweet.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DeleteTweetState.Deleted);
         var sut = _mocker.CreateInstance<TweetManager>();
 
         // Act
@@ -515,7 +518,8 @@ public class CatalogueSocialPostRules
 
         // Assert
         result.Should().Be(RemoveTweetState.Deleted);
-        _mocker.GetMock<ITwitterClient>().Verify(x => x.DeleteTweetById(unrelated.Id), Times.Never);
+        _mocker.GetMock<ITwitterClient>()
+            .Verify(x => x.DeleteTweetById(unrelated.Id, It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ---- posted state ------------------------------------------------------------------------
@@ -531,7 +535,7 @@ public class CatalogueSocialPostRules
             .Setup(x => x.BuildTweet(item, It.IsAny<Uri?>(), It.IsAny<bool>()))
             .ReturnsAsync("tweet");
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.Send("tweet"))
+            .Setup(x => x.Send("tweet", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PostTweetResponse(TweetSendStatus.Sent));
         var sut = _mocker.CreateInstance<TweetPoster>();
 
@@ -554,7 +558,7 @@ public class CatalogueSocialPostRules
             .Setup(x => x.BuildTweet(item, It.IsAny<Uri?>(), It.IsAny<bool>()))
             .ReturnsAsync("tweet");
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.Send("tweet"))
+            .Setup(x => x.Send("tweet", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PostTweetResponse(TweetSendStatus.Sent));
         var sut = _mocker.CreateInstance<TweetPoster>();
 
@@ -903,7 +907,7 @@ public class CatalogueSocialPostRules
             .Setup(x => x.BuildTweet(item, It.IsAny<Uri?>(), It.IsAny<bool>()))
             .ReturnsAsync("tweet");
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.Send("tweet"))
+            .Setup(x => x.Send("tweet", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PostTweetResponse(TweetSendStatus.Sent, TweetId: tweetId));
         var sut = _mocker.CreateInstance<TweetPoster>();
 

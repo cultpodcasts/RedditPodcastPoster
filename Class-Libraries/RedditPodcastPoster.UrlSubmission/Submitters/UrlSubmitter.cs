@@ -19,6 +19,7 @@ public class UrlSubmitter(
     ICatalogueParentLookup catalogueParentLookup,
     ICatalogueParentSubmitter catalogueParentSubmitter,
     IEpisodeUrlRouter episodeUrlRouter,
+    ICatalogueOwnershipGuard catalogueOwnershipGuard,
     IOptions<SubmitContentTypesOptions>? submitContentTypes = null)
     : IUrlSubmitter
 {
@@ -38,9 +39,19 @@ public class UrlSubmitter(
                     ContentKind: SubmitClassification.NewsReport);
             }
 
+            // An item moved out of a podcast (to a film, film trailer, TV episode or news report) keeps its
+            // YouTube / Spotify / Apple URL there, and its episode row is gone. Re-submitting that URL must not
+            // re-create the podcast episode (#1089). Same ownership rule as the indexer and discovery.
+            var catalogueOwner = await catalogueOwnershipGuard.FindOwner(url, CancellationToken.None);
+            if (catalogueOwner != null && catalogueOwner.ContentKind == SubmitClassification.Film)
+            {
+                // Films (and their trailers) have no podcast-platform resubmit path, so a film owner always stops here.
+                return CatalogueOwned(url, catalogueOwner);
+            }
+
             if (submitOptions.Parent is { } target)
             {
-                return await SubmitToParentTarget(target, url, indexingContext, submitOptions);
+                return await SubmitToParentTarget(target, url, indexingContext, submitOptions, catalogueOwner);
             }
 
             Podcast? podcast = null;
@@ -111,6 +122,14 @@ public class UrlSubmitter(
             {
                 // Never create a podcast for a channel / show a news organisation or TV show owns.
                 parent = await episodeUrlRouter.FindOwningParent(url, owner, indexingContext);
+            }
+
+            if (catalogueOwner != null && CatalogueOwnershipGuard.Blocks(catalogueOwner, parent))
+            {
+                // A TV episode / news report owns the URL, and there is no parent or a different parent to submit it
+                // under. Only its own parent's submitter matches and enriches the stored item; anything else would
+                // file a podcast episode or a second TV episode / news report.
+                return CatalogueOwned(url, catalogueOwner);
             }
 
             if (parent != null)
@@ -214,6 +233,18 @@ public class UrlSubmitter(
         }
     }
 
+    private SubmitResult CatalogueOwned(Uri url, CatalogueServiceUrlOwner owner)
+    {
+        logger.LogInformation(
+            "Submit of '{Url}' skipped: already in the catalogue as {ContentKind} '{PlayableId}'.",
+            url, owner.ContentKind, owner.PlayableId);
+        return new SubmitResult(
+            SubmitResultState.EpisodeAlreadyExists,
+            SubmitResultState.None,
+            ContentKind: owner.ContentKind,
+            PlayableId: owner.PlayableId);
+    }
+
     /// <summary>Spotify, YouTube or Apple Podcasts: the URLs that can be routed to a news organisation or TV show.</summary>
     public static bool IsPodcastPlatformUrl(Uri url) => EpisodeUrlRouter.IsPodcastPlatformUrl(url);
 
@@ -225,7 +256,8 @@ public class UrlSubmitter(
         CatalogueParentTarget target,
         Uri url,
         IndexingContext indexingContext,
-        SubmitOptions submitOptions)
+        SubmitOptions submitOptions,
+        CatalogueServiceUrlOwner? catalogueOwner)
     {
         if (!IsPodcastPlatformUrl(url))
         {
@@ -240,6 +272,12 @@ public class UrlSubmitter(
             logger.LogWarning("Submit of '{Url}' targeted {Kind} '{ParentId}' which does not exist.", url, target.Kind,
                 target.Id);
             throw new SubmitParentNotFoundException(target.Kind, target.Id);
+        }
+
+        if (catalogueOwner != null && CatalogueOwnershipGuard.Blocks(catalogueOwner, parent))
+        {
+            // The URL already belongs to a TV episode / news report under a different parent.
+            return CatalogueOwned(url, catalogueOwner);
         }
 
         if (!string.IsNullOrWhiteSpace(target.Name) &&

@@ -33,6 +33,10 @@ public class BlueskyEmbedCardPostFactory(
 ) : IBlueskyEmbedCardPostFactory
 {
     private const int MinTitleLength = 10;
+
+    // Bluesky's limit is 300 graphemes. The budget counts UTF-16 chars, which is never fewer than graphemes,
+    // so a post within this length is always within Bluesky's limit.
+    private const int MaxPostLength = 300;
     public const string LengthFormat = @"\[h\:mm\:ss\]";
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly BlueskyOptions _blueskyOptions = blueskyOptions.Value;
@@ -148,18 +152,24 @@ public class BlueskyEmbedCardPostFactory(
             && _blueskyOptions.WithEpisodeUrl
             && (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||
                  podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
-        var permittedTitleLength = 300 - (postBuilder.Length + (reserveSecondUrlBudget ? 26 : 0));
+        // The title is wrapped as "{title}" plus a line break, so those characters count against the limit too (#1097).
+        var titleWrapperLength = 2 + Environment.NewLine.Length;
+        var permittedTitleLength = MaxPostLength -
+                                   (postBuilder.Length + titleWrapperLength + (reserveSecondUrlBudget ? 26 : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {
             var min = Math.Min(episodeTitle.Length, permittedTitleLength - 1);
-            if (min < MinTitleLength)
+            // Check the minimum on what the whole-text-element cut keeps, which can be shorter than the budget
+            // when a long grapheme cluster straddles the cut.
+            var truncatedTitle = TruncateToWholeTextElements(episodeTitle, min);
+            if (truncatedTitle.Length < MinTitleLength)
             {
                 throw new InvalidOperationException(
-                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
+                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postBuilder}', calculated title-length: {truncatedTitle.Length} which is less than {MinTitleLength}.");
             }
 
-            episodeTitle = episodeTitle[..min] + "…";
+            episodeTitle = truncatedTitle + "…";
         }
 
         postBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
@@ -184,5 +194,27 @@ public class BlueskyEmbedCardPostFactory(
 
         var tweet = postBuilder.ToString();
         return new BlueskyEmbedCardPost(tweet, url, urlPodcastService, platformUrl);
+    }
+
+    /// <summary>
+    /// Longest prefix of <paramref name="text"/> made of whole text elements (graphemes) whose UTF-16 length is at
+    /// most <paramref name="maxLength"/>, so a cut never splits a surrogate pair, emoji sequence or combining mark.
+    /// </summary>
+    private static string TruncateToWholeTextElements(string text, int maxLength)
+    {
+        var length = 0;
+        var enumerator = StringInfo.GetTextElementEnumerator(text);
+        while (enumerator.MoveNext())
+        {
+            var next = enumerator.ElementIndex + enumerator.GetTextElement().Length;
+            if (next > maxLength)
+            {
+                break;
+            }
+
+            length = next;
+        }
+
+        return text[..length];
     }
 }

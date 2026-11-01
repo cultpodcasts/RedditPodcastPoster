@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Moq;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Extensions;
@@ -35,6 +36,11 @@ public class UrlSubmitterRegistrationRules
         services.AddSingleton(Mock.Of<ITvShowRepository>());
         services.AddSingleton(Mock.Of<INewsReportRepository>());
         services.AddSingleton(Mock.Of<ITvShowEpisodeRepository>());
+        // UrlSubmitter checks film, TV episode and news report ownership of a podcast-platform URL (#1089).
+        services.AddSingleton(Mock.Of<IEpisodeRepository>());
+        services.AddSingleton(Mock.Of<IFilmRepository>());
+        // Hosts get this from AddPodcastServices.
+        services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
         // Hosts get this from AddPodcastServices (Null) or AddEdgeApiClient; the podcast and parent submitters both take it.
         services.AddSingleton(Mock.Of<IHeroEpisodePromoter>());
         return services;
@@ -56,6 +62,26 @@ public class UrlSubmitterRegistrationRules
         scope.ServiceProvider.GetRequiredService<ICatalogueParentLookup>().Should().BeOfType<CatalogueParentLookup>();
         scope.ServiceProvider.GetRequiredService<ICatalogueParentSubmitter>().Should()
             .BeOfType<CatalogueParentSubmitter>();
+    }
+
+    [Fact(DisplayName =
+        "AddUrlSubmission resolves IDiscoveryUrlSubmitter as the catalogue ownership decorator over DiscoveryUrlSubmitter, so curator submit and supervisor apply never re-create a URL a film, TV episode or news report owns.")]
+    public void discovery_url_submitter_resolves_behind_the_ownership_guard()
+    {
+        // Arrange
+        var services = Services();
+        // Its categorisers need podcast-service clients the hosts register; this rule is about the wrapper.
+        services.Replace(ServiceDescriptor.Scoped(_ => Mock.Of<IDiscoveryResultProcessor>()));
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var scope = provider.CreateScope();
+
+        // Act
+        var submitter = scope.ServiceProvider.GetRequiredService<IDiscoveryUrlSubmitter>();
+
+        // Assert
+        submitter.Should().BeOfType<CatalogueOwnedDiscoveryUrlSubmitter>();
+        scope.ServiceProvider.GetRequiredService<ICatalogueOwnershipGuard>().Should()
+            .BeOfType<CatalogueOwnershipGuard>();
     }
 
     [Fact(DisplayName =
