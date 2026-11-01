@@ -49,7 +49,7 @@ public class UrlSubmitterCatalogueOwnedUrlRules
             .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .ReturnsAsync((Expression<Func<Film, bool>> predicate) => predicate.Compile()(film) ? film : null);
         _mocker.Use<IUrlMembershipLookup>(_mocker.CreateInstance<UrlMembershipLookup>());
-        var sut = _mocker.CreateInstance<UrlSubmitter>();
+        var sut = CreateSut();
 
         // Act
         var result = await sut.Submit(
@@ -74,7 +74,7 @@ public class UrlSubmitterCatalogueOwnedUrlRules
         var url = YouTubeUrl();
         var filmId = _fixture.CreateGuid();
         SetupOwner(url, new CatalogueServiceUrlOwner(SubmitClassification.Film, null, filmId));
-        var sut = _mocker.CreateInstance<UrlSubmitter>();
+        var sut = CreateSut();
 
         // Act
         var result = await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true,
@@ -99,7 +99,7 @@ public class UrlSubmitterCatalogueOwnedUrlRules
         _mocker.GetMock<IEpisodeUrlRouter>()
             .Setup(x => x.RouteByOwner(url, It.IsAny<IndexingContext>()))
             .ReturnsAsync(new EpisodeUrlRoute(null, null, null));
-        var sut = _mocker.CreateInstance<UrlSubmitter>();
+        var sut = CreateSut();
 
         // Act
         var result = await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
@@ -119,7 +119,8 @@ public class UrlSubmitterCatalogueOwnedUrlRules
         var url = YouTubeUrl();
         var show = new TvShow(_fixture.CreateTitle());
         var parent = CatalogueParentMatch.For(show);
-        SetupOwner(url, new CatalogueServiceUrlOwner(SubmitClassification.TvShowEpisode, show.Name, _fixture.CreateGuid()));
+        SetupOwner(url,
+            new CatalogueServiceUrlOwner(SubmitClassification.TvShowEpisode, show.Name, _fixture.CreateGuid(), show.Id));
         _mocker.GetMock<IEpisodeUrlRouter>()
             .Setup(x => x.RouteByOwner(url, It.IsAny<IndexingContext>()))
             .ReturnsAsync(new EpisodeUrlRoute(null, null, parent));
@@ -128,13 +129,80 @@ public class UrlSubmitterCatalogueOwnedUrlRules
         _mocker.GetMock<ICatalogueParentSubmitter>()
             .Setup(x => x.Submit(parent, url, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
             .ReturnsAsync(enriched);
-        var sut = _mocker.CreateInstance<UrlSubmitter>();
+        var sut = CreateSut();
 
         // Act
         var result = await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
 
         // Assert
         result.Should().BeSameAs(enriched);
+    }
+
+    [Fact(DisplayName =
+        "When a TV episode of one show owns a YouTube URL and routing finds a different show, the submit stops as already-exists, because the parent submitter only matches within the routed show and would create a second TV episode.")]
+    public async Task tv_owned_url_routed_to_a_different_show_stops()
+    {
+        // Arrange
+        var url = YouTubeUrl();
+        var owningShow = new TvShow(_fixture.CreateTitle());
+        var routedShow = new TvShow(_fixture.CreateTitle());
+        var playableId = _fixture.CreateGuid();
+        SetupOwner(url, new CatalogueServiceUrlOwner(
+            SubmitClassification.TvShowEpisode, owningShow.Name, playableId, owningShow.Id));
+        _mocker.GetMock<IEpisodeUrlRouter>()
+            .Setup(x => x.RouteByOwner(url, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(new EpisodeUrlRoute(null, null, CatalogueParentMatch.For(routedShow)));
+        var sut = CreateSut();
+
+        // Act
+        var result = await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.PlayableId.Should().Be(playableId);
+        VerifyNothingSubmitted();
+    }
+
+    [Theory(DisplayName =
+        "When the curator files a URL a TV episode owns under a TV show, it reaches the parent submitter only when that show is the owner's, because filing it under another show would duplicate the episode.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task tv_owned_url_targeted_at_a_show_is_submitted_only_to_its_own_show(bool targetIsOwner)
+    {
+        // Arrange
+        var url = YouTubeUrl();
+        var owningShow = new TvShow(_fixture.CreateTitle());
+        var targetShow = targetIsOwner ? owningShow : new TvShow(_fixture.CreateTitle());
+        var playableId = _fixture.CreateGuid();
+        SetupOwner(url, new CatalogueServiceUrlOwner(
+            SubmitClassification.TvShowEpisode, owningShow.Name, playableId, owningShow.Id));
+        var target = CatalogueParentMatch.For(targetShow);
+        _mocker.GetMock<ICatalogueParentLookup>()
+            .Setup(x => x.FindById(CatalogueParentKind.TvShow, targetShow.Id))
+            .ReturnsAsync(target);
+        var enriched = new SubmitResult(SubmitResultState.Enriched, SubmitResultState.None,
+            ContentKind: SubmitClassification.TvShowEpisode, PlayableId: playableId);
+        _mocker.GetMock<ICatalogueParentSubmitter>()
+            .Setup(x => x.Submit(target, url, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(enriched);
+        var sut = CreateSut();
+
+        // Act
+        var result = await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true,
+            Parent: new CatalogueParentTarget(CatalogueParentKind.TvShow, targetShow.Id)));
+
+        // Assert
+        if (targetIsOwner)
+        {
+            result.Should().BeSameAs(enriched);
+        }
+        else
+        {
+            result.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+            result.PlayableId.Should().Be(playableId);
+            VerifyNothingSubmitted();
+        }
     }
 
     [Fact(DisplayName =
@@ -154,7 +222,7 @@ public class UrlSubmitterCatalogueOwnedUrlRules
         _mocker.GetMock<ICategorisedItemProcessor>()
             .Setup(p => p.ProcessCategorisedItem(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()))
             .ReturnsAsync(new SubmitResult(SubmitResultState.None, SubmitResultState.None));
-        var sut = _mocker.CreateInstance<UrlSubmitter>();
+        var sut = CreateSut();
 
         // Act
         await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
@@ -163,6 +231,13 @@ public class UrlSubmitterCatalogueOwnedUrlRules
         _mocker.GetMock<ICategorisedItemProcessor>().Verify(
             p => p.ProcessCategorisedItem(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()),
             Times.Once);
+    }
+
+    /// <summary>The submitter with the real ownership guard over the (mocked or real) membership lookup.</summary>
+    private UrlSubmitter CreateSut()
+    {
+        _mocker.Use<ICatalogueOwnershipGuard>(_mocker.CreateInstance<CatalogueOwnershipGuard>());
+        return _mocker.CreateInstance<UrlSubmitter>();
     }
 
     private Uri YouTubeUrl() => new($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}");

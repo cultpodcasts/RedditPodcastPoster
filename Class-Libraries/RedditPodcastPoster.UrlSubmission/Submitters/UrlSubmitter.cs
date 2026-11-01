@@ -19,7 +19,7 @@ public class UrlSubmitter(
     ICatalogueParentLookup catalogueParentLookup,
     ICatalogueParentSubmitter catalogueParentSubmitter,
     IEpisodeUrlRouter episodeUrlRouter,
-    IUrlMembershipLookup urlMembershipLookup,
+    ICatalogueOwnershipGuard catalogueOwnershipGuard,
     IOptions<SubmitContentTypesOptions>? submitContentTypes = null)
     : IUrlSubmitter
 {
@@ -41,10 +41,8 @@ public class UrlSubmitter(
 
             // An item moved out of a podcast (to a film, film trailer, TV episode or news report) keeps its
             // YouTube / Spotify / Apple URL there, and its episode row is gone. Re-submitting that URL must not
-            // re-create the podcast episode (#1089). Same ownership rule as the indexer.
-            var catalogueOwner = IsPodcastPlatformUrl(url)
-                ? await urlMembershipLookup.FindCatalogueServiceUrlOwner(url, CancellationToken.None)
-                : null;
+            // re-create the podcast episode (#1089). Same ownership rule as the indexer and discovery.
+            var catalogueOwner = await catalogueOwnershipGuard.FindOwner(url, CancellationToken.None);
             if (catalogueOwner != null && catalogueOwner.ContentKind == SubmitClassification.Film)
             {
                 // Films (and their trailers) have no podcast-platform resubmit path, so a film owner always stops here.
@@ -53,7 +51,7 @@ public class UrlSubmitter(
 
             if (submitOptions.Parent is { } target)
             {
-                return await SubmitToParentTarget(target, url, indexingContext, submitOptions);
+                return await SubmitToParentTarget(target, url, indexingContext, submitOptions, catalogueOwner);
             }
 
             Podcast? podcast = null;
@@ -126,10 +124,11 @@ public class UrlSubmitter(
                 parent = await episodeUrlRouter.FindOwningParent(url, owner, indexingContext);
             }
 
-            if (parent == null && catalogueOwner != null)
+            if (catalogueOwner != null && CatalogueOwnershipGuard.Blocks(catalogueOwner, parent))
             {
-                // A TV episode / news report owns the URL but routing found no parent to re-submit it under (that
-                // path matches and enriches the stored item). Never file it as a podcast episode.
+                // A TV episode / news report owns the URL, and there is no parent or a different parent to submit it
+                // under. Only its own parent's submitter matches and enriches the stored item; anything else would
+                // file a podcast episode or a second TV episode / news report.
                 return CatalogueOwned(url, catalogueOwner);
             }
 
@@ -257,7 +256,8 @@ public class UrlSubmitter(
         CatalogueParentTarget target,
         Uri url,
         IndexingContext indexingContext,
-        SubmitOptions submitOptions)
+        SubmitOptions submitOptions,
+        CatalogueServiceUrlOwner? catalogueOwner)
     {
         if (!IsPodcastPlatformUrl(url))
         {
@@ -272,6 +272,12 @@ public class UrlSubmitter(
             logger.LogWarning("Submit of '{Url}' targeted {Kind} '{ParentId}' which does not exist.", url, target.Kind,
                 target.Id);
             throw new SubmitParentNotFoundException(target.Kind, target.Id);
+        }
+
+        if (catalogueOwner != null && CatalogueOwnershipGuard.Blocks(catalogueOwner, parent))
+        {
+            // The URL already belongs to a TV episode / news report under a different parent.
+            return CatalogueOwned(url, catalogueOwner);
         }
 
         if (!string.IsNullOrWhiteSpace(target.Name) &&

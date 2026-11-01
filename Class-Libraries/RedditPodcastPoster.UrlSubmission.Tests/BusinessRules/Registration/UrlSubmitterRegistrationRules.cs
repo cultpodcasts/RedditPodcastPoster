@@ -65,6 +65,26 @@ public class UrlSubmitterRegistrationRules
     }
 
     [Fact(DisplayName =
+        "AddUrlSubmission resolves IDiscoveryUrlSubmitter as the catalogue ownership decorator over DiscoveryUrlSubmitter, so curator submit and supervisor apply never re-create a URL a film, TV episode or news report owns.")]
+    public void discovery_url_submitter_resolves_behind_the_ownership_guard()
+    {
+        // Arrange
+        var services = Services();
+        // Its categorisers need podcast-service clients the hosts register; this rule is about the wrapper.
+        services.Replace(ServiceDescriptor.Scoped(_ => Mock.Of<IDiscoveryResultProcessor>()));
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var scope = provider.CreateScope();
+
+        // Act
+        var submitter = scope.ServiceProvider.GetRequiredService<IDiscoveryUrlSubmitter>();
+
+        // Assert
+        submitter.Should().BeOfType<CatalogueOwnedDiscoveryUrlSubmitter>();
+        scope.ServiceProvider.GetRequiredService<ICatalogueOwnershipGuard>().Should()
+            .BeOfType<CatalogueOwnershipGuard>();
+    }
+
+    [Fact(DisplayName =
         "Without a catalogue parent lookup, IUrlSubmitter does not resolve, because the routing collaborators are required constructor parameters.")]
     public void url_submitter_requires_parent_lookup()
     {

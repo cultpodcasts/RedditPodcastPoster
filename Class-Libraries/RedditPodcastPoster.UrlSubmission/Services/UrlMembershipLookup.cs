@@ -179,7 +179,8 @@ public class UrlMembershipLookup(
             PlayableServiceUrlFilters.HoldsServiceUrl<TvShowEpisode>(serviceKey, canonical, stored));
         if (episode != null)
         {
-            return new CatalogueServiceUrlOwner(SubmitClassification.TvShowEpisode, episode.TvShowName, episode.Id);
+            return new CatalogueServiceUrlOwner(
+                SubmitClassification.TvShowEpisode, episode.TvShowName, episode.Id, episode.TvShowId);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -187,7 +188,8 @@ public class UrlMembershipLookup(
             PlayableServiceUrlFilters.HoldsServiceUrl<NewsReport>(serviceKey, canonical, stored));
         if (report != null)
         {
-            return new CatalogueServiceUrlOwner(SubmitClassification.NewsReport, report.NewsOrganisationName, report.Id);
+            return new CatalogueServiceUrlOwner(
+                SubmitClassification.NewsReport, report.NewsOrganisationName, report.Id, report.NewsOrganisationId);
         }
 
         return null;

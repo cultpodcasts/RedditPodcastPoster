@@ -9,7 +9,8 @@ namespace RedditPodcastPoster.UrlSubmission.Services;
 /// <summary>
 /// The form a YouTube, Spotify or Apple URL is stored in on an episode, and so on a film trailer or a playable's
 /// service link: <c>youtube.com/watch?v={id}</c>, the cleaned Spotify episode URL, or the cleaned Apple URL. A pasted
-/// <c>youtu.be</c> or tracking-tagged link maps to the same value. Other keys return the URL unchanged.
+/// <c>youtu.be</c> or tracking-tagged link maps to the same value. Other keys, and Apple URLs without a
+/// <c>/podcast</c> path segment, return the URL unchanged.
 /// </summary>
 public static class PodcastServiceUrlNormaliser
 {
@@ -30,7 +31,8 @@ public static class PodcastServiceUrlNormaliser
 
         if (serviceKey == ServiceKeys.Apple)
         {
-            return url.CleanAppleUrl();
+            // CleanAppleUrl cuts the path from "/podcast"; channel, browse and other non-podcast pages have none.
+            return url.AbsolutePath.Contains("/podcast", StringComparison.Ordinal) ? url.CleanAppleUrl() : url;
         }
 
         return url;
