@@ -384,6 +384,7 @@ var indexerActivities= {
     activities__RunCategoriser: 'true'
     activities__RunPoster: 'false'
     activities__RunPublisher: 'true'
+    // Hourly X posts. #1214 still has this false; keep true when that PR merges.
     activities__RunTweet: 'true'
     activities__RunBluesky: 'true'
 }

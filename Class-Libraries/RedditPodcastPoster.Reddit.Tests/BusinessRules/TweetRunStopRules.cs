@@ -3,6 +3,7 @@ using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Episodes;
@@ -62,6 +63,44 @@ public class TweetRunStopRules
         _mocker.GetMock<ITweetPoster>().Verify(x => x.PostTweet(first, It.IsAny<Uri?>(), It.IsAny<bool>()), Times.Once);
         _mocker.GetMock<ITweetPoster>().Verify(x => x.PostTweet(second, It.IsAny<Uri?>(), It.IsAny<bool>()), Times.Never);
         _mocker.GetMock<ICataloguePlayableSocialPosts>().Verify(x => x.GetUntweeted(), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When no podcast episode is waiting and X refuses the first catalogue item for a run-wide reason, then no later catalogue item is tried, because the stop applies after podcasts as well.")]
+    public async Task catalogue_run_stops_on_the_first_refusal()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var first = new PodcastEpisode(podcast, _fixture.CreateStoredEpisode(podcast))
+        {
+            ContentKind = nameof(ContentKind.Film)
+        };
+        var second = new PodcastEpisode(podcast, _fixture.CreateStoredEpisode(podcast))
+        {
+            ContentKind = nameof(ContentKind.Film)
+        };
+        _mocker.GetMock<IPodcastEpisodeProvider>()
+            .Setup(x => x.GetUntweetedPodcastEpisodes(It.IsAny<bool>(), It.IsAny<bool>(),
+                It.IsAny<IReadOnlyList<PodcastEpisode>?>()))
+            .ReturnsAsync([]);
+        _mocker.GetMock<ICataloguePlayableSocialPosts>()
+            .Setup(x => x.GetUntweeted())
+            .ReturnsAsync([first, second]);
+        _mocker.GetMock<ITweetPoster>()
+            .Setup(x => x.PostTweet(first, It.IsAny<Uri?>(), It.IsAny<bool>()))
+            .ReturnsAsync(new PostTweetResponse(TweetSendStatus.PaymentRequired, "tweet"));
+        _mocker.GetMock<ITweetPoster>()
+            .Setup(x => x.PostTweet(second, It.IsAny<Uri?>(), It.IsAny<bool>()))
+            .ReturnsAsync(new PostTweetResponse(TweetSendStatus.Sent));
+        var sut = _mocker.CreateInstance<Tweeter>();
+
+        // Act
+        await sut.Tweet(youTubeRefreshed: true, spotifyRefreshed: true);
+
+        // Assert
+        _mocker.GetMock<ICataloguePlayableSocialPosts>().Verify(x => x.GetUntweeted(), Times.Once);
+        _mocker.GetMock<ITweetPoster>().Verify(x => x.PostTweet(first, It.IsAny<Uri?>(), It.IsAny<bool>()), Times.Once);
+        _mocker.GetMock<ITweetPoster>().Verify(x => x.PostTweet(second, It.IsAny<Uri?>(), It.IsAny<bool>()), Times.Never);
     }
 
     [Fact(DisplayName =
