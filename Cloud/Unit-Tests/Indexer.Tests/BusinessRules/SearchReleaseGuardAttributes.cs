@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Episodes.TestSupport.TimeZones;
 using Xunit;
 
 namespace Indexer.Tests.BusinessRules;
@@ -8,7 +9,7 @@ internal static class SearchReleaseGuard
     /// <summary>Set to <c>1</c> by the guard in the child test host only.</summary>
     public const string ChildVariable = "SEARCH_RELEASE_GUARD";
 
-    public const string EastOfUtcZone = "Pacific/Auckland";
+    public const string EastOfUtcZone = EastOfUtcChildTestHost.EastOfUtcZone;
 
     public static bool InChild => Environment.GetEnvironmentVariable(ChildVariable) == "1";
 }
