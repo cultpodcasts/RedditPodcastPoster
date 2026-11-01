@@ -464,7 +464,7 @@ public class XOAuth2AccessTokenProviderRules
     }
 
     [Fact(DisplayName =
-        "SUGGEST 3: when the OAuth 1.0a re-exchange is refused too, the grant is marked as needing re-authorisation.")]
+        "SUGGEST 3/B: when the OAuth 1.0a re-exchange is refused too with invalid_grant, the grant is marked as needing re-authorisation.")]
     public async Task refused_reexchange_marks_needs_reauth()
     {
         // Arrange
@@ -476,7 +476,7 @@ public class XOAuth2AccessTokenProviderRules
             .ReturnsAsync(new XOAuth2TokenResult(XOAuth2TokenOutcome.Rejected, Error: "invalid_grant"));
         _mocker.GetMock<IXOAuth2TokenClient>()
             .Setup(x => x.ExchangeOAuth1(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new XOAuth2TokenResult(XOAuth2TokenOutcome.Rejected, Error: "invalid_request"));
+            .ReturnsAsync(new XOAuth2TokenResult(XOAuth2TokenOutcome.Rejected, Error: "invalid_grant"));
         var sut = _mocker.CreateInstance<XOAuth2AccessTokenProvider>();
 
         // Act
@@ -485,7 +485,7 @@ public class XOAuth2AccessTokenProviderRules
         // Assert
         token.Should().BeNull();
         _mocker.GetMock<IXOAuth2TokenStore>()
-            .Verify(x => x.MarkNeedsReauth(It.IsAny<XOAuth2TokenSnapshot>(), "invalid_request", _now,
+            .Verify(x => x.MarkNeedsReauth(It.IsAny<XOAuth2TokenSnapshot>(), "invalid_grant", _now,
                 It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -549,5 +549,73 @@ public class XOAuth2AccessTokenProviderRules
 
         // Assert
         token.Should().Be(newerAccessToken);
+    }
+
+    [Theory(DisplayName =
+        "SUGGEST B: a refused token call other than invalid_grant is a request bug, so the lease is released and the grant is not marked; posting resumes once a fix deploys.")]
+    [InlineData("invalid_request")]
+    [InlineData("invalid_scope")]
+    [InlineData(null)]
+    public async Task non_invalid_grant_rejection_releases_without_marking(string? error)
+    {
+        // Arrange
+        ArrangeStored(Snapshot(_storedAccessToken, _storedRefreshToken, _now.AddMinutes(-1)));
+        _mocker.GetMock<IXOAuth2TokenClient>()
+            .Setup(x => x.Refresh(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new XOAuth2TokenResult(XOAuth2TokenOutcome.Rejected, Error: error));
+        var sut = _mocker.CreateInstance<XOAuth2AccessTokenProvider>();
+
+        // Act
+        var token = await sut.GetAccessToken();
+
+        // Assert
+        token.Should().BeNull();
+        _mocker.GetMock<IXOAuth2TokenStore>()
+            .Verify(x => x.MarkNeedsReauth(It.IsAny<XOAuth2TokenSnapshot>(), It.IsAny<string?>(), It.IsAny<DateTime>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<IXOAuth2TokenStore>()
+            .Verify(x => x.ReleaseRefreshLease(It.IsAny<XOAuth2TokenSnapshot>(), CancellationToken.None), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Nit: a request cancelled while reading the saved pair gets null rather than an OperationCanceledException out of Send.")]
+    public async Task cancelled_read_returns_null()
+    {
+        // Arrange
+        using var requestTimeout = new CancellationTokenSource();
+        await requestTimeout.CancelAsync();
+        _mocker.GetMock<IXOAuth2TokenStore>()
+            .Setup(x => x.Get(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException(requestTimeout.Token));
+        var sut = _mocker.CreateInstance<XOAuth2AccessTokenProvider>();
+
+        // Act
+        var act = async () => await sut.GetAccessToken(null, requestTimeout.Token);
+
+        // Assert
+        (await act.Should().NotThrowAsync()).Subject.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Nit: a request cancelled while taking the refresh lease gets null and spends no refresh token.")]
+    public async Task cancelled_lease_take_returns_null()
+    {
+        // Arrange
+        ArrangeStored(Snapshot(_storedAccessToken, _storedRefreshToken, _now.AddMinutes(-1)));
+        using var requestTimeout = new CancellationTokenSource();
+        _mocker.GetMock<IXOAuth2TokenStore>()
+            .Setup(x => x.TryTakeRefreshLease(It.IsAny<XOAuth2TokenSnapshot?>(), It.IsAny<Guid>(), It.IsAny<DateTime>(),
+                It.IsAny<CancellationToken>()))
+            .Callback(() => requestTimeout.Cancel())
+            .ThrowsAsync(new TaskCanceledException());
+        var sut = _mocker.CreateInstance<XOAuth2AccessTokenProvider>();
+
+        // Act
+        var act = async () => await sut.GetAccessToken(null, requestTimeout.Token);
+
+        // Assert
+        (await act.Should().NotThrowAsync()).Subject.Should().BeNull();
+        _mocker.GetMock<IXOAuth2TokenClient>()
+            .Verify(x => x.Refresh(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

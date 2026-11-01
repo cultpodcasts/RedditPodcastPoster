@@ -87,11 +87,13 @@ public sealed class XOAuth2TokenStore(
         {
             var stored = await Get(cancellationToken);
             if (stored is not null && stored.State.HasTokens &&
-                stored.State.RefreshToken != leased.State.RefreshToken)
+                (stored.State.RefreshToken == grant.RefreshToken ||
+                 stored.State.UpdatedUtc >= grant.ObtainedUtc))
             {
-                // Another host saved a newer pair after this lease lapsed (its re-exchange invalidated ours).
+                // Either this host's own earlier (retried) write landed, or another host saved a pair obtained no
+                // earlier than ours (its re-exchange invalidated ours). An older, different pair is overwritten.
                 logger.LogWarning(
-                    "{method}: The X token lease was lost ({status}) and another host has since saved a newer token pair; keeping that pair.",
+                    "{method}: The X token lease was lost ({status}) and the stored token pair is this grant or newer; keeping it.",
                     nameof(SaveTokens), ex.StatusCode);
                 return stored;
             }

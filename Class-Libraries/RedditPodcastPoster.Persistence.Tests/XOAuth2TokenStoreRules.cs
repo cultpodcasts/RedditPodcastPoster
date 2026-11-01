@@ -205,7 +205,8 @@ public class XOAuth2TokenStoreRules
         {
             AccessToken = _fixture.Create<string>(),
             RefreshToken = _fixture.Create<string>(),
-            AccessTokenExpiresUtc = _now.AddHours(2)
+            AccessTokenExpiresUtc = _now.AddHours(2),
+            UpdatedUtc = _grant.ObtainedUtc.AddSeconds(1)
         };
         ArrangeStoredRead(newer);
         var sut = _mocker.CreateInstance<XOAuth2TokenStore>();
@@ -304,5 +305,55 @@ public class XOAuth2TokenStoreRules
         // Assert
         state.Should().NotBeAssignableTo<RedditPodcastPoster.Models.Cosmos.IFileKeyed>();
         json.Should().NotContain("fileKey");
+    }
+
+    [Fact(DisplayName =
+        "SUGGEST A: if this host's own earlier save landed (the stored refresh token is the grant's), the retry keeps it and does not upsert.")]
+    public async Task save_retry_after_own_write_keeps_it()
+    {
+        // Arrange
+        ArrangeReplaceThrows(HttpStatusCode.PreconditionFailed);
+        var own = new XOAuth2TokenState
+        {
+            AccessToken = _grant.AccessToken,
+            RefreshToken = _grant.RefreshToken,
+            AccessTokenExpiresUtc = _grant.AccessTokenExpiresUtc,
+            UpdatedUtc = _grant.ObtainedUtc
+        };
+        ArrangeStoredRead(own);
+        var sut = _mocker.CreateInstance<XOAuth2TokenStore>();
+
+        // Act
+        var saved = await sut.SaveTokens(_current, _grant);
+
+        // Assert
+        saved.State.Should().BeSameAs(own);
+        _mocker.GetMock<Container>().Verify(c => c.UpsertItemAsync(It.IsAny<XOAuth2TokenState>(),
+            It.IsAny<PartitionKey?>(), It.IsAny<ItemRequestOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "SUGGEST A: if the lease was lost and the stored pair differs but was obtained before this grant (a stalled host's pair our re-exchange invalidated), this grant is upserted over it.")]
+    public async Task save_after_lost_lease_overwrites_older_different_pair()
+    {
+        // Arrange
+        ArrangeReplaceThrows(HttpStatusCode.PreconditionFailed);
+        ArrangeStoredRead(new XOAuth2TokenState
+        {
+            AccessToken = _fixture.Create<string>(),
+            RefreshToken = _fixture.Create<string>(),
+            AccessTokenExpiresUtc = _now.AddHours(2),
+            UpdatedUtc = _grant.ObtainedUtc.AddSeconds(-5)
+        });
+        var sut = _mocker.CreateInstance<XOAuth2TokenStore>();
+
+        // Act
+        var saved = await sut.SaveTokens(_current, _grant);
+
+        // Assert
+        saved.State.RefreshToken.Should().Be(_grant.RefreshToken);
+        _mocker.GetMock<Container>().Verify(c => c.UpsertItemAsync(
+            It.Is<XOAuth2TokenState>(x => x.RefreshToken == _grant.RefreshToken), _partition,
+            It.IsAny<ItemRequestOptions>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

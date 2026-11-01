@@ -32,6 +32,9 @@ public sealed class XOAuth2AccessTokenProvider(
     /// <summary>Longer than a token call's timeout, so a live refresher keeps its lease; a dead one's lapses.</summary>
     public static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(60);
 
+    /// <summary>The only token-endpoint error that pauses posting: other 400s are request bugs a deploy can fix.</summary>
+    public const string InvalidGrant = "invalid_grant";
+
     public static readonly TimeSpan WaitInterval = TimeSpan.FromSeconds(1);
 
     private readonly TwitterOptions _options = options.Value;
@@ -53,7 +56,17 @@ public sealed class XOAuth2AccessTokenProvider(
         var maxWaits = MaxWaits(_options);
         for (var wait = 0; wait <= maxWaits; wait++)
         {
-            var snapshot = await tokenStore.Get(cancellationToken);
+            XOAuth2TokenSnapshot? snapshot;
+            try
+            {
+                snapshot = await tokenStore.Get(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning("X OAuth 2.0: the request was cancelled while reading the saved token pair.");
+                return null;
+            }
+
             if (snapshot is null || !snapshot.State.HasTokens)
             {
                 logger.LogError(
@@ -79,8 +92,19 @@ public sealed class XOAuth2AccessTokenProvider(
 
             if (!state.IsRefreshLeaseHeld(now))
             {
-                var leased = await tokenStore.TryTakeRefreshLease(snapshot, attemptId, now + LeaseDuration,
-                    cancellationToken);
+                XOAuth2TokenSnapshot? leased;
+                try
+                {
+                    leased = await tokenStore.TryTakeRefreshLease(snapshot, attemptId, now + LeaseDuration,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // No refresh token has been spent; a lease that did commit lapses after LeaseDuration.
+                    logger.LogWarning("X OAuth 2.0: the request was cancelled while taking the token refresh lease.");
+                    return null;
+                }
+
                 if (leased is not null)
                 {
                     // From here the single-use refresh token is being spent: never let the caller's (request
@@ -122,7 +146,7 @@ public sealed class XOAuth2AccessTokenProvider(
                 CancellationToken.None);
         }
 
-        if (result is {Outcome: XOAuth2TokenOutcome.Rejected})
+        if (result is {Outcome: XOAuth2TokenOutcome.Rejected, Error: InvalidGrant})
         {
             // The grant itself is refused and nothing automatic can fix it: stop every host calling the token
             // endpoint on each request until a new pair is saved.
