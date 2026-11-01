@@ -135,15 +135,19 @@ public class TwitterClient(
         return false;
     }
 
-    public async Task<GetTweetsResponseWrapper> GetTimelineSince(DateTimeOffset startTime, string? paginationToken)
+    public async Task<GetTweetsResponseWrapper> GetTimelineSince(DateTimeOffset startTime, DateTimeOffset? endTime,
+        string? paginationToken)
     {
         var oauth = new OAuthMessageHandler(_options.ConsumerKey, _options.ConsumerSecret, _options.AccessToken,
             _options.AccessTokenSecret);
 
         var query = new StringBuilder(
             $"https://api.twitter.com/2/users/{_options.TwitterId}/tweets?tweet.fields=entities&max_results={TimelinePageSize}");
-        query.Append("&start_time=").Append(Uri.EscapeDataString(
-            startTime.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture)));
+        query.Append("&start_time=").Append(Uri.EscapeDataString(ToXTime(startTime)));
+        if (endTime.HasValue)
+        {
+            query.Append("&end_time=").Append(Uri.EscapeDataString(ToXTime(endTime.Value)));
+        }
         if (!string.IsNullOrWhiteSpace(paginationToken))
         {
             query.Append("&pagination_token=").Append(Uri.EscapeDataString(paginationToken));
@@ -177,6 +181,9 @@ public class TwitterClient(
             startTime, response.StatusCode);
         return new GetTweetsResponseWrapper(GetTweetsState.Other);
     }
+
+    private static string ToXTime(DateTimeOffset time) =>
+        time.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture);
 
     public async Task<DeleteTweetState> DeleteTweetById(string tweetId)
     {

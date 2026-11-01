@@ -13,6 +13,7 @@ public static class TweetResponseReader
 {
     private const string ResourceNotFoundProblem = "https://api.twitter.com/2/problems/resource-not-found";
     private const string ResourceNotFoundProblemX = "https://api.x.com/2/problems/resource-not-found";
+    private const string NotFoundErrorTitle = "Not Found Error";
 
     /// <summary>
     /// The new post's id from a <c>POST /2/tweets</c> success body, or null when the body has none or is not JSON.
@@ -36,14 +37,13 @@ public static class TweetResponseReader
         }
     }
 
-    /// <summary>Maps a <c>DELETE /2/tweets/:id</c> response. Only an explicit <c>deleted: true</c> counts as deleted.</summary>
+    /// <summary>
+    /// Maps a <c>DELETE /2/tweets/:id</c> response. Only an explicit <c>deleted: true</c> counts as deleted.
+    /// NotFound (which lets the caller clear Tweeted) needs X to say so: a <c>resource-not-found</c> problem or a
+    /// <c>Not Found Error</c> title. A bare 404 (a wrong URL, a proxy, an HTML page) is <see cref="DeleteTweetState.Failed"/>.
+    /// </summary>
     public static DeleteTweetState ReadDeleteState(HttpStatusCode statusCode, string? body)
     {
-        if (statusCode == HttpStatusCode.NotFound)
-        {
-            return DeleteTweetState.NotFound;
-        }
-
         if (statusCode == HttpStatusCode.TooManyRequests)
         {
             return DeleteTweetState.TooManyRequests;
@@ -62,6 +62,11 @@ public static class TweetResponseReader
             }
         }
 
+        if (statusCode == HttpStatusCode.NotFound)
+        {
+            return parsed != null && IsNotFoundProblem(parsed) ? DeleteTweetState.NotFound : DeleteTweetState.Failed;
+        }
+
         if ((int) statusCode is >= 200 and < 300)
         {
             if (parsed?.Data?.Deleted == true)
@@ -69,7 +74,7 @@ public static class TweetResponseReader
                 return DeleteTweetState.Deleted;
             }
 
-            if (parsed?.Errors?.Any(IsResourceNotFound) == true)
+            if (parsed?.Errors?.Any(error => IsNotFound(error.Type, error.Title)) == true)
             {
                 return DeleteTweetState.NotFound;
             }
@@ -82,7 +87,12 @@ public static class TweetResponseReader
     public static bool IsTweetId(string? id) =>
         !string.IsNullOrEmpty(id) && id.Length <= 19 && id.All(char.IsAsciiDigit);
 
-    private static bool IsResourceNotFound(DeleteTweetResponseError error) =>
-        string.Equals(error.Type, ResourceNotFoundProblem, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(error.Type, ResourceNotFoundProblemX, StringComparison.OrdinalIgnoreCase);
+    private static bool IsNotFoundProblem(DeleteTweetResponseBody problem) =>
+        IsNotFound(problem.Type, problem.Title) ||
+        problem.Errors?.Any(error => IsNotFound(error.Type, error.Title)) == true;
+
+    private static bool IsNotFound(string? type, string? title) =>
+        string.Equals(type, ResourceNotFoundProblem, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(type, ResourceNotFoundProblemX, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(title, NotFoundErrorTitle, StringComparison.OrdinalIgnoreCase);
 }

@@ -38,6 +38,15 @@ public class TweetPoster(
             // The id is only known for a new post. A duplicate-content refusal keeps any id already stored.
             if (tweetStatus.TweetSendStatus == TweetSendStatus.Sent && !string.IsNullOrWhiteSpace(tweetStatus.TweetId))
             {
+                var previousTweetId = podcastEpisode.Episode.TweetId;
+                if (!string.IsNullOrWhiteSpace(previousTweetId) && previousTweetId != tweetStatus.TweetId)
+                {
+                    // Posting an already-tweeted item (#1205). Log the older id so that post can still be found.
+                    logger.LogWarning(
+                        "Episode-id '{EpisodeId}' of podcast-id '{PodcastId}' already had tweet-id '{PreviousTweetId}'; replacing it with new tweet-id '{TweetId}'. The older post may still be live.",
+                        podcastEpisode.Episode.Id, podcastEpisode.Podcast.Id, previousTweetId, tweetStatus.TweetId);
+                }
+
                 podcastEpisode.Episode.TweetId = tweetStatus.TweetId;
             }
 

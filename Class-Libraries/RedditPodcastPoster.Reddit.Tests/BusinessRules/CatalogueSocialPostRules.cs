@@ -505,7 +505,7 @@ public class CatalogueSocialPostRules
             await _mocker.CreateInstance<TweetBuilder>().BuildTweet(item, CataloguePlayableSiteLink.For(item)));
         var unrelated = new Tweet { Id = "2", Text = "\"Something else\"\n1998\nhttps://t.co/other" };
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), null))
+            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [unrelated, tweet]));
         _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweetById(tweet.Id)).ReturnsAsync(DeleteTweetState.Deleted);
         var sut = _mocker.CreateInstance<TweetManager>();
