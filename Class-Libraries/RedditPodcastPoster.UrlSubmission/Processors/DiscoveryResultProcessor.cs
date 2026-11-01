@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Apple.Categorisers;
@@ -19,7 +20,8 @@ public class DiscoveryResultProcessor(
     ISpotifyUrlCategoriser spotifyUrlCategoriser,
     IAppleUrlCategoriser appleUrlCategoriser,
     IYouTubeUrlCategoriser youTubeUrlCategoriser,
-    ICategorisedItemProcessor categorisedItemProcessor) : IDiscoveryResultProcessor
+    ICategorisedItemProcessor categorisedItemProcessor,
+    IOptions<SubmitContentTypesOptions>? submitContentTypes = null) : IDiscoveryResultProcessor
 {
     public async Task<SubmitResult> CreateSubmitResult(DiscoveryResult discoveryResult, IndexingContext indexingContext,
         SubmitOptions submitOptions, Podcast? spotifyPodcast, Podcast? applePodcast, Podcast? youTubePodcast)
@@ -42,6 +44,17 @@ public class DiscoveryResultProcessor(
             categorisedItem = await ExtractYouTube(categorisedItem, discoveryResult.Urls, indexingContext);
         }
 
+        if (submitContentTypes?.Value is { Enabled: true } && submitOptions.ClassificationSignals is null)
+        {
+            // Same signals as the toolbar submit (UrlSubmitter), from the URL the item was categorised from, so a
+            // discovered film, TV show episode or news report is kind-classified by CatalogueKindSubmitter rather
+            // than always taking the podcast-episode path.
+            submitOptions = submitOptions with
+            {
+                ClassificationSignals = SubmitContentClassifier.FromSubmission(result.CategorisedUrl, categorisedItem)
+            };
+        }
+
         var submitResult = await categorisedItemProcessor.ProcessCategorisedItem(categorisedItem, submitOptions);
         return submitResult;
     }
@@ -52,10 +65,12 @@ public class DiscoveryResultProcessor(
     {
         bool enrichSpotify = false, enrichApple = false, enrichYouTube = false;
         CategorisedItem categorisedItem;
+        Uri categorisedUrl;
         if (discoveryResult.Urls.Spotify != null &&
             (spotifyPodcast != null || (applePodcast == null && youTubePodcast == null)))
         {
-            categorisedItem = await urlCategoriser.Categorise(spotifyPodcast, discoveryResult.Urls.Spotify,
+            categorisedUrl = discoveryResult.Urls.Spotify;
+            categorisedItem = await urlCategoriser.Categorise(spotifyPodcast, categorisedUrl,
                 indexingContext, submitOptions.MatchOtherServices);
             if (discoveryResult.Urls.Apple != null)
             {
@@ -70,7 +85,8 @@ public class DiscoveryResultProcessor(
         else if (discoveryResult.Urls.Apple != null &&
                  (applePodcast != null || (spotifyPodcast == null && youTubePodcast == null)))
         {
-            categorisedItem = await urlCategoriser.Categorise(applePodcast, discoveryResult.Urls.Apple, indexingContext,
+            categorisedUrl = discoveryResult.Urls.Apple;
+            categorisedItem = await urlCategoriser.Categorise(applePodcast, categorisedUrl, indexingContext,
                 submitOptions.MatchOtherServices);
             if (discoveryResult.Urls.YouTube != null)
             {
@@ -84,7 +100,8 @@ public class DiscoveryResultProcessor(
         }
         else
         {
-            categorisedItem = await urlCategoriser.Categorise(youTubePodcast, discoveryResult.Urls.YouTube!,
+            categorisedUrl = discoveryResult.Urls.YouTube!;
+            categorisedItem = await urlCategoriser.Categorise(youTubePodcast, categorisedUrl,
                 indexingContext, submitOptions.MatchOtherServices);
             if (discoveryResult.Urls.Apple != null)
             {
@@ -97,7 +114,8 @@ public class DiscoveryResultProcessor(
             }
         }
 
-        return new CreateCategorisedItemResponse(categorisedItem, enrichSpotify, enrichApple, enrichYouTube);
+        return new CreateCategorisedItemResponse(categorisedItem, categorisedUrl, enrichSpotify, enrichApple,
+            enrichYouTube);
     }
 
     private async Task<CategorisedItem> ExtractSpotify(

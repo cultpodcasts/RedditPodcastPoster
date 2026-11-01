@@ -3,6 +3,7 @@ using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Adaptors;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Processors;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -79,12 +80,42 @@ public class DiscoveryUrlSubmitter(
             return ProbeResult(submitResult);
         }
 
+        if (submitResult.Rejected || submitResult.RequiresCurator)
+        {
+            throw new InvalidOperationException(
+                $"Discovery-result '{discoveryResult.Id}' was classified as {submitResult.ContentKind} but " +
+                (submitResult.Rejected ? "the URL is not accepted for submit." : "needs a curator to confirm it."));
+        }
+
         var state = submitResultAdaptor.ToDiscoverySubmitResultState(submitResult);
-        // Defensive plumbing only: discovery does not kind-classify today (it never sets
-        // SubmitOptions.ClassificationSignals, so CatalogueKindSubmitter returns null and FilmSearchSource is null
-        // here). If discovery starts routing films / TV / news, carry PlayableId, ContentKind and
-        // CatalogueSearchSource too and test through this submitter.
-        return new DiscoverySubmitResult(state, submitResult.Episode, FilmSearchSource: submitResult.FilmSearchSource);
+        return KindOrEpisodeResult(state, submitResult);
+    }
+
+    /// <summary>
+    /// The podcast pipeline result, carrying a kind-classified film / TV show episode / news report (created by
+    /// <see cref="CatalogueKindSubmitter"/> from the discovery classification signals) so the curation host records
+    /// its id and kind and indexes it now. A podcast episode keeps a null content kind, so the host still indexes it
+    /// through the episodes container.
+    /// </summary>
+    private static DiscoverySubmitResult KindOrEpisodeResult(
+        DiscoverySubmitResultState state,
+        SubmitResult submitResult)
+    {
+        var isKind = submitResult.ContentKind is
+            SubmitClassification.Film or SubmitClassification.TvShowEpisode or SubmitClassification.NewsReport;
+        if (!isKind)
+        {
+            return new DiscoverySubmitResult(state, submitResult.Episode);
+        }
+
+        return new DiscoverySubmitResult(
+            state,
+            ContentKind: submitResult.ContentKind,
+            PlayableId: submitResult.PlayableId,
+            // A film has no parent; a TV show episode / news report's search source carries its parent's id.
+            ParentId: submitResult.CatalogueSearchSource?.Parent.Id,
+            CatalogueSearchSource: submitResult.CatalogueSearchSource,
+            FilmSearchSource: submitResult.FilmSearchSource);
     }
 
     private async Task<RoutedUrl?> Route(Uri? url, IndexingContext indexingContext) =>
