@@ -62,8 +62,8 @@ public class TwitterClientRules
     }
 
     [Fact(DisplayName =
-        "A 403 that only mentions duplicate content outside the error fields is not treated as a duplicate.")]
-    public async Task forbidden_without_duplicate_detail_is_failed()
+        "A 403 that only mentions duplicate content outside the error fields is not a duplicate, so the send is AuthenticationFailed and the run stops.")]
+    public async Task forbidden_without_duplicate_detail_is_authentication_failed()
     {
         // Arrange
         _x.Respond(HttpStatusCode.Forbidden,
@@ -74,7 +74,7 @@ public class TwitterClientRules
         var result = await sut.Send(_tweet);
 
         // Assert
-        result.TweetSendStatus.Should().Be(TweetSendStatus.Failed);
+        result.TweetSendStatus.Should().Be(TweetSendStatus.AuthenticationFailed);
     }
 
     [Fact(DisplayName = "A 429 is reported as TooManyRequests even when the reset header is malformed.")]
