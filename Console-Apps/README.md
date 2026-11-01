@@ -726,9 +726,9 @@ flowchart LR
 
 #### PublicDatabase repo: README and `.gitignore` (process)
 
-**PublicDatabase changes are never branches or PRs.** Nothing is pushed to the PublicDatabase repo except by Jon. Changes to its README, `.gitignore` or `update.ps1` copy are prepared here, in RedditPodcastPoster. After the next public-database export, Jon commits them straight to PublicDatabase `main` (#1040).
+**PublicDatabase changes are never branches or PRs.** Nothing is pushed to the PublicDatabase repo except by Jon. Changes to its README, `.gitignore` or `update.ps1` copy are prepared here, in RedditPodcastPoster. After the next weekly publish has been pushed (`.\update.ps1 -Push` done), Jon commits them straight to PublicDatabase `main` and pushes that commit himself (#1040). Not between `-Apply` and `-Push`: `-Push` would then see a commit that isn't `New episodes ...` and touches files other than top-level `*.json`, and it would warn and ask `Push anyway? [y/N]`. The commit must not touch the top-level `*.json` files, which `-Apply`/`-Push` treat as published data.
 
-Pending (#1040, to apply after the next export):
+Pending (#1040, to apply after the next weekly publish has been pushed):
 
 1. **`.gitignore`:** add `*.json.tmp`. The script publishes outside the repo, so this is only a backstop. An interrupted publisher run inside the checkout leaves staged `{key}.json.tmp` files, and a manual `git add -A` would otherwise commit them.
 
@@ -742,7 +742,7 @@ Pending (#1040, to apply after the next export):
    ~~~~markdown
    ## Weekly update script
 
-   `update.ps1` runs the weekly publish. Its source of truth is [`Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1`](https://github.com/cultpodcasts/RedditPodcastPoster/blob/main/Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1) in RedditPodcastPoster. Copy it here again after every change; it warns when this copy differs from that clone's HEAD. The script's own help (`Get-Help .\update.ps1 -Full`) has the details.
+   `update.ps1` runs the weekly publish. Its source of truth is [`Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1`](https://github.com/cultpodcasts/RedditPodcastPoster/blob/main/Console-Apps/CultPodcasts.DatabasePublisher/PublicDatabaseScripts/update.ps1) in RedditPodcastPoster. Copy it here again after every change; on every run it warns when this copy differs from the script at `HEAD` of your local RedditPodcastPoster clone (`-SourceRepo`; pull it first to compare with the latest `main`). The script's own help (`Get-Help .\update.ps1 -Full`) has the details.
 
    It works in three separate runs. The dry run changes nothing in this repo, `-Apply` commits only locally, and only `-Push` pushes:
 
