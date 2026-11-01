@@ -33,16 +33,25 @@ public sealed class XOAuth2AccessTokenProvider(
     public static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(60);
 
     public static readonly TimeSpan WaitInterval = TimeSpan.FromSeconds(1);
-    public const int MaxWaits = 20;
-    private const int SaveAttempts = 3;
 
     private readonly TwitterOptions _options = options.Value;
+
+    /// <summary>
+    /// How long to wait for another host's refresh: half the X request timeout (at least one interval), so a waiting
+    /// request fails cleanly before the outer <c>HttpClient.Timeout</c> cancels it.
+    /// </summary>
+    public static int MaxWaits(TwitterOptions options)
+    {
+        var timeoutSeconds = options.RequestTimeoutSeconds > 0 ? options.RequestTimeoutSeconds : 15;
+        return Math.Max(1, (int) (TimeSpan.FromSeconds(timeoutSeconds / 2.0) / WaitInterval));
+    }
 
     public async Task<string?> GetAccessToken(string? rejectedAccessToken = null,
         CancellationToken cancellationToken = default)
     {
         var attemptId = Guid.NewGuid();
-        for (var wait = 0; wait <= MaxWaits; wait++)
+        var maxWaits = MaxWaits(_options);
+        for (var wait = 0; wait <= maxWaits; wait++)
         {
             var snapshot = await tokenStore.Get(cancellationToken);
             if (snapshot is null || !snapshot.State.HasTokens)
@@ -52,8 +61,16 @@ public sealed class XOAuth2AccessTokenProvider(
                 return null;
             }
 
-            var now = timeProvider.GetUtcNow().UtcDateTime;
             var state = snapshot.State;
+            if (state.NeedsReauth)
+            {
+                logger.LogWarning(
+                    "X OAuth 2.0: the saved grant needs re-authorisation since {Since:O} ({Reason}); not calling X. Run the XOAuth2TokenExchange console.",
+                    state.NeedsReauthSinceUtc, state.NeedsReauthReason);
+                return null;
+            }
+
+            var now = timeProvider.GetUtcNow().UtcDateTime;
             var rejected = rejectedAccessToken is not null && rejectedAccessToken == state.AccessToken;
             if (!rejected && state.IsAccessTokenValid(now, ExpirySkew))
             {
@@ -66,25 +83,35 @@ public sealed class XOAuth2AccessTokenProvider(
                     cancellationToken);
                 if (leased is not null)
                 {
-                    return await RefreshHoldingLease(leased, cancellationToken);
+                    // From here the single-use refresh token is being spent: never let the caller's (request
+                    // timeout) cancellation cut it short. The token client has its own timeout, inside the lease.
+                    return await RefreshHoldingLease(leased);
                 }
             }
 
-            if (wait < MaxWaits)
+            if (wait < maxWaits)
             {
                 // Another host is refreshing; its new pair appears in LookUps when it finishes.
-                await Task.Delay(WaitInterval, timeProvider, cancellationToken);
+                try
+                {
+                    await Task.Delay(WaitInterval, timeProvider, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    logger.LogWarning("X OAuth 2.0: the request was cancelled while waiting for another host's token refresh.");
+                    return null;
+                }
             }
         }
 
         logger.LogWarning("X OAuth 2.0: another host's token refresh did not finish within {Seconds}s.",
-            (int) (WaitInterval * MaxWaits).TotalSeconds);
+            (int) (WaitInterval * maxWaits).TotalSeconds);
         return null;
     }
 
-    private async Task<string?> RefreshHoldingLease(XOAuth2TokenSnapshot leased, CancellationToken cancellationToken)
+    private async Task<string?> RefreshHoldingLease(XOAuth2TokenSnapshot leased)
     {
-        var result = await tokenClient.Refresh(leased.State.RefreshToken!, cancellationToken);
+        var result = await tokenClient.Refresh(leased.State.RefreshToken!, CancellationToken.None);
         if (result is {Outcome: XOAuth2TokenOutcome.Rejected} && HasOAuth1Credentials())
         {
             // X's guidance: a lost or expired refresh token is recovered by exchanging the OAuth 1.0a token again,
@@ -92,7 +119,23 @@ public sealed class XOAuth2AccessTokenProvider(
             logger.LogWarning("X OAuth 2.0 refresh token was refused ({Error}); exchanging the OAuth 1.0a token again.",
                 result.Error);
             result = await tokenClient.ExchangeOAuth1(_options.AccessToken!, _options.AccessTokenSecret!,
-                cancellationToken);
+                CancellationToken.None);
+        }
+
+        if (result is {Outcome: XOAuth2TokenOutcome.Rejected})
+        {
+            // The grant itself is refused and nothing automatic can fix it: stop every host calling the token
+            // endpoint on each request until a new pair is saved.
+            var marked = await tokenStore.MarkNeedsReauth(leased, result.Error,
+                timeProvider.GetUtcNow().UtcDateTime, CancellationToken.None);
+            if (marked)
+            {
+                logger.LogCritical(
+                    "X OAuth 2.0: X refused the saved grant ({Error}) and it could not be recovered automatically. Posting to X is paused until the XOAuth2TokenExchange console saves a new pair.",
+                    result.Error);
+            }
+
+            return null;
         }
 
         if (result is not {Outcome: XOAuth2TokenOutcome.Success, Grant: not null})
@@ -103,25 +146,8 @@ public sealed class XOAuth2AccessTokenProvider(
         }
 
         // The refresh token we sent is now dead; the new pair must be saved before the access token is used.
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                await tokenStore.SaveTokens(leased, result.Grant, CancellationToken.None);
-                return result.Grant.AccessToken;
-            }
-            catch (Exception ex) when (attempt < SaveAttempts)
-            {
-                logger.LogWarning(ex, "X OAuth 2.0: saving the rotated token pair failed (attempt {Attempt}); retrying.",
-                    attempt);
-            }
-            catch (Exception ex)
-            {
-                logger.LogCritical(ex,
-                    "X OAuth 2.0: the rotated token pair could not be saved. The stored refresh token is now invalid; run the XOAuth2TokenExchange console again.");
-                return null;
-            }
-        }
+        var saved = await XOAuth2TokenPersistence.SaveRotatedPair(tokenStore, leased, result.Grant, logger);
+        return saved?.State.AccessToken;
     }
 
     private bool HasOAuth1Credentials() =>

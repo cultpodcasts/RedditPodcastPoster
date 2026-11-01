@@ -137,4 +137,21 @@ public class XOAuth2TokenClientRules
         // Assert
         text.Should().NotContain(grant.AccessToken).And.NotContain(grant.RefreshToken);
     }
+
+    [Fact(DisplayName =
+        "FIX 1: a 200 with an unreadable body is a Transient result, not an exception, so the holder of the lease can release it.")]
+    public async Task malformed_success_body_is_transient()
+    {
+        // Arrange
+        _x.Respond(HttpStatusCode.OK, "<html>not json</html>");
+        var sut = _mocker.CreateInstance<XOAuth2TokenClient>();
+
+        // Act
+        var result = await sut.Refresh(_fixture.Create<string>());
+
+        // Assert
+        result.Outcome.Should().Be(XOAuth2TokenOutcome.Transient);
+        result.Error.Should().Be("invalid_response");
+        result.Grant.Should().BeNull();
+    }
 }

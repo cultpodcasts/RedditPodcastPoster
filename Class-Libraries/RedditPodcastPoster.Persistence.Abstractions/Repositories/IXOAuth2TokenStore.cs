@@ -24,13 +24,25 @@ public interface IXOAuth2TokenStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Saves a new token pair and clears the lease, If-Match on the leased etag. If the etag no longer matches (the
-    /// lease was taken over), the pair is still saved unconditionally, because X has already invalidated the old
-    /// refresh token and losing the new one would strand the account.
+    /// Saves a new token pair and clears the lease and any needs-reauth marker, If-Match on the leased etag. If the
+    /// etag no longer matches (the lease was taken over), the document is re-read: when it still holds the refresh
+    /// token this attempt spent, the pair is saved unconditionally (X has already invalidated the old refresh token,
+    /// so losing the new one would strand the account); when another host has already saved a newer pair, that pair
+    /// is kept and returned instead. Use the returned snapshot's access token.
     /// </summary>
     Task<XOAuth2TokenSnapshot> SaveTokens(
         XOAuth2TokenSnapshot leased,
         XOAuth2TokenGrant grant,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Marks the stored grant as needing re-authorisation (and clears the lease), If-Match on the leased etag.
+    /// Returns false when another host changed the document first.
+    /// </summary>
+    Task<bool> MarkNeedsReauth(
+        XOAuth2TokenSnapshot leased,
+        string? reason,
+        DateTime sinceUtc,
         CancellationToken cancellationToken = default);
 
     /// <summary>Clears the lease if this attempt still holds it. Never throws for a lost or missing document.</summary>

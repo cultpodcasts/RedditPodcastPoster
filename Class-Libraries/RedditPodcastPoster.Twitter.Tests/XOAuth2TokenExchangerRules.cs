@@ -193,4 +193,43 @@ public class XOAuth2TokenExchangerRules
             .Verify(x => x.SaveTokens(It.IsAny<XOAuth2TokenSnapshot>(), It.IsAny<XOAuth2TokenGrant>(),
                 It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact(DisplayName =
+        "SUGGEST 6: a save that keeps failing after a successful exchange is retried, then reported as SaveFailed (exit 1) instead of throwing.")]
+    public async Task failed_save_after_exchange_is_retried_and_reported()
+    {
+        // Arrange
+        _mocker.GetMock<IXOAuth2TokenStore>()
+            .Setup(x => x.SaveTokens(It.IsAny<XOAuth2TokenSnapshot>(), It.IsAny<XOAuth2TokenGrant>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("synthetic"));
+        var sut = _mocker.CreateInstance<XOAuth2TokenExchanger>();
+
+        // Act
+        var result = await sut.Run(true);
+
+        // Assert
+        result.Outcome.Should().Be(XOAuth2TokenExchangeOutcome.SaveFailed);
+        result.Succeeded.Should().BeFalse();
+        result.Report.Should().Contain(l => l.Contains("NOT saved"));
+        _mocker.GetMock<IXOAuth2TokenStore>()
+            .Verify(x => x.SaveTokens(_saved, _grant, CancellationToken.None),
+                Times.Exactly(XOAuth2TokenPersistence.SaveAttempts));
+        AssertNoSecretsIn(result);
+    }
+
+    [Fact(DisplayName = "SUGGEST 3: the dry run reports a grant marked as needing re-authorisation.")]
+    public async Task dry_run_reports_needs_reauth()
+    {
+        // Arrange
+        _saved.State.NeedsReauthSinceUtc = _now.AddHours(-1);
+        _saved.State.NeedsReauthReason = "invalid_grant";
+        var sut = _mocker.CreateInstance<XOAuth2TokenExchanger>();
+
+        // Act
+        var result = await sut.Run(false);
+
+        // Assert
+        result.Report.Should().Contain(l => l.Contains("NEEDS RE-AUTHORISATION") && l.Contains("invalid_grant"));
+    }
 }

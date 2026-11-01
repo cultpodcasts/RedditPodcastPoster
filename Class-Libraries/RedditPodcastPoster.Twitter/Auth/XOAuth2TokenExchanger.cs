@@ -22,7 +22,9 @@ public enum XOAuth2TokenExchangeOutcome
     Exchanged,
     MissingConfiguration,
     RefreshInProgress,
-    ExchangeFailed
+    ExchangeFailed,
+    /// <summary>X issued a new pair (invalidating the old one) but it could not be saved.</summary>
+    SaveFailed
 }
 
 public sealed record XOAuth2TokenExchangeResult(XOAuth2TokenExchangeOutcome Outcome, IReadOnlyList<string> Report)
@@ -109,7 +111,15 @@ public sealed class XOAuth2TokenExchanger(
             return new XOAuth2TokenExchangeResult(XOAuth2TokenExchangeOutcome.ExchangeFailed, report);
         }
 
-        await tokenStore.SaveTokens(leased, result.Grant, CancellationToken.None);
+        // X has now invalidated any previously saved pair, so the save must not be lost to one transient error.
+        var saved = await XOAuth2TokenPersistence.SaveRotatedPair(tokenStore, leased, result.Grant, logger);
+        if (saved is null)
+        {
+            report.Add(
+                $"Exchanged but NOT saved after {XOAuth2TokenPersistence.SaveAttempts} attempts: the previous OAuth 2.0 pair is now invalid. Check Cosmos access and run --execute again.");
+            return new XOAuth2TokenExchangeResult(XOAuth2TokenExchangeOutcome.SaveFailed, report);
+        }
+
         logger.LogInformation("X OAuth 2.0 token exchange saved a new token pair (expires {ExpiresUtc:O}).",
             result.Grant.AccessTokenExpiresUtc);
         report.Add(
@@ -142,7 +152,10 @@ public sealed class XOAuth2TokenExchanger(
 
         var state = snapshot.State;
         var expiry = state.IsAccessTokenValid(now, TimeSpan.Zero) ? "valid" : "expired";
+        var reauth = state.NeedsReauth
+            ? $" NEEDS RE-AUTHORISATION since {state.NeedsReauthSinceUtc:O} ({state.NeedsReauthReason}); --execute replaces it."
+            : string.Empty;
         return
-            $"Saved OAuth 2.0 pair: from {state.Source} at {state.UpdatedUtc:O}; access token {expiry} (expires {state.AccessTokenExpiresUtc:O}); scopes '{state.Scope}'.";
+            $"Saved OAuth 2.0 pair: from {state.Source} at {state.UpdatedUtc:O}; access token {expiry} (expires {state.AccessTokenExpiresUtc:O}); scopes '{state.Scope}'.{reauth}";
     }
 }

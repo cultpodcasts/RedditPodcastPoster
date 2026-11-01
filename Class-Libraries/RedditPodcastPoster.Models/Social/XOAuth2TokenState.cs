@@ -7,10 +7,11 @@ namespace RedditPodcastPoster.Models.Social;
 /// Cosmos LookUps singleton holding the X (Twitter) OAuth 2.0 user-context token pair for the posting account, plus
 /// the single-refresher lease. X refresh tokens are single-use and rotate, so the newest pair must always be saved
 /// here before the new access token is used. Every write is etag-checked so only one host (Indexer, API or console)
-/// refreshes at a time. Tokens are secrets: never log them, and never add this type to a download or export.
+/// refreshes at a time. Tokens are secrets: never log them, and never add this type to a download or export. It is
+/// deliberately not <see cref="IFileKeyed"/>, so it cannot be added to the file-keyed LookUps backup or publish.
 /// </summary>
 [CosmosSelector(ModelType.XOAuth2TokenState)]
-public sealed class XOAuth2TokenState : CosmosSelector, IFileKeyed
+public sealed class XOAuth2TokenState : CosmosSelector
 {
     public static readonly Guid _Id = Guid.Parse("5b0f7c1e-2d4a-4f6b-9e83-1c7a2d9f4e60");
 
@@ -56,6 +57,23 @@ public sealed class XOAuth2TokenState : CosmosSelector, IFileKeyed
     [JsonPropertyOrder(17)]
     public DateTime? RefreshLeaseUntilUtc { get; set; }
 
+    /// <summary>
+    /// Set when X refused the stored grant and no automatic recovery worked (refresh and OAuth 1.0a re-exchange both
+    /// refused, or re-exchange unavailable). Hosts stop calling the token endpoint until a new pair is saved, which
+    /// clears it.
+    /// </summary>
+    [JsonPropertyName("needsReauthSinceUtc")]
+    [JsonPropertyOrder(18)]
+    public DateTime? NeedsReauthSinceUtc { get; set; }
+
+    /// <summary>The token endpoint's error code when <see cref="NeedsReauthSinceUtc"/> was set.</summary>
+    [JsonPropertyName("needsReauthReason")]
+    [JsonPropertyOrder(19)]
+    public string? NeedsReauthReason { get; set; }
+
+    [JsonIgnore]
+    public bool NeedsReauth => NeedsReauthSinceUtc.HasValue;
+
     [JsonIgnore]
     public bool HasTokens => !string.IsNullOrWhiteSpace(AccessToken) && !string.IsNullOrWhiteSpace(RefreshToken);
 
@@ -65,8 +83,4 @@ public sealed class XOAuth2TokenState : CosmosSelector, IFileKeyed
     public bool IsAccessTokenValid(DateTime nowUtc, TimeSpan skew) =>
         !string.IsNullOrWhiteSpace(AccessToken) && AccessTokenExpiresUtc.HasValue &&
         AccessTokenExpiresUtc.Value - skew > nowUtc;
-
-    [JsonPropertyName("fileKey")]
-    [JsonPropertyOrder(1000)]
-    public string FileKey => nameof(XOAuth2TokenState);
 }

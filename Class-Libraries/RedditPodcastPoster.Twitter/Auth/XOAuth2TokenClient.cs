@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -101,7 +102,20 @@ public sealed class XOAuth2TokenClient(
         {
             if (response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken);
+                TokenResponse? body;
+                try
+                {
+                    body = await response.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken);
+                }
+                catch (Exception ex) when (ex is JsonException or NotSupportedException or HttpRequestException ||
+                                           (ex is TaskCanceledException && !cancellationToken.IsCancellationRequested))
+                {
+                    logger.LogError("X OAuth 2.0 {Source} returned success with an unreadable body: {ExceptionType}.",
+                        source, ex.GetType().Name);
+                    return new XOAuth2TokenResult(XOAuth2TokenOutcome.Transient, StatusCode: response.StatusCode,
+                        Error: "invalid_response");
+                }
+
                 if (body is null || string.IsNullOrWhiteSpace(body.AccessToken) || string.IsNullOrWhiteSpace(body.RefreshToken))
                 {
                     logger.LogError("X OAuth 2.0 {Source} returned success without an access and refresh token.", source);

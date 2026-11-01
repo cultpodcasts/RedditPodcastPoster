@@ -75,6 +75,8 @@ public sealed class XOAuth2TokenStore(
         saved.Source = grant.Source;
         saved.RefreshLeaseAttemptId = null;
         saved.RefreshLeaseUntilUtc = null;
+        saved.NeedsReauthSinceUtc = null;
+        saved.NeedsReauthReason = null;
         try
         {
             var written = await lookUpsContainer.ReplaceItemAsync(saved, Id, Partition,
@@ -83,12 +85,49 @@ public sealed class XOAuth2TokenStore(
         }
         catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound)
         {
-            // X has already rotated the refresh token; the new pair is the only one that works, so it must win.
+            var stored = await Get(cancellationToken);
+            if (stored is not null && stored.State.HasTokens &&
+                stored.State.RefreshToken != leased.State.RefreshToken)
+            {
+                // Another host saved a newer pair after this lease lapsed (its re-exchange invalidated ours).
+                logger.LogWarning(
+                    "{method}: The X token lease was lost ({status}) and another host has since saved a newer token pair; keeping that pair.",
+                    nameof(SaveTokens), ex.StatusCode);
+                return stored;
+            }
+
+            // X has already rotated the refresh token this attempt spent; the new pair is the only one that works.
             logger.LogWarning(
                 "{method}: The X token lease was lost before the new token pair was saved ({status}); saving it unconditionally.",
                 nameof(SaveTokens), ex.StatusCode);
             var written = await lookUpsContainer.UpsertItemAsync(saved, Partition, cancellationToken: cancellationToken);
             return new XOAuth2TokenSnapshot(saved, written.ETag);
+        }
+    }
+
+    public async Task<bool> MarkNeedsReauth(
+        XOAuth2TokenSnapshot leased,
+        string? reason,
+        DateTime sinceUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var marked = Copy(leased.State);
+        marked.RefreshLeaseAttemptId = null;
+        marked.RefreshLeaseUntilUtc = null;
+        marked.NeedsReauthSinceUtc = sinceUtc;
+        marked.NeedsReauthReason = reason;
+        try
+        {
+            await lookUpsContainer.ReplaceItemAsync(marked, Id, Partition,
+                new ItemRequestOptions { IfMatchEtag = leased.ETag }, cancellationToken);
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.NotFound)
+        {
+            logger.LogInformation(
+                "{method}: Another X token refresher changed the token document first ({status}).",
+                nameof(MarkNeedsReauth), ex.StatusCode);
+            return false;
         }
     }
 
@@ -124,6 +163,8 @@ public sealed class XOAuth2TokenStore(
         UpdatedUtc = state.UpdatedUtc,
         Source = state.Source,
         RefreshLeaseAttemptId = state.RefreshLeaseAttemptId,
-        RefreshLeaseUntilUtc = state.RefreshLeaseUntilUtc
+        RefreshLeaseUntilUtc = state.RefreshLeaseUntilUtc,
+        NeedsReauthSinceUtc = state.NeedsReauthSinceUtc,
+        NeedsReauthReason = state.NeedsReauthReason
     };
 }

@@ -57,6 +57,12 @@ public class XOAuth2TokenStoreRules
                 It.IsAny<PartitionKey?>(), It.IsAny<ItemRequestOptions>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(CosmosStatus(status));
 
+    private void ArrangeStoredRead(XOAuth2TokenState state) =>
+        _mocker.GetMock<Container>()
+            .Setup(c => c.ReadItemAsync<XOAuth2TokenState>(XOAuth2TokenState._Id.ToString(), _partition,
+                It.IsAny<ItemRequestOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Mock.Of<ItemResponse<XOAuth2TokenState>>(r => r.Resource == state && r.ETag == _writtenETag));
+
     [Fact(DisplayName = "With no token document saved yet, Get returns null instead of throwing.")]
     public async Task missing_document_reads_as_null()
     {
@@ -151,11 +157,18 @@ public class XOAuth2TokenStoreRules
     }
 
     [Fact(DisplayName =
-        "If the lease was lost before the save, the rotated pair is still upserted, because X already invalidated the old refresh token.")]
+        "If the lease was lost before the save but the document still holds the refresh token this attempt spent, the rotated pair is still upserted, because X already invalidated the old refresh token.")]
     public async Task save_after_lost_lease_upserts()
     {
         // Arrange
         ArrangeReplaceThrows(HttpStatusCode.PreconditionFailed);
+        ArrangeStoredRead(new XOAuth2TokenState
+        {
+            AccessToken = _current.State.AccessToken,
+            RefreshToken = _current.State.RefreshToken,
+            RefreshLeaseAttemptId = _fixture.CreateGuid(),
+            RefreshLeaseUntilUtc = _now.AddMinutes(1)
+        });
         var sut = _mocker.CreateInstance<XOAuth2TokenStore>();
 
         // Act
@@ -180,5 +193,116 @@ public class XOAuth2TokenStoreRules
 
         // Assert
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact(DisplayName =
+        "SUGGEST 2: if the lease was lost and another host has since saved a newer pair, that pair is kept and returned instead of being overwritten.")]
+    public async Task save_after_lost_lease_keeps_newer_pair()
+    {
+        // Arrange
+        ArrangeReplaceThrows(HttpStatusCode.PreconditionFailed);
+        var newer = new XOAuth2TokenState
+        {
+            AccessToken = _fixture.Create<string>(),
+            RefreshToken = _fixture.Create<string>(),
+            AccessTokenExpiresUtc = _now.AddHours(2)
+        };
+        ArrangeStoredRead(newer);
+        var sut = _mocker.CreateInstance<XOAuth2TokenStore>();
+
+        // Act
+        var saved = await sut.SaveTokens(_current, _grant);
+
+        // Assert
+        saved.State.Should().BeSameAs(newer);
+        _mocker.GetMock<Container>().Verify(c => c.UpsertItemAsync(It.IsAny<XOAuth2TokenState>(),
+            It.IsAny<PartitionKey?>(), It.IsAny<ItemRequestOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "If the document was deleted before the save, the rotated pair is upserted.")]
+    public async Task save_after_deleted_document_upserts()
+    {
+        // Arrange
+        ArrangeReplaceThrows(HttpStatusCode.NotFound);
+        _mocker.GetMock<Container>()
+            .Setup(c => c.ReadItemAsync<XOAuth2TokenState>(XOAuth2TokenState._Id.ToString(), _partition,
+                It.IsAny<ItemRequestOptions>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(CosmosStatus(HttpStatusCode.NotFound));
+        var sut = _mocker.CreateInstance<XOAuth2TokenStore>();
+
+        // Act
+        var saved = await sut.SaveTokens(_current, _grant);
+
+        // Assert
+        saved.State.RefreshToken.Should().Be(_grant.RefreshToken);
+        _mocker.GetMock<Container>().Verify(c => c.UpsertItemAsync(It.IsAny<XOAuth2TokenState>(), _partition,
+            It.IsAny<ItemRequestOptions>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "SUGGEST 3: saving a new pair clears a needs-reauth marker.")]
+    public async Task save_clears_needs_reauth()
+    {
+        // Arrange
+        _current.State.NeedsReauthSinceUtc = _now;
+        _current.State.NeedsReauthReason = _fixture.Create<string>();
+        var sut = _mocker.CreateInstance<XOAuth2TokenStore>();
+
+        // Act
+        var saved = await sut.SaveTokens(_current, _grant);
+
+        // Assert
+        saved.State.NeedsReauth.Should().BeFalse();
+        saved.State.NeedsReauthReason.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "SUGGEST 3: marking needs-reauth writes the marker and clears the lease, If-Match on the leased etag.")]
+    public async Task mark_needs_reauth_is_if_match()
+    {
+        // Arrange
+        var reason = _fixture.Create<string>();
+        _current.State.RefreshLeaseAttemptId = _fixture.CreateGuid();
+        _current.State.RefreshLeaseUntilUtc = _now.AddMinutes(1);
+        var sut = _mocker.CreateInstance<XOAuth2TokenStore>();
+
+        // Act
+        var marked = await sut.MarkNeedsReauth(_current, reason, _now);
+
+        // Assert
+        marked.Should().BeTrue();
+        _mocker.GetMock<Container>().Verify(c => c.ReplaceItemAsync(
+            It.Is<XOAuth2TokenState>(s => s.NeedsReauthSinceUtc == _now && s.NeedsReauthReason == reason &&
+                                          s.RefreshLeaseAttemptId == null && s.RefreshToken == _current.State.RefreshToken),
+            XOAuth2TokenState._Id.ToString(), _partition,
+            It.Is<ItemRequestOptions>(o => o.IfMatchEtag == _readETag), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "SUGGEST 3: marking needs-reauth after another host changed the document returns false.")]
+    public async Task mark_needs_reauth_lost_race_returns_false()
+    {
+        // Arrange
+        ArrangeReplaceThrows(HttpStatusCode.PreconditionFailed);
+        var sut = _mocker.CreateInstance<XOAuth2TokenStore>();
+
+        // Act
+        var marked = await sut.MarkNeedsReauth(_current, _fixture.Create<string>(), _now);
+
+        // Assert
+        marked.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "SUGGEST 5: the token document is not IFileKeyed and serialises without fileKey, so it cannot join the file-keyed LookUps backup or publish.")]
+    public void token_document_is_not_file_keyed()
+    {
+        // Arrange
+        var state = _current.State;
+
+        // Act
+        var json = System.Text.Json.JsonSerializer.Serialize(state);
+
+        // Assert
+        state.Should().NotBeAssignableTo<RedditPodcastPoster.Models.Cosmos.IFileKeyed>();
+        json.Should().NotContain("fileKey");
     }
 }
