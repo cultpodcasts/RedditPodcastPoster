@@ -72,6 +72,13 @@ public class EpisodePublishService(
                     try
                     {
                         var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
+                        if (result.TweetSendStatus == TweetSendStatus.PaymentRequired)
+                        {
+                            logger.LogError(
+                                "X credits depleted (402 Payment Required); tweet not sent for episode-id '{EpisodeId}'.",
+                                podcastEpisode.Episode.Id);
+                        }
+
                         if (result.TweetSendStatus != TweetSendStatus.Sent)
                         {
                             logger.LogError("Tweet result: '{PostTweetResponse}'.", result);

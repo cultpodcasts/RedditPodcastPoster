@@ -21,7 +21,7 @@ param(
     [string]$RunPublisher = 'true',
 
     [ValidateSet('true', 'false')]
-    [string]$RunTweet = 'false',
+    [string]$RunTweet = 'true',
 
     [ValidateSet('true', 'false')]
     [string]$RunBluesky = 'true',
