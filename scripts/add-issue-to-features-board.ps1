@@ -73,6 +73,29 @@ function Get-BoardIssueNumbers {
     return @($raw | ConvertFrom-Json)
 }
 
+function Get-PropertyValue($Object, [string] $Name) {
+    if ($null -eq $Object) { return $null }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($null -eq $prop) { return $null }
+    return $prop.Value
+}
+
+# Reads the Status option name from a Projects V2 REST item. Option names are { html, raw }
+# objects, so compare .raw. Throws a clear message instead of a StrictMode property error
+# when the response has no Status field (for example when fields[] was not requested).
+function Get-ItemStatusName($Item, $StatusFieldId) {
+    $itemFields = @(Get-PropertyValue $Item 'fields')
+    $status = $itemFields | Where-Object {
+        $null -ne $_ -and ((Get-PropertyValue $_ 'name') -eq 'Status' -or "$(Get-PropertyValue $_ 'id')" -eq "$StatusFieldId")
+    } | Select-Object -First 1
+    if ($null -eq $status) {
+        throw "Status field missing from response (field id $StatusFieldId); got fields: $(($itemFields | ForEach-Object { Get-PropertyValue $_ 'name' }) -join ', ')."
+    }
+    $name = Get-PropertyValue (Get-PropertyValue $status 'value') 'name'
+    if ($name -is [string]) { return $name }
+    return [string](Get-PropertyValue $name 'raw')
+}
+
 Write-Host "Resolving $repoOwner/$repoName#$issueNumber …"
 $issue = & gh api "/repos/$repoOwner/$repoName/issues/$issueNumber" --jq '{id, node_id, title}' | ConvertFrom-Json
 
@@ -144,8 +167,11 @@ $body = @{ fields = @(@{ id = $statusField.id; value = $statusOption.id }) } | C
 $body | & gh api -X PATCH "$itemsPath/$itemDbId" --input - | Out-Null
 
 # Confirm the item itself persisted with the right status (direct GET, index-independent).
-$itemCheck = & gh api "$itemsPath/$itemDbId" | ConvertFrom-Json
-$appliedStatus = ($itemCheck.fields | Where-Object { $_.name -eq 'Status' }).value.name.raw
+# The item GET returns only the Title field unless field ids are requested with fields[] (#1043).
+$itemCheckRaw = & gh api "$itemsPath/$($itemDbId)?fields[]=$($statusField.id)" 2>&1
+if ($LASTEXITCODE -ne 0) { throw "Item GET failed for item ${itemDbId}: $($itemCheckRaw -join "`n")" }
+$itemCheck = ($itemCheckRaw -join "`n") | ConvertFrom-Json
+$appliedStatus = Get-ItemStatusName -Item $itemCheck -StatusFieldId $statusField.id
 if ($appliedStatus -ne $StatusName) { throw "Status did not persist (got '$appliedStatus')." }
 Write-Host "Item persisted with Status=$appliedStatus. Waiting for the board list to index it …"
 
