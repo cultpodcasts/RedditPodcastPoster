@@ -74,4 +74,21 @@ public class TwitterServiceRegistrationRules
         exchanger.Should().BeOfType<XOAuth2TokenExchanger>();
         accessTokens.Should().BeOfType<XOAuth2AccessTokenProvider>();
     }
+
+    [Fact(DisplayName =
+        "The authorize console's services resolve, so the PKCE login cannot fail at startup on a missing registration.")]
+    public void authorize_services_resolve()
+    {
+        // Arrange
+        using var provider = Build(new Dictionary<string, string?>
+        {
+            ["twitter:OAuth2ClientId"] = _fixture.Create<string>()
+        });
+
+        // Act
+        var authorizer = provider.GetRequiredService<IXOAuth2Authorizer>();
+
+        // Assert
+        authorizer.Should().BeOfType<XOAuth2Authorizer>();
+    }
 }

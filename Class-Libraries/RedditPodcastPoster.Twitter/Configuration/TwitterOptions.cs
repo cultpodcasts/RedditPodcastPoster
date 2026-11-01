@@ -5,7 +5,8 @@ public class TwitterOptions
     /// <summary>
     /// Which credentials sign X API requests. <see cref="TwitterAuthMode.OAuth1"/> (the default) keeps the
     /// OAuth 1.0a keys below; <see cref="TwitterAuthMode.OAuth2"/> sends the OAuth 2.0 user-context bearer token
-    /// saved in LookUps by the XOAuth2TokenExchange console. X stops accepting OAuth 1.0a on 1 Jan 2027.
+    /// saved in LookUps by XOAuth2TokenExchange or XOAuth2Authorize. X stops accepting OAuth 1.0a on 1 Jan 2027.
+    /// After that date only XOAuth2Authorize (PKCE) can replace a refused refresh token.
     /// </summary>
     public TwitterAuthMode AuthMode { get; set; } = TwitterAuthMode.OAuth1;
 

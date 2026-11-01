@@ -33,7 +33,7 @@ public static class XOAuth2TokenPersistence
             catch (Exception ex)
             {
                 logger.LogCritical(ex,
-                    "X OAuth 2.0: the new token pair could not be saved after {Attempts} attempts. The stored refresh token is now invalid; run the XOAuth2TokenExchange console with --execute again.",
+                    "X OAuth 2.0: the new token pair could not be saved after {Attempts} attempts. The stored refresh token is now invalid; run XOAuth2Authorize with --execute again.",
                     SaveAttempts);
                 return null;
             }

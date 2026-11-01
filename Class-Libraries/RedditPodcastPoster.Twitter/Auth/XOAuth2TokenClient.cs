@@ -22,6 +22,10 @@ public interface IXOAuth2TokenClient
 
     Task<XOAuth2TokenResult> ExchangeOAuth1(string oauth1AccessToken, string oauth1AccessTokenSecret,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Authorization-code grant with PKCE (<c>code_verifier</c>). Confidential client: HTTP Basic as well.</summary>
+    Task<XOAuth2TokenResult> ExchangeAuthorizationCode(string code, string codeVerifier, string redirectUri,
+        CancellationToken cancellationToken = default);
 }
 
 public enum XOAuth2TokenOutcome
@@ -49,6 +53,7 @@ public sealed class XOAuth2TokenClient(
 {
     public const string RefreshSource = "refresh";
     public const string ExchangeSource = "exchange";
+    public const string AuthorizationSource = "authorization_code";
     private const string TokenPath = "2/oauth2/token";
     private readonly TwitterOptions _options = options.Value;
 
@@ -68,6 +73,16 @@ public sealed class XOAuth2TokenClient(
             ["subject_token_type"] = "urn:x:params:oauth:token-type:oauth1_token",
             ["oauth_token_secret"] = oauth1AccessTokenSecret
         }, ExchangeSource, cancellationToken);
+
+    public Task<XOAuth2TokenResult> ExchangeAuthorizationCode(string code, string codeVerifier, string redirectUri,
+        CancellationToken cancellationToken = default) =>
+        Post(new Dictionary<string, string>
+        {
+            ["grant_type"] = "authorization_code",
+            ["code"] = code,
+            ["redirect_uri"] = redirectUri,
+            ["code_verifier"] = codeVerifier
+        }, AuthorizationSource, cancellationToken);
 
     private async Task<XOAuth2TokenResult> Post(Dictionary<string, string> form, string source,
         CancellationToken cancellationToken)

@@ -45,6 +45,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<IXOAuth2TokenClient, XOAuth2TokenClient>(ConfigureXApiClient);
         services.TryAddTransient<IXOAuth2AccessTokenProvider, XOAuth2AccessTokenProvider>();
         services.TryAddTransient<IXOAuth2TokenExchanger, XOAuth2TokenExchanger>();
+        services.TryAddTransient<IXOAuth2Authorizer, XOAuth2Authorizer>();
         return services;
     }
 
