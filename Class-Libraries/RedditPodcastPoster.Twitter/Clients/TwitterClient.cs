@@ -80,7 +80,7 @@ public class TwitterClient(
         logger.LogError(
             "Failed to send tweet. Reason-Phrase: '{ResponseReasonPhrase}'. Status-code: '{ResponseStatusCode}'. Body: '{ReadAsStringAsync}', Tweet: '{Tweet}'.", response.ReasonPhrase, response.StatusCode, await response.Content.ReadAsStringAsync(), tweet);
 
-        return new PostTweetResponse(TweetSendStatus.Failed, tweetData.text);
+        return new PostTweetResponse(TweetSendFailureClassifier.Classify(response.StatusCode), tweetData.text);
     }
 
     public async Task<GetTweetsResponseWrapper> GetTweets()

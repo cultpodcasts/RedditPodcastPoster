@@ -384,7 +384,7 @@ var indexerActivities= {
     activities__RunCategoriser: 'true'
     activities__RunPoster: 'false'
     activities__RunPublisher: 'true'
-    activities__RunTweet: 'false'
+    activities__RunTweet: 'true'
     activities__RunBluesky: 'true'
 }
 
