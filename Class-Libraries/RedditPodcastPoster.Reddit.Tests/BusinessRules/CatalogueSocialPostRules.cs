@@ -505,9 +505,12 @@ public class CatalogueSocialPostRules
             await _mocker.CreateInstance<TweetBuilder>().BuildTweet(item, CataloguePlayableSiteLink.For(item)));
         var unrelated = new Tweet { Id = "2", Text = "\"Something else\"\n1998\nhttps://t.co/other" };
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.GetTweets(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), null,
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GetTweetsResponseWrapper(GetTweetsState.Retrieved, [unrelated, tweet]));
-        _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweet(tweet, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _mocker.GetMock<ITwitterClient>()
+            .Setup(x => x.DeleteTweetById(tweet.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DeleteTweetState.Deleted);
         var sut = _mocker.CreateInstance<TweetManager>();
 
         // Act
@@ -515,7 +518,8 @@ public class CatalogueSocialPostRules
 
         // Assert
         result.Should().Be(RemoveTweetState.Deleted);
-        _mocker.GetMock<ITwitterClient>().Verify(x => x.DeleteTweet(unrelated, It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<ITwitterClient>()
+            .Verify(x => x.DeleteTweetById(unrelated.Id, It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ---- posted state ------------------------------------------------------------------------
@@ -539,7 +543,7 @@ public class CatalogueSocialPostRules
         await sut.PostTweet(item, CataloguePlayableSiteLink.For(item));
 
         // Assert
-        _mocker.GetMock<ICataloguePlayableSocialPosts>().Verify(x => x.MarkTweeted(item), Times.Once);
+        _mocker.GetMock<ICataloguePlayableSocialPosts>().Verify(x => x.MarkTweeted(item, null), Times.Once);
         _mocker.GetMock<IEpisodeRepository>().Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);
     }
 
@@ -564,7 +568,7 @@ public class CatalogueSocialPostRules
         // Assert
         _mocker.GetMock<IEpisodeRepository>().Verify(x => x.Save(It.Is<Episode>(e => e.Tweeted)), Times.Once);
         _mocker.GetMock<ICataloguePlayableSocialPosts>()
-            .Verify(x => x.MarkTweeted(It.IsAny<PodcastEpisode>()), Times.Never);
+            .Verify(x => x.MarkTweeted(It.IsAny<PodcastEpisode>(), It.IsAny<string?>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -743,7 +747,7 @@ public class CatalogueSocialPostRules
         var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
 
         // Act
-        await sut.MarkTweeted(item);
+        await sut.MarkTweeted(item, null);
 
         // Assert
         saved.Should().BeSameAs(tvEpisode);
@@ -795,7 +799,7 @@ public class CatalogueSocialPostRules
         var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
 
         // Act
-        await sut.MarkTweeted(item);
+        await sut.MarkTweeted(item, null);
 
         // Assert
         saved.Should().BeSameAs(film);
@@ -849,7 +853,7 @@ public class CatalogueSocialPostRules
         var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
 
         // Act
-        await sut.MarkTweeted(item);
+        await sut.MarkTweeted(item, null);
 
         // Assert
         saved.Should().NotBeNull();
@@ -885,9 +889,100 @@ public class CatalogueSocialPostRules
         var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
 
         // Act
-        var act = () => sut.MarkTweeted(item);
+        var act = () => sut.MarkTweeted(item, null);
 
         // Assert
         await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    [Fact(DisplayName =
+        "When a TV episode tweet is sent, then the new tweet id is passed to the catalogue writer, so un-tweet can delete by id (#1058).")]
+    public async Task tv_tweet_passes_the_tweet_id()
+    {
+        // Arrange
+        const string tweetId = "1850000000000000101";
+        var (show, tvEpisode) = CreateTvEpisode();
+        var item = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
+        _mocker.GetMock<ITweetBuilder>()
+            .Setup(x => x.BuildTweet(item, It.IsAny<Uri?>(), It.IsAny<bool>()))
+            .ReturnsAsync("tweet");
+        _mocker.GetMock<ITwitterClient>()
+            .Setup(x => x.Send("tweet", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PostTweetResponse(TweetSendStatus.Sent, TweetId: tweetId));
+        var sut = _mocker.CreateInstance<TweetPoster>();
+
+        // Act
+        await sut.PostTweet(item, CataloguePlayableSiteLink.For(item));
+
+        // Assert
+        _mocker.GetMock<ICataloguePlayableSocialPosts>().Verify(x => x.MarkTweeted(item, tweetId), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When a TV episode is marked tweeted with an id, then the stored episode is saved with the flag and the id (#1058).")]
+    public async Task mark_tweeted_stores_the_tweet_id()
+    {
+        // Arrange
+        const string tweetId = "1850000000000000102";
+        var (show, tvEpisode) = CreateTvEpisode();
+        var item = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
+        TvShowEpisode? saved = null;
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(x => x.GetTvShowEpisode(show.Id, tvEpisode.Id))
+            .ReturnsAsync(tvEpisode);
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(x => x.Save(It.IsAny<TvShowEpisode>()))
+            .Callback<TvShowEpisode>(x => saved = x)
+            .Returns(Task.CompletedTask);
+        var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
+
+        // Act
+        await sut.MarkTweeted(item, tweetId);
+
+        // Assert
+        saved.Should().BeSameAs(tvEpisode);
+        saved!.Tweeted.Should().BeTrue();
+        saved.TweetId.Should().Be(tweetId);
+    }
+
+    [Fact(DisplayName =
+        "When a TV episode is marked tweeted without an id (duplicate refusal), then a stored id is kept.")]
+    public async Task mark_tweeted_without_id_keeps_the_stored_id()
+    {
+        // Arrange
+        const string tweetId = "1850000000000000103";
+        var (show, tvEpisode) = CreateTvEpisode();
+        tvEpisode.TweetId = tweetId;
+        var item = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(x => x.GetTvShowEpisode(show.Id, tvEpisode.Id))
+            .ReturnsAsync(tvEpisode);
+        var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
+
+        // Act
+        await sut.MarkTweeted(item, null);
+
+        // Assert
+        tvEpisode.Tweeted.Should().BeTrue();
+        tvEpisode.TweetId.Should().Be(tweetId);
+    }
+
+    [Fact(DisplayName =
+        "The post projection of a film or TV episode carries the stored tweet id, so un-tweet of a catalogue item deletes by id.")]
+    public void projection_carries_the_tweet_id()
+    {
+        // Arrange
+        var film = CreateFilm();
+        film.TweetId = "1850000000000000104";
+        var (show, tvEpisode) = CreateTvEpisode();
+        tvEpisode.TweetId = "1850000000000000105";
+
+        // Act
+        var filmItem = CatalogueParentKindMapper.ToPostProjection(film);
+        var tvItem = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
+
+        // Assert
+        filmItem.Episode.TweetId.Should().Be(film.TweetId);
+        tvItem.Episode.TweetId.Should().Be(tvEpisode.TweetId);
     }
 }

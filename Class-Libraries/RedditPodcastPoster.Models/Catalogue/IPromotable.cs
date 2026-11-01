@@ -11,6 +11,9 @@ public interface IPromotable
 
     bool Tweeted { get; set; }
 
+    /// <summary>Id of the X post, when it was stored at post time. Null for older posts.</summary>
+    string? TweetId { get; set; }
+
     /// <summary>Legacy Cosmos flag (<c>bluesky</c>). Prefer <see cref="BlueskyPost"/> for new posts.</summary>
     bool? OldBlueskyPosted { get; set; }
 
@@ -24,4 +27,7 @@ public interface IPromotable
     string? HashTag { get; set; }
 
     void ClearBlueskyPostState();
+
+    /// <summary>Clears <see cref="Tweeted"/> and <see cref="TweetId"/> once the post is gone from X.</summary>
+    void ClearTweetState();
 }

@@ -8,8 +8,8 @@ using RedditPodcastPoster.Twitter.Models;
 namespace Api.Services.Catalogue;
 
 /// <summary>
-/// Result mapping and error handling as the un-tweet / un-Bluesky steps in <c>EpisodeUpdateService</c>, except that
-/// <c>tweeted</c> is cleared only when the tweet was deleted (not found or failed keeps it set, so it can be retried).
+/// Result mapping and error handling as the un-tweet / un-Bluesky steps in <c>EpisodeUpdateService</c>: the stored
+/// state is cleared only when the post is gone (deleted, or not found); a failure keeps it set, so it can be retried.
 /// </summary>
 public class PlayableSocialRetraction(
     ITweetManager tweetManager,
@@ -69,12 +69,14 @@ public class PlayableSocialRetraction(
             result = RemoveTweetState.Other;
         }
 
-        var deleted = result == RemoveTweetState.Deleted;
-        if (deleted)
+        // As Bluesky and the episode path (#1204): gone means deleted now or already absent. A timeline search only
+        // reports NotFound after reading the whole window, and a stored id only on X's 404.
+        var gone = result is RemoveTweetState.Deleted or RemoveTweetState.NotFound;
+        if (gone)
         {
-            item.Tweeted = false;
+            item.ClearTweetState();
         }
 
-        return deleted;
+        return gone;
     }
 }

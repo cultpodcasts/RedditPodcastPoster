@@ -134,7 +134,7 @@ public class TweetRunStopRules
             .Setup(x => x.BuildTweet(item, It.IsAny<Uri?>(), It.IsAny<bool>()))
             .ReturnsAsync("tweet");
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.Send("tweet"))
+            .Setup(x => x.Send("tweet", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PostTweetResponse(status, "tweet"));
         var sut = _mocker.CreateInstance<TweetPoster>();
 
@@ -159,7 +159,7 @@ public class TweetRunStopRules
             .Setup(x => x.BuildTweet(item, It.IsAny<Uri?>(), It.IsAny<bool>()))
             .ReturnsAsync("tweet");
         _mocker.GetMock<ITwitterClient>()
-            .Setup(x => x.Send("tweet"))
+            .Setup(x => x.Send("tweet", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PostTweetResponse(TweetSendStatus.Sent));
         var sut = _mocker.CreateInstance<TweetPoster>();
 

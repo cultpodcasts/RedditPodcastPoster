@@ -29,6 +29,7 @@ public static class CatalogueParentKnownEpisodes
             Explicit = playable.Explicit,
             Posted = playable.Posted,
             Tweeted = playable.Tweeted,
+            TweetId = playable.TweetId,
             Ignored = playable.Ignored,
             Removed = playable.Removed,
             Language = playable.Language,

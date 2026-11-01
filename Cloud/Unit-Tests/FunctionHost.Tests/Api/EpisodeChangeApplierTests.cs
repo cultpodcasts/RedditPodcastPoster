@@ -304,19 +304,40 @@ public class EpisodeChangeApplierTests
         state.UnPost.Should().BeFalse();
     }
 
-    [Fact(DisplayName = "Apply sets UnTweet when Tweeted transitions from true to false")]
+    [Fact(DisplayName = "Apply sets UnTweet and keeps Tweeted when Tweeted transitions from true to false, because the update service clears it only once the tweet is gone (#1204)")]
     public void Apply_sets_untweet_flag()
     {
         // Arrange
-        var episode = CreateEpisode(e => e.Tweeted = true);
+        var episode = CreateEpisode(e =>
+        {
+            e.Tweeted = true;
+            e.TweetId = "1234567890123456789";
+        });
         var sut = CreateSut();
 
         // Act
         var state = sut.Apply(episode, new EpisodeChangeRequest { Tweeted = false });
 
         // Assert
-        episode.Tweeted.Should().BeFalse();
+        episode.Tweeted.Should().BeTrue();
+        episode.TweetId.Should().Be("1234567890123456789");
         state.UnTweet.Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "Apply sets Tweeted without UnTweet when an untweeted episode is marked tweeted by hand")]
+    public void Apply_marks_tweeted_by_hand()
+    {
+        // Arrange
+        var episode = CreateEpisode(e => e.Tweeted = false);
+        var sut = CreateSut();
+
+        // Act
+        var state = sut.Apply(episode, new EpisodeChangeRequest { Tweeted = true });
+
+        // Assert
+        episode.Tweeted.Should().BeTrue();
+        episode.TweetId.Should().BeNull();
+        state.UnTweet.Should().BeFalse();
     }
 
     [Fact(DisplayName =

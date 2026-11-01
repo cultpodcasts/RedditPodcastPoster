@@ -155,4 +155,49 @@ public class TwitterClientRules
         _x.Requests[0].Method.Should().Be(HttpMethod.Delete);
         _x.Requests[0].Uri.Should().Be(new Uri($"https://api.x.com/2/tweets/{tweet.Id}"));
     }
+
+    [Fact(DisplayName =
+        "A timeline read since a release goes to the typed api.x.com client with start_time, end_time and an escaped pagination token, because un-tweet must follow the same auth as posting.")]
+    public async Task timeline_since_uses_typed_client_query()
+    {
+        // Arrange
+        var start = new DateTimeOffset(2026, 3, 1, 4, 5, 6, TimeSpan.Zero);
+        var end = start.AddDays(2);
+        var token = "page token/next";
+        _x.Respond(HttpStatusCode.OK, "{\"data\":[],\"meta\":{}}");
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var result = await sut.GetTimelineSince(start, end, token);
+
+        // Assert
+        result.State.Should().Be(GetTweetsState.Retrieved);
+        _x.Requests.Should().ContainSingle();
+        _x.Requests[0].Method.Should().Be(HttpMethod.Get);
+        _x.Requests[0].Uri.Should().Be(new Uri(
+            "https://api.x.com/2/users/" + _options.TwitterId +
+            "/tweets?tweet.fields=entities&max_results=100" +
+            "&start_time=2026-03-01T04%3A05%3A06Z" +
+            "&end_time=2026-03-03T04%3A05%3A06Z" +
+            "&pagination_token=" + Uri.EscapeDataString(token)));
+    }
+
+    [Fact(DisplayName =
+        "Deleting a post by id uses DELETE /2/tweets/{id} on the typed client, so OAuth 2.0 signs the un-tweet the same way it signs a post.")]
+    public async Task delete_by_id_uses_typed_client()
+    {
+        // Arrange
+        var tweetId = _fixture.Create<long>().ToString();
+        _x.Respond(HttpStatusCode.OK, "{\"data\":{\"deleted\":true}}");
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var state = await sut.DeleteTweetById(tweetId);
+
+        // Assert
+        state.Should().Be(DeleteTweetState.Deleted);
+        _x.Requests.Should().ContainSingle();
+        _x.Requests[0].Method.Should().Be(HttpMethod.Delete);
+        _x.Requests[0].Uri.Should().Be(new Uri($"https://api.x.com/2/tweets/{tweetId}"));
+    }
 }

@@ -111,7 +111,7 @@ public class FilmService(
                 {
                     if (outcome.TweetDeleted == true)
                     {
-                        stored.Tweeted = false;
+                        stored.ClearTweetState();
                     }
 
                     if (outcome.BlueskyPostDeleted == true)

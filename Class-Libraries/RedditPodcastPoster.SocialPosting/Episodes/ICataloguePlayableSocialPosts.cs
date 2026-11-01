@@ -16,8 +16,11 @@ public interface ICataloguePlayableSocialPosts
     /// <summary>Active items not yet on Bluesky, released in the last <c>BlueSkyDays</c> with a postable link, newest first.</summary>
     Task<IReadOnlyList<PodcastEpisode>> GetBlueskyReady();
 
-    /// <summary>Sets <c>tweeted</c> on the stored TV episode, news report or film.</summary>
-    Task MarkTweeted(PodcastEpisode item);
+    /// <summary>
+    /// Sets <c>tweeted</c> on the stored TV episode, news report or film, and <c>tweetId</c> when
+    /// <paramref name="tweetId"/> is given (a stored id is kept when it is null).
+    /// </summary>
+    Task MarkTweeted(PodcastEpisode item, string? tweetId);
 
     /// <summary>Sets <c>blueskyPost</c> on the stored TV episode, news report or film.</summary>
     Task MarkBlueskyPosted(PodcastEpisode item, string blueskyPostUri);

@@ -65,6 +65,15 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     public bool Tweeted { get; set; }
 
     /// <summary>
+    /// Id of the X post made for this item (from the <c>POST /2/tweets</c> response), so un-tweet deletes it by id.
+    /// Null on items tweeted before the id was stored, on a duplicate-content post, and when the flag was set by hand;
+    /// those fall back to the timeline search.
+    /// </summary>
+    [JsonPropertyName("tweetId")]
+    [JsonPropertyOrder(41)]
+    public string? TweetId { get; set; }
+
+    /// <summary>
     /// Legacy Cosmos flag (<c>bluesky</c>). Populated only by deserialization of pre-migration
     /// documents. Do not set to <c>true</c> in application code — store
     /// <see cref="BlueskyPost"/> after a network post.
@@ -168,6 +177,12 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     {
         BlueskyPost = null;
         OldBlueskyPosted = null;
+    }
+
+    public void ClearTweetState()
+    {
+        Tweeted = false;
+        TweetId = null;
     }
 
     /// <summary>

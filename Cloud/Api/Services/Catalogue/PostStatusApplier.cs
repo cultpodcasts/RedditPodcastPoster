@@ -13,7 +13,8 @@ public readonly record struct PostStatusChange(bool UnTweet, bool UnBluesky)
 /// <list type="bullet">
 /// <item><c>posted</c>: sets the flag (the Reddit live un-post is retired, so there is no side effect).</item>
 /// <item><c>tweeted</c>: true sets the flag. true → false asks for the tweet to be deleted and leaves the flag set:
-/// <see cref="IPlayableSocialRetraction"/> clears it only once the delete succeeds, so a live tweet is never forgotten.</item>
+/// <see cref="IPlayableSocialRetraction"/> clears it (and the stored tweet id) only once the tweet is gone, so a live
+/// tweet is never forgotten.</item>
 /// <item><c>unBluesky: true</c> on a Bluesky-posted item asks for the post to be deleted. The Bluesky state is not
 /// cleared here: <see cref="IPlayableSocialRetraction"/> deletes first and clears only on success.</item>
 /// </list>
