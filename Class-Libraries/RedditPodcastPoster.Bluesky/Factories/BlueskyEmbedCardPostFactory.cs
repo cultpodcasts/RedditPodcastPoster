@@ -160,13 +160,16 @@ public class BlueskyEmbedCardPostFactory(
         if (episodeTitle.Length > permittedTitleLength)
         {
             var min = Math.Min(episodeTitle.Length, permittedTitleLength - 1);
-            if (min < MinTitleLength)
+            // Check the minimum on what the whole-text-element cut keeps, which can be shorter than the budget
+            // when a long grapheme cluster straddles the cut.
+            var truncatedTitle = TruncateToWholeTextElements(episodeTitle, min);
+            if (truncatedTitle.Length < MinTitleLength)
             {
                 throw new InvalidOperationException(
-                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
+                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postBuilder}', calculated title-length: {truncatedTitle.Length} which is less than {MinTitleLength}.");
             }
 
-            episodeTitle = TruncateToWholeTextElements(episodeTitle, min) + "…";
+            episodeTitle = truncatedTitle + "…";
         }
 
         postBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");

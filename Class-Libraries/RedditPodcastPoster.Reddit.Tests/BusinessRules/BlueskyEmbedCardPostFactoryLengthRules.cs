@@ -12,6 +12,7 @@ using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.People.Resolvers;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text.Sanitisers;
+using static RedditPodcastPoster.Episodes.TestSupport.Fixtures.DomainTestFixture;
 using Xunit;
 
 namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
@@ -105,27 +106,54 @@ public class BlueskyEmbedCardPostFactoryLengthRules
         post.Text.Length.Should().BeLessThanOrEqualTo(BlueskyGraphemeLimit);
     }
 
-    [Fact(DisplayName =
-        "When the cut point of a long title falls inside an emoji, the whole emoji is dropped rather than split, because half a surrogate pair is not valid text.")]
-    public async Task truncation_never_splits_a_surrogate_pair()
+    [Theory(DisplayName =
+        "When a long all-emoji title is cut, only whole emoji are kept before the ellipsis, whether the budget ends inside an emoji or between two, because half a surrogate pair is not valid text.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task truncation_keeps_only_whole_emoji(bool budgetEndsInsideAnEmoji)
     {
         // Arrange
         var (podcast, episode) = CreatePodcastEpisode();
+        var overhead = await PostOverhead(podcast, episode);
+        // Truncation keeps at most this many UTF-16 chars of the title before the ellipsis.
+        var cutIndex = BlueskyGraphemeLimit - overhead - 1;
+        // One ASCII char shifts every emoji boundary by one, so the case controls where the cut lands. The two
+        // cases differ in parity, so one of them always ends inside an emoji for any budget arithmetic.
+        var prefix = (cutIndex % 2 == 1) == budgetEndsInsideAnEmoji ? string.Empty : "x";
+        (cutIndex - prefix.Length).Should().Match(n => n % 2 == (budgetEndsInsideAnEmoji ? 1 : 0));
         // Truncation assertion depends on the exact characters: every emoji here is a UTF-16 surrogate pair.
-        _title = string.Concat(Enumerable.Repeat("\U0001F600", BlueskyGraphemeLimit));
+        const string emoji = "\U0001F600";
+        _title = prefix + string.Concat(Enumerable.Repeat(emoji, BlueskyGraphemeLimit));
         var sut = _mocker.CreateInstance<BlueskyEmbedCardPostFactory>();
 
         // Act
         var post = await sut.Create(new PodcastEpisode(podcast, episode), null);
 
         // Assert
-        var title = QuotedTitle(post.Text);
-        title.Should().EndWith("…");
-        title.TrimEnd('…').Should().Be(string.Concat(Enumerable.Repeat("\U0001F600", (title.Length - 1) / 2)));
-        post.Text.Any(char.IsSurrogate).Should().BeTrue();
+        QuotedTitle(post.Text).Should()
+            .Be(prefix + string.Concat(Enumerable.Repeat(emoji, (cutIndex - prefix.Length) / 2)) + "…");
         post.Text.Where((c, i) => char.IsHighSurrogate(c) && (i + 1 >= post.Text.Length || !char.IsLowSurrogate(post.Text[i + 1])))
             .Should().BeEmpty();
-        GraphemeCount(post.Text).Should().BeLessThanOrEqualTo(BlueskyGraphemeLimit);
+        post.Text.Length.Should().BeLessThanOrEqualTo(BlueskyGraphemeLimit);
+    }
+
+    [Fact(DisplayName =
+        "When a single grapheme cluster straddles the cut and leaves fewer than 10 characters of title, the post is refused, because the minimum title length applies to what the whole-character cut keeps.")]
+    public async Task minimum_title_length_applies_after_the_whole_character_cut()
+    {
+        // Arrange
+        var (podcast, episode) = CreatePodcastEpisode();
+        // Truncation assertion depends on the exact characters: a short ASCII head, then one text element
+        // (a base letter plus combining acute accents) longer than the whole post budget.
+        _title = "abc" + "e" + new string('\u0301', BlueskyGraphemeLimit * 2);
+        var sut = _mocker.CreateInstance<BlueskyEmbedCardPostFactory>();
+
+        // Act
+        var create = () => sut.Create(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        await create.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*calculated title-length: 3 which is less than 10*");
     }
 
     private (RedditPodcastPoster.Models.Podcasts.Podcast Podcast, Episode Episode) CreatePodcastEpisode()
@@ -136,7 +164,12 @@ public class BlueskyEmbedCardPostFactoryLengthRules
             p.EnrichmentHashTags = null;
             p.BlueskyHandle = null;
         });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        // Pinned release and length: the release line ("d MMM yyyy [h:mm:ss]") length depends on the day's digit
+        // count and the month name, and the budget arithmetic in these rules depends on it (#1226 review).
+        var release = DateTime.SpecifyKind(
+            UtcToday.AddYears(-1).AddMonths(1 - UtcToday.Month).AddDays(15 - UtcToday.Day).AddHours(12),
+            DateTimeKind.Utc);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, release, TimeSpan.FromMinutes(45));
         episode.Subjects = [];
         episode.HashTag = null;
         _podcastName = podcast.Name;
