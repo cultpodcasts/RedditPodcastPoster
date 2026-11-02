@@ -59,8 +59,9 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// claims its link before a shorter item of the same title when both are looked up). A shorter item is kept out of a
 /// service while a strictly longer same-title item in the window still lacks that service and is not in this pass's
 /// capped set, including when that longer item is outside the recency window, outside the newest few, or older than
-/// this pass's release cutoff while still inside the matcher's 14-day acceptance (one release-filtered read; the
-/// provider cutoff and the parent's whole history stay as they are, and #1161 stays deferred). Only items released
+/// this pass's release cutoff while still inside the matcher's 14-day acceptance (one half-open release + missing-audio
+/// read of <c>[acceptance, repositoryReleasedSince)</c>; the provider cutoff and the parent's whole history stay as they
+/// are, and #1161 stays deferred). Only items released
 /// in the last <see cref="AudioCatchUpRecency"/> are looked up, no item
 /// shorter than <see cref="AudioCatchUpMinimumLength"/> (a clip is not looked up), and a soft stop once
 /// <see cref="AudioCatchUpBudgetShare"/> of the pass budget has elapsed. A stopped or failed catch-up never fails the
@@ -425,6 +426,12 @@ public class CatalogueParentsUpdater(
             (since, cancellationToken) => tvShowEpisodeRepository
                 .GetByTvShowId(show.Id, PlayableCosmosFilters.HoldsSpotifyOrAppleLinkReleasedOnOrAfter<TvShowEpisode>(since))
                 .ToListAsync(cancellationToken).AsTask(),
+            (since, before, lookUpSpotify, lookUpApple, cancellationToken) => tvShowEpisodeRepository
+                .GetByTvShowId(
+                    show.Id,
+                    PlayableCosmosFilters.MissingAudioLinkReleasedInHalfOpenRange<TvShowEpisode>(
+                        since, before, lookUpSpotify, lookUpApple))
+                .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToTvShowEpisode(episode, show),
             context);
         var cancellationToken = context.CancellationToken;
@@ -461,6 +468,12 @@ public class CatalogueParentsUpdater(
             (since, cancellationToken) => newsReportRepository
                 .GetByNewsOrganisationId(
                     organisation.Id, PlayableCosmosFilters.HoldsSpotifyOrAppleLinkReleasedOnOrAfter<NewsReport>(since))
+                .ToListAsync(cancellationToken).AsTask(),
+            (since, before, lookUpSpotify, lookUpApple, cancellationToken) => newsReportRepository
+                .GetByNewsOrganisationId(
+                    organisation.Id,
+                    PlayableCosmosFilters.MissingAudioLinkReleasedInHalfOpenRange<NewsReport>(
+                        since, before, lookUpSpotify, lookUpApple))
                 .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToNewsReport(episode, organisation),
             context);
@@ -561,6 +574,7 @@ public class CatalogueParentsUpdater(
         CatalogueIndexingSource source,
         Func<DateTime, CancellationToken, Task<List<TPlayable>>> loadPlayables,
         Func<DateTime, CancellationToken, Task<List<TPlayable>>> loadAudioLinkHolders,
+        Func<DateTime, DateTime, bool, bool, CancellationToken, Task<List<TPlayable>>> loadOlderAudioGaps,
         Func<Episode, TPlayable> createPlayable,
         IndexingContext indexingContext)
         where TPlayable : Playable
@@ -626,7 +640,11 @@ public class CatalogueParentsUpdater(
             podcast,
             inScope,
             (since, ct) => LoadAudioLinkHolders(loadAudioLinkHolders, since, podcast, ct),
-            (since, ct) => LoadAudioLinkHolders(loadPlayables, since, podcast, ct),
+            async (since, before, lookUpSpotify, lookUpApple, ct) =>
+            {
+                var older = await loadOlderAudioGaps(since, before, lookUpSpotify, lookUpApple, ct);
+                return older.Select(x => ToEpisode(x, podcast)).ToList();
+            },
             repositoryReleasedSince,
             CatchUpDeadline(passStarted, expensivePass),
             indexingContext);
@@ -778,7 +796,7 @@ public class CatalogueParentsUpdater(
         Podcast podcast,
         IReadOnlyList<Episode> inWindow,
         Func<DateTime, CancellationToken, Task<List<Episode>>> loadHolders,
-        Func<DateTime, CancellationToken, Task<List<Episode>>> loadReleasedOnOrAfter,
+        Func<DateTime, DateTime, bool, bool, CancellationToken, Task<List<Episode>>> loadOlderAudioGaps,
         DateTime repositoryReleasedSince,
         long? softDeadline,
         IndexingContext indexingContext)
@@ -818,6 +836,7 @@ public class CatalogueParentsUpdater(
         List<Episode> candidates = [];
         var skippedShorter = 0;
         var holderCount = 0;
+        var olderGaps = 0;
         var lookedUp = 0;
         var skippedByBudget = 0;
         string? failure = null;
@@ -827,19 +846,24 @@ public class CatalogueParentsUpdater(
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 // Hourly passes cut the provider read at about two days, which is newer than the matcher's
-                // acceptance. One release-filtered read brings in older gaps; they are not lookup candidates.
-                // The matcher measures its 14 days from the probe's release, so the read reaches 14 days before
-                // the oldest item that could be offered (not 14 days before now).
+                // acceptance. One half-open release + missing-audio read brings in older gaps; they are not
+                // lookup candidates. The matcher measures its 14 days from the probe's release, so the read
+                // reaches 14 days before the oldest item that could be offered (not 14 days before now) and
+                // stops before the pass window so in-window items and the holders query are not re-read.
                 var acceptanceSince = capped.Min(x => x.ReleaseUtc)
                     - EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold;
                 if (repositoryReleasedSince > acceptanceSince)
                 {
                     var knownIds = inWindow.Select(x => x.Id).ToHashSet();
-                    var older = await loadReleasedOnOrAfter(acceptanceSince, cancellationToken);
-                    stillMissing.AddRange(older.Where(episode =>
+                    var older = await loadOlderAudioGaps(
+                        acceptanceSince, repositoryReleasedSince, lookUpSpotify, lookUpApple, cancellationToken);
+                    var added = older.Where(episode =>
                         !knownIds.Contains(episode.Id) &&
                         !episode.Removed &&
-                        ((lookUpSpotify && MissingSpotify(episode)) || (lookUpApple && MissingApple(episode)))));
+                        ((lookUpSpotify && MissingSpotify(episode)) || (lookUpApple && MissingApple(episode))))
+                        .ToList();
+                    olderGaps = added.Count;
+                    stillMissing.AddRange(added);
                 }
 
                 bool OfferSpotify(Episode episode) =>
@@ -899,9 +923,9 @@ public class CatalogueParentsUpdater(
         }
 
         logger.LogInformation(
-            "{Prefix} parent-id='{ParentId}' name='{ParentName}' missing='{Missing}' candidates='{Candidates}' looked-up='{LookedUp}' enriched='{Enriched}' holders='{Holders}' skipped-old='{SkippedOld}' skipped-short='{SkippedShort}' skipped-shorter='{SkippedShorter}' skipped-by-cap='{SkippedByCap}' skipped-by-budget='{SkippedByBudget}' failure='{Failure}'.",
+            "{Prefix} parent-id='{ParentId}' name='{ParentName}' missing='{Missing}' candidates='{Candidates}' looked-up='{LookedUp}' enriched='{Enriched}' holders='{Holders}' older-gaps='{OlderGaps}' skipped-old='{SkippedOld}' skipped-short='{SkippedShort}' skipped-shorter='{SkippedShorter}' skipped-by-cap='{SkippedByCap}' skipped-by-budget='{SkippedByBudget}' failure='{Failure}'.",
             AudioCatchUpMessagePrefix, parent.Id, parent.Name, missing.Count, candidates.Count, lookedUp, enriched.Count,
-            holderCount, skippedOld, skippedShort, skippedShorter, skippedByCap, skippedByBudget, failure);
+            holderCount, olderGaps, skippedOld, skippedShort, skippedShorter, skippedByCap, skippedByBudget, failure);
         return enriched;
     }
 
@@ -983,7 +1007,8 @@ public class CatalogueParentsUpdater(
     /// <summary>
     /// True when <paramref name="episode"/> lacks <paramref name="lacksService"/> and a strictly longer same-title
     /// item in <paramref name="stillMissing"/> also lacks it and is not in this pass's capped set. That list is the
-    /// in-window gaps plus playables older than the release cutoff and still inside the matcher's acceptance window.
+    /// in-window gaps plus older gaps from the half-open missing-audio read
+    /// (<c>[acceptance, repositoryReleasedSince)</c>).
     /// The shorter item must not be offered
     /// that service: the matcher returns the first same-title row before it scores duration, so the shorter item
     /// would take the link the longer item still needs.
