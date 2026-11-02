@@ -62,7 +62,7 @@ public class EpisodeTweetPostStateRules
     }
 
     [Fact(DisplayName =
-        "Plain English rule: when ClearTweetState runs, then both the legacy flag and TweetPost are cleared, because un-tweet must drop every posted marker.")]
+        "Plain English rule: when ClearTweetState runs, then the legacy flag, TweetPost and TweetSkipReason are cleared, because un-tweet must drop every posted or skip marker.")]
     public void clear_tweet_state_clears_both_fields()
     {
         // Arrange
@@ -70,6 +70,7 @@ public class EpisodeTweetPostStateRules
         {
             e.OldTweeted = true;
             e.TweetPost = _fixture.Create<string>();
+            e.TweetSkipReason = _fixture.Create<string>();
         });
 
         // Act
@@ -78,6 +79,24 @@ public class EpisodeTweetPostStateRules
         // Assert
         episode.Tweeted.Should().BeFalse();
         episode.OldTweeted.Should().BeNull();
+        episode.TweetPost.Should().BeNull();
+        episode.TweetSkipReason.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when TweetSkipReason is set, then Tweeted is true, because a permanent form failure must not be retried by the hourly tweet run.")]
+    public void tweet_skip_reason_means_not_retryable()
+    {
+        // Arrange
+        var reason = _fixture.Create<string>();
+        var episode = _fixture.CreateEpisode(e => e.TweetSkipReason = reason);
+
+        // Act
+        var posted = episode.Tweeted;
+
+        // Assert
+        posted.Should().BeTrue();
+        episode.TweetSkipReason.Should().Be(reason);
         episode.TweetPost.Should().BeNull();
     }
 

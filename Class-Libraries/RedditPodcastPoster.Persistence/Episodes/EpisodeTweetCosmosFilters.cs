@@ -13,16 +13,19 @@ namespace RedditPodcastPoster.Persistence.Episodes;
 public static class EpisodeTweetCosmosFilters
 {
     /// <summary>
-    /// Episode is tweeted: legacy <c>tweeted == true</c> or defined non-null <c>tweetPost</c>.
+    /// Episode is tweeted: legacy <c>tweeted == true</c>, defined non-null <c>tweetPost</c>, or a
+    /// permanent <c>tweetSkipReason</c>.
     /// </summary>
     public static Expression<Func<Episode, bool>> IsTweeted { get; } =
         e => (e.OldTweeted.IsDefined() && e.OldTweeted == true) ||
-             (e.TweetPost.IsDefined() && e.TweetPost != null);
+             (e.TweetPost.IsDefined() && e.TweetPost != null) ||
+             (e.TweetSkipReason.IsDefined() && e.TweetSkipReason != null);
 
     /// <summary>
     /// Episode is not tweeted (ready for a new post from a Cosmos selector).
     /// </summary>
     public static Expression<Func<Episode, bool>> IsNotTweeted { get; } =
         e => (!e.OldTweeted.IsDefined() || e.OldTweeted != true) &&
-             (!e.TweetPost.IsDefined() || e.TweetPost == null);
+             (!e.TweetPost.IsDefined() || e.TweetPost == null) &&
+             (!e.TweetSkipReason.IsDefined() || e.TweetSkipReason == null);
 }

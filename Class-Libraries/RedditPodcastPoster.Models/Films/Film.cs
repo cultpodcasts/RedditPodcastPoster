@@ -78,6 +78,12 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     [JsonPropertyOrder(41)]
     public string? TweetPost { get; set; }
 
+    /// <summary>Why this film must not be posted to X. See <see cref="Playable.TweetSkipReason"/>.</summary>
+    [JsonPropertyName("tweetSkipReason")]
+    [JsonPropertyOrder(411)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TweetSkipReason { get; set; }
+
     /// <summary>Reads <c>tweetId</c> from the short-lived #1218 shape. Never written back.</summary>
     [JsonPropertyName("tweetId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -95,7 +101,8 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
 
     [JsonIgnore]
     public bool Tweeted =>
-        OldTweeted == true || !string.IsNullOrWhiteSpace(TweetPost);
+        OldTweeted == true || !string.IsNullOrWhiteSpace(TweetPost) ||
+        !string.IsNullOrWhiteSpace(TweetSkipReason);
 
     [JsonPropertyName("bluesky")]
     [JsonPropertyOrder(42)]
@@ -192,5 +199,6 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     {
         OldTweeted = null;
         TweetPost = null;
+        TweetSkipReason = null;
     }
 }

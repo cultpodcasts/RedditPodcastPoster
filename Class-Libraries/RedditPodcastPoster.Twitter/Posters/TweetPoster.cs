@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Episodes;
@@ -19,7 +20,24 @@ public class TweetPoster(
 {
     public async Task<PostTweetResponse> PostTweet(PodcastEpisode podcastEpisode, Uri? shortUrl, bool hasShareImage = false)
     {
-        var tweet = await tweetBuilder.BuildTweet(podcastEpisode, shortUrl, hasShareImage);
+        string tweet;
+        try
+        {
+            tweet = await tweetBuilder.BuildTweet(podcastEpisode, shortUrl, hasShareImage);
+        }
+        catch (UntweetableException ex)
+        {
+            logger.LogWarning(
+                "Marking {ContentKind} id '{EpisodeId}' (parent '{PodcastId}') as not tweetable reason='{Reason}': {Message}",
+                podcastEpisode.ContentKind ?? "episode",
+                podcastEpisode.Episode.Id,
+                podcastEpisode.Podcast.Id,
+                ex.Reason,
+                ex.Message);
+            await PersistNotTweetable(podcastEpisode, ex.Reason);
+            return new PostTweetResponse(TweetSendStatus.Untweetable);
+        }
+
         PostTweetResponse tweetStatus;
         try
         {
@@ -75,5 +93,30 @@ public class TweetPoster(
         }
 
         return tweetStatus;
+    }
+
+    private async Task PersistNotTweetable(PodcastEpisode podcastEpisode, string reason)
+    {
+        // Skip reason alone makes Tweeted true; do not set OldTweeted (that means posted / duplicate-forbidden).
+        PromotableTweetSkip.ApplyNotTweetable(podcastEpisode.Episode, reason);
+
+        try
+        {
+            if (podcastEpisode.IsCataloguePlayable)
+            {
+                await cataloguePlayableSocialPosts.MarkNotTweetable(podcastEpisode, reason);
+            }
+            else
+            {
+                await episodeRepository.Save(podcastEpisode.Episode);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Failure to save not-tweetable reason '{Reason}' for podcast-id '{PodcastId}' episode-id '{EpisodeId}'.",
+                reason, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
+            throw;
+        }
     }
 }

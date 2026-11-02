@@ -129,6 +129,36 @@ public class PodcastEpisodeFilterRules
         ready.Should().BeEmpty();
     }
 
+    [Fact(DisplayName =
+        "When an episode has only TweetSkipReason set, then it is excluded from untweeted candidates, because a later hourly run must not rewrite the shortener for a permanent form failure.")]
+    public async Task tweet_skip_reason_only_excludes_from_untweeted()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        var skipReason = _fixture.Create<string>();
+        var skipped = _fixture.CreateStoredEpisodeWithSpotifyOnly(
+            podcast,
+            release: DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay()));
+        skipped.TweetSkipReason = skipReason;
+        skipped.OldTweeted = false;
+        skipped.TweetPost = null;
+        var eligible = _fixture.CreateStoredEpisodeWithSpotifyOnly(
+            podcast,
+            release: DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay()));
+        eligible.OldTweeted = false;
+        eligible.TweetPost = null;
+
+        // Act
+        var ready = await sut.GetMostRecentUntweetedEpisodes(
+            podcast, [skipped, eligible], numberOfDays: 7);
+
+        // Assert
+        ready.Should().ContainSingle().Which.Episode.Id.Should().Be(eligible.Id);
+        skipped.Tweeted.Should().BeTrue();
+        skipped.OldTweeted.Should().BeFalse();
+    }
+
     private Podcast CreateYouTubeAuthorityPodcast() =>
         _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
 }

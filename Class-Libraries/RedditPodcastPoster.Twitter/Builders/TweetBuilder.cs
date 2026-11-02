@@ -16,6 +16,7 @@ using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Twitter.Configuration;
 using RedditPodcastPoster.Twitter.Dtos;
+using RedditPodcastPoster.Twitter.Models;
 
 namespace RedditPodcastPoster.Twitter.Builders;
 
@@ -130,7 +131,8 @@ public class TweetBuilder(
             var min = Math.Min(episodeTitle.Length, permittedTitleLength - 1);
             if (min < MinTitleLength)
             {
-                throw new InvalidOperationException(
+                throw new UntweetableException(
+                    TweetSkipReasons.TitleTooLong,
                     $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{tweetBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
             }
 
@@ -151,7 +153,7 @@ public class TweetBuilder(
                 out var postUrl,
                 out _))
         {
-            throw new InvalidOperationException("No link found to tweet");
+            throw new UntweetableException(TweetSkipReasons.NoLink, "No link found to tweet");
         }
 
         tweetBuilder.Append(postUrl);

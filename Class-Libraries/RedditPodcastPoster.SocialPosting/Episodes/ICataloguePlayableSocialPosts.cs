@@ -23,6 +23,13 @@ public interface ICataloguePlayableSocialPosts
     /// </summary>
     Task MarkTweeted(PodcastEpisode item, string? tweetPost);
 
+    /// <summary>
+    /// Records that the item cannot form an X post: stores <paramref name="reason"/> on
+    /// <c>tweetSkipReason</c> so later runs treat it as done via <c>Tweeted</c>, without claiming a
+    /// network post occurred and without setting the legacy <c>tweeted</c> flag.
+    /// </summary>
+    Task MarkNotTweetable(PodcastEpisode item, string reason);
+
     /// <summary>Sets <c>blueskyPost</c> on the stored TV episode, news report or film.</summary>
     Task MarkBlueskyPosted(PodcastEpisode item, string blueskyPostUri);
 }
