@@ -183,6 +183,40 @@ public class CatalogueOwnedDiscoveryUrlSubmitterRules
             x => x.RouteByOwner(It.IsAny<Uri>(), It.IsAny<IndexingContext>()), Times.Never);
     }
 
+    [Fact(DisplayName =
+        "When the same discovery result is submitted twice in one request scope (language probe then ingest), each podcast-platform URL is ownership-looked-up once, because the scoped guard caches owners across probe and ingest.")]
+    public async Task probe_then_ingest_looks_up_each_url_once()
+    {
+        // Arrange
+        var youTube = YouTubeUrl();
+        var spotify = SpotifyUrl();
+        var apple = AppleUrl();
+        SetupOwner(youTube, null);
+        SetupOwner(spotify, null);
+        SetupOwner(apple, null);
+        var discoveryResult = Result(youTube, spotify, apple);
+        var innerResult = new DiscoverySubmitResult(DiscoverySubmitResultState.CreatedEpisode);
+        _mocker.GetMock<IDiscoveryUrlSubmitter>()
+            .Setup(x => x.Submit(discoveryResult, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(innerResult);
+        var sut = CreateSut();
+
+        // Act — probe then ingest share the same scoped guard (same SUT instance).
+        await sut.Submit(discoveryResult, new IndexingContext(), new SubmitOptions(null, true));
+        await sut.Submit(discoveryResult, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert — three URLs, one lookup each (not six).
+        _mocker.GetMock<IUrlMembershipLookup>().Verify(
+            x => x.FindCatalogueServiceUrlOwner(youTube, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<IUrlMembershipLookup>().Verify(
+            x => x.FindCatalogueServiceUrlOwner(spotify, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<IUrlMembershipLookup>().Verify(
+            x => x.FindCatalogueServiceUrlOwner(apple, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<IUrlMembershipLookup>().Verify(
+            x => x.FindCatalogueServiceUrlOwner(It.IsAny<Uri>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(3));
+    }
+
     /// <summary>The decorator with the real ownership guard over the (mocked or real) membership lookup.</summary>
     private CatalogueOwnedDiscoveryUrlSubmitter CreateSut()
     {
@@ -194,8 +228,11 @@ public class CatalogueOwnedDiscoveryUrlSubmitterRules
 
     private Uri SpotifyUrl() => new($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}");
 
-    private static DiscoveryResult Result(Uri? youTube = null, Uri? spotify = null) =>
-        new() { Urls = new DiscoveryResultUrls { YouTube = youTube, Spotify = spotify } };
+    private Uri AppleUrl() =>
+        new($"https://podcasts.apple.com/us/podcast/episode/id{_fixture.CreateAppleId()}");
+
+    private static DiscoveryResult Result(Uri? youTube = null, Uri? spotify = null, Uri? apple = null) =>
+        new() { Urls = new DiscoveryResultUrls { YouTube = youTube, Spotify = spotify, Apple = apple } };
 
     private void SetupOwner(Uri url, CatalogueServiceUrlOwner? owner) =>
         _mocker.GetMock<IUrlMembershipLookup>()

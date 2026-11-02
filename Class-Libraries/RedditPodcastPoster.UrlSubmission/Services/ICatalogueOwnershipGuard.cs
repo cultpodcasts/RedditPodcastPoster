@@ -4,7 +4,8 @@ namespace RedditPodcastPoster.UrlSubmission.Services;
 
 /// <summary>
 /// Finds the film, TV episode or news report that already stores a YouTube, Spotify or Apple URL, so a submit
-/// (toolbar or discovery) does not re-create a podcast episode for it (#1089).
+/// (toolbar or discovery) does not re-create a podcast episode for it (#1089). Implementations are request-scoped
+/// and may cache owners by URL so discovery probe and ingest share lookups (#1225).
 /// </summary>
 public interface ICatalogueOwnershipGuard
 {
