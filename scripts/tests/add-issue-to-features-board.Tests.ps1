@@ -1,7 +1,7 @@
 #Requires -Version 7
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0' }
 <#
-  Offline tests for scripts/add-issue-to-features-board.ps1 (#1043, #1224).
+  Offline tests for scripts/add-issue-to-features-board.ps1 (#1043, #1224, #1227).
   A fake `gh` function stands in for the GitHub CLI (functions win over applications for `& gh`),
   serving synthetic Projects V2 REST responses. Nothing calls GitHub.
 #>
@@ -10,6 +10,7 @@ BeforeAll {
     $script:ScriptPath = Join-Path $PSScriptRoot '..' 'add-issue-to-features-board.ps1'
     $script:StatusFieldId = 90000001
     $script:IssueUrl = 'https://github.com/synthetic-owner/synthetic-repo/issues/4242'
+    $script:IssueKey = 'synthetic-owner/synthetic-repo#4242'
 
     # Synthetic JSON for an item GET whose Status option is Todo.
     $script:TodoItemJson = @"
@@ -21,10 +22,10 @@ BeforeAll {
         param(
             # JSON body the fake returns for the item verification GET.
             [Parameter(Mandatory)] [string] $ItemGetJson,
-            # Board-list pages served before the item GET (each page is an array of issue numbers).
+            # Board-list pages served before the item GET (each page is an array of owner/repo#n keys).
             [object[]] $PagesBefore = @(, @()),
             # Board-list pages served after the item GET (default: the issue on page 1).
-            [object[]] $PagesAfter = @(, @(4242)),
+            [object[]] $PagesAfter = @(, @($script:IssueKey)),
             [switch] $PatchFails
         )
         $global:FakeGhCalls = [System.Collections.Generic.List[string]]::new()
@@ -105,7 +106,7 @@ Describe 'add-issue-to-features-board.ps1 Status verification' {
         $output = Invoke-BoardScript
 
         $LASTEXITCODE | Should -Be 0
-        $output | Should -Match 'OK: #4242 is on https://github.com/users/cultpodcasts/projects/1 \(Todo\)'
+        $output | Should -Match 'OK: synthetic-owner/synthetic-repo#4242 is on https://github.com/users/cultpodcasts/projects/1 \(Todo\)'
         $global:FakeGhCalls | Should -Contain "api /users/cultpodcasts/projectsV2/1/items/5550001?fields[]=$script:StatusFieldId"
         $itemGet = Get-CallIndex 'items/5550001\?fields'
         $lastList = Get-CallIndex '^api --paginate .*/items\?per_page=100' -Last
@@ -176,7 +177,8 @@ Describe 'add-issue-to-features-board.ps1 board list paging (#1224)' {
     }
 
     It 'treats an issue listed only on page 2 as already visible: exits 0 with no add and no ghost delete' {
-        New-FakeGh -ItemGetJson $script:TodoItemJson -PagesBefore @(@(1..100), @(101, 4242))
+        $page1 = @(1..100 | ForEach-Object { "other-owner/other-repo#$_" })
+        New-FakeGh -ItemGetJson $script:TodoItemJson -PagesBefore @($page1, @('other-owner/other-repo#101', $script:IssueKey))
         $output = Invoke-BoardScript
 
         $LASTEXITCODE | Should -Be 0
@@ -185,18 +187,56 @@ Describe 'add-issue-to-features-board.ps1 board list paging (#1224)' {
     }
 
     It 'finds a newly added issue on page 2 in the post-add poll and exits 0' {
-        New-FakeGh -ItemGetJson $script:TodoItemJson -PagesBefore @(@(1..100), @(101, 102)) -PagesAfter @(@(1..100), @(101, 102, 4242))
+        $page1 = @(1..100 | ForEach-Object { "other-owner/other-repo#$_" })
+        $page2Before = @('other-owner/other-repo#101', 'other-owner/other-repo#102')
+        $page2After = @('other-owner/other-repo#101', 'other-owner/other-repo#102', $script:IssueKey)
+        New-FakeGh -ItemGetJson $script:TodoItemJson -PagesBefore @($page1, $page2Before) -PagesAfter @($page1, $page2After)
         $output = Invoke-BoardScript
 
         $LASTEXITCODE | Should -Be 0
-        $output | Should -Match 'OK: #4242 is on'
+        $output | Should -Match 'OK: synthetic-owner/synthetic-repo#4242 is on'
     }
 
-    It 'ignores non-numeric lines (drafts emit nothing; stray text is skipped)' {
-        New-FakeGh -ItemGetJson $script:TodoItemJson -PagesBefore @(, @('', 'not-a-number', '4242'))
+    It 'ignores non-key lines (drafts emit nothing; stray text is skipped)' {
+        New-FakeGh -ItemGetJson $script:TodoItemJson -PagesBefore @(, @('', 'not-a-key', '4242', $script:IssueKey))
         $output = Invoke-BoardScript
 
         $LASTEXITCODE | Should -Be 0
         $output | Should -Match 'Already visible on the board'
+    }
+}
+
+Describe 'add-issue-to-features-board.ps1 board keys by repo (#1227)' {
+    AfterEach {
+        Remove-Item -Path Function:\gh -ErrorAction SilentlyContinue
+    }
+
+    It 'does not treat a same-numbered issue in another repo as already on the board' {
+        New-FakeGh -ItemGetJson $script:TodoItemJson -PagesBefore @(, @('other-owner/other-repo#4242'))
+        $output = Invoke-BoardScript
+
+        $LASTEXITCODE | Should -Be 0
+        $output | Should -Not -Match 'Already visible on the board'
+        $output | Should -Match 'OK: synthetic-owner/synthetic-repo#4242 is on'
+        @($global:FakeGhCalls | Where-Object { $_ -match '-X POST' }).Count | Should -Be 1
+    }
+
+    It 'treats the matching owner/repo#number as already visible' {
+        New-FakeGh -ItemGetJson $script:TodoItemJson -PagesBefore @(, @('other-owner/other-repo#4242', $script:IssueKey))
+        $output = Invoke-BoardScript
+
+        $LASTEXITCODE | Should -Be 0
+        $output | Should -Match 'Already visible on the board'
+        @($global:FakeGhCalls | Where-Object { $_ -match '-X POST|graphql|-X PATCH' }).Count | Should -Be 0
+    }
+
+    It 'passes a jq filter that includes repository_url and number, not number alone' {
+        New-FakeGh -ItemGetJson $script:TodoItemJson
+        $null = Invoke-BoardScript
+
+        $listCall = @($global:FakeGhCalls | Where-Object { $_ -match '^api --paginate .*/items\?per_page=100 --jq ' })[0]
+        $listCall | Should -Match 'repository_url'
+        $listCall | Should -Match 'content\.number'
+        $listCall | Should -Not -Match -- '--jq \.\[\] \| \.content\.number // empty'
     }
 }

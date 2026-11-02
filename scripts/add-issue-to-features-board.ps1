@@ -16,8 +16,9 @@
   the issue, a GraphQL ghost link is blocking the add: the script deletes that ghost item
   (via GraphQL deleteProjectV2Item) and retries the REST add.
 
-  Success criterion: the issue number appears in the board's item list
-  (GET /users/{owner}/projectsV2/{number}/items). A linked-but-unlisted issue is a failure.
+  Success criterion: the issue (owner/repo#number) appears in the board's item list
+  (GET /users/{owner}/projectsV2/{number}/items). Matching by number alone is wrong —
+  the board holds issues from multiple repos (#1227). A linked-but-unlisted issue is a failure.
 
 .PARAMETER IssueUrl
   Full issue URL, e.g. https://github.com/cultpodcasts/RedditPodcastPoster/issues/989
@@ -82,13 +83,15 @@ function Invoke-Gh {
     }
 }
 
-# Lists every issue number on the board. The items endpoint pages at 100, so --paginate is
-# required (the board passed 100 items in Oct 2026; #1224). The --jq filter emits one scalar
-# per item so paged output concatenates cleanly; draft items have no content.number.
-function Get-BoardIssueNumbers {
-    $r = Invoke-Gh api --paginate "$($itemsPath)?per_page=100" --jq '.[] | .content.number // empty'
+# Lists every issue on the board as "owner/repo#number". Number alone is not unique — the
+# board holds RedditPodcastPoster, website, Api, and freedomtimes issues (#1227). The items
+# endpoint pages at 100, so --paginate is required (#1224). The --jq filter emits one scalar
+# per item so paged output concatenates cleanly; drafts / non-issues are skipped.
+function Get-BoardIssueKeys {
+    $jq = '.[] | select(.content.number != null and .content.repository_url != null) | "\(.content.repository_url | sub("https://api.github.com/repos/"; ""))#\(.content.number)"'
+    $r = Invoke-Gh api --paginate "$($itemsPath)?per_page=100" --jq $jq
     if ($r.ExitCode -ne 0) { throw "Board list failed: $($r.All)" }
-    return @($r.Stdout -split "`n" | Where-Object { $_ -match '^\s*\d+\s*$' } | ForEach-Object { [int]$_.Trim() })
+    return @($r.Stdout -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^[^/\s]+/[^/\s]+#\d+$' })
 }
 
 function Get-PropertyValue($Object, [string] $Name) {
@@ -114,10 +117,11 @@ function Get-ItemStatusName($Item, $StatusFieldId) {
     return [string](Get-PropertyValue $name 'raw')
 }
 
-Write-Host "Resolving $repoOwner/$repoName#$issueNumber …"
+$issueKey = "$repoOwner/$repoName#$issueNumber"
+Write-Host "Resolving $issueKey …"
 $issue = & gh api "/repos/$repoOwner/$repoName/issues/$issueNumber" --jq '{id, node_id, title}' | ConvertFrom-Json
 
-if ((Get-BoardIssueNumbers) -contains $issueNumber) {
+if ((Get-BoardIssueKeys) -contains $issueKey) {
     Write-Host "Already visible on the board."
     exit 0
 }
@@ -197,8 +201,8 @@ $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
 $attempt = 0
 do {
     $attempt++
-    if ((Get-BoardIssueNumbers) -contains $issueNumber) {
-        Write-Host "OK: #$issueNumber is on https://github.com/users/$Owner/projects/$ProjectNumber ($StatusName) after $attempt check(s)."
+    if ((Get-BoardIssueKeys) -contains $issueKey) {
+        Write-Host "OK: $issueKey is on https://github.com/users/$Owner/projects/$ProjectNumber ($StatusName) after $attempt check(s)."
         exit 0
     }
     if ([DateTime]::UtcNow -ge $deadline) { break }
