@@ -12,6 +12,7 @@ namespace RedditPodcastPoster.UrlSubmission.Services;
 /// </summary>
 public class CatalogueOwnershipGuard(IUrlMembershipLookup urlMembershipLookup) : ICatalogueOwnershipGuard
 {
+    // Assumes single-threaded use per scope (call sites are sequential); no in-flight coalescing.
     private readonly Dictionary<string, CatalogueServiceUrlOwner?> _ownerByAbsoluteUri =
         new(StringComparer.Ordinal);
 

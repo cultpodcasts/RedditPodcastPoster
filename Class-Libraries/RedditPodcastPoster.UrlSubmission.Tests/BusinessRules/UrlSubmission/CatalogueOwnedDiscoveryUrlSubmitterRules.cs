@@ -217,6 +217,31 @@ public class CatalogueOwnedDiscoveryUrlSubmitterRules
             Times.Exactly(3));
     }
 
+    [Fact(DisplayName =
+        "When a film-owned discovery URL is submitted twice in one request scope (language probe then ingest), the ownership lookup runs once and both submits are already-exists, because the scoped guard caches non-null owners too.")]
+    public async Task probe_then_ingest_caches_film_owned_url()
+    {
+        // Arrange
+        var url = YouTubeUrl();
+        var filmId = _fixture.CreateGuid();
+        SetupOwner(url, new CatalogueServiceUrlOwner(SubmitClassification.Film, null, filmId));
+        var discoveryResult = Result(url);
+        var sut = CreateSut();
+
+        // Act
+        var first = await sut.Submit(discoveryResult, new IndexingContext(), new SubmitOptions(null, true));
+        var second = await sut.Submit(discoveryResult, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        first.State.Should().Be(DiscoverySubmitResultState.EpisodeAlreadyExists);
+        second.State.Should().Be(DiscoverySubmitResultState.EpisodeAlreadyExists);
+        first.PlayableId.Should().Be(filmId);
+        second.PlayableId.Should().Be(filmId);
+        _mocker.GetMock<IUrlMembershipLookup>().Verify(
+            x => x.FindCatalogueServiceUrlOwner(url, It.IsAny<CancellationToken>()), Times.Once);
+        VerifyInnerNotCalled();
+    }
+
     /// <summary>The decorator with the real ownership guard over the (mocked or real) membership lookup.</summary>
     private CatalogueOwnedDiscoveryUrlSubmitter CreateSut()
     {
