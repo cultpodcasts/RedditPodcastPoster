@@ -92,8 +92,8 @@ public static class CatalogueParentKindMapper
         film.Length = episode.Length;
         film.Explicit = episode.Explicit;
         film.Posted = episode.Posted;
-        film.Tweeted = episode.Tweeted;
-        film.TweetId = episode.TweetId;
+        film.OldTweeted = episode.OldTweeted;
+        film.TweetPost = episode.TweetPost;
         film.OldBlueskyPosted = episode.OldBlueskyPosted;
         film.BlueskyPost = episode.BlueskyPost;
         film.Ignored = episode.Ignored;
@@ -149,8 +149,8 @@ public static class CatalogueParentKindMapper
             Length = film.Length,
             Explicit = film.Explicit,
             Posted = film.Posted,
-            Tweeted = film.Tweeted,
-            TweetId = film.TweetId,
+            OldTweeted = film.OldTweeted,
+            TweetPost = film.TweetPost,
             OldBlueskyPosted = film.OldBlueskyPosted,
             BlueskyPost = film.BlueskyPost,
             Ignored = film.Ignored,
@@ -209,8 +209,8 @@ public static class CatalogueParentKindMapper
         target.Length = source.Length;
         target.Explicit = source.Explicit;
         target.Posted = source.Posted;
-        target.Tweeted = source.Tweeted;
-        target.TweetId = source.TweetId;
+        target.OldTweeted = source.OldTweeted;
+        target.TweetPost = source.TweetPost;
         target.OldBlueskyPosted = source.OldBlueskyPosted;
         target.BlueskyPost = source.BlueskyPost;
         target.Ignored = source.Ignored;

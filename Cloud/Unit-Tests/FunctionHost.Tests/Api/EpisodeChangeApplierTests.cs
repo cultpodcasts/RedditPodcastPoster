@@ -310,8 +310,8 @@ public class EpisodeChangeApplierTests
         // Arrange
         var episode = CreateEpisode(e =>
         {
-            e.Tweeted = true;
-            e.TweetId = "1234567890123456789";
+            e.OldTweeted = true;
+            e.TweetPost = "1234567890123456789";
         });
         var sut = CreateSut();
 
@@ -320,7 +320,7 @@ public class EpisodeChangeApplierTests
 
         // Assert
         episode.Tweeted.Should().BeTrue();
-        episode.TweetId.Should().Be("1234567890123456789");
+        episode.TweetPost.Should().Be("1234567890123456789");
         state.UnTweet.Should().BeTrue();
     }
 
@@ -328,7 +328,7 @@ public class EpisodeChangeApplierTests
     public void Apply_marks_tweeted_by_hand()
     {
         // Arrange
-        var episode = CreateEpisode(e => e.Tweeted = false);
+        var episode = CreateEpisode(e => e.OldTweeted = false);
         var sut = CreateSut();
 
         // Act
@@ -336,7 +336,7 @@ public class EpisodeChangeApplierTests
 
         // Assert
         episode.Tweeted.Should().BeTrue();
-        episode.TweetId.Should().BeNull();
+        episode.TweetPost.Should().BeNull();
         state.UnTweet.Should().BeFalse();
     }
 

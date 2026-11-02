@@ -9,10 +9,14 @@ public interface IPromotable
 
     bool Posted { get; set; }
 
-    bool Tweeted { get; set; }
+    /// <summary>Whether an X post is recorded (legacy <c>tweeted</c> flag or a stored <see cref="TweetPost"/>).</summary>
+    bool Tweeted { get; }
+
+    /// <summary>Legacy Cosmos flag (<c>tweeted</c>). Prefer <see cref="TweetPost"/> for new posts.</summary>
+    bool? OldTweeted { get; set; }
 
     /// <summary>Id of the X post, when it was stored at post time. Null for older posts.</summary>
-    string? TweetId { get; set; }
+    string? TweetPost { get; set; }
 
     /// <summary>Legacy Cosmos flag (<c>bluesky</c>). Prefer <see cref="BlueskyPost"/> for new posts.</summary>
     bool? OldBlueskyPosted { get; set; }
@@ -28,6 +32,6 @@ public interface IPromotable
 
     void ClearBlueskyPostState();
 
-    /// <summary>Clears <see cref="Tweeted"/> and <see cref="TweetId"/> once the post is gone from X.</summary>
+    /// <summary>Clears <see cref="OldTweeted"/> and <see cref="TweetPost"/> once the post is gone from X.</summary>
     void ClearTweetState();
 }

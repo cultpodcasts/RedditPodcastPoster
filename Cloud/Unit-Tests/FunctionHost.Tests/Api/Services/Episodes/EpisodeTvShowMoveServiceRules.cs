@@ -159,7 +159,7 @@ public class EpisodeTvShowMoveServiceRules
         var (podcast, episode) = SeedEpisode(item =>
         {
             item.Posted = true;
-            item.Tweeted = true;
+            item.OldTweeted = true;
         });
         var sibling = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         _episodes.Seed(sibling);

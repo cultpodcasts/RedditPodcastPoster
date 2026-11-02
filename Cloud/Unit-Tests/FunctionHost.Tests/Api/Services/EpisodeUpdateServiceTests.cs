@@ -122,7 +122,7 @@ public class EpisodeUpdateServiceTests
         // Arrange
         var (episode, podcast) = ResolvedOldPair(e =>
         {
-            e.Tweeted = true;
+            e.OldTweeted = true;
             e.BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2";
         });
         var sut = _mocker.CreateInstance<EpisodeUpdateService>();
@@ -207,8 +207,8 @@ public class EpisodeUpdateServiceTests
         const string tweetId = "1234567890123456789";
         var (episode, podcast) = ResolvedOldPair(e =>
         {
-            e.Tweeted = true;
-            e.TweetId = tweetId;
+            e.OldTweeted = true;
+            e.TweetPost = tweetId;
         });
         string? idSeenByRemove = null;
         var tweetedSeenByRemove = false;
@@ -217,7 +217,7 @@ public class EpisodeUpdateServiceTests
             .Setup(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()))
             .Callback<PodcastEpisode>(pe =>
             {
-                idSeenByRemove = pe.Episode.TweetId;
+                idSeenByRemove = pe.Episode.TweetPost;
                 tweetedSeenByRemove = pe.Episode.Tweeted;
             })
             .ReturnsAsync(state);
@@ -239,7 +239,7 @@ public class EpisodeUpdateServiceTests
         tweetedSeenByRemove.Should().BeTrue();
         tweetedAtSave.Should().BeFalse();
         episode.Tweeted.Should().BeFalse();
-        episode.TweetId.Should().BeNull();
+        episode.TweetPost.Should().BeNull();
     }
 
     [Theory(DisplayName =
@@ -252,8 +252,8 @@ public class EpisodeUpdateServiceTests
         const string tweetId = "1234567890123456789";
         var (episode, podcast) = ResolvedOldPair(e =>
         {
-            e.Tweeted = true;
-            e.TweetId = tweetId;
+            e.OldTweeted = true;
+            e.TweetPost = tweetId;
         });
         _mocker.GetMock<ITweetManager>()
             .Setup(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()))
@@ -270,7 +270,7 @@ public class EpisodeUpdateServiceTests
         result.Outcome!.TweetDeleted.Should().BeFalse();
         _saved.Should().Be(episode);
         episode.Tweeted.Should().BeTrue();
-        episode.TweetId.Should().Be(tweetId);
+        episode.TweetPost.Should().Be(tweetId);
     }
 
     [Fact(DisplayName =
@@ -282,8 +282,8 @@ public class EpisodeUpdateServiceTests
         var oldLength = TimeSpan.FromMinutes(41);
         var (episode, podcast) = ResolvedOldPair(e =>
         {
-            e.Tweeted = true;
-            e.TweetId = null;
+            e.OldTweeted = true;
+            e.TweetPost = null;
             e.ReleaseUtc = oldRelease;
             e.Length = oldLength;
         });
@@ -312,7 +312,7 @@ public class EpisodeUpdateServiceTests
         episode.ReleaseUtc.Should().Be(newRelease);
         episode.Length.Should().Be(TimeSpan.FromMinutes(52));
         episode.Tweeted.Should().BeFalse();
-        episode.TweetId.Should().BeNull();
+        episode.TweetPost.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -323,8 +323,8 @@ public class EpisodeUpdateServiceTests
         const string tweetId = "1234567890123456789";
         var (episode, podcast) = ResolvedOldPair(e =>
         {
-            e.Tweeted = true;
-            e.TweetId = tweetId;
+            e.OldTweeted = true;
+            e.TweetPost = tweetId;
         });
         _mocker.GetMock<ITweetManager>()
             .Setup(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()))
@@ -350,7 +350,7 @@ public class EpisodeUpdateServiceTests
     public async Task update_untweet_keeps_tweeted_when_remove_throws()
     {
         // Arrange
-        var (episode, podcast) = ResolvedOldPair(e => e.Tweeted = true);
+        var (episode, podcast) = ResolvedOldPair(e => e.OldTweeted = true);
         _mocker.GetMock<ITweetManager>()
             .Setup(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()))
             .ThrowsAsync(new InvalidOperationException("synthetic"));

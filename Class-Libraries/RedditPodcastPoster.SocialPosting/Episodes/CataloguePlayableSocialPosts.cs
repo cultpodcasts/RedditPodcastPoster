@@ -40,11 +40,13 @@ public class CataloguePlayableSocialPosts(
 
     private static void SetTweeted(IPromotable stored, string? tweetId)
     {
-        stored.Tweeted = true;
         if (!string.IsNullOrWhiteSpace(tweetId))
         {
-            stored.TweetId = tweetId;
+            stored.TweetPost = tweetId;
+            return;
         }
+
+        stored.OldTweeted = true;
     }
 
     public Task MarkBlueskyPosted(PodcastEpisode item, string blueskyPostUri) =>

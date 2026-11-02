@@ -697,7 +697,7 @@ public class CatalogueSocialPostRules
         var (show, newest) = CreateTvEpisode();
         newest.SetRelease(CatalogueRelease.FromDateTimeUtc(DomainTestFixture.UtcDaysAgo(0).AddHours(1)));
         var tweeted = CreateTvEpisode().Episode;
-        tweeted.Tweeted = true;
+        tweeted.OldTweeted = true;
         var ignored = CreateTvEpisode().Episode;
         ignored.Ignored = true;
         var noLink = CreateTvEpisode().Episode;
@@ -864,7 +864,7 @@ public class CatalogueSocialPostRules
 
     private static Film CopyFilm(Film source)
     {
-        var copy = new Film(source.Name) { Id = source.Id, Tweeted = source.Tweeted };
+        var copy = new Film(source.Name) { Id = source.Id, OldTweeted = source.OldTweeted, TweetPost = source.TweetPost };
         if (source.Trailers is not null)
         {
             copy.Trailers = source.Trailers.Select(trailer => new FilmTrailer
@@ -942,7 +942,7 @@ public class CatalogueSocialPostRules
         // Assert
         saved.Should().BeSameAs(tvEpisode);
         saved!.Tweeted.Should().BeTrue();
-        saved.TweetId.Should().Be(tweetId);
+        saved.TweetPost.Should().Be(tweetId);
     }
 
     [Fact(DisplayName =
@@ -952,7 +952,7 @@ public class CatalogueSocialPostRules
         // Arrange
         const string tweetId = "1850000000000000103";
         var (show, tvEpisode) = CreateTvEpisode();
-        tvEpisode.TweetId = tweetId;
+        tvEpisode.TweetPost = tweetId;
         var item = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(x => x.GetTvShowEpisode(show.Id, tvEpisode.Id))
@@ -964,7 +964,7 @@ public class CatalogueSocialPostRules
 
         // Assert
         tvEpisode.Tweeted.Should().BeTrue();
-        tvEpisode.TweetId.Should().Be(tweetId);
+        tvEpisode.TweetPost.Should().Be(tweetId);
     }
 
     [Fact(DisplayName =
@@ -973,16 +973,16 @@ public class CatalogueSocialPostRules
     {
         // Arrange
         var film = CreateFilm();
-        film.TweetId = "1850000000000000104";
+        film.TweetPost = "1850000000000000104";
         var (show, tvEpisode) = CreateTvEpisode();
-        tvEpisode.TweetId = "1850000000000000105";
+        tvEpisode.TweetPost = "1850000000000000105";
 
         // Act
         var filmItem = CatalogueParentKindMapper.ToPostProjection(film);
         var tvItem = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
 
         // Assert
-        filmItem.Episode.TweetId.Should().Be(film.TweetId);
-        tvItem.Episode.TweetId.Should().Be(tvEpisode.TweetId);
+        filmItem.Episode.TweetPost.Should().Be(film.TweetPost);
+        tvItem.Episode.TweetPost.Should().Be(tvEpisode.TweetPost);
     }
 }

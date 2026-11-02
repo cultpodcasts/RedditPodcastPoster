@@ -120,7 +120,7 @@ public class PodcastEpisodeFilterRules
         var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(
             podcast,
             release: DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay()));
-        episode.Tweeted = false;
+        episode.OldTweeted = false;
 
         // Act
         var ready = await sut.GetMostRecentUntweetedEpisodes(podcast, [episode], numberOfDays: 7);

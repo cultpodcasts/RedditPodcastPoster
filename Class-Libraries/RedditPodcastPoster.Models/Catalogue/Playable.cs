@@ -60,18 +60,43 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     [JsonPropertyOrder(40)]
     public bool Posted { get; set; }
 
+    /// <summary>
+    /// Legacy Cosmos flag (<c>tweeted</c>). Populated only by deserialization of documents posted
+    /// before the post id was stored, or when a post is recorded with no id. Do not set this for a
+    /// new post — store <see cref="TweetPost"/>.
+    /// </summary>
     [JsonPropertyName("tweeted")]
     [JsonPropertyOrder(41)]
-    public bool Tweeted { get; set; }
+    public bool? OldTweeted { get; set; }
 
     /// <summary>
     /// Id of the X post made for this item (from the <c>POST /2/tweets</c> response), so un-tweet deletes it by id.
-    /// Null on items tweeted before the id was stored, on a duplicate-content post, and when the flag was set by hand;
-    /// those fall back to the timeline search.
+    /// Same role as <see cref="BlueskyPost"/>. Null on items tweeted before the id was stored.
+    /// </summary>
+    [JsonPropertyName("tweetPost")]
+    [JsonPropertyOrder(41)]
+    public string? TweetPost { get; set; }
+
+    /// <summary>
+    /// Reads <c>tweetId</c> written by the short-lived #1218 shape. Never written back.
     /// </summary>
     [JsonPropertyName("tweetId")]
-    [JsonPropertyOrder(41)]
-    public string? TweetId { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyTweetId
+    {
+        get => null;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(TweetPost) && !string.IsNullOrWhiteSpace(value))
+            {
+                TweetPost = value;
+            }
+        }
+    }
+
+    [JsonIgnore]
+    public bool Tweeted =>
+        OldTweeted == true || !string.IsNullOrWhiteSpace(TweetPost);
 
     /// <summary>
     /// Legacy Cosmos flag (<c>bluesky</c>). Populated only by deserialization of pre-migration
@@ -181,8 +206,8 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
 
     public void ClearTweetState()
     {
-        Tweeted = false;
-        TweetId = null;
+        OldTweeted = null;
+        TweetPost = null;
     }
 
     /// <summary>

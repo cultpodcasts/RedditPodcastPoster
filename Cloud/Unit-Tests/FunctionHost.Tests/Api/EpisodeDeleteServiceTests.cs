@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using Api.Models;
 using Api.Resolvers;
 using Api.Services.Episodes;
@@ -17,15 +18,17 @@ namespace FunctionHost.Tests.Api;
 
 public class EpisodeDeleteServiceTests
 {
+    private readonly AutoMocker _mocker = new();
+
     [Fact(DisplayName = "Delete returns NotFound when episode or podcast missing")]
     public async Task Delete_returns_not_found_when_missing()
     {
         // Arrange
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+        _mocker.GetMock<IPodcastEpisodeResolver>()
+            .Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
             .ReturnsAsync(new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.PodcastNotFound));
 
-        var service = CreateService(resolver.Object);
+        var service = CreateService();
 
         // Act
         var result = await service.DeleteAsync(
@@ -42,15 +45,16 @@ public class EpisodeDeleteServiceTests
         // Arrange
         var episodeId = Guid.NewGuid();
         var podcastId = Guid.NewGuid();
-        var episode = new Episode { Id = episodeId, PodcastId = podcastId, Tweeted = true };
+        var episode = new Episode { Id = episodeId, PodcastId = podcastId, OldTweeted = true };
         var podcast = new Podcast { Id = podcastId, Name = "Show" };
 
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+        _mocker.GetMock<IPodcastEpisodeResolver>()
+            .Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
             .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
 
-        var episodeRepo = new Mock<IEpisodeRepository>(MockBehavior.Strict);
-        var service = CreateService(resolver.Object, episodeRepo.Object);
+        var episodeRepo = _mocker.GetMock<IEpisodeRepository>();
+        episodeRepo.Setup(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>())).Throws(new InvalidOperationException("delete"));
+        var service = CreateService();
 
         // Act
         var result = await service.DeleteAsync(
@@ -69,21 +73,21 @@ public class EpisodeDeleteServiceTests
         // Arrange
         var episodeId = Guid.NewGuid();
         var podcastId = Guid.NewGuid();
-        var episode = new Episode { Id = episodeId, PodcastId = podcastId, Posted = true, Tweeted = false };
+        var episode = new Episode { Id = episodeId, PodcastId = podcastId, Posted = true, OldTweeted = false };
         var podcast = new Podcast { Id = podcastId, Name = "Show" };
 
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+        _mocker.GetMock<IPodcastEpisodeResolver>()
+            .Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
             .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
 
-        var episodeRepo = new Mock<IEpisodeRepository>();
+        var episodeRepo = _mocker.GetMock<IEpisodeRepository>();
         episodeRepo.Setup(r => r.Delete(podcastId, episodeId)).Returns(Task.CompletedTask);
 
-        var shortner = new Mock<IShortnerService>();
-        shortner.Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
+        _mocker.GetMock<IShortnerService>()
+            .Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
             .ReturnsAsync(new RedditPodcastPoster.Cloudflare.Models.DeleteResult(true));
 
-        var service = CreateService(resolver.Object, episodeRepo.Object, shortner.Object);
+        var service = CreateService();
 
         // Act
         var result = await service.DeleteAsync(
@@ -104,18 +108,18 @@ public class EpisodeDeleteServiceTests
         var episode = new Episode { Id = episodeId, PodcastId = podcastId };
         var podcast = new Podcast { Id = podcastId, Name = "Show" };
 
-        var resolver = new Mock<IPodcastEpisodeResolver>();
-        resolver.Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+        _mocker.GetMock<IPodcastEpisodeResolver>()
+            .Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
             .ReturnsAsync(new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved));
 
-        var episodeRepo = new Mock<IEpisodeRepository>();
+        var episodeRepo = _mocker.GetMock<IEpisodeRepository>();
         episodeRepo.Setup(r => r.Delete(podcastId, episodeId)).Returns(Task.CompletedTask);
 
-        var shortner = new Mock<IShortnerService>();
-        shortner.Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
+        _mocker.GetMock<IShortnerService>()
+            .Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
             .ReturnsAsync(new RedditPodcastPoster.Cloudflare.Models.DeleteResult(true));
 
-        var service = CreateService(resolver.Object, episodeRepo.Object, shortner.Object);
+        var service = CreateService();
 
         // Act
         var result = await service.DeleteAsync(
@@ -127,18 +131,15 @@ public class EpisodeDeleteServiceTests
         episodeRepo.Verify(r => r.Delete(podcastId, episodeId), Times.Once);
     }
 
-    private static EpisodeDeleteService CreateService(
-        IPodcastEpisodeResolver resolver,
-        IEpisodeRepository? episodeRepository = null,
-        IShortnerService? shortner = null)
+    private EpisodeDeleteService CreateService()
     {
         return new EpisodeDeleteService(
-            resolver,
-            episodeRepository ?? Mock.Of<IEpisodeRepository>(),
+            _mocker.Get<IPodcastEpisodeResolver>(),
+            _mocker.Get<IEpisodeRepository>(),
             new EpisodeSearchIndexCleanup(
                 CreateUninitializedSearchClient(),
                 NullLogger<EpisodeSearchIndexCleanup>.Instance),
-            shortner ?? Mock.Of<IShortnerService>(),
+            _mocker.Get<IShortnerService>(),
             NullLogger<EpisodeDeleteService>.Instance);
     }
 

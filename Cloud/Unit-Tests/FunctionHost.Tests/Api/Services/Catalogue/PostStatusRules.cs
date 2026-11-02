@@ -125,7 +125,7 @@ public class PostStatusRules
     public async Task untweet_deletes_tweet_then_clears_and_saves()
     {
         // Arrange
-        var report = CreateReport(r => r.Tweeted = true);
+        var report = CreateReport(r => r.OldTweeted = true);
         var post = PostText(report.Title, report.NewsOrganisationName,
             $"{DateLine(report.ReleaseSort)} {LengthText(report.Length)}");
 
@@ -145,7 +145,7 @@ public class PostStatusRules
     public async Task untweet_matches_pre_patch_release_and_length()
     {
         // Arrange
-        var report = CreateReport(r => r.Tweeted = true);
+        var report = CreateReport(r => r.OldTweeted = true);
         var post = PostText(report.Title, report.NewsOrganisationName,
             $"{DateLine(report.ReleaseSort)} {LengthText(report.Length)}");
         var newRelease = DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(1));
@@ -186,8 +186,8 @@ public class PostStatusRules
         // Arrange
         var report = CreateReport(r =>
         {
-            r.Tweeted = true;
-            r.TweetId = "1234567890123456789";
+            r.OldTweeted = true;
+            r.TweetPost = "1234567890123456789";
         });
         _tweets.Setup(t => t.RemoveTweet(It.IsAny<PodcastEpisode>())).ReturnsAsync(RemoveTweetState.NotFound);
 
@@ -197,7 +197,7 @@ public class PostStatusRules
         // Assert
         result.Status.Should().Be(NewsReportUpdateStatus.Accepted);
         _savedReport!.Tweeted.Should().BeFalse();
-        _savedReport.TweetId.Should().BeNull();
+        _savedReport.TweetPost.Should().BeNull();
         result.Outcome!.TweetDeleted.Should().BeTrue();
     }
 
@@ -209,12 +209,12 @@ public class PostStatusRules
         const string tweetId = "1234567890123456789";
         var report = CreateReport(r =>
         {
-            r.Tweeted = true;
-            r.TweetId = tweetId;
+            r.OldTweeted = true;
+            r.TweetPost = tweetId;
         });
         string? seen = null;
         _tweets.Setup(t => t.RemoveTweet(It.IsAny<PodcastEpisode>()))
-            .Callback<PodcastEpisode>(item => seen = item.Episode.TweetId)
+            .Callback<PodcastEpisode>(item => seen = item.Episode.TweetPost)
             .ReturnsAsync(RemoveTweetState.Deleted);
 
         // Act
@@ -222,7 +222,7 @@ public class PostStatusRules
 
         // Assert
         seen.Should().Be(tweetId);
-        _savedReport!.TweetId.Should().BeNull();
+        _savedReport!.TweetPost.Should().BeNull();
     }
 
     [Theory(DisplayName =
@@ -232,7 +232,7 @@ public class PostStatusRules
     public async Task untweet_not_deleted_keeps_flag(RemoveTweetState state)
     {
         // Arrange
-        var report = CreateReport(r => r.Tweeted = true);
+        var report = CreateReport(r => r.OldTweeted = true);
         _tweets.Setup(t => t.RemoveTweet(It.IsAny<PodcastEpisode>())).ReturnsAsync(state);
 
         // Act
@@ -249,7 +249,7 @@ public class PostStatusRules
     public async Task untweet_exception_keeps_flag()
     {
         // Arrange
-        var report = CreateReport(r => r.Tweeted = true);
+        var report = CreateReport(r => r.OldTweeted = true);
         _tweets.Setup(t => t.RemoveTweet(It.IsAny<PodcastEpisode>())).ThrowsAsync(new InvalidOperationException("synthetic"));
 
         // Act
@@ -318,7 +318,7 @@ public class PostStatusRules
     public async Task invalid_request_touches_nothing()
     {
         // Arrange
-        var report = CreateReport(r => { r.Tweeted = true; r.BlueskyPost = SyntheticAtUri; });
+        var report = CreateReport(r => { r.OldTweeted = true; r.BlueskyPost = SyntheticAtUri; });
 
         // Act
         var result = await Update(report, new NewsReportChangeRequest { Release = "bad", Tweeted = false, UnBluesky = true, Posted = true });
@@ -337,7 +337,7 @@ public class PostStatusRules
     {
         // Arrange
         var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
-        var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Tweeted = true, BlueskyPost = SyntheticAtUri };
+        var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), OldTweeted = true, BlueskyPost = SyntheticAtUri };
         episode.SetTvShowProperties(show);
         episode.SetRelease(CatalogueRelease.FromDate(DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(5))));
         _mocker.GetMock<ITvShowEpisodeRepository>()
@@ -367,7 +367,7 @@ public class PostStatusRules
     {
         // Arrange
         var publisher = _fixture.CreateTitle();
-        var film = new Film(_fixture.CreateTitle(3)) { Id = _fixture.CreateGuid(), Tweeted = true, BlueskyPost = SyntheticAtUri };
+        var film = new Film(_fixture.CreateTitle(3)) { Id = _fixture.CreateGuid(), OldTweeted = true, BlueskyPost = SyntheticAtUri };
         film.SetRelease(CatalogueRelease.FromYear(DomainTestFixture.UtcToday.Year - 30));
         Film? saved = null;
         _mocker.GetMock<IFilmRepository>().Setup(r => r.GetFilm(film.Id)).ReturnsAsync(film);
