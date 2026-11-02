@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace RedditPodcastPoster.Bluesky.Client;
 
 /// <summary>
@@ -23,12 +25,28 @@ public static class BlueskyEmbedText
             return trimmed;
         }
 
-        var cut = maxLength - 1;
-        if (cut > 0 && char.IsLowSurrogate(trimmed[cut]))
+        return TruncateToWholeTextElements(trimmed, maxLength - 1) + "…";
+    }
+
+    /// <summary>
+    /// Longest prefix of <paramref name="text"/> made of whole text elements (graphemes) whose UTF-16 length is at
+    /// most <paramref name="maxLength"/>, so a cut never splits a surrogate pair, emoji sequence or combining mark.
+    /// </summary>
+    public static string TruncateToWholeTextElements(string text, int maxLength)
+    {
+        var length = 0;
+        var enumerator = StringInfo.GetTextElementEnumerator(text);
+        while (enumerator.MoveNext())
         {
-            cut--;
+            var next = enumerator.ElementIndex + enumerator.GetTextElement().Length;
+            if (next > maxLength)
+            {
+                break;
+            }
+
+            length = next;
         }
 
-        return trimmed[..cut] + "…";
+        return text[..length];
     }
 }
