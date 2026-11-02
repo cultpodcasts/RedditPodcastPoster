@@ -2,6 +2,9 @@ namespace RedditPodcastPoster.Twitter.Configuration;
 
 public class TwitterOptions
 {
+    /// <summary>Configuration section bound by <c>AddXOAuth2TokenServices</c> / posting hosts.</summary>
+    public const string SectionName = "twitter";
+
     /// <summary>
     /// Which credentials sign X API requests. <see cref="TwitterAuthMode.OAuth1"/> (the default) keeps the
     /// OAuth 1.0a keys below; <see cref="TwitterAuthMode.OAuth2"/> sends the OAuth 2.0 user-context bearer token
