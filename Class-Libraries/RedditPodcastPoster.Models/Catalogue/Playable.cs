@@ -74,7 +74,7 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     /// Same role as <see cref="BlueskyPost"/>. Null on items tweeted before the id was stored.
     /// </summary>
     [JsonPropertyName("tweetPost")]
-    [JsonPropertyOrder(41)]
+    [JsonPropertyOrder(42)]
     public string? TweetPost { get; set; }
 
     /// <summary>
@@ -104,14 +104,14 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     /// <see cref="BlueskyPost"/> after a network post.
     /// </summary>
     [JsonPropertyName("bluesky")]
-    [JsonPropertyOrder(42)]
+    [JsonPropertyOrder(43)]
     public bool? OldBlueskyPosted { get; set; }
 
     /// <summary>
     /// AT URI of the Bluesky post (<c>at://{did}/app.bsky.feed.post/{rkey}</c>).
     /// </summary>
     [JsonPropertyName("blueskyPost")]
-    [JsonPropertyOrder(43)]
+    [JsonPropertyOrder(44)]
     public string? BlueskyPost { get; set; }
 
     [JsonIgnore]
@@ -119,15 +119,15 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         OldBlueskyPosted == true || !string.IsNullOrWhiteSpace(BlueskyPost);
 
     [JsonPropertyName("ignored")]
-    [JsonPropertyOrder(44)]
+    [JsonPropertyOrder(45)]
     public bool Ignored { get; set; }
 
     [JsonPropertyName("removed")]
-    [JsonPropertyOrder(45)]
+    [JsonPropertyOrder(46)]
     public bool Removed { get; set; }
 
     [JsonPropertyName("lang")]
-    [JsonPropertyOrder(46)]
+    [JsonPropertyOrder(47)]
     public string? Language { get; set; }
 
     [JsonPropertyName("subjects")]
@@ -209,6 +209,20 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         OldTweeted = null;
         TweetPost = null;
     }
+
+    /// <summary>
+    /// Cosmos SQL: playable is tweeted. Do not filter on <c>e.tweeted</c> alone —
+    /// <c>tweetPost</c>-only documents would look untweeted and risk re-posts. Combine
+    /// <c>IS_DEFINED</c> with value comparison (same shape as Bluesky).
+    /// </summary>
+    public const string CosmosIsTweetedSql =
+        "((IS_DEFINED(e.tweeted) AND e.tweeted = true) OR (IS_DEFINED(e.tweetPost) AND NOT IS_NULL(e.tweetPost)))";
+
+    /// <summary>
+    /// Cosmos SQL: playable is not tweeted (ready for a new X post).
+    /// </summary>
+    public const string CosmosIsNotTweetedSql =
+        "((NOT IS_DEFINED(e.tweeted) OR e.tweeted != true) AND (NOT IS_DEFINED(e.tweetPost) OR IS_NULL(e.tweetPost)))";
 
     /// <summary>
     /// Cosmos SQL: playable is Bluesky-posted. Do not use null-only checks — combine

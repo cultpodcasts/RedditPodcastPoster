@@ -165,28 +165,35 @@ public class TweetIdRules
             .Verify(x => x.Save(It.Is<Episode>(e => e.Tweeted && e.TweetPost == null && e.OldTweeted == true)), Times.Once);
     }
 
-    [Fact(DisplayName = "When a document stores tweetPost, then it reads as posted and writes tweetPost; a short-lived tweetId is read into tweetPost and not written back, and a legacy tweeted flag without an id still counts as posted.")]
+    [Fact(DisplayName = "When a document stores tweetPost, then it reads as posted and writes tweetPost; a short-lived tweetId is read into tweetPost and not written back on Film and Episode, and a legacy tweeted flag without an id still counts as posted.")]
     public void tweet_post_matches_the_bluesky_document_shape()
     {
         // Arrange
         var legacyFlag = """{"title":"synthetic","tweeted":true}""";
-        var shortLivedId = $$"""{"name":"Synthetic Film","tweetId":"{{SyntheticTweetPost}}"}""";
+        var shortLivedFilm = $$"""{"name":"Synthetic Film","tweetId":"{{SyntheticTweetPost}}"}""";
+        var shortLivedEpisode = $$"""{"title":"synthetic","tweetId":"{{SyntheticTweetPost}}"}""";
         var storedPost = JsonSerializer.Serialize(new Film("Synthetic Film") { TweetPost = SyntheticTweetPost });
 
         // Act
         var episode = JsonSerializer.Deserialize<Episode>(legacyFlag)!;
-        var fromShortLived = JsonSerializer.Deserialize<Film>(shortLivedId)!;
-        var rewritten = JsonSerializer.Serialize(fromShortLived);
+        var fromShortLivedFilm = JsonSerializer.Deserialize<Film>(shortLivedFilm)!;
+        var fromShortLivedEpisode = JsonSerializer.Deserialize<Episode>(shortLivedEpisode)!;
+        var rewrittenFilm = JsonSerializer.Serialize(fromShortLivedFilm);
+        var rewrittenEpisode = JsonSerializer.Serialize(fromShortLivedEpisode);
         var film = JsonSerializer.Deserialize<Film>(storedPost)!;
 
         // Assert
         episode.Tweeted.Should().BeTrue();
         episode.TweetPost.Should().BeNull();
         episode.OldTweeted.Should().BeTrue();
-        fromShortLived.Tweeted.Should().BeTrue();
-        fromShortLived.TweetPost.Should().Be(SyntheticTweetPost);
-        rewritten.Should().NotContain("tweetId");
-        rewritten.Should().Contain("tweetPost");
+        fromShortLivedFilm.Tweeted.Should().BeTrue();
+        fromShortLivedFilm.TweetPost.Should().Be(SyntheticTweetPost);
+        rewrittenFilm.Should().NotContain("tweetId");
+        rewrittenFilm.Should().Contain("tweetPost");
+        fromShortLivedEpisode.Tweeted.Should().BeTrue();
+        fromShortLivedEpisode.TweetPost.Should().Be(SyntheticTweetPost);
+        rewrittenEpisode.Should().NotContain("tweetId");
+        rewrittenEpisode.Should().Contain("tweetPost");
         storedPost.Should().NotContain("tweetId");
         storedPost.Should().NotContain("\"tweeted\":true");
         film.TweetPost.Should().Be(SyntheticTweetPost);

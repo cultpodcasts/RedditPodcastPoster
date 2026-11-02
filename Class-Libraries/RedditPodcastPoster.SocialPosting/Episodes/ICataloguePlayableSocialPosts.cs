@@ -17,10 +17,11 @@ public interface ICataloguePlayableSocialPosts
     Task<IReadOnlyList<PodcastEpisode>> GetBlueskyReady();
 
     /// <summary>
-    /// Sets <c>tweeted</c> on the stored TV episode, news report or film, and <c>tweetId</c> when
-    /// <paramref name="tweetId"/> is given (a stored id is kept when it is null).
+    /// Records an X post on the stored TV episode, news report or film: stores <c>tweetPost</c> when
+    /// <paramref name="tweetPost"/> is given; otherwise sets the legacy <c>tweeted</c> flag
+    /// (<see cref="Models.Catalogue.Playable.OldTweeted"/>). Same dual-field shape as Bluesky.
     /// </summary>
-    Task MarkTweeted(PodcastEpisode item, string? tweetId);
+    Task MarkTweeted(PodcastEpisode item, string? tweetPost);
 
     /// <summary>Sets <c>blueskyPost</c> on the stored TV episode, news report or film.</summary>
     Task MarkBlueskyPosted(PodcastEpisode item, string blueskyPostUri);

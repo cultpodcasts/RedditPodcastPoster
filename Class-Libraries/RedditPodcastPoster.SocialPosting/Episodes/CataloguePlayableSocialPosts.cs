@@ -35,14 +35,14 @@ public class CataloguePlayableSocialPosts(
         return items.Where(x => !x.Episode.BlueskyPosted).ToArray();
     }
 
-    public Task MarkTweeted(PodcastEpisode item, string? tweetId) =>
-        Update(item, playable => SetTweeted(playable, tweetId), film => SetTweeted(film, tweetId));
+    public Task MarkTweeted(PodcastEpisode item, string? tweetPost) =>
+        Update(item, playable => SetTweeted(playable, tweetPost), film => SetTweeted(film, tweetPost));
 
-    private static void SetTweeted(IPromotable stored, string? tweetId)
+    private static void SetTweeted(IPromotable stored, string? tweetPost)
     {
-        if (!string.IsNullOrWhiteSpace(tweetId))
+        if (!string.IsNullOrWhiteSpace(tweetPost))
         {
-            stored.TweetPost = tweetId;
+            stored.TweetPost = tweetPost;
             return;
         }
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 
@@ -78,5 +79,30 @@ public class EpisodeTweetPostStateRules
         episode.Tweeted.Should().BeFalse();
         episode.OldTweeted.Should().BeNull();
         episode.TweetPost.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a podcast Episode document stores the short-lived tweetId field, then it reads into TweetPost and Tweeted is true, and a rewrite writes tweetPost not tweetId, because Episode is the high-volume Cosmos shape for #1218.")]
+    public void short_lived_tweet_id_on_episode_reads_into_tweet_post()
+    {
+        // Arrange
+        var tweetPost = _fixture.Create<string>();
+        var title = _fixture.CreateTitle();
+        var json = JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["title"] = title,
+            ["tweetId"] = tweetPost
+        });
+
+        // Act
+        var episode = JsonSerializer.Deserialize<Models.Episodes.Episode>(json)!;
+        var rewritten = JsonSerializer.Serialize(episode);
+
+        // Assert
+        episode.Tweeted.Should().BeTrue();
+        episode.TweetPost.Should().Be(tweetPost);
+        episode.OldTweeted.Should().BeNull();
+        rewritten.Should().Contain("tweetPost");
+        rewritten.Should().NotContain("tweetId");
     }
 }
