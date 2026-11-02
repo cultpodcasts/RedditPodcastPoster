@@ -14,7 +14,10 @@ public abstract class PlayableFieldsDto
     [JsonPropertyName("description")]
     public string Description { get; set; } = "";
 
-    /// <summary>Calendar date, <c>yyyy-MM-dd</c> (news reports have no time of day).</summary>
+    /// <summary>
+    /// <c>yyyy</c>, <c>yyyy-MM-dd</c>, or UTC <c>yyyy-MM-ddTHH:mm:ssZ</c> when the stored
+    /// release carries a time of day.
+    /// </summary>
     [JsonPropertyName("release")]
     public string? Release { get; set; }
 

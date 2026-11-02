@@ -76,12 +76,18 @@ public static class CatalogueDtoMapping
         return dto;
     }
 
-    /// <summary><c>yyyy</c> for a year-only release (films), otherwise the calendar date <c>yyyy-MM-dd</c>.</summary>
+    /// <summary>
+    /// Wire <c>release</c>: <c>yyyy</c> (year), <c>yyyy-MM-dd</c> (date), or UTC
+    /// <c>yyyy-MM-ddTHH:mm:ssZ</c> (datetime). Time of day must not be dropped.
+    /// </summary>
     public static string? FormatRelease(CatalogueRelease? release) =>
         release switch
         {
             null => null,
-            { Precision: CatalogueReleasePrecision.Year } => release.Year.ToString("D4", CultureInfo.InvariantCulture),
+            { Precision: CatalogueReleasePrecision.Year } =>
+                release.Year.ToString("D4", CultureInfo.InvariantCulture),
+            { Precision: CatalogueReleasePrecision.DateTimeUtc } =>
+                release.ToSortUtc().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'", CultureInfo.InvariantCulture),
             _ => DateOnly.FromDateTime(release.ToSortUtc()).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
         };
 
