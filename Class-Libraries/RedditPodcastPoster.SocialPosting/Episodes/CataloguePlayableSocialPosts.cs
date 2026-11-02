@@ -52,14 +52,8 @@ public class CataloguePlayableSocialPosts(
         stored.OldTweeted = true;
     }
 
-    private static void SetNotTweetable(IPromotable stored, string reason)
-    {
-        stored.TweetSkipReason = reason;
-        if (string.IsNullOrWhiteSpace(stored.TweetPost))
-        {
-            stored.OldTweeted = true;
-        }
-    }
+    private static void SetNotTweetable(IPromotable stored, string reason) =>
+        PromotableTweetSkip.ApplyNotTweetable(stored, reason);
 
     public Task MarkBlueskyPosted(PodcastEpisode item, string blueskyPostUri) =>
         Update(item, playable => playable.BlueskyPost = blueskyPostUri, film => film.BlueskyPost = blueskyPostUri);

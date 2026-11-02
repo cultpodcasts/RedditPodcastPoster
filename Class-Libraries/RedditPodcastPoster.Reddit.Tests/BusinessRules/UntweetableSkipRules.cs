@@ -42,9 +42,12 @@ public class UntweetableSkipRules
         result.TweetSendStatus.Should().Be(TweetSendStatus.Untweetable);
         item.Episode.TweetSkipReason.Should().Be(TweetSkipReasons.TitleTooLong);
         item.Episode.Tweeted.Should().BeTrue();
+        item.Episode.OldTweeted.Should().BeFalse();
         _mocker.GetMock<IEpisodeRepository>()
             .Verify(x => x.Save(It.Is<Episode>(e =>
-                e.TweetSkipReason == TweetSkipReasons.TitleTooLong && e.Tweeted)), Times.Once);
+                e.TweetSkipReason == TweetSkipReasons.TitleTooLong &&
+                e.Tweeted &&
+                e.OldTweeted != true)), Times.Once);
         _mocker.GetMock<ICataloguePlayableSocialPosts>()
             .Verify(x => x.MarkNotTweetable(It.IsAny<PodcastEpisode>(), It.IsAny<string>()), Times.Never);
     }
@@ -72,6 +75,7 @@ public class UntweetableSkipRules
         result.TweetSendStatus.Should().Be(TweetSendStatus.Untweetable);
         item.Episode.TweetSkipReason.Should().Be(TweetSkipReasons.NoLink);
         item.Episode.Tweeted.Should().BeTrue();
+        item.Episode.OldTweeted.Should().BeFalse();
         _mocker.GetMock<ICataloguePlayableSocialPosts>()
             .Verify(x => x.MarkNotTweetable(item, TweetSkipReasons.NoLink), Times.Once);
         _mocker.GetMock<IEpisodeRepository>().Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);

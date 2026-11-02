@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Episodes;
@@ -96,12 +97,8 @@ public class TweetPoster(
 
     private async Task PersistNotTweetable(PodcastEpisode podcastEpisode, string reason)
     {
-        podcastEpisode.Episode.TweetSkipReason = reason;
-        // Same as DuplicateForbidden: legacy flag makes Tweeted true so filters and Cosmos SQL skip the item.
-        if (string.IsNullOrWhiteSpace(podcastEpisode.Episode.TweetPost))
-        {
-            podcastEpisode.Episode.OldTweeted = true;
-        }
+        // Skip reason alone makes Tweeted true; do not set OldTweeted (that means posted / duplicate-forbidden).
+        PromotableTweetSkip.ApplyNotTweetable(podcastEpisode.Episode, reason);
 
         try
         {

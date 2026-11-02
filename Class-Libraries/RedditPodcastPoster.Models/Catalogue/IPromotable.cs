@@ -9,7 +9,10 @@ public interface IPromotable
 
     bool Posted { get; set; }
 
-    /// <summary>Whether an X post is recorded (legacy <c>tweeted</c> flag or a stored <see cref="TweetPost"/>).</summary>
+    /// <summary>
+    /// Whether treated as done for X posting: stored <see cref="TweetPost"/>, legacy <c>tweeted</c>
+    /// (<see cref="OldTweeted"/>), or a permanent <see cref="TweetSkipReason"/>.
+    /// </summary>
     bool Tweeted { get; }
 
     /// <summary>Legacy Cosmos flag (<c>tweeted</c>). Prefer <see cref="TweetPost"/> for new posts.</summary>
@@ -38,6 +41,9 @@ public interface IPromotable
 
     void ClearBlueskyPostState();
 
-    /// <summary>Clears <see cref="OldTweeted"/> and <see cref="TweetPost"/> once the post is gone from X.</summary>
+    /// <summary>
+    /// Clears <see cref="OldTweeted"/>, <see cref="TweetPost"/>, and <see cref="TweetSkipReason"/>
+    /// once the post is gone from X or the skip must be undone.
+    /// </summary>
     void ClearTweetState();
 }

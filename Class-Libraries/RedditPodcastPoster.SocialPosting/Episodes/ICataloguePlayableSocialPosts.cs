@@ -25,7 +25,8 @@ public interface ICataloguePlayableSocialPosts
 
     /// <summary>
     /// Records that the item cannot form an X post: stores <paramref name="reason"/> on
-    /// <c>tweetSkipReason</c> and sets the legacy <c>tweeted</c> flag so later runs skip it.
+    /// <c>tweetSkipReason</c> so later runs treat it as done via <c>Tweeted</c>, without claiming a
+    /// network post occurred and without setting the legacy <c>tweeted</c> flag.
     /// </summary>
     Task MarkNotTweetable(PodcastEpisode item, string reason);
 
