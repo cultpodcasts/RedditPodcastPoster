@@ -1,7 +1,7 @@
-using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Bluesky.Client;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.RichText;
@@ -162,7 +162,7 @@ public class BlueskyEmbedCardPostFactory(
             var min = Math.Min(episodeTitle.Length, permittedTitleLength - 1);
             // Check the minimum on what the whole-text-element cut keeps, which can be shorter than the budget
             // when a long grapheme cluster straddles the cut.
-            var truncatedTitle = TruncateToWholeTextElements(episodeTitle, min);
+            var truncatedTitle = BlueskyEmbedText.TruncateToWholeTextElements(episodeTitle, min);
             if (truncatedTitle.Length < MinTitleLength)
             {
                 throw new InvalidOperationException(
@@ -194,27 +194,5 @@ public class BlueskyEmbedCardPostFactory(
 
         var tweet = postBuilder.ToString();
         return new BlueskyEmbedCardPost(tweet, url, urlPodcastService, platformUrl);
-    }
-
-    /// <summary>
-    /// Longest prefix of <paramref name="text"/> made of whole text elements (graphemes) whose UTF-16 length is at
-    /// most <paramref name="maxLength"/>, so a cut never splits a surrogate pair, emoji sequence or combining mark.
-    /// </summary>
-    private static string TruncateToWholeTextElements(string text, int maxLength)
-    {
-        var length = 0;
-        var enumerator = StringInfo.GetTextElementEnumerator(text);
-        while (enumerator.MoveNext())
-        {
-            var next = enumerator.ElementIndex + enumerator.GetTextElement().Length;
-            if (next > maxLength)
-            {
-                break;
-            }
-
-            length = next;
-        }
-
-        return text[..length];
     }
 }
