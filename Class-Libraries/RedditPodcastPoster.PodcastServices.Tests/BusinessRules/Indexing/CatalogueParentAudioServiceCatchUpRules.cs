@@ -79,6 +79,8 @@ public class CatalogueParentAudioServiceCatchUpRules
         // One stored list; every read applies the Cosmos predicate it is given (release window, the matcher's
         // acceptance span, link holders), so a rule pins the window the pass asks for, not just the read count.
         var reports = _mocker.GetMock<INewsReportRepository>();
+        // Read 0 is the release window. A narrower window also reads older missing-audio gaps before link
+        // holders; both of those later reads return holders here, which is enough for the holder rules.
         reports.Setup(x => x.GetByNewsOrganisationId(It.IsAny<Guid>(), It.IsAny<Expression<Func<NewsReport, bool>>>()))
             .Returns((Guid id, Expression<Func<NewsReport, bool>> filter) =>
             {
