@@ -1,4 +1,3 @@
-using RedditPodcastPoster.Twitter.Dtos;
 using RedditPodcastPoster.Twitter.Models;
 
 namespace RedditPodcastPoster.Twitter.Clients;
@@ -6,8 +5,6 @@ namespace RedditPodcastPoster.Twitter.Clients;
 public interface ITwitterClient
 {
     Task<PostTweetResponse> Send(string tweet, CancellationToken cancellationToken = default);
-    Task<GetTweetsResponseWrapper> GetTweets(CancellationToken cancellationToken = default);
-    Task<bool> DeleteTweet(Tweet tweet, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// One page (up to 100) of the account's posts created at or after <paramref name="startTime"/> (and before

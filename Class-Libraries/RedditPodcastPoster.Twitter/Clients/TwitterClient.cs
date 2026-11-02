@@ -79,52 +79,6 @@ public class TwitterClient(
         return new PostTweetResponse(TweetSendFailureClassifier.Classify(response.StatusCode), tweetData.text);
     }
 
-    public async Task<GetTweetsResponseWrapper> GetTweets(CancellationToken cancellationToken = default)
-    {
-        using var getTweetsRequest = new HttpRequestMessage(HttpMethod.Get,
-            $"2/users/{_options.TwitterId}/tweets?tweet.fields=entities");
-
-        using var response = await httpClient.SendAsync(getTweetsRequest, cancellationToken);
-        if (response.IsSuccessStatusCode)
-        {
-            var tweetsResponse = await response.Content.ReadFromJsonAsync<GetTweetsResponse>(cancellationToken);
-            if (tweetsResponse?.Tweets == null)
-            {
-                logger.LogError("Twitter GetTweets returned success but response body or tweets was null.");
-                return new GetTweetsResponseWrapper(GetTweetsState.Other);
-            }
-
-            return new GetTweetsResponseWrapper(GetTweetsState.Retrieved, tweetsResponse.Tweets);
-        }
-
-        if (response.StatusCode == HttpStatusCode.TooManyRequests)
-        {
-            return new GetTweetsResponseWrapper(GetTweetsState.TooManyRequests);
-        }
-
-        var problem = XApiProblem.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        logger.LogError("Twitter GetTweets failed. Status-code: '{ResponseStatusCode}'. Problem: '{Problem}'.",
-            response.StatusCode, problem.Summary());
-        return new GetTweetsResponseWrapper(GetTweetsState.Other);
-    }
-
-    public async Task<bool> DeleteTweet(Tweet tweet, CancellationToken cancellationToken = default)
-    {
-        using var deleteTweetRequest = new HttpRequestMessage(HttpMethod.Delete, $"2/tweets/{tweet.Id}");
-
-        using var response = await httpClient.SendAsync(deleteTweetRequest, cancellationToken);
-        if (response.IsSuccessStatusCode)
-        {
-            logger.LogInformation("Deleted tweet with id '{TweetId}'.", tweet.Id);
-            return true;
-        }
-
-        var problem = XApiProblem.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        logger.LogError("Failed to delete tweet with id '{TweetId}'. Status-code: '{ResponseStatusCode}'. Problem: '{Problem}'.",
-            tweet.Id, response.StatusCode, problem.Summary());
-        return false;
-    }
-
     public async Task<GetTweetsResponseWrapper> GetTimelineSince(DateTimeOffset startTime, DateTimeOffset? endTime,
         string? paginationToken, CancellationToken cancellationToken = default)
     {
