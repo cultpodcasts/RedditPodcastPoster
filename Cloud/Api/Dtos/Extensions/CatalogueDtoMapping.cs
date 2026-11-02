@@ -76,13 +76,23 @@ public static class CatalogueDtoMapping
         return dto;
     }
 
-    /// <summary><c>yyyy</c> for a year-only release (films), otherwise the calendar date <c>yyyy-MM-dd</c>.</summary>
+    /// <summary>
+    /// Wire <c>release</c> from <see cref="CatalogueReleasePrecision"/>:
+    /// <c>yyyy</c> (Year), <c>yyyy-MM-dd</c> (Date), or UTC
+    /// <c>yyyy-MM-ddTHH:mm:ssZ</c> (DateTimeUtc, including midnight).
+    /// </summary>
     public static string? FormatRelease(CatalogueRelease? release) =>
         release switch
         {
             null => null,
-            { Precision: CatalogueReleasePrecision.Year } => release.Year.ToString("D4", CultureInfo.InvariantCulture),
-            _ => DateOnly.FromDateTime(release.ToSortUtc()).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            { Precision: CatalogueReleasePrecision.Year } =>
+                release.Year.ToString("D4", CultureInfo.InvariantCulture),
+            { Precision: CatalogueReleasePrecision.Date } =>
+                DateOnly.FromDateTime(release.ToSortUtc()).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            { Precision: CatalogueReleasePrecision.DateTimeUtc } =>
+                release.ToSortUtc().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'", CultureInfo.InvariantCulture),
+            _ => throw new InvalidOperationException(
+                $"Unknown CatalogueReleasePrecision '{release.Precision}'.")
         };
 
     public static string FormatDuration(TimeSpan length) =>

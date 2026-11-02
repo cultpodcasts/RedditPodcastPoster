@@ -14,7 +14,11 @@ public abstract class PlayableFieldsDto
     [JsonPropertyName("description")]
     public string Description { get; set; } = "";
 
-    /// <summary>Calendar date, <c>yyyy-MM-dd</c> (news reports have no time of day).</summary>
+    /// <summary>
+    /// Driven by <c>CatalogueReleasePrecision</c>: <c>yyyy-MM-dd</c> for Date,
+    /// or UTC <c>yyyy-MM-ddTHH:mm:ssZ</c> for DateTimeUtc (including midnight).
+    /// Year precision is a film concern — see <see cref="FilmDto"/>.
+    /// </summary>
     [JsonPropertyName("release")]
     public string? Release { get; set; }
 

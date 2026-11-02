@@ -4,7 +4,7 @@ namespace Api.Dtos;
 
 /// <summary>
 /// Curator GET for a film: the shared publisher fields, the IMDb canonical id and the playable fields a film has.
-/// <c>release</c> is <c>yyyy</c> for a year-only release, otherwise <c>yyyy-MM-dd</c>.
+/// <c>release</c> is <c>yyyy</c>, <c>yyyy-MM-dd</c>, or UTC <c>yyyy-MM-ddTHH:mm:ssZ</c>.
 /// </summary>
 public class FilmDto : PublisherFieldsDto
 {
