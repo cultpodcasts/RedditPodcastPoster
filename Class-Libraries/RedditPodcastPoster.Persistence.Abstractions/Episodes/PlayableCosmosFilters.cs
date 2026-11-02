@@ -43,6 +43,12 @@ public static class PlayableCosmosFilters
         bool lookUpApple)
         where TPlayable : Playable
     {
+        if (!lookUpSpotify && !lookUpApple)
+        {
+            throw new ArgumentException(
+                $"{nameof(lookUpSpotify)} and {nameof(lookUpApple)} cannot both be false.");
+        }
+
         if (lookUpSpotify && lookUpApple)
         {
             return e => e.ReleaseSort >= sinceInclusive &&
