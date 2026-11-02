@@ -312,7 +312,7 @@ public class CatalogueRenameRules
 
     private static Film CopyFilm(Film source)
     {
-        var copy = new Film(source.Name) { Id = source.Id, Tweeted = source.Tweeted };
+        var copy = new Film(source.Name) { Id = source.Id, OldTweeted = source.OldTweeted, TweetPost = source.TweetPost };
         if (source.Trailers is not null)
         {
             copy.Trailers = source.Trailers.Select(trailer => new FilmTrailer

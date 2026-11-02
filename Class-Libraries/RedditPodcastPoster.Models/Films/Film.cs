@@ -68,14 +68,34 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     [JsonPropertyOrder(40)]
     public bool Posted { get; set; }
 
+    /// <summary>Legacy Cosmos flag (<c>tweeted</c>). Prefer <see cref="TweetPost"/> for a new post.</summary>
     [JsonPropertyName("tweeted")]
     [JsonPropertyOrder(41)]
-    public bool Tweeted { get; set; }
+    public bool? OldTweeted { get; set; }
 
-    /// <summary>Id of the X post made for this film. See <see cref="Catalogue.Playable.TweetId"/>.</summary>
-    [JsonPropertyName("tweetId")]
+    /// <summary>Id of the X post made for this film. See <see cref="Playable.TweetPost"/>.</summary>
+    [JsonPropertyName("tweetPost")]
     [JsonPropertyOrder(41)]
-    public string? TweetId { get; set; }
+    public string? TweetPost { get; set; }
+
+    /// <summary>Reads <c>tweetId</c> from the short-lived #1218 shape. Never written back.</summary>
+    [JsonPropertyName("tweetId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyTweetId
+    {
+        get => null;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(TweetPost) && !string.IsNullOrWhiteSpace(value))
+            {
+                TweetPost = value;
+            }
+        }
+    }
+
+    [JsonIgnore]
+    public bool Tweeted =>
+        OldTweeted == true || !string.IsNullOrWhiteSpace(TweetPost);
 
     [JsonPropertyName("bluesky")]
     [JsonPropertyOrder(42)]
@@ -170,7 +190,7 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
 
     public void ClearTweetState()
     {
-        Tweeted = false;
-        TweetId = null;
+        OldTweeted = null;
+        TweetPost = null;
     }
 }

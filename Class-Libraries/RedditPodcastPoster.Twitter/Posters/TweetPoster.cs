@@ -34,27 +34,30 @@ public class TweetPoster(
 
         if (tweetStatus.TweetSendStatus is TweetSendStatus.Sent or TweetSendStatus.DuplicateForbidden)
         {
-            podcastEpisode.Episode.Tweeted = true;
-            // The id is only known for a new post. A duplicate-content refusal keeps any id already stored.
+            // A new post stores the id only, the same way a Bluesky post stores blueskyPost and not the legacy flag.
+            // A duplicate-content refusal has no new id, so the legacy flag records that it must not be posted again.
             if (tweetStatus.TweetSendStatus == TweetSendStatus.Sent && !string.IsNullOrWhiteSpace(tweetStatus.TweetId))
             {
-                var previousTweetId = podcastEpisode.Episode.TweetId;
+                var previousTweetId = podcastEpisode.Episode.TweetPost;
                 if (!string.IsNullOrWhiteSpace(previousTweetId) && previousTweetId != tweetStatus.TweetId)
                 {
-                    // Posting an already-tweeted item (#1205). Log the older id so that post can still be found.
                     logger.LogWarning(
                         "Episode-id '{EpisodeId}' of podcast-id '{PodcastId}' already had tweet-id '{PreviousTweetId}'; replacing it with new tweet-id '{TweetId}'. The older post may still be live.",
                         podcastEpisode.Episode.Id, podcastEpisode.Podcast.Id, previousTweetId, tweetStatus.TweetId);
                 }
 
-                podcastEpisode.Episode.TweetId = tweetStatus.TweetId;
+                podcastEpisode.Episode.TweetPost = tweetStatus.TweetId;
+            }
+            else if (string.IsNullOrWhiteSpace(podcastEpisode.Episode.TweetPost))
+            {
+                podcastEpisode.Episode.OldTweeted = true;
             }
 
             try
             {
                 if (podcastEpisode.IsCataloguePlayable)
                 {
-                    await cataloguePlayableSocialPosts.MarkTweeted(podcastEpisode, podcastEpisode.Episode.TweetId);
+                    await cataloguePlayableSocialPosts.MarkTweeted(podcastEpisode, podcastEpisode.Episode.TweetPost);
                 }
                 else
                 {

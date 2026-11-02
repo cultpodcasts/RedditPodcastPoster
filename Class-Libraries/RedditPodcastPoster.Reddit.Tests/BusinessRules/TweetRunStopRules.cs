@@ -129,7 +129,7 @@ public class TweetRunStopRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var item = new PodcastEpisode(podcast, _fixture.CreateStoredEpisode(podcast));
-        item.Episode.Tweeted = false;
+        item.Episode.OldTweeted = false;
         _mocker.GetMock<ITweetBuilder>()
             .Setup(x => x.BuildTweet(item, It.IsAny<Uri?>(), It.IsAny<bool>()))
             .ReturnsAsync("tweet");
@@ -154,7 +154,7 @@ public class TweetRunStopRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var item = new PodcastEpisode(podcast, _fixture.CreateStoredEpisode(podcast));
-        item.Episode.Tweeted = false;
+        item.Episode.OldTweeted = false;
         _mocker.GetMock<ITweetBuilder>()
             .Setup(x => x.BuildTweet(item, It.IsAny<Uri?>(), It.IsAny<bool>()))
             .ReturnsAsync("tweet");

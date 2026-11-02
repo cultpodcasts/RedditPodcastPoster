@@ -94,7 +94,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             }
             else
             {
-                episode.Tweeted = episodeChangeRequest.Tweeted.Value;
+                episode.OldTweeted = episodeChangeRequest.Tweeted.Value ? true : null;
             }
         }
 

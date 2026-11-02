@@ -32,7 +32,7 @@ namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
 /// </summary>
 public class TweetIdRules
 {
-    private const string SyntheticTweetId = "1850000000000000001";
+    private const string SyntheticTweetPost = "1850000000000000001";
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
 
@@ -59,13 +59,13 @@ public class TweetIdRules
     public void posted_tweet_id_is_read()
     {
         // Arrange
-        var body = $"{{\"data\":{{\"id\":\"{SyntheticTweetId}\",\"text\":\"synthetic\",\"edit_history_tweet_ids\":[\"{SyntheticTweetId}\"]}}}}";
+        var body = $"{{\"data\":{{\"id\":\"{SyntheticTweetPost}\",\"text\":\"synthetic\",\"edit_history_tweet_ids\":[\"{SyntheticTweetPost}\"]}}}}";
 
         // Act
         var id = TweetResponseReader.ReadPostedTweetId(body);
 
         // Assert
-        id.Should().Be(SyntheticTweetId);
+        id.Should().Be(SyntheticTweetPost);
     }
 
     [Theory(DisplayName = "When the post response has no usable id, then no id is read and nothing throws, because the post was still made.")]
@@ -116,12 +116,12 @@ public class TweetIdRules
 
     // ---- storing the id -------------------------------------------------------------------------
 
-    [Fact(DisplayName = "When a podcast episode tweet is sent, then the episode is saved with the new tweet id.")]
+    [Fact(DisplayName = "When a podcast episode tweet is sent, then the episode is saved with tweetPost set and the legacy tweeted flag left unset.")]
     public async Task sent_tweet_stores_the_id_on_the_episode()
     {
         // Arrange
         var item = PodcastItem();
-        SetupSend(item, new PostTweetResponse(TweetSendStatus.Sent, TweetId: SyntheticTweetId));
+        SetupSend(item, new PostTweetResponse(TweetSendStatus.Sent, TweetId: SyntheticTweetPost));
         var sut = _mocker.CreateInstance<TweetPoster>();
 
         // Act
@@ -129,7 +129,7 @@ public class TweetIdRules
 
         // Assert
         _mocker.GetMock<IEpisodeRepository>()
-            .Verify(x => x.Save(It.Is<Episode>(e => e.Tweeted && e.TweetId == SyntheticTweetId)), Times.Once);
+            .Verify(x => x.Save(It.Is<Episode>(e => e.Tweeted && e.TweetPost == SyntheticTweetPost && e.OldTweeted != true)), Times.Once);
     }
 
     [Fact(DisplayName = "When X refuses a post as duplicate content, then the episode is marked tweeted and keeps any stored id, because there is no new post id.")]
@@ -137,7 +137,7 @@ public class TweetIdRules
     {
         // Arrange
         const string existing = "1850000000000000002";
-        var item = PodcastItem(e => e.TweetId = existing);
+        var item = PodcastItem(e => e.TweetPost = existing);
         SetupSend(item, new PostTweetResponse(TweetSendStatus.DuplicateForbidden, "tweet"));
         var sut = _mocker.CreateInstance<TweetPoster>();
 
@@ -146,10 +146,10 @@ public class TweetIdRules
 
         // Assert
         _mocker.GetMock<IEpisodeRepository>()
-            .Verify(x => x.Save(It.Is<Episode>(e => e.Tweeted && e.TweetId == existing)), Times.Once);
+            .Verify(x => x.Save(It.Is<Episode>(e => e.Tweeted && e.TweetPost == existing && e.OldTweeted != true)), Times.Once);
     }
 
-    [Fact(DisplayName = "When a tweet is sent but X's response had no id, then the episode is still marked tweeted, because the post was made.")]
+    [Fact(DisplayName = "When a tweet is sent but X's response had no id, then the legacy tweeted flag is set, because the post was made and there is no id to store.")]
     public async Task sent_without_id_still_marks_tweeted()
     {
         // Arrange
@@ -162,34 +162,50 @@ public class TweetIdRules
 
         // Assert
         _mocker.GetMock<IEpisodeRepository>()
-            .Verify(x => x.Save(It.Is<Episode>(e => e.Tweeted && e.TweetId == null)), Times.Once);
+            .Verify(x => x.Save(It.Is<Episode>(e => e.Tweeted && e.TweetPost == null && e.OldTweeted == true)), Times.Once);
     }
 
-    [Fact(DisplayName = "When a stored document has no tweetId, then it reads as null; a stored tweetId round-trips, so no Cosmos migration is needed.")]
-    public void tweet_id_is_optional_in_json()
+    [Fact(DisplayName = "When a document stores tweetPost, then it reads as posted and writes tweetPost; a short-lived tweetId is read into tweetPost and not written back on Film and Episode, and a legacy tweeted flag without an id still counts as posted.")]
+    public void tweet_post_matches_the_bluesky_document_shape()
     {
         // Arrange
-        var withoutId = JsonSerializer.Serialize(new Episode { Title = "synthetic", Tweeted = true });
-        var legacy = withoutId.Replace(",\"tweetId\":null", string.Empty);
-        var withId = JsonSerializer.Serialize(new Film("Synthetic Film") { Tweeted = true, TweetId = SyntheticTweetId });
+        var legacyFlag = """{"title":"synthetic","tweeted":true}""";
+        var shortLivedFilm = $$"""{"name":"Synthetic Film","tweetId":"{{SyntheticTweetPost}}"}""";
+        var shortLivedEpisode = $$"""{"title":"synthetic","tweetId":"{{SyntheticTweetPost}}"}""";
+        var storedPost = JsonSerializer.Serialize(new Film("Synthetic Film") { TweetPost = SyntheticTweetPost });
 
         // Act
-        var episode = JsonSerializer.Deserialize<Episode>(legacy)!;
-        var film = JsonSerializer.Deserialize<Film>(withId)!;
+        var episode = JsonSerializer.Deserialize<Episode>(legacyFlag)!;
+        var fromShortLivedFilm = JsonSerializer.Deserialize<Film>(shortLivedFilm)!;
+        var fromShortLivedEpisode = JsonSerializer.Deserialize<Episode>(shortLivedEpisode)!;
+        var rewrittenFilm = JsonSerializer.Serialize(fromShortLivedFilm);
+        var rewrittenEpisode = JsonSerializer.Serialize(fromShortLivedEpisode);
+        var film = JsonSerializer.Deserialize<Film>(storedPost)!;
 
         // Assert
-        legacy.Should().NotContain("tweetId");
         episode.Tweeted.Should().BeTrue();
-        episode.TweetId.Should().BeNull();
-        film.TweetId.Should().Be(SyntheticTweetId);
+        episode.TweetPost.Should().BeNull();
+        episode.OldTweeted.Should().BeTrue();
+        fromShortLivedFilm.Tweeted.Should().BeTrue();
+        fromShortLivedFilm.TweetPost.Should().Be(SyntheticTweetPost);
+        rewrittenFilm.Should().NotContain("tweetId");
+        rewrittenFilm.Should().Contain("tweetPost");
+        fromShortLivedEpisode.Tweeted.Should().BeTrue();
+        fromShortLivedEpisode.TweetPost.Should().Be(SyntheticTweetPost);
+        rewrittenEpisode.Should().NotContain("tweetId");
+        rewrittenEpisode.Should().Contain("tweetPost");
+        storedPost.Should().NotContain("tweetId");
+        storedPost.Should().NotContain("\"tweeted\":true");
+        film.TweetPost.Should().Be(SyntheticTweetPost);
+        film.OldTweeted.Should().BeNull();
     }
 
     [Fact(DisplayName = "ClearTweetState clears both the flag and the id.")]
     public void clear_tweet_state_clears_flag_and_id()
     {
         // Arrange
-        var episode = new Episode { Tweeted = true, TweetId = SyntheticTweetId };
-        var film = new Film("Synthetic Film") { Tweeted = true, TweetId = SyntheticTweetId };
+        var episode = new Episode { OldTweeted = true, TweetPost = SyntheticTweetPost };
+        var film = new Film("Synthetic Film") { OldTweeted = true, TweetPost = SyntheticTweetPost };
 
         // Act
         episode.ClearTweetState();
@@ -197,9 +213,9 @@ public class TweetIdRules
 
         // Assert
         episode.Tweeted.Should().BeFalse();
-        episode.TweetId.Should().BeNull();
+        episode.TweetPost.Should().BeNull();
         film.Tweeted.Should().BeFalse();
-        film.TweetId.Should().BeNull();
+        film.TweetPost.Should().BeNull();
     }
 
     // ---- removing by id -------------------------------------------------------------------------
@@ -212,8 +228,8 @@ public class TweetIdRules
     public async Task stored_id_deletes_by_id(DeleteTweetState deleteState, RemoveTweetState expected)
     {
         // Arrange
-        var item = PodcastItem(e => e.TweetId = SyntheticTweetId);
-        _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweetById(SyntheticTweetId, It.IsAny<CancellationToken>())).ReturnsAsync(deleteState);
+        var item = PodcastItem(e => e.TweetPost = SyntheticTweetPost);
+        _mocker.GetMock<ITwitterClient>().Setup(x => x.DeleteTweetById(SyntheticTweetPost, It.IsAny<CancellationToken>())).ReturnsAsync(deleteState);
         var sut = _mocker.CreateInstance<TweetManager>();
 
         // Act
@@ -472,8 +488,8 @@ public class TweetIdRules
     {
         // Arrange
         const string previous = "1850000000000000070";
-        var item = PodcastItem(e => e.TweetId = previous);
-        SetupSend(item, new PostTweetResponse(TweetSendStatus.Sent, TweetId: SyntheticTweetId));
+        var item = PodcastItem(e => e.TweetPost = previous);
+        SetupSend(item, new PostTweetResponse(TweetSendStatus.Sent, TweetId: SyntheticTweetPost));
         var logger = _mocker.GetMock<ILogger<TweetPoster>>();
         var sut = _mocker.CreateInstance<TweetPoster>();
 
@@ -481,12 +497,12 @@ public class TweetIdRules
         await sut.PostTweet(item, null);
 
         // Assert
-        item.Episode.TweetId.Should().Be(SyntheticTweetId);
+        item.Episode.TweetPost.Should().Be(SyntheticTweetPost);
         logger.Verify(x => x.Log(
             LogLevel.Warning,
             It.IsAny<EventId>(),
             It.Is<It.IsAnyType>((state, _) =>
-                state.ToString()!.Contains(previous) && state.ToString()!.Contains(SyntheticTweetId)),
+                state.ToString()!.Contains(previous) && state.ToString()!.Contains(SyntheticTweetPost)),
             It.IsAny<Exception?>(),
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
     }
@@ -549,7 +565,7 @@ public class TweetIdRules
         {
             e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(2).AddHours(9);
             e.Length = TimeSpan.FromMinutes(61);
-            e.TweetId = null;
+            e.TweetPost = null;
             customiseEpisode?.Invoke(e);
         });
         return new PodcastEpisode(podcast, episode);

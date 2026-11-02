@@ -37,7 +37,7 @@ public static class PostStatusApplier
             }
             else
             {
-                item.Tweeted = tweeted.Value;
+                item.OldTweeted = tweeted.Value ? true : null;
             }
         }
 

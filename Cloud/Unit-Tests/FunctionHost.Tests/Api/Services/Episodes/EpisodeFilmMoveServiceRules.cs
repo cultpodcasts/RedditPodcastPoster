@@ -106,7 +106,7 @@ public class EpisodeFilmMoveServiceRules
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         episode.Posted = true;
-        episode.Tweeted = true;
+        episode.OldTweeted = true;
         var sibling = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         _podcasts.Seed(podcast);
         _episodes.Seed(episode, sibling);

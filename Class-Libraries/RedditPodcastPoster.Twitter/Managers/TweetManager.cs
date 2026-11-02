@@ -46,7 +46,7 @@ public class TweetManager(
     public async Task<RemoveTweetState> RemoveTweet(PodcastEpisode podcastEpisode)
     {
         ArgumentNullException.ThrowIfNull(podcastEpisode);
-        var tweetId = podcastEpisode.Episode.TweetId;
+        var tweetId = podcastEpisode.Episode.TweetPost;
         if (!string.IsNullOrWhiteSpace(tweetId))
         {
             return ToRemoveState(await twitterClient.DeleteTweetById(tweetId));
