@@ -79,7 +79,7 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
             .Returns((Guid id, Expression<Func<NewsReport, bool>> filter) =>
             {
                 _reportReads++;
-                var predicate = InMemory(filter);
+                var predicate = CosmosLinqInMemoryRewriter.ForInMemory(filter).Compile();
                 return _storedReports
                     .Where(x => x.NewsOrganisationId == id && predicate(x))
                     .ToList()
@@ -111,37 +111,6 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
 
         _mocker.Use<ISpotifyEpisodeEnricher>(CreateSpotifyEnricher());
         _mocker.Use<IAppleEpisodeEnricher>(CreateAppleEnricher());
-    }
-
-    /// <summary>
-    /// Compiles a read's Cosmos predicate for the in-memory list. Cosmos treats a missing service key as undefined,
-    /// so the holder filter's <c>Services[key].Url != null</c> is false for that key; in memory the dictionary indexer
-    /// throws, so a member read through it is guarded with <c>ContainsKey</c>.
-    /// </summary>
-    private static Func<NewsReport, bool> InMemory(Expression<Func<NewsReport, bool>> filter)
-    {
-        var cosmosFree = CosmosLinqInMemoryRewriter.ForInMemory(filter);
-        return Expression.Lambda<Func<NewsReport, bool>>(
-                new MissingKeyIsUndefined().Visit(cosmosFree.Body)!, cosmosFree.Parameters)
-            .Compile();
-    }
-
-    private sealed class MissingKeyIsUndefined : ExpressionVisitor
-    {
-        protected override Expression VisitMember(MemberExpression node)
-        {
-            if (node.Expression is MethodCallExpression { Method.Name: "get_Item", Object: { } dictionary } indexer &&
-                dictionary.Type.IsGenericType &&
-                dictionary.Type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
-            {
-                var visited = (MemberExpression)base.VisitMember(node);
-                var containsKey = Expression.Call(
-                    Visit(dictionary), dictionary.Type.GetMethod("ContainsKey")!, Visit(indexer.Arguments[0]));
-                return Expression.Condition(containsKey, visited, Expression.Default(node.Type));
-            }
-
-            return base.VisitMember(node);
-        }
     }
 
     private CatalogueParentsUpdater Sut => _mocker.CreateInstance<CatalogueParentsUpdater>();

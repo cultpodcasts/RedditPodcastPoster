@@ -6,6 +6,7 @@ using Moq.AutoMock;
 using RedditPodcastPoster.Catalogue.Episodes;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
@@ -49,7 +50,6 @@ public class CatalogueParentAudioServiceCatchUpRules
     private Action<EnrichmentRequest, EnrichmentContext> _spotifyMatch = (_, _) => { };
     private Action<EnrichmentRequest, EnrichmentContext> _appleMatch = (_, _) => { };
     private Action<IndexingContext> _onSpotifyLookup = _ => { };
-    private List<NewsReport> _holderReports = [];
     private int _reportReads;
     private List<Episode> _discovered = [];
     private Action<IReadOnlyList<Episode>> _onMerge = _ => { };
@@ -76,20 +76,32 @@ public class CatalogueParentAudioServiceCatchUpRules
         tvShows.Setup(x => x.PatchIndexerState(It.IsAny<Guid>(), It.IsAny<CatalogueParentIndexerPatch>()))
             .ReturnsAsync(true);
 
+        // One stored list; every read applies the Cosmos predicate it is given (release window, the matcher's
+        // acceptance span, link holders), so a rule pins the window the pass asks for, not just the read count.
         var reports = _mocker.GetMock<INewsReportRepository>();
-        // Read 0 is the release window. A narrower window also reads the matcher's acceptance span before link
-        // holders; both of those later reads return holders here, which is enough for the holder rules.
         reports.Setup(x => x.GetByNewsOrganisationId(It.IsAny<Guid>(), It.IsAny<Expression<Func<NewsReport, bool>>>()))
-            .Returns((Guid id, Expression<Func<NewsReport, bool>> _) =>
-                (_reportReads++ == 0 ? _storedReports : _holderReports)
-                .Where(x => x.NewsOrganisationId == id).ToAsyncEnumerable());
+            .Returns((Guid id, Expression<Func<NewsReport, bool>> filter) =>
+            {
+                _reportReads++;
+                var predicate = CosmosLinqInMemoryRewriter.ForInMemory(filter).Compile();
+                return _storedReports
+                    .Where(x => x.NewsOrganisationId == id && predicate(x))
+                    .ToList()
+                    .ToAsyncEnumerable();
+            });
         reports.Setup(x => x.Save(It.IsAny<IEnumerable<NewsReport>>()))
             .Callback((IEnumerable<NewsReport> items) => _savedReports.AddRange(items))
             .Returns(Task.CompletedTask);
         var tvEpisodes = _mocker.GetMock<ITvShowEpisodeRepository>();
         tvEpisodes.Setup(x => x.GetByTvShowId(It.IsAny<Guid>(), It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
-            .Returns((Guid id, Expression<Func<TvShowEpisode, bool>> _) =>
-                _storedTvEpisodes.Where(x => x.TvShowId == id).ToAsyncEnumerable());
+            .Returns((Guid id, Expression<Func<TvShowEpisode, bool>> filter) =>
+            {
+                var predicate = CosmosLinqInMemoryRewriter.ForInMemory(filter).Compile();
+                return _storedTvEpisodes
+                    .Where(x => x.TvShowId == id && predicate(x))
+                    .ToList()
+                    .ToAsyncEnumerable();
+            });
         tvEpisodes.Setup(x => x.Save(It.IsAny<IEnumerable<TvShowEpisode>>()))
             .Callback((IEnumerable<TvShowEpisode> items) => _savedTvEpisodes.AddRange(items))
             .Returns(Task.CompletedTask);
@@ -432,8 +444,7 @@ public class CatalogueParentAudioServiceCatchUpRules
         EpisodeServicePresence.SetSpotifyIdentity(holderEpisode, heldSpotifyId);
         EpisodeServicePresence.Upsert(holderEpisode, ServiceKeys.Spotify, _fixture.DefaultSpotifyUrl(heldSpotifyId), null);
         var holder = CatalogueParentKindMapper.ToNewsReport(holderEpisode, organisation);
-        _storedReports = [candidate];
-        _holderReports = [holder];
+        _storedReports = [candidate, holder];
         SpotifyFinds(heldSpotifyId);
 
         // Act
