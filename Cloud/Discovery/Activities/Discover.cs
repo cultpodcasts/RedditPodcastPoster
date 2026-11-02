@@ -13,6 +13,7 @@ using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Discovery.Providers;
 using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -60,10 +61,11 @@ public class Discover(
             throw;
         }
 
-        var since = lookback.Since;
+        // Unspecified lookback since is UTC (#1219); ToUniversalTime would shift it on a host east of UTC.
+        var since = UtcDateTimes.ToUtc(lookback.Since);
         logger.LogInformation(
             "Discovering items released since '{since:O}' (local:'{sinceLocal:O}', lookback:'Dynamic', latest-run:'{latestRun}'). ",
-            since.ToUniversalTime(),
+            since,
             since.ToLocalTime(),
             lookback.LatestSuccessfulDiscoveryBegan.ToString("O"));
 
@@ -103,7 +105,7 @@ public class Discover(
                 _discoverOptions.EnrichFromApple, _discoverOptions.TaddyOffset);
             var discoveryConfig = discoveryConfigProvider.CreateDiscoveryConfig(getServiceConfigOptions);
 
-            var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
+            var discoveryBegan = UtcDateTimes.ToUtc(DateTime.UtcNow);
             logger.LogInformation(
                 "Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBeganLocal:O}'), indexing-context: {indexingContext}",
                 discoveryBegan, discoveryBegan.ToLocalTime(), indexingContext);

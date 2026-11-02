@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Discovery.Models;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Discovery.Services;
@@ -54,6 +55,7 @@ public class DiscoveryLookbackResolver(
     private async Task<DateTime?> GetLatestSuccessfulDiscoveryBeganAsync(CancellationToken cancellationToken)
     {
         var latest = await discoveryResultsRepository.GetLatestDiscoveryBegan(cancellationToken);
-        return latest?.ToUniversalTime();
+        // Unspecified watermark is UTC (#1219); ToUniversalTime would shift it on a host east of UTC.
+        return latest is null ? null : UtcDateTimes.ToUtc(latest.Value);
     }
 }

@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.PodcastServices.Abstractions.Caches;
 using RedditPodcastPoster.PodcastServices.Apple.Extensions;
 using RedditPodcastPoster.PodcastServices.Apple.Models;
@@ -87,7 +88,8 @@ public sealed class AppleCatalogueLookup(
         new(
             x.TrackId!.Value,
             x.TrackName!,
-            x.ReleaseDate?.ToUniversalTime() ?? DateTime.MinValue,
+            // Unspecified iTunes releaseDate is UTC (#1219); ToUniversalTime would shift it on a host east of UTC.
+            x.ReleaseDate is { } release ? UtcDateTimes.ToUtc(release) : DateTime.MinValue,
             TimeSpan.FromMilliseconds(x.TrackTimeMillis ?? 0),
             Uri.TryCreate(x.TrackViewUrl, UriKind.Absolute, out var url)
                 ? url.CleanAppleUrl()
