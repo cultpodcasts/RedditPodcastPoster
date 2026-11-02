@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -28,15 +27,8 @@ public sealed partial class EpisodePlatformMatcher
         CatalogueMatchByLengthOptions options,
         Func<Episode, bool>? reducer = null)
     {
-        var requestEpisodeTitle = WebUtility.HtmlDecode(probe.Title.Trim());
-
         var matches = candidates.Where(x =>
-        {
-            var trimmedEpisodeTitle = WebUtility.HtmlDecode(x.Title.Trim());
-            return trimmedEpisodeTitle == requestEpisodeTitle ||
-                   trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
-                   requestEpisodeTitle.Contains(trimmedEpisodeTitle);
-        });
+            EpisodeTitleMatch.EqualsOrContains(x.Title, probe.Title));
         if (reducer != null)
         {
             matches = matches.Where(reducer);

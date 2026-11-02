@@ -1016,12 +1016,12 @@ public class CatalogueParentsUpdater(
         return false;
     }
 
-    /// <summary>Same comparison the catalogue matcher uses for an exact title (decoded, trimmed, ordinal).</summary>
+    /// <summary>
+    /// Same equals-or-contains title predicate as
+    /// <see cref="EpisodePlatformMatcher.FindCatalogueMatchByLength"/>'s first branch.
+    /// </summary>
     private static bool SameTitle(Episode left, Episode right) =>
-        string.Equals(NormalisedTitle(left.Title), NormalisedTitle(right.Title), StringComparison.Ordinal);
-
-    private static string NormalisedTitle(string? title) =>
-        System.Net.WebUtility.HtmlDecode(title ?? string.Empty).Trim();
+        EpisodeTitleMatch.EqualsOrContains(left.Title, right.Title);
 
     private static bool MissingSpotify(Episode episode) =>
         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) == null ||

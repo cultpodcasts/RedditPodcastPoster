@@ -416,6 +416,35 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
     }
 
     [Fact(DisplayName =
+        "Catalogue parent audio catch-up guard, real Spotify matcher: when a 6-minute clip title is contained in a " +
+        "same-day 42-minute report title (equals-or-contains, not exact), both lack Spotify, and the show has only " +
+        "the 42-minute episode, then the full report is saved with that link and the clip is not, because " +
+        "FindCatalogueMatchByLength would return the longer row on title containment before duration scoring, so the " +
+        "shorter item must defer.")]
+    public async Task real_spotify_clip_does_not_take_link_when_full_report_title_contains_clip_title()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedOrganisation(spotifyShow: true, applePodcast: false);
+        var day = DomainTestFixture.UtcDateDaysAgo(2);
+        var clipTitle = _fixture.CreateTitle(3);
+        var fullTitle = $"{clipTitle} Full Statement";
+        var full = Report(podcast, organisation, day.AddHours(9), FullLength, fullTitle);
+        var clip = Report(podcast, organisation, day.AddHours(12), ClipLength, clipTitle);
+        _storedReports = [full, clip];
+        var spotifyId = _fixture.CreateSpotifyId();
+        _spotifyShow = [SpotifyEpisode(spotifyId, day.AddHours(9), FullLength, fullTitle)];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], OddHourPass(DomainTestFixture.UtcDateDaysAgo(30)));
+
+        // Assert
+        var saved = _savedReports.Should().ContainSingle().Subject;
+        saved.Id.Should().Be(full.Id);
+        saved.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(spotifyId));
+        clip.Services.Should().NotContainKey(ServiceKeys.Spotify);
+    }
+
+    [Fact(DisplayName =
         "Catalogue parent audio catch-up guard, real Spotify matcher: when a 42-minute report older than the 7-day " +
         "catch-up window and a 6-minute same-title clip inside it are both missing Spotify, and the show has only " +
         "the 42-minute episode, then the clip is not saved with that link, because a shorter item must not take a " +
