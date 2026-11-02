@@ -30,6 +30,26 @@ public class XApiProblemRules
         // Assert
         problem.IsDuplicateContent.Should().BeFalse();
         problem.IsRateOrUsageLimited.Should().BeFalse();
+        problem.IsResourceNotFound.Should().BeFalse();
         problem.Summary().Should().BeEmpty();
+    }
+
+    [Theory(DisplayName =
+        "A resource-not-found problem type (api.twitter.com or api.x.com) or a Not Found Error title is recognised so delete can clear Tweeted only when X says the post is gone.")]
+    [InlineData("{\"type\":\"https://api.twitter.com/2/problems/resource-not-found\"}")]
+    [InlineData("{\"type\":\"https://api.x.com/2/problems/resource-not-found\",\"title\":\"Not Found Error\"}")]
+    [InlineData("{\"title\":\"Not Found Error\",\"detail\":\"synthetic\"}")]
+    [InlineData("{\"errors\":[{\"type\":\"https://api.twitter.com/2/problems/resource-not-found\"}]}")]
+    [InlineData("{\"errors\":[{\"type\":\"https://api.x.com/2/problems/resource-not-found\"}]}")]
+    public void resource_not_found_shapes_are_recognised(string body)
+    {
+        // Arrange
+        var responseBody = body;
+
+        // Act
+        var problem = XApiProblem.Parse(responseBody);
+
+        // Assert
+        problem.IsResourceNotFound.Should().BeTrue();
     }
 }

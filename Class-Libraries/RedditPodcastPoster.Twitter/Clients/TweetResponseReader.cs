@@ -11,10 +11,6 @@ namespace RedditPodcastPoster.Twitter.Clients;
 /// </summary>
 public static class TweetResponseReader
 {
-    private const string ResourceNotFoundProblem = "https://api.twitter.com/2/problems/resource-not-found";
-    private const string ResourceNotFoundProblemX = "https://api.x.com/2/problems/resource-not-found";
-    private const string NotFoundErrorTitle = "Not Found Error";
-
     /// <summary>
     /// The new post's id from a <c>POST /2/tweets</c> success body, or null when the body has none or is not JSON.
     /// Never throws: the post was made, so a bad body must not turn it into a failure.
@@ -39,42 +35,31 @@ public static class TweetResponseReader
 
     /// <summary>
     /// Maps a <c>DELETE /2/tweets/:id</c> response. Only an explicit <c>deleted: true</c> counts as deleted.
-    /// NotFound (which lets the caller clear Tweeted) needs X to say so: a <c>resource-not-found</c> problem or a
-    /// <c>Not Found Error</c> title. A bare 404 (a wrong URL, a proxy, an HTML page) is <see cref="DeleteTweetState.Failed"/>.
+    /// NotFound (which lets the caller clear Tweeted) needs X to say so via <see cref="XApiProblem.IsResourceNotFound"/>.
+    /// A bare 404 (a wrong URL, a proxy, an HTML page) is <see cref="DeleteTweetState.Failed"/>.
     /// </summary>
     public static DeleteTweetState ReadDeleteState(HttpStatusCode statusCode, string? body)
     {
-        if (statusCode == HttpStatusCode.TooManyRequests)
+        var problem = XApiProblem.Parse(body);
+
+        if (statusCode == HttpStatusCode.TooManyRequests || problem.IsRateOrUsageLimited)
         {
             return DeleteTweetState.TooManyRequests;
         }
 
-        DeleteTweetResponseBody? parsed = null;
-        if (!string.IsNullOrWhiteSpace(body))
-        {
-            try
-            {
-                parsed = JsonSerializer.Deserialize<DeleteTweetResponseBody>(body);
-            }
-            catch (JsonException)
-            {
-                parsed = null;
-            }
-        }
-
         if (statusCode == HttpStatusCode.NotFound)
         {
-            return parsed != null && IsNotFoundProblem(parsed) ? DeleteTweetState.NotFound : DeleteTweetState.Failed;
+            return problem.IsResourceNotFound ? DeleteTweetState.NotFound : DeleteTweetState.Failed;
         }
 
         if ((int) statusCode is >= 200 and < 300)
         {
-            if (parsed?.Data?.Deleted == true)
+            if (ReadDeletedFlag(body) == true)
             {
                 return DeleteTweetState.Deleted;
             }
 
-            if (parsed?.Errors?.Any(error => IsNotFound(error.Type, error.Title)) == true)
+            if (problem.IsResourceNotFound)
             {
                 return DeleteTweetState.NotFound;
             }
@@ -87,12 +72,20 @@ public static class TweetResponseReader
     public static bool IsTweetId(string? id) =>
         !string.IsNullOrEmpty(id) && id.Length <= 19 && id.All(char.IsAsciiDigit);
 
-    private static bool IsNotFoundProblem(DeleteTweetResponseBody problem) =>
-        IsNotFound(problem.Type, problem.Title) ||
-        problem.Errors?.Any(error => IsNotFound(error.Type, error.Title)) == true;
+    private static bool? ReadDeletedFlag(string? body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return null;
+        }
 
-    private static bool IsNotFound(string? type, string? title) =>
-        string.Equals(type, ResourceNotFoundProblem, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(type, ResourceNotFoundProblemX, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(title, NotFoundErrorTitle, StringComparison.OrdinalIgnoreCase);
+        try
+        {
+            return JsonSerializer.Deserialize<DeleteTweetResponseBody>(body)?.Data?.Deleted;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 }

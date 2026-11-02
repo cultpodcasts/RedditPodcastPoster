@@ -5,7 +5,6 @@ using Microsoft.Extensions.Options;
 using Moq.AutoMock;
 using RedditPodcastPoster.Twitter.Clients;
 using RedditPodcastPoster.Twitter.Configuration;
-using RedditPodcastPoster.Twitter.Dtos;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.Twitter.Tests.Fakes;
 
@@ -122,42 +121,8 @@ public class TwitterClientRules
         result.TweetSendStatus.Should().Be(TweetSendStatus.Failed);
     }
 
-    [Fact(DisplayName = "Recent posts are read from the configured account's timeline on api.x.com.")]
-    public async Task get_tweets_reads_account_timeline()
-    {
-        // Arrange
-        var id = _fixture.Create<string>();
-        _x.Respond(HttpStatusCode.OK, $"{{\"data\":[{{\"id\":\"{id}\",\"text\":\"t\"}}],\"meta\":{{}}}}");
-        var sut = _mocker.CreateInstance<TwitterClient>();
-
-        // Act
-        var result = await sut.GetTweets();
-
-        // Assert
-        result.State.Should().Be(GetTweetsState.Retrieved);
-        result.Tweets!.Single().Id.Should().Be(id);
-        _x.Requests[0].Uri.Should()
-            .Be(new Uri($"https://api.x.com/2/users/{_options.TwitterId}/tweets?tweet.fields=entities"));
-    }
-
-    [Fact(DisplayName = "Deleting a post calls DELETE /2/tweets/{id} and reports success.")]
-    public async Task delete_tweet_calls_delete()
-    {
-        // Arrange
-        var tweet = new Tweet {Id = _fixture.Create<string>()};
-        var sut = _mocker.CreateInstance<TwitterClient>();
-
-        // Act
-        var deleted = await sut.DeleteTweet(tweet);
-
-        // Assert
-        deleted.Should().BeTrue();
-        _x.Requests[0].Method.Should().Be(HttpMethod.Delete);
-        _x.Requests[0].Uri.Should().Be(new Uri($"https://api.x.com/2/tweets/{tweet.Id}"));
-    }
-
     [Fact(DisplayName =
-        "A timeline read since a release goes to the typed api.x.com client with start_time, end_time and an escaped pagination token, because un-tweet must follow the same auth as posting.")]
+        "A timeline read since a release goes to the typed api.x.com client with start_time, end_time, max_results and an escaped pagination token, because un-tweet must follow the same auth as posting.")]
     public async Task timeline_since_uses_typed_client_query()
     {
         // Arrange

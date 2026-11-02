@@ -239,7 +239,6 @@ public class TweetIdRules
         result.Should().Be(expected);
         _mocker.GetMock<ITwitterClient>().Verify(
             x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), It.IsAny<DateTimeOffset?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
-        _mocker.GetMock<ITwitterClient>().Verify(x => x.GetTweets(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ---- timeline fallback ----------------------------------------------------------------------

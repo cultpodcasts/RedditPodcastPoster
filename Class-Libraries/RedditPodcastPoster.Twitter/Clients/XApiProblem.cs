@@ -11,6 +11,7 @@ namespace RedditPodcastPoster.Twitter.Clients;
 public sealed class XApiProblem
 {
     public const string UsageCappedType = "https://api.twitter.com/2/problems/usage-capped";
+    public const string NotFoundErrorTitle = "Not Found Error";
 
     [JsonPropertyName("title")] public string? Title { get; set; }
     [JsonPropertyName("detail")] public string? Detail { get; set; }
@@ -49,8 +50,23 @@ public sealed class XApiProblem
         Messages().Any(m => m.Contains("too many requests", StringComparison.OrdinalIgnoreCase) ||
                             m.Contains("usage cap", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// X reports the post (or other resource) as gone: a <c>resource-not-found</c> problem type
+    /// (api.twitter.com or api.x.com) or a <c>Not Found Error</c> title — not a bare HTTP 404 alone.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsResourceNotFound =>
+        IsResourceNotFoundType(Type) ||
+        string.Equals(Title, NotFoundErrorTitle, StringComparison.OrdinalIgnoreCase) ||
+        (Errors?.Any(e =>
+            IsResourceNotFoundType(e.Type) ||
+            string.Equals(e.Title, NotFoundErrorTitle, StringComparison.OrdinalIgnoreCase)) ?? false);
+
     /// <summary>A one-line summary for logs (no request data).</summary>
     public string Summary() => string.Join(" | ", Messages().Prepend(Type ?? string.Empty).Where(m => m != string.Empty));
+
+    private static bool IsResourceNotFoundType(string? type) =>
+        type?.EndsWith("/resource-not-found", StringComparison.OrdinalIgnoreCase) ?? false;
 
     private IEnumerable<string> Messages()
     {
@@ -70,4 +86,5 @@ public sealed class XApiError
     [JsonPropertyName("message")] public string? Message { get; set; }
     [JsonPropertyName("detail")] public string? Detail { get; set; }
     [JsonPropertyName("title")] public string? Title { get; set; }
+    [JsonPropertyName("type")] public string? Type { get; set; }
 }
