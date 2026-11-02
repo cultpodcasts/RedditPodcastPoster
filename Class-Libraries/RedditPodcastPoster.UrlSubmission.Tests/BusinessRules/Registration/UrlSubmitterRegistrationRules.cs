@@ -1,3 +1,4 @@
+using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -82,6 +83,37 @@ public class UrlSubmitterRegistrationRules
         submitter.Should().BeOfType<CatalogueOwnedDiscoveryUrlSubmitter>();
         scope.ServiceProvider.GetRequiredService<ICatalogueOwnershipGuard>().Should()
             .BeOfType<CatalogueOwnershipGuard>();
+    }
+
+    [Fact(DisplayName =
+        "AddUrlSubmission registers ICatalogueOwnershipGuard as scoped so language probe and ingest share one guard instance with the discovery submitter.")]
+    public void catalogue_ownership_guard_is_scoped_and_shared_with_discovery_submitter()
+    {
+        // Arrange
+        var services = Services();
+        services.Replace(ServiceDescriptor.Scoped(_ => Mock.Of<IDiscoveryResultProcessor>()));
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var scope = provider.CreateScope();
+
+        // Act
+        var first = scope.ServiceProvider.GetRequiredService<ICatalogueOwnershipGuard>();
+        var second = scope.ServiceProvider.GetRequiredService<ICatalogueOwnershipGuard>();
+        var discoverySubmitter = scope.ServiceProvider.GetRequiredService<IDiscoveryUrlSubmitter>();
+
+        // Assert
+        first.Should().BeOfType<CatalogueOwnershipGuard>();
+        first.Should().BeSameAs(second);
+        discoverySubmitter.Should().BeOfType<CatalogueOwnedDiscoveryUrlSubmitter>();
+        InjectedCatalogueOwnershipGuard(discoverySubmitter).Should().BeSameAs(first);
+    }
+
+    /// <summary>Primary-constructor capture of <see cref="ICatalogueOwnershipGuard"/> on the decorator.</summary>
+    private static ICatalogueOwnershipGuard InjectedCatalogueOwnershipGuard(IDiscoveryUrlSubmitter submitter)
+    {
+        var field = typeof(CatalogueOwnedDiscoveryUrlSubmitter)
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single(f => typeof(ICatalogueOwnershipGuard).IsAssignableFrom(f.FieldType));
+        return (ICatalogueOwnershipGuard)field.GetValue(submitter)!;
     }
 
     [Fact(DisplayName =
