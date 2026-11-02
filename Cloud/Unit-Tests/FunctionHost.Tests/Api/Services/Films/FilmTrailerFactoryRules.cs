@@ -78,4 +78,71 @@ public class FilmTrailerFactoryRules
         trailer.Services[ServiceKeys.Spotify].Url.Should().Be(spotifyUrl);
         trailer.Services[ServiceKeys.Apple].Url.Should().Be(appleInput.AppleUrl);
     }
+
+    [Fact(DisplayName =
+        "When a Spotify URL is present but nested ids.spotify is null, the trailer still stores the Spotify id derived from the URL, because pre-backfill / partial rows must re-match Spotify paste and indexer re-find.")]
+    public void spotify_url_without_nested_id_stores_id_from_url()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast);
+        var spotifyUrl = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify)!;
+        var expectedSpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode)!;
+        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
+        EpisodeServicePresence.SpotifyEpisodeId(episode).Should().BeNull();
+
+        // Act
+        var trailer = FilmTrailerFactory.From(episode, null);
+
+        // Assert
+        trailer!.Services.Should().ContainKey(ServiceKeys.Spotify);
+        trailer.Services![ServiceKeys.Spotify].Url.Should().Be(spotifyUrl);
+        trailer.Ids.Should().NotBeNull();
+        trailer.Ids!.Spotify.Should().Be(expectedSpotifyId);
+    }
+
+    [Fact(DisplayName =
+        "When an Apple URL is present but nested ids.apple is null, the trailer still stores the Apple id derived from the URL, because pre-backfill / partial rows must re-match Apple paste.")]
+    public void apple_url_without_nested_id_stores_id_from_url()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var appleUrl = new Uri(
+            $"https://podcasts.apple.com/podcast/synthetic-show/id{_fixture.CreateAppleId()}?i={appleEpisodeId}");
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Apple, appleUrl, null);
+        EpisodeServicePresence.AppleEpisodeId(episode).Should().BeNull();
+
+        // Act
+        var trailer = FilmTrailerFactory.From(episode, null);
+
+        // Assert
+        trailer!.Services.Should().ContainKey(ServiceKeys.Apple);
+        trailer.Services![ServiceKeys.Apple].Url.Should().Be(appleUrl);
+        trailer.Ids.Should().NotBeNull();
+        trailer.Ids!.Apple.Should().Be(appleEpisodeId);
+    }
+
+    [Fact(DisplayName =
+        "When a nested Spotify id is present without a Spotify URL, the trailer does not store that id, because ownership matching must not claim a platform the trailer does not expose.")]
+    public void orphaned_spotify_id_without_url_is_not_stored()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var orphanedSpotifyId = _fixture.CreateSpotifyId();
+        EpisodeServicePresence.SetSpotifyIdentity(episode, orphanedSpotifyId);
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify).Should().BeNull();
+
+        // Act
+        var trailer = FilmTrailerFactory.From(episode, null);
+
+        // Assert
+        trailer!.Services.Should().NotBeNull();
+        trailer.Services!.Should().NotContainKey(ServiceKeys.Spotify);
+        trailer.Ids.Should().NotBeNull();
+        trailer.Ids!.Spotify.Should().BeNull();
+        trailer.Ids.YouTube.Should().Be(EpisodeServicePresence.YouTubeEpisodeId(episode));
+    }
 }

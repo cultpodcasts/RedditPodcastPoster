@@ -295,6 +295,65 @@ public class IndexerSkipsCatalogueOwnedUrlsRules
             .Which.Should().Contain(SubmitClassification.Film).And.Contain(discovered.Id.ToString());
     }
 
+    [Fact(DisplayName =
+        "When a newly found Spotify-only episode matches a YouTube-sourced film trailer's Ids.Spotify and the trailer's Services map has YouTube only, the indexer does not save it, because Compile() must match on ids before indexing a missing Services[spotify] key (#1223).")]
+    public async Task newly_found_spotify_only_episode_matching_trailer_ids_with_youtube_only_services_is_not_saved()
+    {
+        // Arrange
+        var logger = new CapturedInformationLogger();
+        var harness = new PodcastUpdaterTestHarness(logger: logger);
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        harness.PodcastRepository.Seed(podcast);
+        var discovered = CreateDiscoveredEpisode(ServiceKeys.Spotify);
+        var spotifyId = EpisodeServicePresence.SpotifyEpisodeId(discovered)!;
+        var youTubeId = _fixture.CreateYouTubeId();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Trailers =
+            [
+                new FilmTrailer
+                {
+                    Id = discovered.Id,
+                    Title = discovered.Title,
+                    Url = _fixture.DefaultYouTubeUrl(youTubeId),
+                    Ids = new EpisodeIds
+                    {
+                        Spotify = spotifyId,
+                        YouTube = youTubeId
+                    },
+                    Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
+                    {
+                        [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(youTubeId) }
+                    }
+                }
+            ]
+        };
+        var lookupMocker = new AutoMocker();
+        lookupMocker.Use(Options.Create(new SubmitContentTypesOptions()));
+        lookupMocker.GetMock<IFilmRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
+            .ReturnsAsync((Expression<Func<Film, bool>> predicate) => predicate.Compile()(film) ? film : null);
+        var lookup = lookupMocker.CreateInstance<UrlMembershipLookup>();
+        harness.UrlMembershipLookup
+            .Setup(x => x.FindCatalogueServiceUrlOwner(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
+            .Returns((Uri url, CancellationToken token) => lookup.FindCatalogueServiceUrlOwner(url, token));
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(podcast, It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync([discovered]);
+
+        // Act
+        await harness.Updater.Update(
+            podcast,
+            enrichOnly: false,
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert
+        harness.EpisodeRepository.SavedEpisodes.Should().NotContain(episode => episode.Id == discovered.Id);
+        logger.Messages.Should().ContainSingle(message =>
+                message.StartsWith(PodcastUpdater.CatalogueOwnedUrlSkippedMessagePrefix, StringComparison.Ordinal))
+            .Which.Should().Contain(SubmitClassification.Film).And.Contain(discovered.Id.ToString());
+    }
+
     private Episode CreateDiscoveredEpisode(string serviceKey) =>
         serviceKey switch
         {

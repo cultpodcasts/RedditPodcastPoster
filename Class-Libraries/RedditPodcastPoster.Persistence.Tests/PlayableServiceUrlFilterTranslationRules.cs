@@ -81,6 +81,35 @@ public class PlayableServiceUrlFilterTranslationRules
     }
 
     [Fact(DisplayName =
+        "When films are filtered by FilmHoldsServiceOrTrailerUrl for Apple with an episode id, then the Cosmos SQL also matches trailers[].services.apple.url and trailers[].ids.apple, because a YouTube-sourced trailer stores those so an Apple re-find still matches (#1223).")]
+    public void holds_service_or_trailer_url_for_apple_matches_trailer_services_and_ids()
+    {
+        // Arrange
+        var appleId = _fixture.CreateAppleId();
+        var path = $"/podcast/synthetic-show/id{_fixture.CreateAppleId()}?i={appleId}";
+        var pasted = new Uri($"https://podcasts.apple.com/us{path}&uo=4");
+        var stored = new Uri($"https://podcasts.apple.com{path}");
+        using var client = CreateClient();
+        var container = client.GetContainer("db", "films");
+
+        // Act
+        var sql = container.GetItemLinqQueryable<Film>()
+            .Where(PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(
+                ServiceKeys.Apple, pasted, stored, appleId: appleId))
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        sql.Should().Contain("[\"trailers\"]");
+        sql.Should().Contain("[\"services\"]");
+        sql.Should().Contain("[\"apple\"]");
+        sql.Should().Contain("[\"ids\"]");
+        sql.Should().Contain(appleId.ToString());
+        sql.Should().Contain(stored.ToString());
+        sql.Should().Contain(pasted.ToString());
+    }
+
+    [Fact(DisplayName =
         "When films are filtered by FilmHoldsServiceOrTrailerUrl, then the services arm and the trailers arm sit on either side of one top-level OR, because a precedence slip would AND the trailer match with the service link and miss trailers.")]
     public void film_holds_service_or_trailer_url_groups_the_two_arms_under_one_or()
     {

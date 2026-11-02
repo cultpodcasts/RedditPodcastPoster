@@ -28,6 +28,12 @@ public static class PlayableServiceUrlFilters
     /// (source-episode platform URLs), and <c>trailers[].ids</c> for the platform of <paramref name="serviceKey"/>
     /// when the matching id is supplied.
     /// </summary>
+    /// <remarks>
+    /// The four platform bodies must stay in lockstep: trailer.Url forms, Ids-before-Services[key] (so Compile() can
+    /// match on ids when that key is absent from a partial services map), and the film.Services arm. Drift detectors:
+    /// <c>PlayableServiceUrlFilterTranslationRules</c>, <c>UrlMembershipLookupRules</c>, and
+    /// <c>IndexerSkipsCatalogueOwnedUrlsRules</c> Compile() paths.
+    /// </remarks>
     public static Expression<Func<Film, bool>> FilmHoldsServiceOrTrailerUrl(
         string serviceKey,
         Uri url,
@@ -46,9 +52,9 @@ public static class PlayableServiceUrlFilters
                  film.Trailers.Any(trailer =>
                      trailer.Url == url ||
                      trailer.Url == storedUrl ||
+                     (trailer.Ids != null && trailer.Ids.Spotify == id) ||
                      (trailer.Services != null &&
-                      (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)) ||
-                     (trailer.Ids != null && trailer.Ids.Spotify == id)));
+                      (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl))));
         }
 
         if (serviceKey == ServiceKeys.Apple && appleId is > 0)
@@ -61,9 +67,9 @@ public static class PlayableServiceUrlFilters
                  film.Trailers.Any(trailer =>
                      trailer.Url == url ||
                      trailer.Url == storedUrl ||
+                     (trailer.Ids != null && trailer.Ids.Apple == id) ||
                      (trailer.Services != null &&
-                      (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)) ||
-                     (trailer.Ids != null && trailer.Ids.Apple == id)));
+                      (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl))));
         }
 
         if (serviceKey == ServiceKeys.YouTube && !string.IsNullOrWhiteSpace(youTubeId))
@@ -76,9 +82,9 @@ public static class PlayableServiceUrlFilters
                  film.Trailers.Any(trailer =>
                      trailer.Url == url ||
                      trailer.Url == storedUrl ||
+                     (trailer.Ids != null && trailer.Ids.YouTube == id) ||
                      (trailer.Services != null &&
-                      (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)) ||
-                     (trailer.Ids != null && trailer.Ids.YouTube == id)));
+                      (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl))));
         }
 
         return film =>
