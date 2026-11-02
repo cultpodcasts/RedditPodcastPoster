@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Api.Dtos;
@@ -51,22 +50,5 @@ internal static class FunctionInputBindingFailure
         }
 
         context.GetInvocationResult().Value = response;
-    }
-
-    /// <summary>
-    /// True when the exception chain includes a <see cref="JsonException"/> (typical for int overflow / non-integer).
-    /// Used by characterisation tests; the middleware keys off <see cref="FunctionInputConverterException"/>.
-    /// </summary>
-    public static bool HasJsonException(Exception exception)
-    {
-        for (Exception? current = exception; current is not null; current = current.InnerException)
-        {
-            if (current is JsonException)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }
