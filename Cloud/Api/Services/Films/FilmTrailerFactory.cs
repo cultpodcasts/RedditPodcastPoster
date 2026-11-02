@@ -1,6 +1,7 @@
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
 namespace Api.Services.Films;
@@ -14,10 +15,18 @@ public static class FilmTrailerFactory
         ServiceKeys.Apple
     };
 
+    private static readonly string[] PodcastPlatformKeys =
+    [
+        ServiceKeys.YouTube,
+        ServiceKeys.Spotify,
+        ServiceKeys.Apple
+    ];
+
     /// <summary>
     /// The trailer plays from the episode's YouTube link when it has one, otherwise from its first video link (any
     /// key but the audio-only Spotify and Apple Podcasts), otherwise from an audio link; ties go by service key, so
-    /// the choice is stable. Null when the episode has no link at all.
+    /// the choice is stable. Null when the episode has no link at all. Also stores the source episode's YouTube,
+    /// Spotify and Apple URLs and platform ids so every platform still matches after attach.
     /// </summary>
     public static FilmTrailer? From(Episode episode, string? title)
     {
@@ -35,7 +44,9 @@ public static class FilmTrailerFactory
             Url = url,
             Image = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder),
             Release = episode.ReleaseUtc == default ? null : episode.ReleaseUtc,
-            Length = episode.Length
+            Length = episode.Length,
+            Ids = CopyPodcastPlatformIds(episode),
+            Services = CopyPodcastPlatformServices(episode)
         };
     }
 
@@ -57,5 +68,41 @@ public static class FilmTrailerFactory
             .ThenBy(x => x.Key, StringComparer.Ordinal)
             .Select(x => x.Value.Url)
             .FirstOrDefault();
+    }
+
+    private static EpisodeIds? CopyPodcastPlatformIds(Episode episode)
+    {
+        var spotify = EpisodeServicePresence.SpotifyEpisodeId(episode);
+        var apple = EpisodeServicePresence.AppleEpisodeId(episode);
+        var youTube = EpisodeServicePresence.YouTubeEpisodeId(episode);
+        if (spotify is null && apple is null && youTube is null)
+        {
+            return null;
+        }
+
+        return new EpisodeIds
+        {
+            Spotify = spotify,
+            Apple = apple,
+            YouTube = youTube
+        };
+    }
+
+    private static Dictionary<string, ServiceLink>? CopyPodcastPlatformServices(Episode episode)
+    {
+        Dictionary<string, ServiceLink>? services = null;
+        foreach (var key in PodcastPlatformKeys)
+        {
+            var url = EpisodeServicePresence.TryGetUrl(episode, key);
+            if (url is null)
+            {
+                continue;
+            }
+
+            services ??= new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
+            services[key] = new ServiceLink { Url = url };
+        }
+
+        return services;
     }
 }

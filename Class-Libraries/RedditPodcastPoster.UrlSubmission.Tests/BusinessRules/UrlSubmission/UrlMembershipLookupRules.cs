@@ -848,6 +848,58 @@ public class UrlMembershipLookupRules
     }
 
     [Fact(DisplayName =
+        "When submit content types are on and a Spotify URL of a YouTube-sourced trailer is pasted, URL membership lookup reports Film, because attach stored the source episode's Spotify URL and id on the trailer (#1223).")]
+    public async Task flag_on_spotify_paste_of_youtube_sourced_trailer_returns_the_film()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var source = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(podcast);
+        var spotifyUrl = EpisodeServicePresence.TryGetUrl(source, ServiceKeys.Spotify)!;
+        var film = FilmWithYouTubeSourcedTrailer(source);
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        SetupFilms(film);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(spotifyUrl, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.ParentName.Should().BeNull();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.PodcastService);
+    }
+
+    [Theory(DisplayName =
+        "When submit content types are on and an Apple URL (cleaned, or with a storefront segment and the &uo=4 tracking suffix) of a YouTube-sourced trailer is pasted, URL membership lookup reports Film, because attach stored the source episode's Apple URL and id on the trailer (#1223).")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task flag_on_apple_paste_of_youtube_sourced_trailer_returns_the_film(bool withTrackingSuffix)
+    {
+        // Arrange
+        // Stored Apple links are cleaned: no storefront segment and no &uo=4 suffix.
+        var podcast = _fixture.CreatePodcast();
+        var source = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var appleEpisodeId = _fixture.CreateAppleId();
+        var path = $"/podcast/synthetic-show/id{_fixture.CreateAppleId()}?i={appleEpisodeId}";
+        var storedApple = new Uri($"https://podcasts.apple.com{path}");
+        var pasted = withTrackingSuffix ? new Uri($"https://podcasts.apple.com/us{path}&uo=4") : storedApple;
+        EpisodeServicePresence.SetAppleIdentity(source, appleEpisodeId);
+        EpisodeServicePresence.Upsert(source, ServiceKeys.Apple, storedApple, null);
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        SetupFilms(FilmWithYouTubeSourcedTrailer(source));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(pasted, CancellationToken.None);
+
+        // Assert
+        result.Known.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.ParentName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "When submit content types are on and a YouTube URL is neither a stored episode nor a film trailer, URL membership lookup leaves it unknown, because another video on the same film must not match.")]
     public async Task flag_on_youtube_url_for_a_different_video_is_not_a_film_trailer()
     {
@@ -1034,6 +1086,51 @@ public class UrlMembershipLookupRules
                 }
             ]
         };
+
+    /// <summary>
+    /// YouTube playback URL with the source episode's Spotify/Apple/YouTube URLs and ids on the trailer —
+    /// the shape <c>FilmTrailerFactory</c> writes for a multi-platform source episode.
+    /// </summary>
+    private Film FilmWithYouTubeSourcedTrailer(Episode source)
+    {
+        var youTubeUrl = EpisodeServicePresence.TryGetUrl(source, ServiceKeys.YouTube)!;
+        Dictionary<string, ServiceLink>? services = null;
+        foreach (var key in new[] { ServiceKeys.YouTube, ServiceKeys.Spotify, ServiceKeys.Apple })
+        {
+            var url = EpisodeServicePresence.TryGetUrl(source, key);
+            if (url is null)
+            {
+                continue;
+            }
+
+            services ??= new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
+            services[key] = new ServiceLink { Url = url };
+        }
+
+        EpisodeIds? ids = null;
+        var spotify = EpisodeServicePresence.SpotifyEpisodeId(source);
+        var apple = EpisodeServicePresence.AppleEpisodeId(source);
+        var youTube = EpisodeServicePresence.YouTubeEpisodeId(source);
+        if (spotify is not null || apple is not null || youTube is not null)
+        {
+            ids = new EpisodeIds { Spotify = spotify, Apple = apple, YouTube = youTube };
+        }
+
+        return new Film(_fixture.CreateTitle())
+        {
+            Trailers =
+            [
+                new FilmTrailer
+                {
+                    Id = source.Id,
+                    Title = source.Title,
+                    Url = youTubeUrl,
+                    Ids = ids,
+                    Services = services
+                }
+            ]
+        };
+    }
 
     private void SetupFilms(Film film) =>
         _mocker.GetMock<IFilmRepository>()

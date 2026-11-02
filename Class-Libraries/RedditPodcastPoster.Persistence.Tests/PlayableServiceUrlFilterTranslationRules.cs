@@ -36,7 +36,8 @@ public class PlayableServiceUrlFilterTranslationRules
 
         // Act
         var sql = container.GetItemLinqQueryable<Film>()
-            .Where(PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(ServiceKeys.YouTube, pasted, stored))
+            .Where(PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(
+                ServiceKeys.YouTube, pasted, stored, youTubeId: videoId))
             .ToQueryDefinition()
             .QueryText;
 
@@ -45,6 +46,36 @@ public class PlayableServiceUrlFilterTranslationRules
         sql.Should().Contain("EXISTS");
         sql.Should().Contain("[\"trailers\"]");
         sql.Should().Contain("[\"url\"]");
+        sql.Should().Contain("[\"ids\"]");
+        sql.Should().Contain(stored.ToString());
+        sql.Should().Contain(pasted.ToString());
+        sql.Should().Contain(videoId);
+    }
+
+    [Fact(DisplayName =
+        "When films are filtered by FilmHoldsServiceOrTrailerUrl for Spotify with an episode id, then the Cosmos SQL also matches trailers[].services.spotify.url and trailers[].ids.spotify, because a YouTube-sourced trailer stores those so a Spotify re-find still matches (#1223).")]
+    public void holds_service_or_trailer_url_for_spotify_matches_trailer_services_and_ids()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var pasted = new Uri($"https://open.spotify.com/episode/{spotifyId}?si=synthetic");
+        var stored = new Uri($"https://open.spotify.com/episode/{spotifyId}");
+        using var client = CreateClient();
+        var container = client.GetContainer("db", "films");
+
+        // Act
+        var sql = container.GetItemLinqQueryable<Film>()
+            .Where(PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(
+                ServiceKeys.Spotify, pasted, stored, spotifyId: spotifyId))
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        sql.Should().Contain("[\"trailers\"]");
+        sql.Should().Contain("[\"services\"]");
+        sql.Should().Contain("[\"spotify\"]");
+        sql.Should().Contain("[\"ids\"]");
+        sql.Should().Contain(spotifyId);
         sql.Should().Contain(stored.ToString());
         sql.Should().Contain(pasted.ToString());
     }
@@ -62,7 +93,8 @@ public class PlayableServiceUrlFilterTranslationRules
 
         // Act
         var sql = container.GetItemLinqQueryable<Film>()
-            .Where(PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(ServiceKeys.YouTube, pasted, stored))
+            .Where(PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(
+                ServiceKeys.YouTube, pasted, stored, youTubeId: videoId))
             .ToQueryDefinition()
             .QueryText;
 

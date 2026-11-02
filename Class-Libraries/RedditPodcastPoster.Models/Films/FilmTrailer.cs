@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 
 namespace RedditPodcastPoster.Models.Films;
 
@@ -37,4 +39,22 @@ public sealed class FilmTrailer
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(6)]
     public TimeSpan Length { get; set; }
+
+    /// <summary>
+    /// Source episode Spotify / Apple / YouTube ids. Optional and omitted when empty so existing trailers stay
+    /// wire-compatible. Used so a Spotify- or Apple-only re-find still matches this trailer.
+    /// </summary>
+    [JsonPropertyName("ids")]
+    [JsonPropertyOrder(7)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EpisodeIds? Ids { get; set; }
+
+    /// <summary>
+    /// Source episode YouTube / Spotify / Apple service URLs (url only). Optional and omitted when empty.
+    /// <see cref="Url"/> remains the playback page; these let paste and indexer match every platform the episode had.
+    /// </summary>
+    [JsonPropertyName("services")]
+    [JsonPropertyOrder(8)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, ServiceLink>? Services { get; set; }
 }

@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Playables;
 
@@ -21,17 +22,73 @@ public static class PlayableServiceUrlFilters
                 (item.Services[serviceKey].Url == url || item.Services[serviceKey].Url == storedUrl);
 
     /// <summary>
-    /// Films holding the URL as their <paramref name="serviceKey"/> link or as a trailer (<c>trailers[].url</c>). An
-    /// episode attached as a trailer has its row deleted, so without the trailer match the same URL would be
-    /// submitted or indexed again as a new episode.
+    /// Films holding the URL as their <paramref name="serviceKey"/> link or as a trailer. An episode attached as a
+    /// trailer has its row deleted, so without the trailer match the same URL would be submitted or indexed again as a
+    /// new episode. Trailer match covers <c>trailers[].url</c> (playback), <c>trailers[].services[{key}].url</c>
+    /// (source-episode platform URLs), and <c>trailers[].ids</c> for the platform of <paramref name="serviceKey"/>
+    /// when the matching id is supplied.
     /// </summary>
     public static Expression<Func<Film, bool>> FilmHoldsServiceOrTrailerUrl(
         string serviceKey,
         Uri url,
-        Uri storedUrl) =>
-        film =>
+        Uri storedUrl,
+        string? spotifyId = null,
+        long? appleId = null,
+        string? youTubeId = null)
+    {
+        if (serviceKey == ServiceKeys.Spotify && !string.IsNullOrWhiteSpace(spotifyId))
+        {
+            var id = spotifyId;
+            return film =>
+                (film.Services != null &&
+                 (film.Services[serviceKey].Url == url || film.Services[serviceKey].Url == storedUrl)) ||
+                (film.Trailers != null &&
+                 film.Trailers.Any(trailer =>
+                     trailer.Url == url ||
+                     trailer.Url == storedUrl ||
+                     (trailer.Services != null &&
+                      (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)) ||
+                     (trailer.Ids != null && trailer.Ids.Spotify == id)));
+        }
+
+        if (serviceKey == ServiceKeys.Apple && appleId is > 0)
+        {
+            var id = appleId.Value;
+            return film =>
+                (film.Services != null &&
+                 (film.Services[serviceKey].Url == url || film.Services[serviceKey].Url == storedUrl)) ||
+                (film.Trailers != null &&
+                 film.Trailers.Any(trailer =>
+                     trailer.Url == url ||
+                     trailer.Url == storedUrl ||
+                     (trailer.Services != null &&
+                      (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)) ||
+                     (trailer.Ids != null && trailer.Ids.Apple == id)));
+        }
+
+        if (serviceKey == ServiceKeys.YouTube && !string.IsNullOrWhiteSpace(youTubeId))
+        {
+            var id = youTubeId;
+            return film =>
+                (film.Services != null &&
+                 (film.Services[serviceKey].Url == url || film.Services[serviceKey].Url == storedUrl)) ||
+                (film.Trailers != null &&
+                 film.Trailers.Any(trailer =>
+                     trailer.Url == url ||
+                     trailer.Url == storedUrl ||
+                     (trailer.Services != null &&
+                      (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)) ||
+                     (trailer.Ids != null && trailer.Ids.YouTube == id)));
+        }
+
+        return film =>
             (film.Services != null &&
              (film.Services[serviceKey].Url == url || film.Services[serviceKey].Url == storedUrl)) ||
             (film.Trailers != null &&
-             film.Trailers.Any(trailer => trailer.Url == url || trailer.Url == storedUrl));
+             film.Trailers.Any(trailer =>
+                 trailer.Url == url ||
+                 trailer.Url == storedUrl ||
+                 (trailer.Services != null &&
+                  (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl))));
+    }
 }

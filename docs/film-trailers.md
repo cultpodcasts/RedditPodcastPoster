@@ -15,6 +15,10 @@ A film can list trailers, teasers and clips. Each one is a whole video of its ow
 | `image` | Optional image (the episode's coalesced image) |
 | `release` | Optional publish time (UTC) |
 | `duration` | Length |
+| `ids` | Optional source-episode Spotify / Apple / YouTube ids (same shape as episode `ids`); omitted when empty |
+| `services` | Optional source-episode YouTube / Spotify / Apple URLs (`url` only); omitted when empty. Lets Spotify/Apple paste and a Spotify- or Apple-only indexer re-find still match a YouTube-sourced trailer |
+
+Existing trailers written before these fields keep YouTube-only matching until an optional backfill (needs an explicit production write). New attaches store them at attach time.
 
 ## Search
 
