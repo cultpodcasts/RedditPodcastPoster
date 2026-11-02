@@ -46,3 +46,8 @@ jobs:
           git fetch origin $base --depth=1
           ./scripts/assert-unit-test-guardrails.ps1 -GitChanged -BaseRef "origin/$base"
         }
+    - name: Pester
+      shell: pwsh
+      run: |
+        if (-not (Get-Module -ListAvailable Pester)) { Install-Module Pester -Force -Scope CurrentUser }
+        Invoke-Pester ./scripts/tests -CI
