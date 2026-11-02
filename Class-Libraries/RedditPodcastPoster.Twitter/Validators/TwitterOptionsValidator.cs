@@ -10,8 +10,6 @@ namespace RedditPodcastPoster.Twitter.Validators;
 /// </summary>
 public class TwitterOptionsValidator : IValidateOptions<TwitterOptions>
 {
-    public const string SectionName = "twitter";
-
     public ValidateOptionsResult Validate(string? name, TwitterOptions options)
     {
         var failures = new List<string>();
@@ -20,14 +18,14 @@ public class TwitterOptionsValidator : IValidateOptions<TwitterOptions>
         {
             failures.Add(
                 $"{nameof(TwitterOptions)}.{nameof(TwitterOptions.RequestTimeoutSeconds)} must be > 0 " +
-                $"(config key: {SectionName}__{nameof(TwitterOptions.RequestTimeoutSeconds)}).");
+                $"(config key: {TwitterOptions.SectionName}__{nameof(TwitterOptions.RequestTimeoutSeconds)}).");
         }
 
         if (options.ApiBaseAddress is not { IsAbsoluteUri: true })
         {
             failures.Add(
                 $"{nameof(TwitterOptions)}.{nameof(TwitterOptions.ApiBaseAddress)} must be an absolute URI " +
-                $"(config key: {SectionName}__{nameof(TwitterOptions.ApiBaseAddress)}).");
+                $"(config key: {TwitterOptions.SectionName}__{nameof(TwitterOptions.ApiBaseAddress)}).");
         }
 
         switch (options.AuthMode)
@@ -46,7 +44,7 @@ public class TwitterOptionsValidator : IValidateOptions<TwitterOptions>
                 failures.Add(
                     $"{nameof(TwitterOptions)}.{nameof(TwitterOptions.AuthMode)} must be " +
                     $"{nameof(TwitterAuthMode.OAuth1)} or {nameof(TwitterAuthMode.OAuth2)} " +
-                    $"(config key: {SectionName}__{nameof(TwitterOptions.AuthMode)}).");
+                    $"(config key: {TwitterOptions.SectionName}__{nameof(TwitterOptions.AuthMode)}).");
                 break;
         }
 
@@ -59,7 +57,7 @@ public class TwitterOptionsValidator : IValidateOptions<TwitterOptions>
         {
             failures.Add(
                 $"{nameof(TwitterOptions)}.{property} must not be null or empty " +
-                $"(config key: {SectionName}__{property}).");
+                $"(config key: {TwitterOptions.SectionName}__{property}).");
         }
     }
 }

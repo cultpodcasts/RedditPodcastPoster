@@ -47,7 +47,7 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddXOAuth2TokenServices(this IServiceCollection services)
     {
-        services.BindConfiguration<TwitterOptions>("twitter");
+        services.BindConfiguration<TwitterOptions>(TwitterOptions.SectionName);
         services.TryAddSingleton(TimeProvider.System);
         services.AddHttpClient<IXOAuth2TokenClient, XOAuth2TokenClient>(ConfigureXApiClient);
         services.TryAddTransient<IXOAuth2AccessTokenProvider, XOAuth2AccessTokenProvider>();
@@ -60,8 +60,9 @@ public static class ServiceCollectionExtensions
     /// Registers <see cref="IValidateOptions{TwitterOptions}"/> for posting hosts.
     /// When <paramref name="validateOnStart"/> is true (Indexer, Api, Poster), a missing or
     /// AuthMode-mismatched credential fails host startup instead of the first tweet request.
+    /// Internal so resolve-time tests can opt out of <c>ValidateOnStart</c> without exposing a public test seam.
     /// </summary>
-    public static IServiceCollection AddTwitterOptionsValidation(
+    internal static IServiceCollection AddTwitterOptionsValidation(
         this IServiceCollection services,
         bool validateOnStart = true)
     {

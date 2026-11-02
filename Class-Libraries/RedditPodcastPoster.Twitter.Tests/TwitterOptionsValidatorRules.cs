@@ -21,9 +21,7 @@ public class TwitterOptionsValidatorRules
             ConsumerKey = _fixture.Create<string>(),
             ConsumerSecret = _fixture.Create<string>(),
             AccessToken = _fixture.Create<string>(),
-            AccessTokenSecret = _fixture.Create<string>(),
-            ApiBaseAddress = new Uri("https://api.x.com/"),
-            RequestTimeoutSeconds = 15
+            AccessTokenSecret = _fixture.Create<string>()
         };
 
     private TwitterOptions CreateValidOAuth2Options() =>
@@ -31,9 +29,7 @@ public class TwitterOptionsValidatorRules
         {
             AuthMode = TwitterAuthMode.OAuth2,
             OAuth2ClientId = _fixture.Create<string>(),
-            OAuth2ClientSecret = _fixture.Create<string>(),
-            ApiBaseAddress = new Uri("https://api.x.com/"),
-            RequestTimeoutSeconds = 15
+            OAuth2ClientSecret = _fixture.Create<string>()
         };
 
     [Fact(DisplayName =
@@ -81,7 +77,7 @@ public class TwitterOptionsValidatorRules
 
         // Assert
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains($"{TwitterOptionsValidator.SectionName}__{property}"));
+        result.Failures.Should().Contain(f => f.Contains($"{TwitterOptions.SectionName}__{property}"));
     }
 
     [Theory(DisplayName =
@@ -99,7 +95,7 @@ public class TwitterOptionsValidatorRules
 
         // Assert
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().Contain(f => f.Contains($"{TwitterOptionsValidator.SectionName}__{property}"));
+        result.Failures.Should().Contain(f => f.Contains($"{TwitterOptions.SectionName}__{property}"));
     }
 
     [Fact(DisplayName =
@@ -137,6 +133,23 @@ public class TwitterOptionsValidatorRules
     }
 
     [Fact(DisplayName =
+        "When AuthMode is neither OAuth1 nor OAuth2, validation fails with the AuthMode config key.")]
+    public void invalid_auth_mode_fails()
+    {
+        // Arrange
+        var options = CreateValidOAuth1Options();
+        options.AuthMode = (TwitterAuthMode)42;
+
+        // Act
+        var result = _sut.Validate(null, options);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f =>
+            f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.AuthMode)}"));
+    }
+
+    [Fact(DisplayName =
         "When RequestTimeoutSeconds is not positive, validation fails with the RequestTimeoutSeconds config key.")]
     public void request_timeout_must_be_positive()
     {
@@ -150,7 +163,7 @@ public class TwitterOptionsValidatorRules
         // Assert
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(f =>
-            f.Contains($"{TwitterOptionsValidator.SectionName}__{nameof(TwitterOptions.RequestTimeoutSeconds)}"));
+            f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.RequestTimeoutSeconds)}"));
     }
 
     [Fact(DisplayName =
@@ -167,11 +180,11 @@ public class TwitterOptionsValidatorRules
         // Assert
         result.Succeeded.Should().BeFalse();
         result.Failures.Should().Contain(f =>
-            f.Contains($"{TwitterOptionsValidator.SectionName}__{nameof(TwitterOptions.ApiBaseAddress)}"));
+            f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.ApiBaseAddress)}"));
     }
 
     [Fact(DisplayName =
-        "AddTwitterServices registers TwitterOptions validation so posting hosts fail fast; AddXOAuth2TokenServices alone does not.")]
+        "AddTwitterServices registers TwitterOptions IValidateOptions and IStartupValidator; AddXOAuth2TokenServices alone does not register TwitterOptions validation.")]
     public void posting_registration_includes_validator_exchange_does_not()
     {
         // Arrange
@@ -189,17 +202,76 @@ public class TwitterOptionsValidatorRules
         var postingHasValidator = posting.Any(d =>
             d.ServiceType == typeof(IValidateOptions<TwitterOptions>) &&
             d.ImplementationType == typeof(TwitterOptionsValidator));
+        var postingHasStartupValidator = posting.Any(d => d.ServiceType == typeof(IStartupValidator));
         var exchangeHasValidator = exchange.Any(d =>
             d.ServiceType == typeof(IValidateOptions<TwitterOptions>));
 
         // Assert
+        // AddHttpClient (used by AddXOAuth2TokenServices) also registers IStartupValidator, so absence of
+        // that service type alone cannot prove exchange skipped Twitter ValidateOnStart — see the behavioural Fact.
         postingHasValidator.Should().BeTrue();
+        postingHasStartupValidator.Should().BeTrue();
         exchangeHasValidator.Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "When posting hosts resolve TwitterOptions with AuthMode OAuth1 and complete credentials, options validation succeeds.")]
-    public void posting_host_resolves_valid_oauth1_options()
+        "When ValidateOnStart is enabled and AuthMode OAuth1 is missing ConsumerKey, IStartupValidator.Validate throws OptionsValidationException naming that config key.")]
+    public void validate_on_start_rejects_incomplete_oauth1_options()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                [$"{TwitterOptions.SectionName}:ConsumerSecret"] = _fixture.Create<string>(),
+                [$"{TwitterOptions.SectionName}:AccessToken"] = _fixture.Create<string>(),
+                [$"{TwitterOptions.SectionName}:AccessTokenSecret"] = _fixture.Create<string>()
+            }).Build());
+        services.AddXOAuth2TokenServices();
+        services.AddTwitterOptionsValidation(validateOnStart: true);
+
+        using var provider = services.BuildServiceProvider();
+        var startupValidator = provider.GetRequiredService<IStartupValidator>();
+
+        // Act
+        var act = () => startupValidator.Validate();
+
+        // Assert
+        act.Should().Throw<OptionsValidationException>()
+            .Which.Failures.Should().Contain(f =>
+                f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.ConsumerKey)}"));
+    }
+
+    [Fact(DisplayName =
+        "When only AddXOAuth2TokenServices is registered with incomplete twitter credentials, IStartupValidator.Validate does not throw OptionsValidationException for twitter, because exchange consoles skip ValidateOnStart.")]
+    public void exchange_registration_does_not_validate_twitter_options_on_start()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                [$"{TwitterOptions.SectionName}:ConsumerSecret"] = _fixture.Create<string>(),
+                [$"{TwitterOptions.SectionName}:AccessToken"] = _fixture.Create<string>(),
+                [$"{TwitterOptions.SectionName}:AccessTokenSecret"] = _fixture.Create<string>()
+            }).Build());
+        services.AddXOAuth2TokenServices();
+
+        using var provider = services.BuildServiceProvider();
+        var startupValidator = provider.GetService<IStartupValidator>();
+
+        // Act
+        var act = () => startupValidator?.Validate();
+
+        // Assert
+        act.Should().NotThrow<OptionsValidationException>();
+    }
+
+    [Fact(DisplayName =
+        "When resolve-time validation is registered with AuthMode OAuth1 and complete credentials, resolving TwitterOptions succeeds.")]
+    public void resolve_time_validation_accepts_valid_oauth1_options()
     {
         // Arrange
         var consumerKey = _fixture.Create<string>();
@@ -211,10 +283,10 @@ public class TwitterOptionsValidatorRules
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?>
             {
-                ["twitter:ConsumerKey"] = consumerKey,
-                ["twitter:ConsumerSecret"] = consumerSecret,
-                ["twitter:AccessToken"] = accessToken,
-                ["twitter:AccessTokenSecret"] = accessTokenSecret
+                [$"{TwitterOptions.SectionName}:ConsumerKey"] = consumerKey,
+                [$"{TwitterOptions.SectionName}:ConsumerSecret"] = consumerSecret,
+                [$"{TwitterOptions.SectionName}:AccessToken"] = accessToken,
+                [$"{TwitterOptions.SectionName}:AccessTokenSecret"] = accessTokenSecret
             }).Build());
         services.AddXOAuth2TokenServices();
         services.AddTwitterOptionsValidation(validateOnStart: false);
@@ -231,8 +303,8 @@ public class TwitterOptionsValidatorRules
     }
 
     [Fact(DisplayName =
-        "When posting hosts resolve TwitterOptions with AuthMode OAuth1 and a missing ConsumerKey, options validation throws.")]
-    public void posting_host_rejects_incomplete_oauth1_options()
+        "When resolve-time validation is registered with AuthMode OAuth1 and a missing ConsumerKey, resolving TwitterOptions throws.")]
+    public void resolve_time_validation_rejects_incomplete_oauth1_options()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -240,9 +312,9 @@ public class TwitterOptionsValidatorRules
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?>
             {
-                ["twitter:ConsumerSecret"] = _fixture.Create<string>(),
-                ["twitter:AccessToken"] = _fixture.Create<string>(),
-                ["twitter:AccessTokenSecret"] = _fixture.Create<string>()
+                [$"{TwitterOptions.SectionName}:ConsumerSecret"] = _fixture.Create<string>(),
+                [$"{TwitterOptions.SectionName}:AccessToken"] = _fixture.Create<string>(),
+                [$"{TwitterOptions.SectionName}:AccessTokenSecret"] = _fixture.Create<string>()
             }).Build());
         services.AddXOAuth2TokenServices();
         services.AddTwitterOptionsValidation(validateOnStart: false);
@@ -255,6 +327,6 @@ public class TwitterOptionsValidatorRules
         // Assert
         act.Should().Throw<OptionsValidationException>()
             .Which.Failures.Should().Contain(f =>
-                f.Contains($"{TwitterOptionsValidator.SectionName}__{nameof(TwitterOptions.ConsumerKey)}"));
+                f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.ConsumerKey)}"));
     }
 }
