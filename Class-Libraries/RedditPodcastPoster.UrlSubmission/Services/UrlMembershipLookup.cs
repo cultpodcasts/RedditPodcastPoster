@@ -165,10 +165,14 @@ public class UrlMembershipLookup(
         CancellationToken cancellationToken)
     {
         var stored = PodcastServiceUrlNormaliser.Stored(canonical, serviceKey);
+        var spotifyId = serviceKey == ServiceKeys.Spotify ? SpotifyIdResolver.GetEpisodeId(canonical) : null;
+        var appleId = serviceKey == ServiceKeys.Apple ? AppleIdResolver.GetEpisodeId(canonical) : null;
+        var youTubeId = serviceKey == ServiceKeys.YouTube ? YouTubeIdResolver.Extract(canonical) : null;
 
         cancellationToken.ThrowIfCancellationRequested();
         var film = await films.GetBy(
-            PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(serviceKey, canonical, stored));
+            PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(
+                serviceKey, canonical, stored, spotifyId, appleId, youTubeId));
         if (film != null)
         {
             return new CatalogueServiceUrlOwner(SubmitClassification.Film, null, film.Id);
