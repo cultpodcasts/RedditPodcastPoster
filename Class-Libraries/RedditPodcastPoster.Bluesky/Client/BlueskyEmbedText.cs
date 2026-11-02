@@ -5,7 +5,8 @@ namespace RedditPodcastPoster.Bluesky.Client;
 /// <summary>
 /// <c>idunno.Bluesky.Embed.External.Properties</c> rejects a null title or description and a blank uri.
 /// The lexicon does not set grapheme caps on those strings, so a YouTube description is capped here
-/// before it is placed on the embed.
+/// before it is placed on the embed. The embed-card post factory also uses
+/// <see cref="TruncateToWholeTextElements"/> for title cuts that must leave room for a suffix.
 /// </summary>
 public static class BlueskyEmbedText
 {
@@ -32,7 +33,7 @@ public static class BlueskyEmbedText
     /// Longest prefix of <paramref name="text"/> made of whole text elements (graphemes) whose UTF-16 length is at
     /// most <paramref name="maxLength"/>, so a cut never splits a surrogate pair, emoji sequence or combining mark.
     /// </summary>
-    public static string TruncateToWholeTextElements(string text, int maxLength)
+    internal static string TruncateToWholeTextElements(string text, int maxLength)
     {
         var length = 0;
         var enumerator = StringInfo.GetTextElementEnumerator(text);
