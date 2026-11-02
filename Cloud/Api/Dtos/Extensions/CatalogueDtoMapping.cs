@@ -77,8 +77,9 @@ public static class CatalogueDtoMapping
     }
 
     /// <summary>
-    /// Wire <c>release</c>: <c>yyyy</c> (year), <c>yyyy-MM-dd</c> (date), or UTC
-    /// <c>yyyy-MM-ddTHH:mm:ssZ</c> (datetime). Time of day must not be dropped.
+    /// Wire <c>release</c> from <see cref="CatalogueReleasePrecision"/>:
+    /// <c>yyyy</c> (Year), <c>yyyy-MM-dd</c> (Date), or UTC
+    /// <c>yyyy-MM-ddTHH:mm:ssZ</c> (DateTimeUtc, including midnight).
     /// </summary>
     public static string? FormatRelease(CatalogueRelease? release) =>
         release switch
@@ -86,9 +87,12 @@ public static class CatalogueDtoMapping
             null => null,
             { Precision: CatalogueReleasePrecision.Year } =>
                 release.Year.ToString("D4", CultureInfo.InvariantCulture),
+            { Precision: CatalogueReleasePrecision.Date } =>
+                DateOnly.FromDateTime(release.ToSortUtc()).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             { Precision: CatalogueReleasePrecision.DateTimeUtc } =>
                 release.ToSortUtc().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'", CultureInfo.InvariantCulture),
-            _ => DateOnly.FromDateTime(release.ToSortUtc()).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            _ => throw new InvalidOperationException(
+                $"Unknown CatalogueReleasePrecision '{release.Precision}'.")
         };
 
     public static string FormatDuration(TimeSpan length) =>

@@ -80,6 +80,24 @@ public class CatalogueDtoFormatReleaseRules
     }
 
     [Fact(DisplayName =
+        "FormatRelease: when precision is DateTimeUtc at midnight UTC, the wire value keeps T00:00:00Z, because format is driven by precision not by a non-zero clock.")]
+    public void format_release_datetime_midnight_keeps_t00_00_00z()
+    {
+        // Arrange
+        var instant = DomainTestFixture.UtcAtTime(-5, TimeSpan.Zero);
+        var release = CatalogueRelease.FromDateTimeUtc(instant);
+        var dateOnly = DateOnly.FromDateTime(instant).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        // Act
+        var wire = CatalogueDtoMapping.FormatRelease(release);
+
+        // Assert
+        wire.Should().Be(instant.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'", CultureInfo.InvariantCulture));
+        wire.Should().EndWith("T00:00:00Z");
+        wire.Should().NotBe(dateOnly);
+    }
+
+    [Fact(DisplayName =
         "FilmDto JSON: when the film release is DateTimeUtc, the release property is yyyy-MM-ddTHH:mm:ssZ, because the curator GET must not drop time of day.")]
     public void film_dto_json_release_keeps_datetime()
     {
