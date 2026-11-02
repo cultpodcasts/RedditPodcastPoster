@@ -83,7 +83,6 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
             .Returns((Guid id, Expression<Func<NewsReport, bool>> filter) =>
             {
                 _reportReads++;
-                _reportReads++;
                 var predicate = CosmosLinqInMemoryRewriter.ForInMemory(filter).Compile();
                 var matched = _storedReports
                     .Where(x => x.NewsOrganisationId == id && predicate(x))
