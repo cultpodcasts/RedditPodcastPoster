@@ -99,7 +99,10 @@ public class TweetIdRules
     [InlineData(HttpStatusCode.NotFound, "{\"type\":\"https://api.x.com/2/problems/resource-not-found\",\"title\":\"Not Found Error\"}", DeleteTweetState.NotFound)]
     [InlineData(HttpStatusCode.NotFound, "{\"title\":\"Not Found Error\",\"detail\":\"synthetic\"}", DeleteTweetState.NotFound)]
     [InlineData(HttpStatusCode.NotFound, "{\"errors\":[{\"type\":\"https://api.twitter.com/2/problems/resource-not-found\"}]}", DeleteTweetState.NotFound)]
+    [InlineData(HttpStatusCode.NotFound, "{\"errors\":[{\"title\":\"Not Found Error\"}]}", DeleteTweetState.NotFound)]
     [InlineData(HttpStatusCode.TooManyRequests, "", DeleteTweetState.TooManyRequests)]
+    [InlineData(HttpStatusCode.Forbidden, "{\"title\":\"UsageCapExceeded\",\"type\":\"https://api.twitter.com/2/problems/usage-capped\",\"status\":429}", DeleteTweetState.TooManyRequests)]
+    [InlineData(HttpStatusCode.Forbidden, "{\"title\":\"Usage Cap Exceeded\",\"detail\":\"You have reached a usage cap\"}", DeleteTweetState.TooManyRequests)]
     [InlineData(HttpStatusCode.Forbidden, "{\"errors\":[{\"type\":\"https://api.twitter.com/2/problems/resource-not-found\"}]}", DeleteTweetState.Failed)]
     [InlineData(HttpStatusCode.Unauthorized, "", DeleteTweetState.Failed)]
     public void delete_response_maps(HttpStatusCode status, string body, DeleteTweetState expected)

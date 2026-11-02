@@ -41,6 +41,7 @@ public class XApiProblemRules
     [InlineData("{\"title\":\"Not Found Error\",\"detail\":\"synthetic\"}")]
     [InlineData("{\"errors\":[{\"type\":\"https://api.twitter.com/2/problems/resource-not-found\"}]}")]
     [InlineData("{\"errors\":[{\"type\":\"https://api.x.com/2/problems/resource-not-found\"}]}")]
+    [InlineData("{\"errors\":[{\"title\":\"Not Found Error\"}]}")]
     public void resource_not_found_shapes_are_recognised(string body)
     {
         // Arrange
@@ -51,5 +52,19 @@ public class XApiProblemRules
 
         // Assert
         problem.IsResourceNotFound.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "An unrelated problem type is not treated as resource-not-found, because only an X not-found signal may clear Tweeted.")]
+    public void unrelated_problem_type_is_not_resource_not_found()
+    {
+        // Arrange
+        const string body = "{\"type\":\"https://api.twitter.com/2/problems/client-forbidden\",\"title\":\"Forbidden\"}";
+
+        // Act
+        var problem = XApiProblem.Parse(body);
+
+        // Assert
+        problem.IsResourceNotFound.Should().BeFalse();
     }
 }
