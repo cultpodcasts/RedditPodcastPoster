@@ -63,7 +63,7 @@ public class AppleCatalogueLookupReleaseUtcRules
                     trackName = title,
                     releaseDate = zoneLess,
                     trackTimeMillis = (long)_fixture.CreateDuration().TotalMilliseconds,
-                    trackViewUrl = $"https://podcasts.apple.com/us/podcast/x/id{podcastId}?i={trackId}"
+                    trackViewUrl = _fixture.DefaultAppleUrl(trackId).ToString()
                 }
             }
         });

@@ -5,7 +5,6 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Episodes.TestSupport.TimeZones;
-using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
@@ -38,7 +37,7 @@ public class SpotifySearcherReleasedSinceUtcRules
     public async Task unspecified_released_since_floors_to_utc_calendar_day()
     {
         // Arrange
-        const string query = "cultists";
+        var query = _fixture.CreateTitle(1);
         var day = DomainTestFixture.UtcDateDaysAgo(2);
         var previousDay = day.AddDays(-1);
         var since = DateTime.SpecifyKind(day, DateTimeKind.Unspecified);
@@ -47,14 +46,19 @@ public class SpotifySearcherReleasedSinceUtcRules
         var sameDayHit = CreateSimpleEpisode(sameDayId, $"Talk of {query}", day);
         var previousDayHit = CreateSimpleEpisode(previousDayId, $"Talk of {query}", previousDay);
         var sameDayFull = CreateFullEpisode(sameDayId, sameDayHit.Name, day);
-        SetupClientReturning([sameDayHit, previousDayHit], sameDayFull);
+        var previousDayFull = CreateFullEpisode(previousDayId, previousDayHit.Name, previousDay);
+        DateTime? capturedReleasedSince = null;
+        SetupClientReturning(
+            [sameDayHit, previousDayHit],
+            [sameDayFull, previousDayFull],
+            ctx => capturedReleasedSince = ctx.ReleasedSince);
         var sut = _mocker.CreateInstance<SpotifySearcher>();
 
         // Act
         var results = await sut.Search(query, new IndexingContext(ReleasedSince: since));
 
         // Assert
-        UtcDateTimes.ToUtc(since).Date.Should().Be(day.Date);
+        capturedReleasedSince.Should().Be(day);
         results.Should().ContainSingle().Which.Id.Should().Be(sameDayId);
     }
 
@@ -73,27 +77,49 @@ public class SpotifySearcherReleasedSinceUtcRules
             "TZ={0} should give NZST; local zone was '{1}'", EastOfUtcChildTestHost.EastOfUtcZone, local.Id);
     }
 
-    private void SetupClientReturning(IList<SimpleEpisode> paginateResults, FullEpisode fullEpisode)
+    private void SetupClientReturning(
+        IList<SimpleEpisode> paginateResults,
+        IReadOnlyList<FullEpisode> fullEpisodes,
+        Action<IndexingContext>? onIndexingContext = null)
     {
+        var byId = fullEpisodes.ToDictionary(e => e.Id);
         var client = _mocker.GetMock<ISpotifyClientWrapper>();
         client
             .Setup(x => x.FindEpisodes(
                 It.IsAny<SearchRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Paging<SimpleEpisode, SearchResponse> { Items = paginateResults.ToList() });
+            .ReturnsAsync((SearchRequest _, IndexingContext ctx, CancellationToken _) =>
+            {
+                onIndexingContext?.Invoke(ctx);
+                return new Paging<SimpleEpisode, SearchResponse> { Items = paginateResults.ToList() };
+            });
         client
             .Setup(x => x.PaginateAll(
                 It.IsAny<IPaginatable<SimpleEpisode, SearchResponse>>(),
                 It.IsAny<Func<SearchResponse, IPaginatable<SimpleEpisode, SearchResponse>>>(),
                 It.IsAny<IndexingContext>()))
-            .ReturnsAsync(paginateResults);
+            .ReturnsAsync((
+                IPaginatable<SimpleEpisode, SearchResponse> _,
+                Func<SearchResponse, IPaginatable<SimpleEpisode, SearchResponse>> _,
+                IndexingContext ctx) =>
+            {
+                onIndexingContext?.Invoke(ctx);
+                return paginateResults;
+            });
         client
             .Setup(x => x.GetSeveral(
                 It.IsAny<EpisodesRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EpisodesResponse { Episodes = [fullEpisode] });
+            .ReturnsAsync((EpisodesRequest request, IndexingContext _, CancellationToken _) =>
+                new EpisodesResponse
+                {
+                    Episodes = request.Ids
+                        .Where(byId.ContainsKey)
+                        .Select(id => byId[id])
+                        .ToList()
+                });
     }
 
     private SimpleEpisode CreateSimpleEpisode(string id, string name, DateTime release) =>
