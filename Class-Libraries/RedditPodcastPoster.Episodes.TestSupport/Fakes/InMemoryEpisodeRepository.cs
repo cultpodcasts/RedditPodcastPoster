@@ -242,6 +242,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             Posted = episode.Posted,
             OldTweeted = episode.OldTweeted,
             TweetPost = episode.TweetPost,
+            TweetSkipReason = episode.TweetSkipReason,
             OldBlueskyPosted = episode.OldBlueskyPosted,
             BlueskyPost = episode.BlueskyPost,
             Ignored = episode.Ignored,

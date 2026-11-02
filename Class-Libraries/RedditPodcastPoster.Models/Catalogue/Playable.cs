@@ -78,6 +78,16 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     public string? TweetPost { get; set; }
 
     /// <summary>
+    /// Why this item must not be posted to X (stable reason code). When set, the hourly tweet run skips it
+    /// so a permanent form failure does not rewrite the shortener every hour. Cleared with
+    /// <see cref="ClearTweetState"/>.
+    /// </summary>
+    [JsonPropertyName("tweetSkipReason")]
+    [JsonPropertyOrder(421)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TweetSkipReason { get; set; }
+
+    /// <summary>
     /// Reads <c>tweetId</c> written by the short-lived #1218 shape. Never written back.
     /// </summary>
     [JsonPropertyName("tweetId")]
@@ -96,7 +106,8 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
 
     [JsonIgnore]
     public bool Tweeted =>
-        OldTweeted == true || !string.IsNullOrWhiteSpace(TweetPost);
+        OldTweeted == true || !string.IsNullOrWhiteSpace(TweetPost) ||
+        !string.IsNullOrWhiteSpace(TweetSkipReason);
 
     /// <summary>
     /// Legacy Cosmos flag (<c>bluesky</c>). Populated only by deserialization of pre-migration
@@ -208,21 +219,22 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     {
         OldTweeted = null;
         TweetPost = null;
+        TweetSkipReason = null;
     }
 
     /// <summary>
     /// Cosmos SQL: playable is tweeted. Do not filter on <c>e.tweeted</c> alone —
-    /// <c>tweetPost</c>-only documents would look untweeted and risk re-posts. Combine
-    /// <c>IS_DEFINED</c> with value comparison (same shape as Bluesky).
+    /// <c>tweetPost</c>-only or <c>tweetSkipReason</c>-only documents would look untweeted and risk
+    /// re-posts / shortener churn. Combine <c>IS_DEFINED</c> with value comparison (same shape as Bluesky).
     /// </summary>
     public const string CosmosIsTweetedSql =
-        "((IS_DEFINED(e.tweeted) AND e.tweeted = true) OR (IS_DEFINED(e.tweetPost) AND NOT IS_NULL(e.tweetPost)))";
+        "((IS_DEFINED(e.tweeted) AND e.tweeted = true) OR (IS_DEFINED(e.tweetPost) AND NOT IS_NULL(e.tweetPost)) OR (IS_DEFINED(e.tweetSkipReason) AND NOT IS_NULL(e.tweetSkipReason)))";
 
     /// <summary>
     /// Cosmos SQL: playable is not tweeted (ready for a new X post).
     /// </summary>
     public const string CosmosIsNotTweetedSql =
-        "((NOT IS_DEFINED(e.tweeted) OR e.tweeted != true) AND (NOT IS_DEFINED(e.tweetPost) OR IS_NULL(e.tweetPost)))";
+        "((NOT IS_DEFINED(e.tweeted) OR e.tweeted != true) AND (NOT IS_DEFINED(e.tweetPost) OR IS_NULL(e.tweetPost)) AND (NOT IS_DEFINED(e.tweetSkipReason) OR IS_NULL(e.tweetSkipReason)))";
 
     /// <summary>
     /// Cosmos SQL: playable is Bluesky-posted. Do not use null-only checks — combine

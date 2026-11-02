@@ -11,5 +11,11 @@ public enum TweetSendStatus
     PaymentRequired,
 
     /// <summary>X answered 401 Unauthorized, or a 403 Forbidden that is not a duplicate-content refusal.</summary>
-    AuthenticationFailed
+    AuthenticationFailed,
+
+    /// <summary>
+    /// The body cannot be formed (title budget or missing link). The document was marked with a
+    /// <c>tweetSkipReason</c> so later runs skip it.
+    /// </summary>
+    Untweetable
 }

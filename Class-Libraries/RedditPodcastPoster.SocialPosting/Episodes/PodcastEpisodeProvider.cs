@@ -162,6 +162,7 @@ public class PodcastEpisodeProvider(
                     podcast.Name,
                     podcast.Id,
                     string.Join(",", groupEpisodes.Select(x => x.Id)));
+                continue;
             }
 
             var filtered = (await getReadyEpisodes(podcast, groupEpisodes)).ToArray();
