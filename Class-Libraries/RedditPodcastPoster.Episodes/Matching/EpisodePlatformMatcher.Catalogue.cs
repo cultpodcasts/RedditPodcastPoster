@@ -115,13 +115,8 @@ public sealed partial class EpisodePlatformMatcher
         Regex? episodeMatchRegex,
         Func<Episode, bool>? reducer = null)
     {
-        var lowerTitle = probe.Title.ToLowerInvariant();
         var matches = candidates.Where(x =>
-        {
-            var itemLowerTitle = x.Title.Trim().ToLowerInvariant();
-            return itemLowerTitle == lowerTitle || itemLowerTitle.Contains(lowerTitle) ||
-                   lowerTitle.Contains(itemLowerTitle);
-        });
+            EpisodeTitleMatch.EqualsOrContains(x.Title, probe.Title));
         if (reducer != null)
         {
             matches = matches.Where(reducer);

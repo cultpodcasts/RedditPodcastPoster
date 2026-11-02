@@ -3,9 +3,11 @@ using System.Net;
 namespace RedditPodcastPoster.Episodes.Matching;
 
 /// <summary>
-/// Shared title predicate for catalogue length matching and catch-up same-title deferral:
+/// Shared title predicate for catalogue length/date matching and catch-up same-title deferral:
 /// HTML-decode, trim, then ordinal equals or either side contains the other
-/// (<see cref="EpisodePlatformMatcher.FindCatalogueMatchByLength"/> first branch).
+/// (<see cref="EpisodePlatformMatcher.FindCatalogueMatchByLength"/> /
+/// <see cref="EpisodePlatformMatcher.FindCatalogueMatchByDate"/> first branch).
+/// Empty titles after normalise never match via Contains (blank equals blank only).
 /// </summary>
 public static class EpisodeTitleMatch
 {
@@ -13,9 +15,14 @@ public static class EpisodeTitleMatch
     {
         var normalisedLeft = Normalise(left);
         var normalisedRight = Normalise(right);
+        if (normalisedLeft.Length == 0 || normalisedRight.Length == 0)
+        {
+            return normalisedLeft == normalisedRight;
+        }
+
         return normalisedLeft == normalisedRight ||
-               normalisedLeft.Contains(normalisedRight) ||
-               normalisedRight.Contains(normalisedLeft);
+               normalisedLeft.Contains(normalisedRight, StringComparison.Ordinal) ||
+               normalisedRight.Contains(normalisedLeft, StringComparison.Ordinal);
     }
 
     public static string Normalise(string? title) =>

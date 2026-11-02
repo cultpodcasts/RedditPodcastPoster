@@ -61,6 +61,49 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
+        "Equals-or-contains title match: after normalise, a blank title does not contain or equal a non-blank title, " +
+        "because empty Contains would otherwise match every catalogue row and spread into catch-up SameTitle.")]
+    public void equals_or_contains_rejects_blank_versus_non_blank_title()
+    {
+        // Arrange
+        var nonBlank = _fixture.CreateTitle();
+        var blank = "   ";
+        var nullTitle = (string?)null;
+
+        // Act
+        var blankVsNonBlank = EpisodeTitleMatch.EqualsOrContains(blank, nonBlank);
+        var nonBlankVsBlank = EpisodeTitleMatch.EqualsOrContains(nonBlank, blank);
+        var nullVsNonBlank = EpisodeTitleMatch.EqualsOrContains(nullTitle, nonBlank);
+        var bothBlank = EpisodeTitleMatch.EqualsOrContains(blank, nullTitle);
+
+        // Assert
+        blankVsNonBlank.Should().BeFalse();
+        nonBlankVsBlank.Should().BeFalse();
+        nullVsNonBlank.Should().BeFalse();
+        bothBlank.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Equals-or-contains title match uses ordinal containment so a shorter non-empty title " +
+        "contained in a longer title matches without culture-sensitive comparison.")]
+    public void equals_or_contains_uses_ordinal_substring_containment()
+    {
+        // Arrange
+        var core = _fixture.CreateShortTitle();
+        var longer = $"{core} extended suffix words";
+
+        // Act
+        var coreInLonger = EpisodeTitleMatch.EqualsOrContains(core, longer);
+        var longerContainsCore = EpisodeTitleMatch.EqualsOrContains(longer, core);
+        var unrelated = EpisodeTitleMatch.EqualsOrContains(core, _fixture.CreateTitle());
+
+        // Assert
+        coreInLonger.Should().BeTrue();
+        longerContainsCore.Should().BeTrue();
+        unrelated.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "When probe and catalogue item titles overlap by substring, " +
         "the longest overlapping title wins among multiple substring matches.")]
     public void substring_title_match_prefers_longest_title()
