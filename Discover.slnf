@@ -5,6 +5,7 @@
       "Class-Libraries/RedditPodcastPoster.ContentPublisher/RedditPodcastPoster.ContentPublisher.csproj",
       "Class-Libraries/RedditPodcastPoster.Discovery/RedditPodcastPoster.Discovery.csproj",
       "Class-Libraries/RedditPodcastPoster.Discovery.ML/RedditPodcastPoster.Discovery.ML.csproj",
+      "Class-Libraries/RedditPodcastPoster.Episodes/RedditPodcastPoster.Episodes.csproj",
       "Class-Libraries/RedditPodcastPoster.Persistence/RedditPodcastPoster.Persistence.csproj",
       "Class-Libraries/RedditPodcastPoster.PodcastServices.ListenNotes/RedditPodcastPoster.PodcastServices.ListenNotes.csproj",
       "Class-Libraries/RedditPodcastPoster.PodcastServices.Spotify/RedditPodcastPoster.PodcastServices.Spotify.csproj",

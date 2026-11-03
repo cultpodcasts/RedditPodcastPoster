@@ -24,9 +24,33 @@ if ($filters.Count -eq 0) {
     exit 0
 }
 
+function Test-HasNoteProperty {
+    param(
+        [Parameter(Mandatory)] $Object,
+        [Parameter(Mandatory)] [string] $Name
+    )
+    return $null -ne $Object.PSObject.Properties[$Name]
+}
+
 foreach ($filterFile in $filters) {
     $json = Get-Content -LiteralPath $filterFile.FullName -Raw | ConvertFrom-Json
-    $solutionRel = ($json.solution.path -replace '\\', '/')
+
+    if (-not (Test-HasNoteProperty $json 'solution') -or $null -eq $json.solution) {
+        $failures.Add("$($filterFile.Name): missing solution object")
+        continue
+    }
+
+    $solution = $json.solution
+    if (-not (Test-HasNoteProperty $solution 'path') -or [string]::IsNullOrWhiteSpace([string]$solution.path)) {
+        $failures.Add("$($filterFile.Name): missing or blank solution.path")
+        continue
+    }
+    if (-not (Test-HasNoteProperty $solution 'projects') -or $null -eq $solution.projects) {
+        $failures.Add("$($filterFile.Name): missing or null solution.projects")
+        continue
+    }
+
+    $solutionRel = ($solution.path -replace '\\', '/')
     $solutionPath = Join-Path $root $solutionRel
     if (-not (Test-Path -LiteralPath $solutionPath)) {
         $failures.Add("$($filterFile.Name): solution path missing: $solutionRel")
@@ -39,7 +63,11 @@ foreach ($filterFile in $filters) {
         [void]$inSlnx.Add(($m.Groups[1].Value -replace '\\', '/'))
     }
 
-    foreach ($proj in @($json.solution.projects)) {
+    foreach ($proj in @($solution.projects)) {
+        if ($null -eq $proj -or [string]::IsNullOrWhiteSpace([string]$proj)) {
+            $failures.Add("$($filterFile.Name): blank or null project entry in solution.projects")
+            continue
+        }
         $norm = ($proj -replace '\\', '/')
         if ($proj -match '\\') {
             $failures.Add(('{0}: use forward slashes (Linux slnx parser): {1}' -f $filterFile.Name, $proj))

@@ -25,7 +25,7 @@ $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 $slnxPath = Join-Path $root $SolutionPath
 if (-not (Test-Path -LiteralPath $slnxPath)) {
-    Write-Error "Solution not found: $slnxPath"
+    Write-Host "Solution not found: $slnxPath"
     exit 1
 }
 
