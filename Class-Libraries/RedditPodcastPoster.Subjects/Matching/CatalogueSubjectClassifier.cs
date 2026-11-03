@@ -1,27 +1,35 @@
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.Text.TitleCasing;
 
 namespace RedditPodcastPoster.Subjects.Matching;
 
 /// <summary>
-/// Shared subject classification for catalogue lookups (formerly duplicated in the Spotify finder and Apple
-/// resolver). Ignored subjects are the podcast list unioned with the language list; subjects are classified on the
-/// probe and every candidate only when enriching a YouTube-discovered episode, where the multi-criteria scorer uses them.
-/// Candidate subjects are memoised for the scope (one apply, submit or index pass): the same show page is often scored
-/// for several lookups (submission 4a7d8838 classified The Compendium's 185 + 159 episodes twice, ~45 s each time).
+/// Shared subject (and match-time guest) classification for catalogue lookups. Ignored subjects are the podcast
+/// list unioned with the language list. When enriching a YouTube-discovered episode, descriptions are stripped with
+/// the podcast <see cref="CatalogueLookup.DescriptionRegex"/>, subjects are classified for the multi-criteria scorer,
+/// and recognised People names are written onto transient <see cref="Episode.Guests"/> for scoring only (never saved
+/// by the lookup path). Candidate subjects/guests are memoised for the DI scope.
 /// </summary>
 public sealed class CatalogueSubjectClassifier(
     ISubjectMatcher subjectMatcher,
-    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProvider) : ICatalogueSubjectClassifier
+    IAsyncInstance<ITitleCasingRulesProvider> titleCasingRulesProvider,
+    ITextSanitiser textSanitiser,
+    IEnumerable<IPersonService> personServices) : ICatalogueSubjectClassifier
 {
-    // Lives for one DI scope (one apply/submit request, one index activity): keep this classifier Scoped, never
-    // Singleton, or subjects edited in Cosmos would never be seen and the memo would grow without bound.
+    private readonly IPersonService? _personService = personServices.FirstOrDefault();
+
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Options, string Title, string Description, DateTime Release), List<string>>
         _candidateSubjects = new();
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Title, string Description, DateTime Release), string[]>
+        _candidateGuests = new();
 
     public async Task<IReadOnlyList<string>?> ClassifyAsync(
         Episode probe,
@@ -37,27 +45,71 @@ public sealed class CatalogueSubjectClassifier(
             return ignored;
         }
 
+        // Per-episode Create: {episode-title} expands from that row's title; token-free patterns use
+        // Podcast.DescriptionFlags (IgnoreCase | Singleline) so website presets with .* / \z strip like posting.
+        ApplyDescriptionRegex(probe, lookup.DescriptionRegex, lookup.PodcastName);
+        foreach (var candidate in candidates)
+        {
+            ApplyDescriptionRegex(candidate, lookup.DescriptionRegex, lookup.PodcastName);
+        }
+
         var options = new SubjectEnrichmentOptions(
             IgnoredAssociatedSubjects: null,
             IgnoredSubjects: ignored?.ToArray(),
             DefaultSubject: lookup.DefaultSubject,
-            DescriptionRegex: string.Empty);
+            DescriptionRegex: lookup.DescriptionRegex ?? string.Empty,
+            PodcastName: lookup.PodcastName);
         probe.Subjects = await MatchSubjectNamesAsync(probe, options, cancellationToken);
-        var optionsKey = string.Join("|", lookup.DefaultSubject ?? string.Empty,
+        probe.Guests = await MatchGuestNamesAsync(probe, cancellationToken);
+
+        var optionsKey = string.Join("|",
+            lookup.DefaultSubject ?? string.Empty,
+            lookup.DescriptionRegex ?? string.Empty,
             string.Join(",", (ignored ?? []).Order(StringComparer.OrdinalIgnoreCase)));
         foreach (var candidate in candidates)
         {
-            var key = (optionsKey, candidate.Title ?? string.Empty, candidate.Description ?? string.Empty, candidate.ReleaseUtc);
-            if (!_candidateSubjects.TryGetValue(key, out var subjects))
+            var subjectKey = (optionsKey, candidate.Title ?? string.Empty, candidate.Description ?? string.Empty,
+                candidate.ReleaseUtc);
+            if (!_candidateSubjects.TryGetValue(subjectKey, out var subjects))
             {
                 subjects = await MatchSubjectNamesAsync(candidate, options, cancellationToken);
-                _candidateSubjects[key] = subjects;
+                _candidateSubjects[subjectKey] = subjects;
             }
 
             candidate.Subjects = [.. subjects];
+
+            var guestKey = (candidate.Title ?? string.Empty, candidate.Description ?? string.Empty,
+                candidate.ReleaseUtc);
+            if (!_candidateGuests.TryGetValue(guestKey, out var guests))
+            {
+                guests = await MatchGuestNamesAsync(candidate, cancellationToken);
+                _candidateGuests[guestKey] = guests;
+            }
+
+            candidate.Guests = guests;
         }
 
         return ignored;
+    }
+
+    private void ApplyDescriptionRegex(Episode episode, string? descriptionRegexPattern, string? podcastName)
+    {
+        if (string.IsNullOrWhiteSpace(descriptionRegexPattern) ||
+            string.IsNullOrWhiteSpace(episode.Description))
+        {
+            return;
+        }
+
+        var descriptionRegex = DescriptionRegexTokens.Create(
+            descriptionRegexPattern,
+            episode.Title,
+            podcastName);
+        if (descriptionRegex == null)
+        {
+            return;
+        }
+
+        episode.Description = textSanitiser.SanitiseDescription(episode.Description, descriptionRegex);
     }
 
     private async Task<List<string>> MatchSubjectNamesAsync(
@@ -72,5 +124,25 @@ public sealed class CatalogueSubjectClassifier(
             .Where(n => !string.IsNullOrWhiteSpace(n))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private async Task<string[]> MatchGuestNamesAsync(Episode episode, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_personService is null)
+        {
+            return [];
+        }
+
+        // Same term-length floor as GuestEnrichmentOptions.Default — match-time only, never persisted.
+        const int minTermLength = 4;
+        var matches = await _personService.MatchEpisode(episode, withDescription: true);
+        return matches
+            .Where(m => m.MatchResults.Any(r =>
+                !string.IsNullOrWhiteSpace(r.Term) && r.Term.Trim().Length >= minTermLength))
+            .Select(x => x.Person.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 }

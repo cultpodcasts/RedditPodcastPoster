@@ -65,7 +65,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
             null,
             EnrichingYouTubeDiscoveredEpisode: true);
 
-        var sut = AppleResolverHarness.Create(appleEpisodes, new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()), EpisodeDomainTestServices.CreatePlatformMatcher()).Resolver;
+        var sut = AppleResolverHarness.Create(appleEpisodes, CreateClassifier(), EpisodeDomainTestServices.CreatePlatformMatcher()).Resolver;
 
         // Act
         var result = await sut.FindEpisode(request, new IndexingContext());
@@ -108,7 +108,7 @@ public class AppleEpisodeResolverCatalogueWrapperRules
             null,
             EnrichingYouTubeDiscoveredEpisode: true);
 
-        var sut = AppleResolverHarness.Create(appleEpisodes, new CatalogueSubjectClassifier(new StubSubjectMatcher(), EmptyTitleCasingProvider()), EpisodeDomainTestServices.CreatePlatformMatcher()).Resolver;
+        var sut = AppleResolverHarness.Create(appleEpisodes, CreateClassifier(), EpisodeDomainTestServices.CreatePlatformMatcher()).Resolver;
 
         // Act
         var result = await sut.FindEpisode(request, new IndexingContext());
@@ -118,6 +118,9 @@ public class AppleEpisodeResolverCatalogueWrapperRules
         result!.Id.Should().Be(matchingAppleId);
         result.Duration.Should().Be(TimeSpan.Zero);
     }
+
+    private static CatalogueSubjectClassifier CreateClassifier() =>
+        new(new StubSubjectMatcher(), EmptyTitleCasingProvider(), new PassthroughTextSanitiser(), []);
 
     private static IAsyncInstance<ITitleCasingRulesProvider> EmptyTitleCasingProvider() =>
         new StubAsyncInstance<ITitleCasingRulesProvider>(

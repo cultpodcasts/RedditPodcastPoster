@@ -20,6 +20,7 @@
     <ProjectReference Include="..\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DependencyInjection\RedditPodcastPoster.DependencyInjection.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.People\RedditPodcastPoster.People.csproj" />
   </ItemGroup>
 
 </Project>
