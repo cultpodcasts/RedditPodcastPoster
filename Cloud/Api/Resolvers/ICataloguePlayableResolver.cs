@@ -11,14 +11,19 @@ namespace Api.Resolvers;
 /// <param name="ParentId">News organisation or TV show id; null for a film (no parent).</param>
 /// <param name="ParentName">News organisation or TV show name; null for a film.</param>
 /// <param name="Slug">The site route segment: the parent name, or the film's own name.</param>
-/// <param name="Removed">The item, or its parent, is removed.</param>
+/// <param name="Removed">The item, or its parent, is removed (public GET hides both).</param>
+/// <param name="ParentRemoved">
+/// The parent publisher is removed (News organisation / TV show). Always false for Film.
+/// Curator publish rejects only this — item-level <c>Removed</c> may still publish and clear.
+/// </param>
 public record CataloguePlayableResolution(
     string ContentKind,
     PodcastEpisode Projection,
     Guid? ParentId,
     string? ParentName,
     string Slug,
-    bool Removed);
+    bool Removed,
+    bool ParentRemoved = false);
 
 public interface ICataloguePlayableResolver
 {

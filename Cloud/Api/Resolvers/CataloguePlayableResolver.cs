@@ -38,13 +38,15 @@ public class CataloguePlayableResolver(
                                    Removed = report.ParentRemoved
                                };
             var name = organisation.Name.Trim();
+            var parentRemoved = report.ParentRemoved == true || organisation.IsRemoved();
             return new CataloguePlayableResolution(
                 nameof(ContentKind.NewsReport),
                 CatalogueParentKindMapper.ToPostProjection(report, organisation),
                 organisation.Id,
                 name,
                 name,
-                report.IsRemoved() || report.ParentRemoved == true || organisation.IsRemoved());
+                report.IsRemoved() || parentRemoved,
+                parentRemoved);
         }
 
         if (tvEpisodeTask.Result is { } tvEpisode)
@@ -56,13 +58,15 @@ public class CataloguePlayableResolver(
                            Removed = tvEpisode.ParentRemoved
                        };
             var name = show.Name.Trim();
+            var parentRemoved = tvEpisode.ParentRemoved == true || show.IsRemoved();
             return new CataloguePlayableResolution(
                 nameof(ContentKind.TvShowEpisode),
                 CatalogueParentKindMapper.ToPostProjection(tvEpisode, show),
                 show.Id,
                 name,
                 name,
-                tvEpisode.IsRemoved() || tvEpisode.ParentRemoved == true || show.IsRemoved());
+                tvEpisode.IsRemoved() || parentRemoved,
+                parentRemoved);
         }
 
         if (filmTask.Result is { } film)
@@ -73,7 +77,8 @@ public class CataloguePlayableResolver(
                 null,
                 null,
                 film.Name.Trim(),
-                film.IsRemoved());
+                film.IsRemoved(),
+                ParentRemoved: false);
         }
 
         return null;

@@ -781,6 +781,35 @@ public class CatalogueSocialPostRules
     }
 
     [Fact(DisplayName =
+        "When clear-ignored-and-removed runs on a film, then the stored film is saved with ignored and removed false, because curator publish unblocks the same flags as podcast-episode Save.")]
+    public async Task clear_ignored_and_removed_saves_the_film()
+    {
+        // Arrange
+        var film = CreateFilm();
+        film.Ignored = true;
+        film.Removed = true;
+        var item = CatalogueParentKindMapper.ToPostProjection(film);
+        Film? saved = null;
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(x => x.Update(film.Id, It.IsAny<Func<Film, bool>>()))
+            .Returns<Guid, Func<Film, bool>>((_, mutate) =>
+            {
+                mutate(film);
+                saved = film;
+                return Task.FromResult<Film?>(film);
+            });
+        var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
+
+        // Act
+        await sut.ClearIgnoredAndRemoved(item);
+
+        // Assert
+        saved.Should().BeSameAs(film);
+        saved!.Ignored.Should().BeFalse();
+        saved.Removed.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "When a film is marked tweeted, then the stored film is saved with tweeted set, because the film document owns its post state.")]
     public async Task mark_tweeted_saves_the_film()
     {
