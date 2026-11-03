@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FuzzySharp;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
@@ -1560,9 +1561,25 @@ public class CatalogueMatchingRules
     public void date_match_with_multiple_same_date_candidates_fuzzy_disambiguates()
     {
         // Arrange
+        // Distractor must not EqualsOrContains the probe (early title branch) and must score
+        // strictly below the typo candidate so FuzzyMatcher.Match prefers the typo variant.
         var sharedTitle = _fixture.CreateShortTitle();
         var typoTitle = DomainTestFixture.CreateTypoTitleVariant(sharedTitle);
-        var unrelatedTitle = _fixture.CreateTitle();
+        var typoScore = Fuzz.WeightedRatio(sharedTitle, typoTitle);
+        typoScore.Should().BeGreaterThanOrEqualTo(65,
+            "typo variant must clear FindCatalogueMatchByDate CatalogueMinFuzzyScore");
+
+        string unrelatedTitle;
+        var attempts = 0;
+        do
+        {
+            unrelatedTitle = _fixture.CreateTitle(8);
+            attempts++;
+            attempts.Should().BeLessThan(50,
+                "fixture must yield a distractor title that neither contains nor out-scores the typo");
+        } while (EpisodeTitleMatch.EqualsOrContains(unrelatedTitle, sharedTitle) ||
+                 Fuzz.WeightedRatio(sharedTitle, unrelatedTitle) >= typoScore);
+
         var sharedRelease = DomainTestFixture.UtcDateDaysAgo(7);
         var probe = _fixture.CreateEpisode(e =>
         {
