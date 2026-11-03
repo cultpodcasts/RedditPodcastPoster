@@ -4,8 +4,9 @@ using System.Text.RegularExpressions;
 namespace RedditPodcastPoster.Text.Matchers;
 
 /// <summary>
-/// Lightweight Title-Case / capitalized multi-word runs for match-time catalogue scoring.
-/// Not NER and not persisted — shared phrases tip YouTube→audio enrichment when marketing titles diverge.
+/// Lightweight capitalized multi-word runs from episode <em>descriptions</em> for match-time catalogue scoring.
+/// Titles are intentionally ignored — podcast/episode titles are often Title Case, so capitalized runs there
+/// are noise rather than proper nouns. Not NER and not persisted.
 /// </summary>
 public static partial class ProperNounExtractor
 {
@@ -16,15 +17,12 @@ public static partial class ProperNounExtractor
     };
 
     /// <summary>
-    /// Extracts multi-word proper-noun phrases from title and description (HTML-decoded).
+    /// Extracts multi-word proper-noun phrases from a description (HTML-decoded).
     /// Single-token names are ignored (too noisy); leading stopwords like "The"/"Dr" are stripped from runs.
     /// </summary>
-    public static IReadOnlySet<string> Extract(string? title, string? description)
+    public static IReadOnlySet<string> Extract(string? description)
     {
-        // Extract each field separately so a Title-Case title ending and a Title-Case description
-        // start do not glue into one false multi-word run across the join.
         var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        AddFromField(results, title);
         AddFromField(results, description);
         return results;
     }
@@ -71,20 +69,18 @@ public static partial class ProperNounExtractor
     }
 
     /// <summary>
-    /// Shared proper-noun phrases between two sides, excluding any names already counted as subjects or guests.
+    /// Shared proper-noun phrases between two descriptions, excluding any names already counted as subjects or guests.
     /// </summary>
     public static IReadOnlySet<string> Shared(
-        string? leftTitle,
         string? leftDescription,
-        string? rightTitle,
         string? rightDescription,
         IEnumerable<string>? exclude = null)
     {
         var excluded = new HashSet<string>(
             (exclude ?? []).Where(x => !string.IsNullOrWhiteSpace(x)),
             StringComparer.OrdinalIgnoreCase);
-        var left = Extract(leftTitle, leftDescription);
-        var right = Extract(rightTitle, rightDescription);
+        var left = Extract(leftDescription);
+        var right = Extract(rightDescription);
         return left
             .Where(x => right.Contains(x) && !excluded.Contains(x))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);

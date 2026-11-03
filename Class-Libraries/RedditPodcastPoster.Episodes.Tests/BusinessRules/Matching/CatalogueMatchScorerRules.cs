@@ -841,19 +841,18 @@ public class CatalogueMatchScorerRules
     }
 
     [Fact(DisplayName =
-        "Duration, same-day release, and one shared proper noun from divergent titles meet the match threshold " +
-        "so marketing renames that keep a guest or topic name can still enrich.")]
-    public void duration_same_day_and_one_shared_proper_noun_meets_threshold()
+        "Duration, same-day release, and one shared proper noun from divergent descriptions meet the match threshold " +
+        "so marketing renames that keep a guest or topic name in the body can still enrich (titles are not scanned).")]
+    public void duration_same_day_and_one_shared_proper_noun_from_descriptions_meets_threshold()
     {
-        // Arrange — in-band but not near-exact; titles share "Peter Thiel" only
+        // Arrange — in-band but not near-exact; titles diverge and stay Title Case (ignored for nouns)
         var probeLength = TimeSpan.FromMinutes(47);
         var catalogueLength = probeLength + TimeSpan.FromMinutes(2);
         var release = DomainTestFixture.UtcDateDaysAgo(1);
         var probe = _fixture.CreateEpisode(e =>
         {
-            // Lowercase connectors break capitalized runs so both sides extract "Peter Thiel".
-            e.Title = "Peter Thiel and silicon valley power";
-            e.Description = string.Empty;
+            e.Title = "Quarterly Harvest Ledger";
+            e.Description = "Conversation with Peter Thiel about markets.";
             e.Length = probeLength;
             e.ReleaseUtc = release;
             e.YouTubeId = _fixture.CreateYouTubeId();
@@ -862,8 +861,8 @@ public class CatalogueMatchScorerRules
         });
         var catalogue = _fixture.CreateEpisode(e =>
         {
-            e.Title = "Gil Duran on Peter Thiel";
-            e.Description = string.Empty;
+            e.Title = "Volcanic Origami Workshop";
+            e.Description = "Gil Duran reports on Peter Thiel.";
             e.Length = catalogueLength;
             e.ReleaseUtc = release;
             e.SpotifyId = _fixture.CreateSpotifyId();

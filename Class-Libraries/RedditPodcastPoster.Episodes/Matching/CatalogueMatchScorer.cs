@@ -17,8 +17,8 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// Title, description, subject, recognised-guest, or shared proper-noun similarity also supply the
 /// remaining confidence. Duration + same-calendar-day + one shared subject/guest/proper-noun (15)
 /// clears the threshold without a title match; guest names that score as guests are excluded from
-/// proper-noun points so the same phrase is not counted twice. Proper-noun points are omitted when
-/// title similarity already scored, so matching Title-Case titles do not double-count shared runs.
+/// proper-noun points so the same phrase is not counted twice. Proper nouns are taken from
+/// descriptions only (not titles — Title Case marketing titles are not reliable casing signals).
 /// When either side lacks duration (e.g. Apple omitting <c>durationInMilliseconds</c>),
 /// duration points are skipped and duration band is not a hard fail — release window plus
 /// title/description/subjects must still clear the threshold (release alone cannot).
@@ -172,17 +172,11 @@ public static class CatalogueMatchScorer
         }
 
         score += releasePoints;
-        var titlePoints = ScoreTitle(probe.Title, catalogueItem.Title);
-        score += titlePoints;
+        score += ScoreTitle(probe.Title, catalogueItem.Title);
         score += descriptionPoints;
         score += ScoreSubjects(probe.Subjects, catalogueItem.Subjects, subjectFilters);
         score += ScoreGuests(probe.Guests, catalogueItem.Guests);
-        // Proper nouns tip divergent marketing titles only — skip when title similarity already scored
-        // so identical Title-Case titles do not double-count every shared capitalized run.
-        if (titlePoints == 0)
-        {
-            score += ScoreProperNouns(probe, catalogueItem, subjectFilters);
-        }
+        score += ScoreProperNouns(probe, catalogueItem, subjectFilters);
 
         if (!durationInBand && descriptionPoints > 0 && releasePoints > 0)
         {
@@ -457,9 +451,7 @@ public static class CatalogueMatchScorer
             .Concat(CanonicalNames(probe.Guests))
             .Concat(CanonicalNames(catalogueItem.Guests));
         var shared = ProperNounExtractor.Shared(
-            probe.Title,
             probe.Description,
-            catalogueItem.Title,
             catalogueItem.Description,
             exclude);
         return shared.Count switch
