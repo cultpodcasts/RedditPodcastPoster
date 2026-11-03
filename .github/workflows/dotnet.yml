@@ -28,6 +28,12 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore --verbosity minimal
+    - name: Solution membership (csproj ↔ slnx)
+      shell: pwsh
+      run: ./scripts/assert-slnx-membership.ps1
+    - name: Solution filters (*.slnf ↔ slnx)
+      shell: pwsh
+      run: ./scripts/assert-slnf.ps1
     - name: Build
       run: dotnet build --configuration Release
     - name: Test

@@ -67,6 +67,7 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery/RedditPodcastPoster.Discovery.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.ML/RedditPodcastPoster.Discovery.ML.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes/RedditPodcastPoster.Episodes.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup/RedditPodcastPoster.EpisodeLookup.csproj" />
@@ -160,6 +161,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Tmdb.Tests/RedditPodcastPoster.Tmdb.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.TheTvdb.Tests/RedditPodcastPoster.TheTvdb.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection.Tests/RedditPodcastPoster.DependencyInjection.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup.Tests/RedditPodcastPoster.EpisodeLookup.Tests.csproj" />
@@ -215,6 +217,8 @@
   </Folder>
 
   <Folder Name="/Cloud/Unit Test/">
+
+    <Project Path="Cloud/Unit-Tests/Discovery.Tests/Discovery.Tests.csproj" />
 
     <Project Path="Cloud/Unit-Tests/FunctionHost.Tests/FunctionHost.Tests.csproj" />
 
@@ -295,6 +299,8 @@
     <Project Path="Console-Apps/KVWriter/KVWriter.csproj" />
 
     <Project Path="Console-Apps/MigrateConfig/MigrateConfig.csproj" />
+
+    <Project Path="Console-Apps/MigrateLanguageIgnoredSubjects/MigrateLanguageIgnoredSubjects.csproj" />
 
     <Project Path="Console-Apps/Poster/Poster.csproj" />
 
