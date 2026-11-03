@@ -76,7 +76,8 @@ public class AppleEpisodeResolver(
             request.DefaultSubject,
             request.IgnoredSubjects,
             request.Language,
-            request.YouTubePublishingDelay)
+            request.YouTubePublishingDelay,
+            request.DescriptionRegex)
         {
             Flow = indexingContext.LookupFlow,
             WindowStart = indexingContext.ReleasedSince,
