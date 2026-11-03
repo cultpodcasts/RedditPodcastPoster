@@ -117,6 +117,11 @@ public class PodcastChangeApplier(ILogger<PodcastChangeApplier> logger)
             YouTubePlaylistIdChange.Apply(podcast, podcastChangeRequest.YouTubePlaylistId, logger);
         }
 
+        if (podcastChangeRequest.ClearYouTubeIndexingHints == true)
+        {
+            podcast.YouTubeIndexingHints = null;
+        }
+
         if (podcastChangeRequest.SkipEnrichingFromYouTube != null)
         {
             podcast.SkipEnrichingFromYouTube = podcastChangeRequest.SkipEnrichingFromYouTube.Value;

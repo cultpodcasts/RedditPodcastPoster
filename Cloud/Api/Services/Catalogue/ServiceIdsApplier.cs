@@ -87,6 +87,17 @@ public static class ServiceIdsApplier
             setsSomething |= measured.Length > 0;
         }
 
+        if (change.ClearYouTubeIndexingHints == true)
+        {
+            // Clear only the hints member; leave other indexing fields alone. An empty indexing
+            // block that only existed for hints stays as an empty source (setsSomething stays false
+            // from this clear alone when nothing else is set).
+            if (indexing != null)
+            {
+                source.YouTubeIndexingHints = null;
+            }
+        }
+
         if (change.IndexAllEpisodes != null)
         {
             source.IndexAllEpisodes = change.IndexAllEpisodes.Value;

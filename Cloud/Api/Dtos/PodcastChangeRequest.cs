@@ -91,6 +91,13 @@ public class PodcastChangeRequest
     [JsonPropertyName("youTubePlaylistId")]
     public string? YouTubePlaylistId { get; set; }
 
+    /// <summary>
+    /// When <c>true</c>, clears indexer-owned <c>youTubeIndexingHints</c> so the next indexing pass
+    /// does a full playlist walk. Other fields are unchanged. Omitting or <c>false</c> leaves hints alone.
+    /// </summary>
+    [JsonPropertyName("clearYouTubeIndexingHints")]
+    public bool? ClearYouTubeIndexingHints { get; set; }
+
     [JsonPropertyName("ignoredAssociatedSubjects")]
     public string[]? IgnoredAssociatedSubjects { get; set; }
 

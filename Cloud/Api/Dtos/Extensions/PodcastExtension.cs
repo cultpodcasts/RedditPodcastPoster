@@ -34,6 +34,7 @@ public static class PodcastExtension
             YouTubeChannelId = podcast.YouTubeChannelId,
             YouTubePlaylistId = podcast.YouTubePlaylistId,
             YouTubePlaylistIdHistory = podcast.YouTubePlaylistIdHistory?.ToArray(),
+            YouTubeIndexingHints = podcast.YouTubeIndexingHints?.Copy(),
             IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
             IgnoredSubjects = podcast.IgnoredSubjects,
             KnownTerms = podcast.KnownTerms,
