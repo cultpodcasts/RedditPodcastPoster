@@ -58,6 +58,20 @@ public class CataloguePlayableSocialPosts(
     public Task MarkBlueskyPosted(PodcastEpisode item, string blueskyPostUri) =>
         Update(item, playable => playable.BlueskyPost = blueskyPostUri, film => film.BlueskyPost = blueskyPostUri);
 
+    public Task ClearIgnoredAndRemoved(PodcastEpisode item) =>
+        Update(
+            item,
+            playable =>
+            {
+                playable.Ignored = false;
+                playable.Removed = false;
+            },
+            film =>
+            {
+                film.Ignored = false;
+                film.Removed = false;
+            });
+
     private async Task<IReadOnlyList<PodcastEpisode>> GetRecent(DateTime since)
     {
         var items = new List<PodcastEpisode>();

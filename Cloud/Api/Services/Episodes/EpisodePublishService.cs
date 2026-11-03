@@ -6,6 +6,7 @@ using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.Twitter.Posters;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -15,6 +16,8 @@ namespace Api.Services.Episodes;
 public class EpisodePublishService(
     IEpisodeRepository episodeRepository,
     IPodcastEpisodeResolver podcastEpisodeResolver,
+    ICataloguePlayableResolver cataloguePlayableResolver,
+    ICataloguePlayableSocialPosts cataloguePlayableSocialPosts,
     ITweetPoster tweetPoster,
     IBlueskyPoster blueskyPoster,
     IShortnerService shortnerService,
@@ -26,29 +29,14 @@ public class EpisodePublishService(
     {
         try
         {
-            EpisodePublishOutcome outcome;
-            var podcastEpisodeResolverResponse =
-                await podcastEpisodeResolver.ResolvePodcast(publishRequest.ToPodcastEpisodeResolverRequest(),
-                    nameof(PublishAsync));
-
-            if (podcastEpisodeResolverResponse.Episode == null)
+            var resolved = await ResolvePlayable(publishRequest, cancellationToken);
+            if (resolved == null)
             {
                 throw new ArgumentException($"Episode with id '{publishRequest.EpisodeId}' not found.");
             }
 
-            if (podcastEpisodeResolverResponse.Podcast == null ||
-                podcastEpisodeResolverResponse.Podcast.Removed == true)
-            {
-                throw new ArgumentException(
-                    $"Podcast for episode-id '{publishRequest.EpisodeId}' not found or removed.");
-            }
-            else
-            {
-                outcome = new EpisodePublishOutcome(podcastEpisodeResolverResponse.Podcast.Id);
-            }
-
-            var podcastEpisode = new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
-                podcastEpisodeResolverResponse.Episode);
+            var podcastEpisode = resolved.Value.PodcastEpisode;
+            var outcome = new EpisodePublishOutcome(resolved.Value.OutcomePodcastId);
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
@@ -95,7 +83,7 @@ public class EpisodePublishService(
                         outcome.Tweeted = false;
                         logger.LogError(e,
                             "Failed to tweet for podcast-id: {podcastId} and episode-id {episodeId}.",
-                            podcastEpisodeResolverResponse.Podcast.Id, podcastEpisodeResolverResponse.Episode.Id);
+                            podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                     }
                 }
 
@@ -119,24 +107,37 @@ public class EpisodePublishService(
                         outcome.BlueskyPosted = false;
                         logger.LogError(e,
                             "Failed to bluesky-post for podcast-id: {podcastId} and episode-id {episodeId}.",
-                            podcastEpisodeResolverResponse.Podcast.Id, podcastEpisodeResolverResponse.Episode.Id);
+                            podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
                     }
                 }
             }
 
             if (outcome.Updated())
             {
-                if (podcastEpisodeResolverResponse.Episode.Ignored)
+                var needsUnblock = podcastEpisode.Episode.Ignored || podcastEpisode.Episode.IsRemoved();
+                if (podcastEpisode.IsCataloguePlayable)
                 {
-                    podcastEpisodeResolverResponse.Episode.Ignored = false;
+                    // Posters already persisted tweet/Bluesky state on the catalogue document. Never
+                    // IEpisodeRepository.Save a projection — that would write the wrong container.
+                    if (needsUnblock)
+                    {
+                        await cataloguePlayableSocialPosts.ClearIgnoredAndRemoved(podcastEpisode);
+                    }
                 }
-
-                if (podcastEpisodeResolverResponse.Episode.IsRemoved())
+                else
                 {
-                    podcastEpisodeResolverResponse.Episode.Removed = false;
-                }
+                    if (podcastEpisode.Episode.Ignored)
+                    {
+                        podcastEpisode.Episode.Ignored = false;
+                    }
 
-                await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
+                    if (podcastEpisode.Episode.IsRemoved())
+                    {
+                        podcastEpisode.Episode.Removed = false;
+                    }
+
+                    await episodeRepository.Save(podcastEpisode.Episode);
+                }
             }
 
             return new EpisodePublishResult(
@@ -148,5 +149,47 @@ public class EpisodePublishService(
             logger.LogError(ex, "{method}: Failed to publish episode.", nameof(PublishAsync));
             return new EpisodePublishResult(EpisodePublishStatus.Failed);
         }
+    }
+
+    /// <summary>
+    /// Podcast episode first; on miss, the same catalogue fallback as GET /episode/{id}.
+    /// </summary>
+    private async Task<(PodcastEpisode PodcastEpisode, Guid OutcomePodcastId)?> ResolvePlayable(
+        EpisodePublishRequestWrapper publishRequest,
+        CancellationToken cancellationToken)
+    {
+        var podcastEpisodeResolverResponse =
+            await podcastEpisodeResolver.ResolvePodcast(publishRequest.ToPodcastEpisodeResolverRequest(),
+                nameof(PublishAsync));
+
+        if (podcastEpisodeResolverResponse.Episode != null)
+        {
+            if (podcastEpisodeResolverResponse.Podcast == null ||
+                podcastEpisodeResolverResponse.Podcast.Removed == true)
+            {
+                throw new ArgumentException(
+                    $"Podcast for episode-id '{publishRequest.EpisodeId}' not found or removed.");
+            }
+
+            return (
+                new PodcastEpisode(podcastEpisodeResolverResponse.Podcast, podcastEpisodeResolverResponse.Episode),
+                podcastEpisodeResolverResponse.Podcast.Id);
+        }
+
+        var catalogue = await cataloguePlayableResolver.Resolve(publishRequest.EpisodeId, cancellationToken);
+        if (catalogue == null)
+        {
+            return null;
+        }
+
+        if (catalogue.Removed)
+        {
+            throw new ArgumentException(
+                $"Catalogue playable '{publishRequest.EpisodeId}' ({catalogue.ContentKind}) is removed.");
+        }
+
+        // Film has no parent: outcome id is the film id (projection podcast stand-in). News/TV use the parent.
+        var outcomePodcastId = catalogue.ParentId ?? catalogue.Projection.Podcast.Id;
+        return (catalogue.Projection, outcomePodcastId);
     }
 }

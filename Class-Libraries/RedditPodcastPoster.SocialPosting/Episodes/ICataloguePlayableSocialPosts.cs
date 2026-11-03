@@ -32,4 +32,10 @@ public interface ICataloguePlayableSocialPosts
 
     /// <summary>Sets <c>blueskyPost</c> on the stored TV episode, news report or film.</summary>
     Task MarkBlueskyPosted(PodcastEpisode item, string blueskyPostUri);
+
+    /// <summary>
+    /// Clears <c>ignored</c> and <c>removed</c> on the stored TV episode, news report or film after a
+    /// successful curator publish (same unblock as the podcast-episode publish Save path).
+    /// </summary>
+    Task ClearIgnoredAndRemoved(PodcastEpisode item);
 }
