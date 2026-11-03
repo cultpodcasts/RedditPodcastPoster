@@ -88,7 +88,7 @@ public class CataloguePlayableResolverRules
     }
 
     [Fact(DisplayName =
-        "Plain English rule: when the TV show is removed, then the TV episode resolves as removed, because a removed parent hides its episodes.")]
+        "When the TV show is removed, then the TV episode resolves as removed with ParentRemoved, because a removed parent hides its episodes from public GET and blocks curator publish.")]
     public async Task resolves_tv_episode_as_removed_when_show_removed()
     {
         // Arrange
@@ -100,6 +100,7 @@ public class CataloguePlayableResolverRules
 
         // Assert
         resolution!.Removed.Should().BeTrue();
+        resolution.ParentRemoved.Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -118,6 +119,7 @@ public class CataloguePlayableResolverRules
         resolution.ParentName.Should().BeNull();
         resolution.Slug.Should().Be(_film.Name);
         resolution.Removed.Should().BeTrue();
+        resolution.ParentRemoved.Should().BeFalse();
         resolution.Projection.Episode.Title.Should().Be(_film.Name);
     }
 

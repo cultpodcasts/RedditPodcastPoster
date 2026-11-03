@@ -9,6 +9,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.Twitter.Posters;
+using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
 
 namespace Api.Services.Episodes;
@@ -49,17 +50,30 @@ public class EpisodePublishService(
 
             if (publishRequest.EpisodePublishRequest.Tweet || publishRequest.EpisodePublishRequest.BlueskyPost)
             {
-                var shortnerResult = await shortnerService.Write(podcastEpisode);
-                if (!shortnerResult.Success)
+                // Catalogue kinds use /film|/news|/tv routes — never the podcast-shaped shortener KV.
+                Uri? shortUrl;
+                var hasShareImage = false;
+                if (podcastEpisode.IsCataloguePlayable)
                 {
-                    logger.LogError("Unsuccessful shortening-url.");
+                    shortUrl = CataloguePlayableSiteLink.For(podcastEpisode);
+                }
+                else
+                {
+                    var shortnerResult = await shortnerService.Write(podcastEpisode);
+                    if (!shortnerResult.Success)
+                    {
+                        logger.LogError("Unsuccessful shortening-url.");
+                    }
+
+                    shortUrl = shortnerResult.Url;
+                    hasShareImage = shortnerResult.HasShareImage;
                 }
 
                 if (publishRequest.EpisodePublishRequest.Tweet)
                 {
                     try
                     {
-                        var result = await tweetPoster.PostTweet(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
+                        var result = await tweetPoster.PostTweet(podcastEpisode, shortUrl, hasShareImage);
                         if (result.TweetSendStatus == TweetSendStatus.PaymentRequired)
                         {
                             logger.LogError(
@@ -91,7 +105,7 @@ public class EpisodePublishService(
                 {
                     try
                     {
-                        var result = await blueskyPoster.Post(podcastEpisode, shortnerResult.Url, shortnerResult.HasShareImage);
+                        var result = await blueskyPoster.Post(podcastEpisode, shortUrl, hasShareImage);
                         if (result != BlueskySendStatus.Success)
                         {
                             logger.LogError("Bluesky-post result: '{result}'.", result);
@@ -182,10 +196,11 @@ public class EpisodePublishService(
             return null;
         }
 
-        if (catalogue.Removed)
+        // Item-level Removed may still publish (then ClearIgnoredAndRemoved). Parent-removed blocks like a removed podcast.
+        if (catalogue.ParentRemoved)
         {
             throw new ArgumentException(
-                $"Catalogue playable '{publishRequest.EpisodeId}' ({catalogue.ContentKind}) is removed.");
+                $"Catalogue playable '{publishRequest.EpisodeId}' ({catalogue.ContentKind}) parent is removed.");
         }
 
         // Film has no parent: outcome id is the film id (projection podcast stand-in). News/TV use the parent.
