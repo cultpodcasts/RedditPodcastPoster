@@ -327,6 +327,62 @@ public class EpisodePublishServiceRules
         _tweeted.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "When publishing via a film kind route, then skip the podcast episode resolver and tweet the film site link, because POST /film/{id}/publish must only hit the film container.")]
+    public async Task film_expected_kind_skips_podcast_resolver()
+    {
+        // Arrange
+        var film = CreateFilm();
+        var projection = CatalogueParentKindMapper.ToPostProjection(film);
+        var expectedUrl = CataloguePlayableSiteLink.For(projection);
+        _catalogueResolved = new CataloguePlayableResolution(
+            nameof(ContentKind.Film), projection, null, null, film.Name.Trim(), Removed: false);
+        var podcastCalls = 0;
+        _mocker.GetMock<IPodcastEpisodeResolver>()
+            .Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+            .Callback(() => podcastCalls++)
+            .ReturnsAsync(() => _podcastResolved);
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(
+                null, film.Id, new EpisodePublishRequest { Tweet = true }, ContentKind.Film),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodePublishStatus.Ok);
+        result.Outcome!.Tweeted.Should().BeTrue();
+        podcastCalls.Should().Be(0);
+        _tweetedUrl.Should().Be(expectedUrl);
+        _episodeSaveCalled.Should().BeFalse();
+        _shortnerWriteCalled.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a film kind publish finds a news report id, then fail without posting, because the kind route must not publish a different catalogue container.")]
+    public async Task film_expected_kind_rejects_news_report_id()
+    {
+        // Arrange
+        var (organisation, report) = CreateNewsReport();
+        var projection = CatalogueParentKindMapper.ToPostProjection(report, organisation);
+        _catalogueResolved = new CataloguePlayableResolution(
+            nameof(ContentKind.NewsReport), projection, organisation.Id, organisation.Name, organisation.Name,
+            Removed: false);
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(
+                null, report.Id, new EpisodePublishRequest { Tweet = true }, ContentKind.Film),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodePublishStatus.Failed);
+        _tweeted.Should().BeNull();
+        _episodeSaveCalled.Should().BeFalse();
+    }
+
     private Film CreateFilm()
     {
         var podcast = _fixture.CreatePodcast();

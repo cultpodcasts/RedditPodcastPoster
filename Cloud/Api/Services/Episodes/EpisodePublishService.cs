@@ -4,6 +4,7 @@ using Api.Resolvers;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Episodes;
@@ -166,12 +167,23 @@ public class EpisodePublishService(
     }
 
     /// <summary>
-    /// Podcast episode first; on miss, the same catalogue fallback as GET /episode/{id}.
+    /// Kind publish routes resolve catalogue only; guid-only is podcast episode first then catalogue
+    /// (same fallback as GET /episode/{id}).
     /// </summary>
     private async Task<(PodcastEpisode PodcastEpisode, Guid OutcomePodcastId)?> ResolvePlayable(
         EpisodePublishRequestWrapper publishRequest,
         CancellationToken cancellationToken)
     {
+        if (publishRequest.ExpectedKind is ContentKind.Film
+            or ContentKind.NewsReport
+            or ContentKind.TvShowEpisode)
+        {
+            return await ResolveCataloguePlayable(
+                publishRequest.EpisodeId,
+                publishRequest.ExpectedKind.Value,
+                cancellationToken);
+        }
+
         var podcastEpisodeResolverResponse =
             await podcastEpisodeResolver.ResolvePodcast(publishRequest.ToPodcastEpisodeResolverRequest(),
                 nameof(PublishAsync));
@@ -190,17 +202,32 @@ public class EpisodePublishService(
                 podcastEpisodeResolverResponse.Podcast.Id);
         }
 
-        var catalogue = await cataloguePlayableResolver.Resolve(publishRequest.EpisodeId, cancellationToken);
+        return await ResolveCataloguePlayable(publishRequest.EpisodeId, expectedKind: null, cancellationToken);
+    }
+
+    private async Task<(PodcastEpisode PodcastEpisode, Guid OutcomePodcastId)?> ResolveCataloguePlayable(
+        Guid playableId,
+        ContentKind? expectedKind,
+        CancellationToken cancellationToken)
+    {
+        var catalogue = await cataloguePlayableResolver.Resolve(playableId, cancellationToken);
         if (catalogue == null)
         {
             return null;
+        }
+
+        if (expectedKind is { } kind &&
+            !string.Equals(catalogue.ContentKind, kind.ToString(), StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"Catalogue playable '{playableId}' is '{catalogue.ContentKind}', not '{kind}'.");
         }
 
         // Item-level Removed may still publish (then ClearIgnoredAndRemoved). Parent-removed blocks like a removed podcast.
         if (catalogue.ParentRemoved)
         {
             throw new ArgumentException(
-                $"Catalogue playable '{publishRequest.EpisodeId}' ({catalogue.ContentKind}) parent is removed.");
+                $"Catalogue playable '{playableId}' ({catalogue.ContentKind}) parent is removed.");
         }
 
         // Film has no parent: outcome id is the film id (projection podcast stand-in). News/TV use the parent.
