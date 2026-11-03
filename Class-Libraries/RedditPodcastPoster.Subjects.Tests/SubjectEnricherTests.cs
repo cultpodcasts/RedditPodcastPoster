@@ -297,7 +297,8 @@ public class SubjectEnricherTests
         logger.Verify(x => x.Log(
                 LogLevel.Information,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("No updates")),
+                It.Is<It.IsAnyType>((v, _) =>
+                    (v == null ? string.Empty : v.ToString() ?? string.Empty).Contains("No updates")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

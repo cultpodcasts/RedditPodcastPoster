@@ -29,10 +29,10 @@ public class SearchSuggestionsPublishTriggerRules
                 LogLevel.Information,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((state, _) =>
-                    state.ToString()!.Contains(
+                    (state == null ? string.Empty : state.ToString() ?? string.Empty).Contains(
                         "cf cache purge -z cultpodcasts.com --body '{\\\"files\\\":[\\\"https://api.cultpodcasts.com/search-suggestions\\\"") &&
-                    state.ToString()!.Contains("X-Search-Suggestions-Cache") &&
-                    state.ToString()!.Contains("does not clear browser caches")),
+                    (state == null ? string.Empty : state.ToString() ?? string.Empty).Contains("X-Search-Suggestions-Cache") &&
+                    (state == null ? string.Empty : state.ToString() ?? string.Empty).Contains("does not clear browser caches")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             times);
@@ -41,20 +41,27 @@ public class SearchSuggestionsPublishTriggerRules
         "When the weekly publish succeeds, then the search-suggestions purge command is logged at Information (no purge is performed), so it is visible in App Insights.")]
     public async Task Success_LogsPurgeCommand()
     {
+        // Arrange
+
+        // Act
         await Run();
 
+        // Assert
         VerifyPurgeLogged(Times.Once());
     }
 
     [Fact(DisplayName = "When the weekly publish throws, then the failure propagates and no purge command is logged.")]
     public async Task Failure_NoPurgeCommand()
     {
+        // Arrange
         _mocker.GetMock<ISearchSuggestionsPublisher>()
             .Setup(x => x.PublishSearchSuggestions(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("synthetic failure"));
 
+        // Act
         var act = Run;
 
+        // Assert
         await act.Should().ThrowAsync<InvalidOperationException>();
         VerifyPurgeLogged(Times.Never());
     }

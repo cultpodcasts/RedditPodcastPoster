@@ -258,7 +258,7 @@ public class RecentYouTubeThumbnailRecheckRules
             new IndexingContext());
 
         // Assert
-        _http.Requested.Should().Equal(StoredImage(oldest), StoredImage(middle));
+        _http.Requested.Should().Equal(StoredImage(oldest)!, StoredImage(middle)!);
         result.DeferredOverBudget.Should().Be(1);
     }
 

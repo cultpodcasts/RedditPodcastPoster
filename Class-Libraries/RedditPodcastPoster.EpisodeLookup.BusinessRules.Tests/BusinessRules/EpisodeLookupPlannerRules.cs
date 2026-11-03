@@ -1,6 +1,5 @@
 using FluentAssertions;
 using RedditPodcastPoster.EpisodeLookup;
-using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
