@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Episodes;
 
 namespace Api.Resolvers;
@@ -27,6 +28,19 @@ public record CataloguePlayableResolution(
 
 public interface ICataloguePlayableResolver
 {
-    /// <summary>Null when no news report, TV episode or film has the id.</summary>
+    /// <summary>
+    /// Null when no news report, TV episode or film has the id.
+    /// Three-container fan-out for guid-only callers (episode GET / guid-only publish fallback).
+    /// Prefer <see cref="Resolve(Guid, ContentKind, CancellationToken)"/> when the route already names a kind.
+    /// </summary>
     Task<CataloguePlayableResolution?> Resolve(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Hits only the repository for <paramref name="expectedKind"/> (Film / NewsReport / TvShowEpisode).
+    /// Kind publish routes use this; null when that container has no row (including wrong-kind ids).
+    /// </summary>
+    Task<CataloguePlayableResolution?> Resolve(
+        Guid id,
+        ContentKind expectedKind,
+        CancellationToken cancellationToken);
 }

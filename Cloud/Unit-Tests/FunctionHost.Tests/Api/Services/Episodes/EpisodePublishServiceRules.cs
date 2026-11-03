@@ -26,7 +26,7 @@ using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 namespace FunctionHost.Tests.Api.Services.Episodes;
 
 /// <summary>
-/// Curator POST /episode/publish: podcast episodes and catalogue Film / NewsReport / TvShowEpisode.
+/// Curator POST /episode/publish and kind-scoped POST /film|newsreport|tvshowepisode/{id}/publish.
 /// </summary>
 public class EpisodePublishServiceRules
 {
@@ -35,6 +35,7 @@ public class EpisodePublishServiceRules
     private PodcastEpisodeResolverResponse _podcastResolved =
         new(null, null, PodcastEpisodeResolveState.EpisodeNotFound);
     private CataloguePlayableResolution? _catalogueResolved;
+    private CataloguePlayableResolution? _kindCatalogueResolved;
     private Episode? _savedEpisode;
     private PodcastEpisode? _tweeted;
     private Uri? _tweetedUrl;
@@ -43,6 +44,8 @@ public class EpisodePublishServiceRules
     private PodcastEpisode? _clearedCatalogue;
     private bool _episodeSaveCalled;
     private bool _shortnerWriteCalled;
+    private int _threeWayCatalogueResolveCalls;
+    private int _kindCatalogueResolveCalls;
 
     public EpisodePublishServiceRules()
     {
@@ -52,7 +55,12 @@ public class EpisodePublishServiceRules
             .ReturnsAsync(() => _podcastResolved);
         _mocker.GetMock<ICataloguePlayableResolver>()
             .Setup(r => r.Resolve(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback(() => _threeWayCatalogueResolveCalls++)
             .ReturnsAsync(() => _catalogueResolved);
+        _mocker.GetMock<ICataloguePlayableResolver>()
+            .Setup(r => r.Resolve(It.IsAny<Guid>(), It.IsAny<ContentKind>(), It.IsAny<CancellationToken>()))
+            .Callback(() => _kindCatalogueResolveCalls++)
+            .ReturnsAsync(() => _kindCatalogueResolved ?? _catalogueResolved);
         _mocker.GetMock<IEpisodeRepository>()
             .Setup(r => r.Save(It.IsAny<Episode>()))
             .Callback<Episode>(episode =>
@@ -86,6 +94,14 @@ public class EpisodePublishServiceRules
             .Callback<PodcastEpisode>(pe => _clearedCatalogue = pe)
             .Returns(Task.CompletedTask);
     }
+
+    public static TheoryData<ContentKind> CataloguePublishKinds() =>
+        new()
+        {
+            ContentKind.Film,
+            ContentKind.NewsReport,
+            ContentKind.TvShowEpisode
+        };
 
     [Fact(DisplayName =
         "When publishing a podcast episode tweet succeeds, then shorten via the shortener and save the episode document, because ignored/removed unblock and tweet state live on the episode container.")]
@@ -258,8 +274,8 @@ public class EpisodePublishServiceRules
     }
 
     [Fact(DisplayName =
-        "When a news report's organisation is removed, then publish fails without posting, because a removed parent publisher blocks like a removed podcast.")]
-    public async Task parent_removed_news_publish_fails()
+        "When a news report's organisation is removed, then publish returns NotFound without posting, because a removed parent publisher blocks like a removed podcast and is a client error not a server fault.")]
+    public async Task parent_removed_news_publish_not_found()
     {
         // Arrange
         var (organisation, report) = CreateNewsReport();
@@ -276,7 +292,7 @@ public class EpisodePublishServiceRules
             CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(EpisodePublishStatus.Failed);
+        result.Status.Should().Be(EpisodePublishStatus.NotFound);
         _tweeted.Should().BeNull();
         _shortnerWriteCalled.Should().BeFalse();
         _episodeSaveCalled.Should().BeFalse();
@@ -284,8 +300,8 @@ public class EpisodePublishServiceRules
     }
 
     [Fact(DisplayName =
-        "When a TV episode's show is removed, then publish fails without posting, because a removed parent publisher blocks like a removed podcast.")]
-    public async Task parent_removed_tv_publish_fails()
+        "When a TV episode's show is removed, then publish returns NotFound without posting, because a removed parent publisher blocks like a removed podcast and is a client error not a server fault.")]
+    public async Task parent_removed_tv_publish_not_found()
     {
         // Arrange
         var (show, tvEpisode) = CreateTvEpisode();
@@ -302,7 +318,7 @@ public class EpisodePublishServiceRules
             CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(EpisodePublishStatus.Failed);
+        result.Status.Should().Be(EpisodePublishStatus.NotFound);
         _tweeted.Should().BeNull();
         _shortnerWriteCalled.Should().BeFalse();
         _episodeSaveCalled.Should().BeFalse();
@@ -310,8 +326,8 @@ public class EpisodePublishServiceRules
     }
 
     [Fact(DisplayName =
-        "When neither a podcast episode nor a catalogue playable exists, then publish fails, because there is nothing to post.")]
-    public async Task missing_playable_fails()
+        "When neither a podcast episode nor a catalogue playable exists, then publish returns NotFound, because a missing id is a client error not a server fault.")]
+    public async Task missing_playable_not_found()
     {
         // Arrange
         var sut = _mocker.CreateInstance<EpisodePublishService>();
@@ -322,9 +338,129 @@ public class EpisodePublishServiceRules
             CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(EpisodePublishStatus.Failed);
+        result.Status.Should().Be(EpisodePublishStatus.NotFound);
         _episodeSaveCalled.Should().BeFalse();
         _tweeted.Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "When publishing via a kind route, then skip the podcast episode resolver, use the single-container catalogue resolve, and tweet the catalogue site link, because POST /film|newsreport|tvshowepisode/{id}/publish must only hit that kind's container.")]
+    [MemberData(nameof(CataloguePublishKinds))]
+    public async Task expected_kind_skips_podcast_resolver_and_uses_kind_resolve(ContentKind expectedKind)
+    {
+        // Arrange
+        var (playableId, resolution, expectedUrl) = ArrangeMatchingKind(expectedKind);
+        _kindCatalogueResolved = resolution;
+        var podcastCalls = 0;
+        _mocker.GetMock<IPodcastEpisodeResolver>()
+            .Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+            .Callback(() => podcastCalls++)
+            .ReturnsAsync(() => _podcastResolved);
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(
+                null, playableId, new EpisodePublishRequest { Tweet = true }, expectedKind),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodePublishStatus.Ok);
+        result.Outcome!.Tweeted.Should().BeTrue();
+        podcastCalls.Should().Be(0);
+        _kindCatalogueResolveCalls.Should().Be(1);
+        _threeWayCatalogueResolveCalls.Should().Be(0);
+        _tweetedUrl.Should().Be(expectedUrl);
+        _episodeSaveCalled.Should().BeFalse();
+        _shortnerWriteCalled.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "When a kind publish resolve returns a different catalogue ContentKind, then return NotFound without posting, because the kind route must not publish a different container (handler maps NotFound to HTTP 404).")]
+    [MemberData(nameof(CataloguePublishKinds))]
+    public async Task expected_kind_rejects_cross_kind_resolution(ContentKind expectedKind)
+    {
+        // Arrange — defensive mismatch: kind-scoped resolve wrongly returns another container
+        var wrongKind = expectedKind switch
+        {
+            ContentKind.Film => ContentKind.NewsReport,
+            ContentKind.NewsReport => ContentKind.TvShowEpisode,
+            _ => ContentKind.Film
+        };
+        var (_, wrongResolution, _) = ArrangeMatchingKind(wrongKind);
+        _kindCatalogueResolved = wrongResolution;
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(
+                null, wrongResolution.Projection.Episode.Id, new EpisodePublishRequest { Tweet = true },
+                expectedKind),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodePublishStatus.NotFound);
+        _tweeted.Should().BeNull();
+        _episodeSaveCalled.Should().BeFalse();
+        _kindCatalogueResolveCalls.Should().Be(1);
+        _threeWayCatalogueResolveCalls.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
+        "When a film kind publish does not find the id in the film container, then return NotFound without posting, because a wrong-container or missing id on a kind route is a client 404.")]
+    public async Task film_expected_kind_missing_in_container_not_found()
+    {
+        // Arrange
+        _kindCatalogueResolved = null;
+        _catalogueResolved = null;
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(
+                null, _fixture.CreateGuid(), new EpisodePublishRequest { Tweet = true }, ContentKind.Film),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodePublishStatus.NotFound);
+        _tweeted.Should().BeNull();
+        _kindCatalogueResolveCalls.Should().Be(1);
+        _threeWayCatalogueResolveCalls.Should().Be(0);
+    }
+
+    private (Guid PlayableId, CataloguePlayableResolution Resolution, Uri ExpectedUrl) ArrangeMatchingKind(
+        ContentKind kind)
+    {
+        switch (kind)
+        {
+            case ContentKind.Film:
+            {
+                var film = CreateFilm();
+                var projection = CatalogueParentKindMapper.ToPostProjection(film);
+                var resolution = new CataloguePlayableResolution(
+                    nameof(ContentKind.Film), projection, null, null, film.Name.Trim(), Removed: false);
+                return (film.Id, resolution, CataloguePlayableSiteLink.For(projection));
+            }
+            case ContentKind.NewsReport:
+            {
+                var (organisation, report) = CreateNewsReport();
+                var projection = CatalogueParentKindMapper.ToPostProjection(report, organisation);
+                var resolution = new CataloguePlayableResolution(
+                    nameof(ContentKind.NewsReport), projection, organisation.Id, organisation.Name,
+                    organisation.Name, Removed: false);
+                return (report.Id, resolution, CataloguePlayableSiteLink.For(projection));
+            }
+            case ContentKind.TvShowEpisode:
+            {
+                var (show, tvEpisode) = CreateTvEpisode();
+                var projection = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
+                var resolution = new CataloguePlayableResolution(
+                    nameof(ContentKind.TvShowEpisode), projection, show.Id, show.Name, show.Name, Removed: false);
+                return (tvEpisode.Id, resolution, CataloguePlayableSiteLink.For(projection));
+            }
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
+        }
     }
 
     private Film CreateFilm()

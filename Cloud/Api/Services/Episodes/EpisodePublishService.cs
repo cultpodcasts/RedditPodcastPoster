@@ -4,6 +4,7 @@ using Api.Resolvers;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Episodes;
@@ -30,14 +31,14 @@ public class EpisodePublishService(
     {
         try
         {
-            var resolved = await ResolvePlayable(publishRequest, cancellationToken);
-            if (resolved == null)
+            var resolveOutcome = await ResolvePlayable(publishRequest, cancellationToken);
+            if (resolveOutcome.ClientFailure is { } clientFailure)
             {
-                throw new ArgumentException($"Episode with id '{publishRequest.EpisodeId}' not found.");
+                return new EpisodePublishResult(clientFailure);
             }
 
-            var podcastEpisode = resolved.Value.PodcastEpisode;
-            var outcome = new EpisodePublishOutcome(resolved.Value.OutcomePodcastId);
+            var podcastEpisode = resolveOutcome.Value!.Value.PodcastEpisode;
+            var outcome = new EpisodePublishOutcome(resolveOutcome.Value.Value.OutcomePodcastId);
 
             if (publishRequest.EpisodePublishRequest.Post)
             {
@@ -166,12 +167,24 @@ public class EpisodePublishService(
     }
 
     /// <summary>
-    /// Podcast episode first; on miss, the same catalogue fallback as GET /episode/{id}.
+    /// Kind publish routes resolve catalogue only (single-container when <see cref="EpisodePublishRequestWrapper.ExpectedKind"/>
+    /// is set); guid-only is podcast episode first then three-way catalogue (same fallback as GET /episode/{id}).
+    /// Client resolve failures return <see cref="EpisodePublishStatus.NotFound"/> — not throw → Failed/500.
     /// </summary>
-    private async Task<(PodcastEpisode PodcastEpisode, Guid OutcomePodcastId)?> ResolvePlayable(
+    private async Task<PlayableResolveOutcome> ResolvePlayable(
         EpisodePublishRequestWrapper publishRequest,
         CancellationToken cancellationToken)
     {
+        if (publishRequest.ExpectedKind is ContentKind.Film
+            or ContentKind.NewsReport
+            or ContentKind.TvShowEpisode)
+        {
+            return await ResolveCataloguePlayable(
+                publishRequest.EpisodeId,
+                publishRequest.ExpectedKind.Value,
+                cancellationToken);
+        }
+
         var podcastEpisodeResolverResponse =
             await podcastEpisodeResolver.ResolvePodcast(publishRequest.ToPodcastEpisodeResolverRequest(),
                 nameof(PublishAsync));
@@ -181,30 +194,56 @@ public class EpisodePublishService(
             if (podcastEpisodeResolverResponse.Podcast == null ||
                 podcastEpisodeResolverResponse.Podcast.Removed == true)
             {
-                throw new ArgumentException(
-                    $"Podcast for episode-id '{publishRequest.EpisodeId}' not found or removed.");
+                return PlayableResolveOutcome.NotFound();
             }
 
-            return (
+            return PlayableResolveOutcome.Ok(
                 new PodcastEpisode(podcastEpisodeResolverResponse.Podcast, podcastEpisodeResolverResponse.Episode),
                 podcastEpisodeResolverResponse.Podcast.Id);
         }
 
-        var catalogue = await cataloguePlayableResolver.Resolve(publishRequest.EpisodeId, cancellationToken);
+        return await ResolveCataloguePlayable(publishRequest.EpisodeId, expectedKind: null, cancellationToken);
+    }
+
+    private async Task<PlayableResolveOutcome> ResolveCataloguePlayable(
+        Guid playableId,
+        ContentKind? expectedKind,
+        CancellationToken cancellationToken)
+    {
+        var catalogue = expectedKind is { } kind
+            ? await cataloguePlayableResolver.Resolve(playableId, kind, cancellationToken)
+            : await cataloguePlayableResolver.Resolve(playableId, cancellationToken);
         if (catalogue == null)
         {
-            return null;
+            return PlayableResolveOutcome.NotFound();
+        }
+
+        // Defensive: kind-scoped resolve should only return the expected container; still reject mismatch as 404.
+        if (expectedKind is { } expected &&
+            !string.Equals(catalogue.ContentKind, expected.ToString(), StringComparison.Ordinal))
+        {
+            return PlayableResolveOutcome.NotFound();
         }
 
         // Item-level Removed may still publish (then ClearIgnoredAndRemoved). Parent-removed blocks like a removed podcast.
         if (catalogue.ParentRemoved)
         {
-            throw new ArgumentException(
-                $"Catalogue playable '{publishRequest.EpisodeId}' ({catalogue.ContentKind}) parent is removed.");
+            return PlayableResolveOutcome.NotFound();
         }
 
         // Film has no parent: outcome id is the film id (projection podcast stand-in). News/TV use the parent.
         var outcomePodcastId = catalogue.ParentId ?? catalogue.Projection.Podcast.Id;
-        return (catalogue.Projection, outcomePodcastId);
+        return PlayableResolveOutcome.Ok(catalogue.Projection, outcomePodcastId);
+    }
+
+    private readonly record struct PlayableResolveOutcome(
+        EpisodePublishStatus? ClientFailure,
+        (PodcastEpisode PodcastEpisode, Guid OutcomePodcastId)? Value)
+    {
+        public static PlayableResolveOutcome Ok(PodcastEpisode podcastEpisode, Guid outcomePodcastId) =>
+            new(null, (podcastEpisode, outcomePodcastId));
+
+        public static PlayableResolveOutcome NotFound() =>
+            new(EpisodePublishStatus.NotFound, null);
     }
 }

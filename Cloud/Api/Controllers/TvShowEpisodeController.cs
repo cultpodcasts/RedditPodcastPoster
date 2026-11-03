@@ -6,15 +6,18 @@ using Api.Configuration;
 using Api;
 using Api.Dtos.Extensions;
 using Api.Factories;
+using Api.Handlers.Episodes;
 using Api.Handlers.TvShows;
 using Api.Models;
 using Azure.Diagnostics;
+using RedditPodcastPoster.Models.ContentKinds;
 
 namespace Api.Controllers;
 
 public class TvShowEpisodeController(
     IGetTvShowEpisodeHandler getTvShowEpisodeHandler,
     IPostTvShowEpisodeHandler postTvShowEpisodeHandler,
+    IPublishEpisodeHandler publishEpisodeHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<TvShowEpisodeController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -41,6 +44,22 @@ public class TvShowEpisodeController(
             ["curate"],
             new TvShowEpisodeChangeRequestWrapper(episodeId, change.ToModel()),
             postTvShowEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("TvShowEpisodePublish")]
+    public Task<HttpResponseData> Publish(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "tvshowepisode/{episodeId:guid}/publish")]
+        HttpRequestData req,
+        Guid episodeId,
+        [FromBody] Dtos.EpisodePublishRequest episodePostRequest,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["curate"],
+            new EpisodePublishRequestWrapper(
+                null, episodeId, episodePostRequest.ToModel(), ContentKind.TvShowEpisode),
+            publishEpisodeHandler.Handle,
             Unauthorised,
             ct);
 }
