@@ -922,4 +922,46 @@ public class CatalogueMatchScorerRules
             CatalogueMatchScorer.SingleSharedGuestPoints);
         CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
     }
+
+    [Fact(DisplayName =
+        "Duration, same-day release, and one name that is both a shared recognised guest and a shared subject " +
+        "award only the single guest tip (15), not guest plus subject (30), because one recognised name is one tip.")]
+    public void duration_same_day_shared_guest_also_subject_does_not_double_count()
+    {
+        // Arrange
+        var probeLength = TimeSpan.FromMinutes(47);
+        var catalogueLength = probeLength + TimeSpan.FromMinutes(2);
+        var release = DomainTestFixture.UtcDateDaysAgo(1);
+        const string person = "Gil Duran";
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = "Quarterly Harvest Ledger";
+            e.Description = $"Interview with {person} about books.";
+            e.Length = probeLength;
+            e.ReleaseUtc = release;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [person];
+            e.Guests = [person];
+        });
+        var catalogue = _fixture.CreateEpisode(e =>
+        {
+            e.Title = "Volcanic Origami Workshop";
+            e.Description = $"{person} joins the host.";
+            e.Length = catalogueLength;
+            e.ReleaseUtc = release;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [person];
+            e.Guests = [person];
+        });
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        score.Should().Be(
+            CatalogueMatchScorer.DurationWithinBandPoints +
+            CatalogueMatchScorer.SameCalendarDayReleasePoints +
+            CatalogueMatchScorer.SingleSharedGuestPoints);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
+    }
 }

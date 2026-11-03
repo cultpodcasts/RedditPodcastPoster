@@ -45,18 +45,12 @@ public sealed class CatalogueSubjectClassifier(
             return ignored;
         }
 
-        var descriptionRegex = DescriptionRegexTokens.Create(
-            lookup.DescriptionRegex,
-            lookup.Title,
-            lookup.PodcastName,
-            // Catalogue classify must strip multi-line footers; token-free patterns need Singleline-equivalent
-            // behaviour via [\s\S] in the pattern, and IgnoreCase for footer keywords.
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        ApplyDescriptionRegex(probe, descriptionRegex);
+        // Per-episode Create: {episode-title} expands from that row's title; token-free patterns use
+        // Podcast.DescriptionFlags (IgnoreCase | Singleline) so website presets with .* / \z strip like posting.
+        ApplyDescriptionRegex(probe, lookup.DescriptionRegex, lookup.PodcastName);
         foreach (var candidate in candidates)
         {
-            ApplyDescriptionRegex(candidate, descriptionRegex);
+            ApplyDescriptionRegex(candidate, lookup.DescriptionRegex, lookup.PodcastName);
         }
 
         var options = new SubjectEnrichmentOptions(
@@ -98,9 +92,19 @@ public sealed class CatalogueSubjectClassifier(
         return ignored;
     }
 
-    private void ApplyDescriptionRegex(Episode episode, System.Text.RegularExpressions.Regex? descriptionRegex)
+    private void ApplyDescriptionRegex(Episode episode, string? descriptionRegexPattern, string? podcastName)
     {
-        if (descriptionRegex == null || string.IsNullOrWhiteSpace(episode.Description))
+        if (string.IsNullOrWhiteSpace(descriptionRegexPattern) ||
+            string.IsNullOrWhiteSpace(episode.Description))
+        {
+            return;
+        }
+
+        var descriptionRegex = DescriptionRegexTokens.Create(
+            descriptionRegexPattern,
+            episode.Title,
+            podcastName);
+        if (descriptionRegex == null)
         {
             return;
         }
