@@ -24,6 +24,8 @@ public class PublishEpisodeHandler(
                 await ctx.Ok(result.Outcome!.ToDto(), c),
             EpisodePublishStatus.BadRequest =>
                 await ctx.BadRequest(result.Outcome!.ToDto(), c),
+            EpisodePublishStatus.NotFound =>
+                ctx.NotFound(),
             EpisodePublishStatus.Failed =>
                 ctx.InternalError(),
             _ => LogAndFail(ctx)
