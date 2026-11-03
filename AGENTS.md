@@ -102,8 +102,12 @@ available for the guardrail scripts.
   `Reddit.NET` (there is no `using Reddit;`). Do **not** re-add a `Third-Party/**` project or a solution
   reference to it. (Historical note: it was a maintainer fork never committed to git, so any solution
   reference to it breaks `dotnet restore` on a clean checkout.)
-- **`Discover.slnf` does not load on Linux**: it lists projects with Windows backslash paths, which the
-  slnx parser rejects. Build/test the full `RedditPodcastPoster.slnx` instead.
+- **`Discover.slnf`**: forward-slash paths only; every entry must exist in `RedditPodcastPoster.slnx`
+  (`pwsh ./scripts/assert-slnf.ps1`). Prefer full-solution build/test unless you need the filter.
+- **slnx membership**: every on-disk `*.csproj` under the repo root is in `RedditPodcastPoster.slnx`
+  except the documented allowlist (`films-refactor/**` — GATE 1 throwaway; generated `obj`/`bin`;
+  local `.tmp*` scratch). The assert walks the filesystem (`Get-ChildItem`), not `git ls-files`.
+  CI runs `assert-slnx-membership.ps1`.
 - **Build / test** (matches CI, no cloud services needed — unit tests are fully mocked):
   `dotnet build RedditPodcastPoster.slnx -c Release` then
   `dotnet test RedditPodcastPoster.slnx -c Release --no-build` (~1762 tests). The startup update script
