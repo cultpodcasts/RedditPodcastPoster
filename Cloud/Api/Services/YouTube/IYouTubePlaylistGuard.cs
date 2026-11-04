@@ -3,9 +3,15 @@ using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 namespace Api.Services.YouTube;
 
 /// <summary>
-/// Edit-time guard: a parent (podcast, news organisation, TV show) may not be saved with a malformed, missing or
-/// private YouTube playlist id. The playlist's owner channel is not compared with the parent's channel id: with a
-/// playlist, the playlist alone is the parent's YouTube source. See <see cref="IYouTubePlaylistValidator"/>.
+/// Edit-time guard for parent YouTube playlist / channel ids.
+/// <list type="bullet">
+/// <item>Playlist edits: refuse a malformed, missing or private playlist id. The playlist's owner channel is not
+/// compared with the parent's channel id — with a playlist, the playlist alone is the parent's YouTube source.</item>
+/// <item>Channel edits (podcast): when the parent already has a playlist, the requested channel must own that
+/// playlist, so discovery / URL routing identity matches the playlist owner. Clearing the channel, leaving it
+/// unchanged, or setting a channel with no playlist costs no quota.</item>
+/// </list>
+/// See <see cref="IYouTubePlaylistValidator"/>.
 /// </summary>
 public interface IYouTubePlaylistGuard
 {
@@ -17,5 +23,16 @@ public interface IYouTubePlaylistGuard
     Task<YouTubePlaylistValidation?> Check(
         string? currentPlaylistId,
         string? requestedPlaylistId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Null when the channel change may go ahead. Otherwise the refused validation (channel does not own the stored
+    /// playlist, playlist missing/malformed, or a retryable lookup failure). Only checks when the request sets the
+    /// channel id to a new non-blank value and a playlist is already stored.
+    /// </summary>
+    Task<YouTubePlaylistValidation?> CheckChannelAgainstPlaylist(
+        string? currentPlaylistId,
+        string? currentChannelId,
+        string? requestedChannelId,
         CancellationToken cancellationToken);
 }

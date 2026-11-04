@@ -64,15 +64,30 @@ public class PodcastUpdateService(
             if (await youTubePlaylistGuard.Check(
                     podcast.YouTubePlaylistId,
                     podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
-                    c) is { } refused)
+                    c) is { } refusedPlaylist)
             {
                 logger.LogWarning("{method}: podcast-id '{podcastId}' refused: {code}. {message}", nameof(UpdateAsync),
-                    podcastChangeRequestWrapper.PodcastId, refused.Code, refused.Message);
+                    podcastChangeRequestWrapper.PodcastId, refusedPlaylist.Code, refusedPlaylist.Message);
                 return new PodcastUpdateResult(
-                    refused.IsRetryable ? PodcastUpdateStatus.ServiceUnavailable : PodcastUpdateStatus.BadRequest,
+                    refusedPlaylist.IsRetryable ? PodcastUpdateStatus.ServiceUnavailable : PodcastUpdateStatus.BadRequest,
                     podcastChangeRequestWrapper.PodcastId,
-                    Error: refused.Message,
-                    Code: refused.Code);
+                    Error: refusedPlaylist.Message,
+                    Code: refusedPlaylist.Code);
+            }
+
+            if (await youTubePlaylistGuard.CheckChannelAgainstPlaylist(
+                    podcast.YouTubePlaylistId,
+                    podcast.YouTubeChannelId,
+                    podcastChangeRequestWrapper.Podcast.YouTubeChannelId,
+                    c) is { } refusedChannel)
+            {
+                logger.LogWarning("{method}: podcast-id '{podcastId}' refused: {code}. {message}", nameof(UpdateAsync),
+                    podcastChangeRequestWrapper.PodcastId, refusedChannel.Code, refusedChannel.Message);
+                return new PodcastUpdateResult(
+                    refusedChannel.IsRetryable ? PodcastUpdateStatus.ServiceUnavailable : PodcastUpdateStatus.BadRequest,
+                    podcastChangeRequestWrapper.PodcastId,
+                    Error: refusedChannel.Message,
+                    Code: refusedChannel.Code);
             }
 
             var previousPodcastLanguage = podcast.Language;

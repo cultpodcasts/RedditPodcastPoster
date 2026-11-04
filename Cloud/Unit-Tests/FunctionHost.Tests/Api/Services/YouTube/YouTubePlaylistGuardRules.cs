@@ -100,4 +100,76 @@ public class YouTubePlaylistGuardRules
         refused.IsRetryable.Should().Be(retryable);
         refused.Message.Should().Contain(OtherPlaylist);
     }
+
+    [Theory(DisplayName =
+        "A channel edit that leaves the channel as it is (absent, cleared, or re-sent unchanged) is not checked against the playlist.")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(OwnerChannel)]
+    [InlineData(" " + OwnerChannel + " ")]
+    public async Task unchanged_or_cleared_channel_is_not_checked(string? requestedChannel)
+    {
+        // Arrange
+        var guard = Guard();
+
+        // Act
+        var refused = await guard.CheckChannelAgainstPlaylist(Playlist, OwnerChannel, requestedChannel, CancellationToken.None);
+
+        // Assert
+        refused.Should().BeNull();
+        _validator.VerifyNoOtherCalls();
+    }
+
+    [Fact(DisplayName =
+        "A channel set on a parent with no playlist is allowed without a YouTube call, because the channel is the YouTube source on its own.")]
+    public async Task channel_without_playlist_is_not_checked()
+    {
+        // Arrange
+        var guard = Guard();
+
+        // Act
+        var refused = await guard.CheckChannelAgainstPlaylist(null, null, OtherChannel, CancellationToken.None);
+
+        // Assert
+        refused.Should().BeNull();
+        _validator.VerifyNoOtherCalls();
+    }
+
+    [Fact(DisplayName =
+        "A new channel that owns the stored playlist is allowed.")]
+    public async Task channel_owning_playlist_is_allowed()
+    {
+        // Arrange
+        ValidatorReturns(YouTubePlaylistValidationStatus.Valid, OwnerChannel);
+
+        // Act
+        var refused = await Guard().CheckChannelAgainstPlaylist(Playlist, null, $" {OwnerChannel} ", CancellationToken.None);
+
+        // Assert
+        refused.Should().BeNull();
+        _validator.Verify(v => v.Validate(Playlist, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A new channel that does not own the stored playlist is refused with youTubePlaylistChannelMismatch.")]
+    public async Task channel_not_owning_playlist_is_refused()
+    {
+        // Arrange
+        ValidatorReturns(YouTubePlaylistValidationStatus.Valid, OwnerChannel);
+
+        // Act
+        var refused = await Guard().CheckChannelAgainstPlaylist(Playlist, null, OtherChannel, CancellationToken.None);
+
+        // Assert
+        refused.Should().NotBeNull();
+        refused!.Status.Should().Be(YouTubePlaylistValidationStatus.ChannelMismatch);
+        refused.Code.Should().Be(YouTubePlaylistValidation.ChannelMismatchCode);
+        refused.OwnerChannelId.Should().Be(OwnerChannel);
+        refused.Message.Should().Contain(Playlist);
+        refused.Message.Should().Contain(OwnerChannel);
+    }
+
+    private const string OwnerChannel = "UCsyntheticownerchannel001";
+    private const string OtherChannel = "UCsyntheticotherchannel002";
 }

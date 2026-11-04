@@ -25,6 +25,51 @@ public class YouTubePlaylistGuard(IYouTubePlaylistValidator validator) : IYouTub
         return validation.IsAllowed ? null : validation;
     }
 
+    public async Task<YouTubePlaylistValidation?> CheckChannelAgainstPlaylist(
+        string? currentPlaylistId,
+        string? currentChannelId,
+        string? requestedChannelId,
+        CancellationToken cancellationToken)
+    {
+        if (requestedChannelId == null)
+        {
+            return null;
+        }
+
+        var channelId = Normalise(requestedChannelId);
+        if (channelId.Length == 0 ||
+            string.Equals(channelId, Normalise(currentChannelId), StringComparison.Ordinal))
+        {
+            // Clearing the channel, or re-sending the stored one, needs no check.
+            return null;
+        }
+
+        var playlistId = Normalise(currentPlaylistId);
+        if (playlistId.Length == 0)
+        {
+            // No playlist to own: channel is the YouTube source on its own.
+            return null;
+        }
+
+        var validation = await validator.Validate(playlistId, cancellationToken);
+        if (!validation.IsAllowed)
+        {
+            return validation;
+        }
+
+        if (string.IsNullOrWhiteSpace(validation.OwnerChannelId) ||
+            string.Equals(validation.OwnerChannelId, channelId, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return new YouTubePlaylistValidation(
+            YouTubePlaylistValidationStatus.ChannelMismatch,
+            playlistId,
+            validation.OwnerChannelId,
+            validation.OwnerChannelTitle);
+    }
+
     // Same rule as the appliers: whitespace clears, values are trimmed.
     private static string Normalise(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
 }
