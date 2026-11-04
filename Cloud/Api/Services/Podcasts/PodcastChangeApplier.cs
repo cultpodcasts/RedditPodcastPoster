@@ -112,6 +112,14 @@ public class PodcastChangeApplier(ILogger<PodcastChangeApplier> logger)
             }
         }
 
+        if (podcastChangeRequest.YouTubeChannelId != null)
+        {
+            // Trimmed; whitespace / "" clears to empty (Podcast stores empty, not null).
+            podcast.YouTubeChannelId = string.IsNullOrWhiteSpace(podcastChangeRequest.YouTubeChannelId)
+                ? string.Empty
+                : podcastChangeRequest.YouTubeChannelId.Trim();
+        }
+
         if (podcastChangeRequest.YouTubePlaylistId != null)
         {
             YouTubePlaylistIdChange.Apply(podcast, podcastChangeRequest.YouTubePlaylistId, logger);

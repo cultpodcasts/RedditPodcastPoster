@@ -5,8 +5,14 @@ public enum YouTubePlaylistValidationStatus
     /// <summary>No playlist id: nothing to check.</summary>
     NotApplicable,
 
-    /// <summary>The playlist exists. Any owner channel is accepted.</summary>
+    /// <summary>The playlist exists. Any owner channel is accepted for playlist edits.</summary>
     Valid,
+
+    /// <summary>
+    /// The playlist exists but its owner channel is not the channel id the curator is setting. Used when a channel
+    /// change is checked against a stored playlist (podcast edit); playlist edits themselves do not compare owners.
+    /// </summary>
+    ChannelMismatch,
 
     /// <summary>playlists.list returned nothing: the playlist does not exist or is private.</summary>
     PlaylistNotFound,
@@ -31,6 +37,7 @@ public record YouTubePlaylistValidation(
     public const string NotFoundCode = "youTubePlaylistNotFound";
     public const string LookupFailedCode = "youTubePlaylistLookupFailed";
     public const string InvalidIdCode = "youTubePlaylistIdInvalid";
+    public const string ChannelMismatchCode = "youTubePlaylistChannelMismatch";
 
     /// <summary>True when the id may be saved.</summary>
     public bool IsAllowed => Status is YouTubePlaylistValidationStatus.NotApplicable or YouTubePlaylistValidationStatus.Valid;
@@ -44,6 +51,7 @@ public record YouTubePlaylistValidation(
         YouTubePlaylistValidationStatus.PlaylistNotFound => NotFoundCode,
         YouTubePlaylistValidationStatus.LookupFailed => LookupFailedCode,
         YouTubePlaylistValidationStatus.InvalidPlaylistId => InvalidIdCode,
+        YouTubePlaylistValidationStatus.ChannelMismatch => ChannelMismatchCode,
         _ => null
     };
 
@@ -59,6 +67,8 @@ public record YouTubePlaylistValidation(
                 : ""),
         YouTubePlaylistValidationStatus.LookupFailed =>
             $"Could not check YouTube playlist '{PlaylistId}' (YouTube lookup failed). Nothing was saved; try again.",
+        YouTubePlaylistValidationStatus.ChannelMismatch =>
+            $"YouTube channel does not own playlist '{PlaylistId}' (playlist owner is '{OwnerChannelId}'). Nothing was saved.",
         _ => null
     };
 }
