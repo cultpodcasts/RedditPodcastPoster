@@ -4,15 +4,16 @@ description: >-
   Operator-led multi-system production rollout across website (Pages), Api
   Worker, and Azure Functions, with a watch-file Live status, in-step %, and
   human gates. Use when running a coordinated deploy, HITL backup, freeze,
-  soak, “start 0a/0b”, completing PRs vs script-deploying Functions, or when
-  the user says they are the operator and the agent must not skip Expect/check.
+  soak, “start 0a/0b”, completing PRs (Functions via Actions on merge) vs
+  fallback script-deploy, or when the user says they are the operator and the
+  agent must not skip Expect/check.
 ---
 
 # Multi-system deployment (operator)
 
 Human is the operator. Agent executes **only the named step**, then updates the **watch file** and **stops at HITL**. Do not treat “start the rollout” as permission to finish the train.
 
-This skill is the **procedure**. Always-on safety still lives in repo rules (`no-api-website-deploys`, production blob/request truth, secrets parity, episode writes). If the **live watch file** or the user’s freeze in this conversation conflicts with a runbook, **follow the freeze**.
+This skill is the **procedure**. Always-on safety still lives in repo rules (`no-api-website-deploys`, `production-deploy-truth`, production-execution-truth, secrets parity, episode writes). If the **live watch file** or the user’s freeze in this conversation conflicts with a runbook, **follow the freeze**.
 
 ## When to use
 
@@ -77,25 +78,26 @@ Never run Wrangler/Pages deploy CLIs unless the user names that exact deploy in 
 | --- | --- | --- |
 | **website** | **Complete** the website PR (Pages from git) | `npm run deploy` / `wrangler pages deploy` |
 | **Api Worker** | **Complete** the Api PR. Live is top-level Worker **`api`** | `wrangler deploy` / `npm run deploy`; `--env production` (`api-production` is the wrong Worker) |
-| **Functions** | `scripts/deploy-indexer.ps1` → `deploy-discover.ps1` → `deploy-api.ps1` with explicit Azure args + `-Confirm:$false` | Infer deploy from GitHub Actions; treat PR complete as Functions live |
+| **Functions** | **Complete** the Functions PR → `main` → Actions `deploy.yml`. Local `deploy-*.ps1` only as fallback / **deploy functions & clis** | Treat merge alone as live before `*-deploy` jobs succeed; run scripts just because a PR merged |
 | **CLIs** | `scripts/publish-console-apps.ps1` from the **freeze branch** → `artifacts/tools/` | PATH/`dotnet tool` exes from an older publish |
 
 **Merge is a release step, not paperwork.** Do not complete all three PRs “because they are one feature.” Order and “leave this PR open” come from the **watch file / user freeze**.
 
-If the freeze says **script-deploy Functions from the open branch** and **do not complete** the Functions PR through soak: do that even if an older runbook still says merge-then-deploy.
+If the freeze says **script-deploy Functions from the open branch** and **do not complete** the Functions PR through soak: do that even if the default path is merge-then-Actions.
 
-Phrase **deploy functions & clis** is full approval for the Functions+CLI script sequence (see `deploy-functions-and-clis` rule). It is **not** approval to complete PRs, publish feed, or run Wrangler.
+Phrase **deploy functions & clis** is full approval for the Functions+CLI **script** sequence (see `deploy-functions-and-clis` rule). It is **not** approval to complete PRs, publish feed, or run Wrangler.
 
 ## Production truth
 
 | Claim | Authoritative | Forbidden as go/no-go |
 | --- | --- | --- |
-| Functions version on prod | Deployment blob `lastModified` + restart near that time | GitHub Actions, Kudu, “PR merged” |
+| Functions version on prod (Actions) | Successful `deploy.yml` `*-deploy` job for the merge commit | Merge alone while Actions is still running; non-deploy Build workflow; Kudu alone |
+| Functions version on prod (script fallback) | Deployment blob `lastModified` + restart near that time | Unchanged blob after an Actions deploy (CI does not update that blob) |
 | Orchestration ran | App Insights **`AppRequests`** | `AppTraces` alone |
 | Feed/lookups live | R2 object / Worker GET bytes | CI green |
 | Cosmos shape | Raw document | Typed dump omitting leftover JSON fields |
 
-If blob was not checked this conversation: say **deploy time unknown — blob not checked**.
+If neither Actions run nor (for script path) blob was checked: say **deploy unconfirmed**.
 
 ## Backups
 

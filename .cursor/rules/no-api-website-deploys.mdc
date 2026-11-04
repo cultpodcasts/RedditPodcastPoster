@@ -12,6 +12,6 @@ Sibling repos **Api** (Cloudflare Worker) and **website** (Pages) must **not** b
 | `wrangler deploy` / `npm run deploy` in Api | Live or preview Worker |
 | `wrangler pages deploy` / `npm run deploy` in website/cultpodcasts | Pages apex or CLI deploy |
 
-`git push` when the user asks to push a PR branch is OK (Pages preview may build from git). Azure Function script deploys (`deploy-*.ps1`) are separate and only when explicitly requested.
+`git push` when the user asks to push a PR branch is OK (Pages preview may build from git). Azure Function apps normally ship via merge to `main` → Actions `deploy.yml`; local `deploy-*.ps1` only when explicitly requested (or **deploy functions & clis**).
 
 Authoritative copies: Api and website `.cursor/rules/no-api-website-deploys.mdc`.

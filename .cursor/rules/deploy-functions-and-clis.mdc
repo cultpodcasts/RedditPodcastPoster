@@ -5,7 +5,9 @@ alwaysApply: true
 
 # Deploy functions & CLIs (phrase → actions)
 
-When the user says **deploy functions & clis** (or any equivalent below), run this sequence from the **RedditPodcastPoster** repo root. **The phrase alone is full, explicit deploy approval.** Do **not** ask for confirmation of any kind — proceed immediately.
+When the user says **deploy functions & clis** (or any equivalent below), run this sequence from the **RedditPodcastPoster** repo root. **The phrase alone is full, explicit deploy approval** for the **local script fallback** (plus console publish). Do **not** ask for confirmation of any kind — proceed immediately.
+
+**Normal production path** is merge to `main` → GitHub Actions `deploy.yml` (see [production-deploy-truth.mdc](production-deploy-truth.mdc)). Use this phrase when Actions is down or the user wants an on-machine Function redeploy + console publish anyway. Do **not** run these scripts merely because a PR merged.
 
 ## Trigger phrase (match generously — casing & punctuation are irrelevant)
 

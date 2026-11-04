@@ -174,7 +174,7 @@ For each new provider you claim done:
 3. Prefer finishing **catalog-already-present** extractors (Paramount+, HBO Max, Play Suisse, TVNZ+) in parallel only if OG is easy; otherwise prioritize user-named UK + fawesome.
 4. For each chosen provider: add `StreamingService` enum member + attributes → library → DI → canonical cases → run unit tests; run live suite locally with skip env unset.
 5. If new catalog keys: mirror `website/.../service-catalog.ts` in the same change set or a sibling website PR; bump website `package.json` if that PR ships client code.
-6. Ask the user before production Functions deploy (`deploy-api.ps1`) or any Cosmos write.
+6. Ask the user before merging Functions to `main` (Actions auto-deploys) or any Cosmos write. Local `deploy-*.ps1` only if they name a script / interim deploy.
 
 **Workspace roots:**  
 `C:\Users\jonbr\source\repos\cultpodcasts\RedditPodcastPoster` (primary) · sibling `Api` · sibling `website`

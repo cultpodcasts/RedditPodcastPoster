@@ -6,7 +6,7 @@ Companion docs: [deploy plan + diagram](episode-services-deploy-plan.md) · [ris
 
 **Out of scope this exercise:** leftover JSON **strip** (`NeedsStrip`). Phase 3 leftover DTO retire is on this freeze branch. Do not combine with a language job.
 
-No new Worker secrets. Ignore GitHub Actions as a go/no-go.
+No new Worker secrets. For Functions go/no-go after merge: successful `deploy.yml` `*-deploy` jobs (see [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc)); do not treat merge alone as live while Actions is still running.
 
 ---
 
@@ -34,7 +34,7 @@ Three PRs, one branch name (`cursor/episode-service-links-18b4`):
 | --- | --- | --- | --- | --- |
 | 1 | **website** | #481 | After step 0 backups. Complete/merge **first**. Production site ships from that PR. | Before R2 snapshot exists |
 | 2 | **Api** (Worker) | #141 | After production site is live and step 1 checks pass. Complete/merge; production Worker ships from that PR (top-level `api`). | Before the new site is serving production |
-| 3 | **Functions** (this repo) | #966 | After Worker production is live and step 1 feed `GET` still matches leftover-field R2. Merge **last**. Then **script-deploy** `api-infra` / `indexer-infra` (PR complete does **not** deploy Functions). | Before site + Worker are in production |
+| 3 | **Functions** (this repo) | #966 | After Worker production is live and step 1 feed `GET` still matches leftover-field R2. Merge **last** (Actions `deploy.yml` ships Functions). Confirm `*-deploy` jobs succeeded before treating writers as live. | Before site + Worker are in production |
 
 **Why this order.** Merge to `main` is how this org ships. `deploy.yml` on the Functions repo can put writers live when Actions is healthy. If you merge Functions first, the next successful Functions deploy (CI or script) can publish a new-shape feed while production still runs the **old** site. Old site cannot read `ids`+`services` only.
 
@@ -43,7 +43,7 @@ Three PRs, one branch name (`cursor/episode-service-links-18b4`):
 - [ ] Do **not** merge all three “because they are one feature.” Merge is a release step, not a paperwork step.
 - [ ] Do **not** merge Functions to `main` “to keep the branch tidy” and then wait to deploy. Someone else, or CI, can deploy `main` without you.
 - [ ] Preview Worker may already be on the branch via Git. Production Worker is **completing Api PR #141**, not `wrangler deploy` from this agent.
-- [ ] Leave the Functions PR **open** until step 2. After merge, **script-deploy** Functions the same day (publish freeze). GitHub Actions is not go/no-go.
+- [ ] Leave the Functions PR **open** until step 2. After merge, confirm Actions `deploy.yml` succeeded the same day (publish freeze). Local `deploy-*.ps1` only if Actions is down.
 - [ ] A later Phase 3 / F4-fix PR is **not** part of this merge train. Merge that only after this rollout is done.
 
 **If you already merged Functions first**
@@ -184,8 +184,9 @@ dotnet run --project Console-Apps/PublishR2 -- lookups
 
 ## 2. Writers (Azure Functions) under publish freeze
 
-1. **Merge the Functions PR to `main` only now** (site + Worker already production).
-2. Same day, deploy code that **dual-writes** Cosmos and **would** emit new feed JSON if anyone publishes. Start/confirm the publish freeze before the deploy finishes.
+1. **Merge the Functions PR to `main` only now** (site + Worker already production). Actions `deploy.yml` ships the apps.
+2. Same day, confirm the deploy finished before treating writers as live. Code **dual-writes** Cosmos and **would** emit new feed JSON if anyone publishes. Start/confirm the publish freeze before the deploy finishes.
+3. **Fallback only** if Actions is down (or Jon names a script deploy):
 
 ```powershell
 az login
@@ -197,7 +198,7 @@ Deploy the third function app too if that host saves the same item type (shared 
 
 ### Checks (human)
 
-- [ ] `api-infra` / `indexer-infra` blob `lastModified` is **now** (this release)
+- [ ] `deploy.yml` `api-deploy` / `indexer-deploy` (and discover if needed) succeeded for the merge commit — or, for script fallback, blob `lastModified` is **now**
 - [ ] Function list still looks normal (`az functionapp function list -g AutomatedInfra -n api-infra -o table`)
 - [ ] **No** feed publish ran (R2 object timestamp / etag still matches backup A)
 - [ ] Pick one item you will **not** edit in the 7-day window. In Cosmos Data Explorer, open **raw JSON** (not a hydrated app view). Confirm `urls` still present. `services` / `ids` may be absent until that row is saved or backfilled — that is OK

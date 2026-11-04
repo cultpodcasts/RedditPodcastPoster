@@ -11,9 +11,11 @@ Workspace roots: `Api`, `website`, `cultpodcasts/RedditPodcastPoster`. Git for w
 | 7071 | Azure Functions API |
 | 4200 | Website `ng serve` |
 
-## Functions script-deploy
+## Functions deploy
 
-From RedditPodcastPoster, order is mandatory. Pass all four Azure args so the script is non-interactive:
+**Normal:** merge PR to `main` → Actions `deploy.yml` (`api-deploy` / `discover-deploy` / `indexer-deploy`). Prove with `gh run view` for that commit — see `production-deploy-truth.mdc`. Do not run local scripts merely because a PR merged.
+
+**Fallback script-deploy** (Actions down, or user says **deploy functions & clis** / names a script). Order is mandatory. Pass all four Azure args so the script is non-interactive:
 
 1. `scripts/deploy-indexer.ps1` → `indexer-infra` / `indexer-deployment`
 2. `scripts/deploy-discover.ps1` → `discover-infra` / `discovery-deployment`
@@ -23,7 +25,7 @@ Shared: `-ResourceGroup AutomatedInfra` `-StorageAccount cultpodcastsstg` `-Conf
 
 Resume mid-sequence from the **next** app; do not restart Indexer if it already succeeded this conversation.
 
-Blob truth (account `cultpodcastsstg`, blob `released-package.zip`):
+Script-path blob truth only (account `cultpodcastsstg`, blob `released-package.zip` — Actions `functions-action` does **not** update these):
 
 - indexer → container `indexer-deployment`
 - discover → `discovery-deployment`
