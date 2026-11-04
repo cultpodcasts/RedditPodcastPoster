@@ -1,21 +1,35 @@
 ---
-description: HARD GUARDRAIL — authoritative production deploy timestamps (Flex blob script deploys)
+description: HARD GUARDRAIL — how Function apps ship to prod and how to prove a release
 alwaysApply: true
 ---
 
 # Production deploy truth (HARD GUARDRAIL)
 
-**Production function apps are deployed by script** (`scripts/deploy-*.ps1` → blob upload + restart), not by GitHub Actions in normal operation. **Never infer deploy time from CI or Kudu.**
+**Normal path:** merge a PR into `main` → GitHub Actions **Provision and Deploy** ([`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)) builds and deploys `api-infra`, `discover-infra`, and `indexer-infra`. Do **not** offer or run local `scripts/deploy-*.ps1` after a merge unless Actions failed or the user asked for the fallback.
 
-## Before ANY claim about deploy timing, version on prod, or post-deploy behaviour
+**Fallback path:** local `scripts/deploy-*.ps1` (blob upload + restart) when Actions is unavailable, or when the user says **deploy functions & clis** / an explicit named script deploy. See [interim-deployment.md](../../docs/interim-deployment.md).
 
-1. **MUST** query the deployment blob `lastModified` (authoritative).
-2. **MUST** correlate with `Microsoft.Web/sites/restart/action` in the activity log within ~60s of that timestamp (script always restarts after upload).
-3. **MUST NOT** state or imply prod is stale/current based on sources listed below as **non-authoritative**.
+## After a PR merges to `main`
 
-If blob query was not run in this conversation, say **"deploy time unknown — blob not checked"** instead of guessing.
+1. Treat the merge as **deploy triggered**, not as proof the new code is live.
+2. **MUST** confirm the matching `deploy.yml` run for that commit finished with the relevant `*-deploy` jobs successful (`api-deploy` / `discover-deploy` / `indexer-deploy`).
+3. If the run is still in progress, say **"deploy in progress — Actions not finished"** — not "live" and not "failed".
+4. If the run failed, say **"deploy failed"** (cite the job) — do **not** assume prod has the merge; offer fallback scripts only if the user wants them.
+5. Do **not** recommend a manual Function deploy solely because a PR merged.
 
-## Authoritative source (ONLY)
+```powershell
+gh run list --repo cultpodcasts/RedditPodcastPoster --workflow=deploy.yml --branch main --limit 5
+gh run view <run-id> --repo cultpodcasts/RedditPodcastPoster --json conclusion,status,jobs,headSha,url
+```
+
+## Authoritative: is this commit on prod?
+
+| Deploy path | Authoritative evidence |
+|-------------|------------------------|
+| **Actions (normal)** | `deploy.yml` run for the merge commit: status success, and the app’s `*-deploy` job success |
+| **Local script (fallback)** | Deployment blob `lastModified` + matching `Microsoft.Web/sites/restart/action` within ~60s |
+
+### Script-fallback blob check (only when that path was used)
 
 | App | Storage account | Container | Blob |
 |-----|-----------------|-----------|------|
@@ -24,31 +38,35 @@ If blob query was not run in this conversation, say **"deploy time unknown — b
 | `api-infra` | `cultpodcastsstg` | `api-deployment` | `released-package.zip` |
 
 ```powershell
-az storage blob show --account-name cultpodcastsstg --container-name indexer-deployment --name released-package.zip --auth-mode login --query properties.lastModified -o tsv
+az storage blob show --account-name cultpodcastsstg --container-name api-deployment --name released-package.zip --auth-mode login --query properties.lastModified -o tsv
 
-az monitor activity-log list --resource-group AutomatedInfra --start-time <blobTime-2m> --end-time <blobTime+2m> --query "[?contains(resourceId,'indexer-infra') && contains(operationName.value,'restart')].eventTimestamp" -o tsv
+az monitor activity-log list --resource-group AutomatedInfra --start-time <blobTime-2m> --end-time <blobTime+2m> --query "[?contains(resourceId,'api-infra') && contains(operationName.value,'restart')].eventTimestamp" -o tsv
 ```
 
-**Deploy timestamp = blob `lastModified` UTC.** Restart alone (no blob change) is **not** a code release.
+`Azure/functions-action` (CI) does **not** use these blobs. Do **not** require a blob check to prove an Actions deploy, and do **not** treat an unchanged blob as “Actions did not deploy.”
 
-## FORBIDDEN as deploy evidence (do not use for recommendations)
+## FORBIDDEN as sole deploy evidence
 
-- `az webapp log deployment list` / Kudu deployment history
-- GitHub **Build** or **Provision and Deploy** workflow success/failure
-- `az functionapp deployment list` or SCM site deploy APIs
-- Assumption that "last commit" or "PR merged" equals prod deploy
-- Host restarts with **no** matching blob upload (may be manual restart or platform recycle)
+| Source | Why unsafe alone |
+|--------|------------------|
+| PR merged / commit on `main` | Triggers Actions; does not wait for jobs |
+| GitHub **Build** workflow (non-deploy CI) | Build ≠ Provision and Deploy |
+| `az webapp log deployment list` / Kudu history | Unreliable vs Actions or script truth |
+| Host restart with no Actions success and no blob change | Platform recycle ≠ release |
+| Unchanged `released-package.zip` after an Actions deploy | CI path does not update that blob |
 
 ## Restart vs release
 
 | Signal | Meaning |
 |--------|---------|
+| `deploy.yml` `*-deploy` job success for the commit | **Actions code release** for that app |
 | Blob `lastModified` changed + restart ~same time | **Script code release** |
-| Restart only, blob unchanged | **Not** a code release — do not blame "deploy" for missed timers |
-| No blob check performed | **Unknown** — do not recommend "deploy the fix" without verifying blob age |
+| Restart only, no Actions success, blob unchanged | **Not** a code release |
+| Merge only, Actions still running | **Unconfirmed** — wait |
+| No Actions check and no blob check | **Unknown** — do not claim live/stale |
 
 ## Post-deploy verification
 
-After stating deploy time from blob, verify behaviour using **`AppRequests` first** (see [production-execution-truth.mdc](production-execution-truth.mdc)) — not whether CI passed.
+After stating a release landed, verify behaviour using **`AppRequests` first** (see [production-execution-truth.mdc](production-execution-truth.mdc)) — not merely that CI was green.
 
-See also: [docs/deployment.md](../../docs/deployment.md) § "When was prod last deployed?"
+See also: [docs/deployment.md](../../docs/deployment.md) § deploy path / “When was prod last deployed?”

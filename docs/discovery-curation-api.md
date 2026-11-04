@@ -648,7 +648,7 @@ No score columns → fall back to release-date sort (API still applies nulls-las
 
 ## Related backend docs
 
-- [interim-deployment.md](interim-deployment.md) — deploying API + discover function when CI is inactive
+- [interim-deployment.md](interim-deployment.md) — local Function deploy fallback when Actions is unavailable
 - [discovery-backfill.md](discovery-backfill.md) — local `Discover.exe` CLI (not this API)
 
 ## Source files (for agents patching the API)

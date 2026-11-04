@@ -37,7 +37,13 @@ Target apps (resource group `AutomatedInfra`):
 
 Bicep configures Flex Consumption (`FC1`) with `functionAppConfig.deployment.storage.type: blobContainer` pointing at `cultpodcastsstg/<container>`. CI's `functions-action` uploads and activates on Linux; local Windows mirrors the same outcome via blob upload + restart.
 
-## Single command
+## Production path (normal)
+
+Merge to `main` → **Provision and Deploy** (`deploy.yml`) auto-deploys `api-infra`, `discover-infra`, and `indexer-infra`. Agents must not run local Function deploy scripts merely because a PR merged. Prove the release with a successful `deploy.yml` run (see [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc)).
+
+## Fallback — local single commands
+
+Use only when Actions is unavailable, or the user explicitly asks for script deploy / **deploy functions & clis**:
 
 ```powershell
 az login
@@ -92,11 +98,11 @@ Local deploy scripts are **code-only**. App settings come from bicep ([`Infrastr
 
 ### Provision before code (required Cosmos settings)
 
-`CosmosDbSettingsValidator` fails host start (`OptionsValidationException` / exit 134) when any required `cosmosdb__*` container key is missing. Local `deploy-*.ps1` uploads code and restarts — it **never** applies app settings. When `CosmosDbSettings` / `functions.bicep` gain new required keys, provision **before** code deploy:
+`CosmosDbSettingsValidator` fails host start (`OptionsValidationException` / exit 134) when any required `cosmosdb__*` container key is missing. Code deploys (Actions or local scripts) **never** apply app settings. When `CosmosDbSettings` / `functions.bicep` gain new required keys, provision **before** shipping code:
 
 1. Apply Cosmos containers (`Infrastructure/cosmos-db.bicep`) when new containers are approved.
 2. Apply / re-provision `Infrastructure/functions.bicep` (or manually set the keys on `indexer-infra`, `discover-infra`, and `api-infra`) so app settings match the validator.
-3. Only then run `deploy-indexer.ps1` / `deploy-discover.ps1` / `deploy-api.ps1`.
+3. Only then merge to `main` (Actions deploy) — or, as fallback, run `deploy-indexer.ps1` / `deploy-discover.ps1` / `deploy-api.ps1`.
 
 **Catalogue content types (Phase 1) — five new required keys** (also in `functions.bicep` `cosmosdb` object):
 
@@ -201,13 +207,13 @@ Enforced in [`.cursor/rules/deployment.mdc`](../.cursor/rules/deployment.mdc) (a
 
 1. **Never delete or rename `scripts/deploy-*.ps1`** without explicit user approval. User-facing entry points: `deploy-api.ps1`, `deploy-discover.ps1`, `deploy-indexer.ps1` → internal `deploy-function-local.ps1`.
 2. **Do not change the deployment mechanism** (OneDeploy modes, blob upload flow, app settings, Kudu/SAS polling) unless the user explicitly asks.
-3. **Do not deploy to production** unless the user explicitly asks.
+3. **Do not run local Function deploy scripts** unless the user explicitly asks (or says **deploy functions & clis**). Merging to `main` is the normal production ship path via Actions.
 4. **Prefer CI** — push to `main` and let `deploy.yml` run when Actions billing is healthy.
 5. **Compare to `deploy.yml` and bicep first** — local script changes must be justified as "CI equivalent on Windows", not "new Azure integration".
 6. **Never modify app settings** during code deploy.
 7. **Read this file** before editing `scripts/`.
 8. **Document** script changes here when behaviour changes.
-9. **Production deploy truth** — before stating when prod was last released, query blob `lastModified` per [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc). Never infer from Kudu deploy history or GitHub Build status.
+9. **Production deploy truth** — before stating when prod was last released, use [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc): successful `deploy.yml` for Actions releases, or blob `lastModified` for script fallback. Never infer from Kudu alone or from a non-deploy Build workflow.
 10. **Production execution truth** — before stating a scheduled run succeeded/failed/missed, query `AppRequests` per [production-execution-truth.mdc](../.cursor/rules/production-execution-truth.mdc). Never verdict from `AppTraces` or host-startup logs alone.
 
 ### June 2026 session incident
@@ -239,7 +245,24 @@ Signing keys are loaded at process start — restart after flipping the switch.
 
 **Agents MUST use this before claiming prod is stale, current, or that a fix is/isn't live.**
 
-Script deploys (`deploy-*.ps1`) upload `released-package.zip` to `cultpodcastsstg` and restart the app. **Blob `lastModified` is the only authoritative release timestamp.**
+### Normal path (Actions)
+
+Merge to `main` triggers **Provision and Deploy** ([`deploy.yml`](../.github/workflows/deploy.yml)). That workflow deploys via `Azure/functions-action` to `api-infra`, `discover-infra`, and `indexer-infra`.
+
+**Authoritative for Actions releases:** the `deploy.yml` run for the merge commit succeeded, including the app’s `*-deploy` job (`api-deploy` / `discover-deploy` / `indexer-deploy`).
+
+```powershell
+gh run list --repo cultpodcasts/RedditPodcastPoster --workflow=deploy.yml --branch main --limit 5
+gh run view <run-id> --repo cultpodcasts/RedditPodcastPoster --json conclusion,status,jobs,headSha,url
+```
+
+Merge alone = deploy **triggered**, not yet proof of live code. In-progress run → say unconfirmed; failed job → not live (fallback scripts only if requested).
+
+### Fallback path (local scripts)
+
+When Actions is unavailable, or the user explicitly asks for script deploy / **deploy functions & clis**, `deploy-*.ps1` uploads `released-package.zip` to `cultpodcastsstg` and restarts the app. See [interim-deployment.md](interim-deployment.md).
+
+**Authoritative for script releases:** blob `lastModified` + matching restart within ~60s.
 
 | App | Container |
 |-----|-----------|
@@ -255,26 +278,16 @@ az storage blob show --account-name cultpodcastsstg --container-name indexer-dep
 az monitor activity-log list --resource-group AutomatedInfra --start-time 2026-07-07T15:09:00Z --end-time 2026-07-07T15:14:00Z --query "[?contains(resourceId,'indexer-infra') && contains(operationName.value,'restart')].eventTimestamp" -o tsv
 ```
 
-**Not authoritative for script deploys (never use alone):**
+CI `functions-action` deploys do **not** update these blobs — an unchanged blob after an Actions deploy does not mean prod is stale.
+
+**Never use alone:**
 
 - `az webapp log deployment list` / Kudu deploy history
-- GitHub **Build** or **deploy.yml** run success/failure
-- Git commit time, PR merge, or "branch pushed"
-- `az functionapp restart` without a matching blob upload (restart ≠ release)
+- Non-deploy GitHub **Build** workflow success
+- Git commit time or PR merge without a successful `deploy.yml` (or script blob proof)
+- `az functionapp restart` without Actions success or a matching blob upload
 
 Cursor rule: [`.cursor/rules/production-deploy-truth.mdc`](../.cursor/rules/production-deploy-truth.mdc) (`alwaysApply: true`).
-
-## CI status check
-
-**CI status is not production deploy truth** when you deploy by script. Use blob timestamps above for "what is on prod."
-
-GitHub Actions is relevant only when `deploy.yml` is the active deploy path:
-
-```powershell
-gh run list --workflow=deploy.yml --limit 3
-```
-
-As of 2026-06-11, recent `deploy.yml` runs failed with **GitHub Actions billing lock** — use [interim-deployment.md](interim-deployment.md) and script deploys instead.
 
 ## Backfill (separate)
 

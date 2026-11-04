@@ -12,18 +12,19 @@ Commands are PowerShell from the RedditPodcastPoster repo root on Jon's machine,
 - [ ] Website and Api Worker follow-ups, listed in the PR description (consumer audit).
 - [ ] Decide on indexing and social posting for migrated parents (see "Decisions" in the PR).
 
-## B. Deploy (only when the human names each deploy)
+## B. Deploy (only when the human names each step)
+
+Function apps ship by **merging to `main`** (Actions `deploy.yml`). Local `deploy-*.ps1` is fallback only if Actions is down or Jon names a script deploy. Consoles are **not** in CI — publish them when named:
 
 ```powershell
 git switch main; git pull
 dotnet build RedditPodcastPoster.slnx -c Release
 .\scripts\publish-console-apps.ps1 -App CatalogueMigrate,CatalogueMigrateIdentify,CosmosDbDownloader,CultPodcasts.DatabasePublisher
-.\scripts\deploy-indexer.ps1
-.\scripts\deploy-discover.ps1
-.\scripts\deploy-api.ps1
+# Fallback only if Actions unavailable:
+# .\scripts\deploy-indexer.ps1; .\scripts\deploy-discover.ps1; .\scripts\deploy-api.ps1
 ```
 
-Check: `CatalogueMigrate --version` shows the merged commit.
+Check: `CatalogueMigrate --version` shows the merged commit; confirm `deploy.yml` succeeded for the Function apps (or blob proof if scripts were used).
 
 - [ ] PR #1050 merged and the Indexer deployed **before any `--apply`** (section E).
 

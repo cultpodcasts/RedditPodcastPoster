@@ -1,5 +1,7 @@
 # Episode services Phase 3 — retire leftover members
 
+> **Historical (Aug 2026).** “Named Indexer script-deploy” / blob-as-truth language below is from that freeze. **Current** Function shipping: merge → Actions — [deployment.md](deployment.md), [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc).
+
 Phases 0–2 (Functions dual-write deploy + Cosmos catalog backfill + search `svc`) are **done**. This file is the operator plan for leftover DTO retire. It is **not** approval to merge [#966](https://github.com/cultpodcasts/RedditPodcastPoster/pull/966), deploy Wrangler/Pages, recreate search, or run a strip `--apply`.
 
 Watch file: [episode-services-deploy-plan.md](episode-services-deploy-plan.md). Full-document `Save()` still withers leftover JSON keys: [episode-services-risk.md](episode-services-risk.md) D1 / D8.

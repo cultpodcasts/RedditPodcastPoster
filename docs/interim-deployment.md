@@ -1,8 +1,8 @@
-# Interim deployment (GitHub Actions inactive)
+# Interim deployment (GitHub Actions unavailable)
 
-Use this guide when [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) is not running (e.g. Actions billing lock). PowerShell scripts under `scripts/` mirror **parts** of the CI pipeline and bicep provisioning so you can deploy from a developer machine with `az login`.
+**Normal production path** is merge to `main` → [`deploy.yml`](../.github/workflows/deploy.yml). Use this guide only when that workflow is not running (billing lock, Actions outage, or an explicit local/script redeploy). PowerShell scripts under `scripts/` mirror **parts** of the CI pipeline and bicep provisioning so you can deploy from a developer machine with `az login`.
 
-**Canonical reference when CI is healthy:** [deployment.md](deployment.md) and `deploy.yml`.
+**Canonical reference when CI is healthy:** [deployment.md](deployment.md), [`production-deploy-truth.mdc`](../.cursor/rules/production-deploy-truth.mdc), and `deploy.yml`.
 
 ## CI job map → local scripts
 
