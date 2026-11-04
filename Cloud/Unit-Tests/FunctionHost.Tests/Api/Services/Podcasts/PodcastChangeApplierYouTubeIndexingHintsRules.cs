@@ -57,9 +57,7 @@ public class PodcastChangeApplierYouTubeIndexingHintsRules
         podcast.YouTubePlaylistId = newPlaylistId;
         podcast.YouTubeIndexingHints = new YouTubeIndexingHints
         {
-            PlaylistId = oldPlaylistId,
-            LastFullWalk = DomainTestFixture.UtcDaysAgo(1),
-            PlaylistItemCount = 90
+            PlaylistId = oldPlaylistId
         };
 
         // Act

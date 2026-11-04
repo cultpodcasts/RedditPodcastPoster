@@ -582,9 +582,7 @@ public class ServiceIdsRules
             YouTubePlaylistId = newPlaylistId,
             YouTubeIndexingHints = new YouTubeIndexingHints
             {
-                PlaylistId = oldPlaylistId,
-                LastFullWalk = DomainTestFixture.UtcDaysAgo(2),
-                PlaylistItemCount = 55
+                PlaylistId = oldPlaylistId
             }
         });
 
