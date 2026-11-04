@@ -79,7 +79,7 @@ public class CatalogueParentIndexService(
             switch (result.Status)
             {
                 case CatalogueParentIndexStatus.Indexed:
-                    var search = await searchSync.AfterIndex(entity.Name, result.Changed, cancellationToken);
+                    var search = await searchSync.AfterIndex(entity, result.Changed, cancellationToken);
                     return new CatalogueIndexResult(CatalogueIndexStatus.Ok,
                         result.Changed.Select(x => x.Id).ToArray(), search);
                 case CatalogueParentIndexStatus.NotIndexable:
