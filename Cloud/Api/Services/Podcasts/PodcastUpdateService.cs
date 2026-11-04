@@ -77,6 +77,7 @@ public class PodcastUpdateService(
 
             if (await youTubePlaylistGuard.CheckChannelAgainstPlaylist(
                     podcast.YouTubePlaylistId,
+                    podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
                     podcast.YouTubeChannelId,
                     podcastChangeRequestWrapper.Podcast.YouTubeChannelId,
                     c) is { } refusedChannel)

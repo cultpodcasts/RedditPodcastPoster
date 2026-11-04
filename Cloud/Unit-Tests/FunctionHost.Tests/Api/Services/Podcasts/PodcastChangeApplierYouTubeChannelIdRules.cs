@@ -34,13 +34,16 @@ public class PodcastChangeApplierYouTubeChannelIdRules
         podcast.YouTubeChannelId.Should().Be(channelId);
     }
 
-    [Fact(DisplayName =
-        "Podcast PATCH youTubeChannelId \"\" or whitespace clears the stored channel to empty, matching SpotifyId clear semantics on Podcast.")]
-    public void empty_or_whitespace_clears_youtube_channel_id()
+    [Theory(DisplayName =
+        "Podcast PATCH youTubeChannelId \"\" or whitespace clears the stored channel to empty after trim (Podcast stores empty, not null).")]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("\t")]
+    public void empty_or_whitespace_clears_youtube_channel_id(string clearValue)
     {
         // Arrange
         var podcast = _fixture.CreatePodcast(p => p.YouTubeChannelId = _fixture.CreateYouTubeChannelId());
-        var request = new PodcastChangeRequest { YouTubeChannelId = "   " };
+        var request = new PodcastChangeRequest { YouTubeChannelId = clearValue };
 
         // Act
         _applier.Apply(podcast, request);

@@ -8,8 +8,9 @@ namespace FunctionHost.Tests.Api.Services.YouTube;
 
 /// <summary>
 /// Edits check the playlist only when the request sets it to a new value, so unrelated edits to a parent with existing
-/// (pre-guard) bad data are not blocked, and no YouTube quota is spent on them. The playlist's owner channel is never
-/// compared with the parent's channel id.
+/// (pre-guard) bad data are not blocked, and no YouTube quota is spent on them. Playlist edits ignore the owner's
+/// channel id. Channel edits (when a playlist remains after the request) require the requested channel to own that
+/// post-request playlist.
 /// </summary>
 public class YouTubePlaylistGuardRules
 {
@@ -114,7 +115,8 @@ public class YouTubePlaylistGuardRules
         var guard = Guard();
 
         // Act
-        var refused = await guard.CheckChannelAgainstPlaylist(Playlist, OwnerChannel, requestedChannel, CancellationToken.None);
+        var refused = await guard.CheckChannelAgainstPlaylist(
+            Playlist, null, OwnerChannel, requestedChannel, CancellationToken.None);
 
         // Assert
         refused.Should().BeNull();
@@ -129,11 +131,47 @@ public class YouTubePlaylistGuardRules
         var guard = Guard();
 
         // Act
-        var refused = await guard.CheckChannelAgainstPlaylist(null, null, OtherChannel, CancellationToken.None);
+        var refused = await guard.CheckChannelAgainstPlaylist(
+            null, null, null, OtherChannel, CancellationToken.None);
 
         // Assert
         refused.Should().BeNull();
         _validator.VerifyNoOtherCalls();
+    }
+
+    [Theory(DisplayName =
+        "Clearing the playlist in the same request as setting a channel skips the ownership check, because post-apply the channel is the sole YouTube source.")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task clear_playlist_with_channel_skips_check(string requestedPlaylist)
+    {
+        // Arrange
+        var guard = Guard();
+
+        // Act
+        var refused = await guard.CheckChannelAgainstPlaylist(
+            Playlist, requestedPlaylist, null, OtherChannel, CancellationToken.None);
+
+        // Assert
+        refused.Should().BeNull();
+        _validator.VerifyNoOtherCalls();
+    }
+
+    [Fact(DisplayName =
+        "A new channel is checked against a playlist replaced in the same request, not the stored playlist.")]
+    public async Task channel_checked_against_requested_playlist()
+    {
+        // Arrange
+        ValidatorReturns(YouTubePlaylistValidationStatus.Valid, OwnerChannel);
+
+        // Act
+        var refused = await Guard().CheckChannelAgainstPlaylist(
+            Playlist, OtherPlaylist, null, OwnerChannel, CancellationToken.None);
+
+        // Assert
+        refused.Should().BeNull();
+        _validator.Verify(v => v.Validate(OtherPlaylist, It.IsAny<CancellationToken>()), Times.Once);
+        _validator.Verify(v => v.Validate(Playlist, It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -144,7 +182,8 @@ public class YouTubePlaylistGuardRules
         ValidatorReturns(YouTubePlaylistValidationStatus.Valid, OwnerChannel);
 
         // Act
-        var refused = await Guard().CheckChannelAgainstPlaylist(Playlist, null, $" {OwnerChannel} ", CancellationToken.None);
+        var refused = await Guard().CheckChannelAgainstPlaylist(
+            Playlist, null, null, $" {OwnerChannel} ", CancellationToken.None);
 
         // Assert
         refused.Should().BeNull();
@@ -159,7 +198,8 @@ public class YouTubePlaylistGuardRules
         ValidatorReturns(YouTubePlaylistValidationStatus.Valid, OwnerChannel);
 
         // Act
-        var refused = await Guard().CheckChannelAgainstPlaylist(Playlist, null, OtherChannel, CancellationToken.None);
+        var refused = await Guard().CheckChannelAgainstPlaylist(
+            Playlist, null, null, OtherChannel, CancellationToken.None);
 
         // Assert
         refused.Should().NotBeNull();
@@ -168,6 +208,28 @@ public class YouTubePlaylistGuardRules
         refused.OwnerChannelId.Should().Be(OwnerChannel);
         refused.Message.Should().Contain(Playlist);
         refused.Message.Should().Contain(OwnerChannel);
+    }
+
+    [Theory(DisplayName =
+        "A Valid playlist lookup with a blank owner channel is refused as youTubePlaylistLookupFailed, so ownership does not fail-open.")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task valid_playlist_with_blank_owner_is_refused(string? ownerChannelId)
+    {
+        // Arrange
+        ValidatorReturns(YouTubePlaylistValidationStatus.Valid, ownerChannelId);
+
+        // Act
+        var refused = await Guard().CheckChannelAgainstPlaylist(
+            Playlist, null, null, OtherChannel, CancellationToken.None);
+
+        // Assert
+        refused.Should().NotBeNull();
+        refused!.Status.Should().Be(YouTubePlaylistValidationStatus.LookupFailed);
+        refused.Code.Should().Be(YouTubePlaylistValidation.LookupFailedCode);
+        refused.IsRetryable.Should().BeTrue();
+        refused.IsAllowed.Should().BeFalse();
     }
 
     private const string OwnerChannel = "UCsyntheticownerchannel001";

@@ -27,6 +27,7 @@ public class YouTubePlaylistGuard(IYouTubePlaylistValidator validator) : IYouTub
 
     public async Task<YouTubePlaylistValidation?> CheckChannelAgainstPlaylist(
         string? currentPlaylistId,
+        string? requestedPlaylistId,
         string? currentChannelId,
         string? requestedChannelId,
         CancellationToken cancellationToken)
@@ -44,10 +45,13 @@ public class YouTubePlaylistGuard(IYouTubePlaylistValidator validator) : IYouTub
             return null;
         }
 
-        var playlistId = Normalise(currentPlaylistId);
+        // Post-request playlist: request clears → skip; request sets new id → that id; else stored.
+        var playlistId = requestedPlaylistId != null
+            ? Normalise(requestedPlaylistId)
+            : Normalise(currentPlaylistId);
         if (playlistId.Length == 0)
         {
-            // No playlist to own: channel is the YouTube source on its own.
+            // No playlist remains: channel is the YouTube source on its own.
             return null;
         }
 
@@ -57,8 +61,15 @@ public class YouTubePlaylistGuard(IYouTubePlaylistValidator validator) : IYouTub
             return validation;
         }
 
-        if (string.IsNullOrWhiteSpace(validation.OwnerChannelId) ||
-            string.Equals(validation.OwnerChannelId, channelId, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(validation.OwnerChannelId))
+        {
+            // Valid without an owner fail-opens the ownership gate — refuse as retryable lookup failure.
+            return new YouTubePlaylistValidation(
+                YouTubePlaylistValidationStatus.LookupFailed,
+                playlistId);
+        }
+
+        if (string.Equals(validation.OwnerChannelId, channelId, StringComparison.Ordinal))
         {
             return null;
         }
