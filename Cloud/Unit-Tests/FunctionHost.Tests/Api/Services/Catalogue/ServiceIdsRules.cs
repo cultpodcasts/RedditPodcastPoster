@@ -570,6 +570,32 @@ public class ServiceIdsRules
     }
 
     [Fact(DisplayName =
+        "GET news organisation returns null youTubeIndexingHints when stored hints name a previous playlist after a swap, " +
+        "while the indexing member keeps those hints, because null means the next pass will full-walk.")]
+    public void get_nulls_youtube_indexing_hints_when_playlist_mismatched()
+    {
+        // Arrange
+        var oldPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var newPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var organisation = Organisation(new CatalogueIndexingSource
+        {
+            YouTubePlaylistId = newPlaylistId,
+            YouTubeIndexingHints = new YouTubeIndexingHints
+            {
+                PlaylistId = oldPlaylistId
+            }
+        });
+
+        // Act
+        var dto = organisation.ToDto();
+
+        // Assert
+        organisation.Indexing!.YouTubeIndexingHints.Should().NotBeNull();
+        organisation.Indexing.YouTubeIndexingHints!.PlaylistId.Should().Be(oldPlaylistId);
+        dto.YouTubeIndexingHints.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "PATCH clearYouTubeIndexingHints true on a news organisation removes only indexing.youTubeIndexingHints and leaves other indexing fields.")]
     public async Task clear_youtube_indexing_hints()
     {
