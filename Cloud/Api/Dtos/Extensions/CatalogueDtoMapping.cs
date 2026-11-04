@@ -13,6 +13,7 @@ public static class CatalogueDtoMapping
         dto.YouTubeChannelId = indexing?.YouTubeChannelId ?? "";
         dto.YouTubePlaylistId = indexing?.YouTubePlaylistId ?? "";
         dto.YouTubePlaylistIdHistory = indexing?.YouTubePlaylistIdHistory?.ToArray();
+        dto.YouTubeIndexingHints = indexing?.YouTubeIndexingHints?.Copy();
         dto.SpotifyId = indexing?.SpotifyId ?? "";
         dto.AppleId = indexing?.AppleId;
         dto.IndexAllEpisodes = indexing?.IndexAllEpisodes ?? false;

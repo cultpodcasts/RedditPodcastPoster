@@ -7,6 +7,7 @@ public abstract class ServiceIdsChange : PublisherFieldsChange
 {
     public string? YouTubeChannelId { get; set; }
     public string? YouTubePlaylistId { get; set; }
+    public bool? ClearYouTubeIndexingHints { get; set; }
     public string? SpotifyId { get; set; }
     public long? AppleId { get; set; }
     public bool? NullAppleId { get; set; }
@@ -25,7 +26,8 @@ public abstract class ServiceIdsChange : PublisherFieldsChange
     public bool? SkipEnrichingFromYouTube { get; set; }
 
     public bool ChangesServiceIds =>
-        YouTubeChannelId != null || YouTubePlaylistId != null || SpotifyId != null || AppleId != null ||
+        YouTubeChannelId != null || YouTubePlaylistId != null || ClearYouTubeIndexingHints == true ||
+        SpotifyId != null || AppleId != null ||
         NullAppleId == true || IndexAllEpisodes != null || TitleRegex != null || DescriptionRegex != null ||
         EpisodeMatchRegex != null || EpisodeIncludeTitleRegex != null || IgnoreAllEpisodes != null ||
         BypassShortEpisodeChecking != null || AlwaysPromoteAsHero != null || MinimumDuration != null ||

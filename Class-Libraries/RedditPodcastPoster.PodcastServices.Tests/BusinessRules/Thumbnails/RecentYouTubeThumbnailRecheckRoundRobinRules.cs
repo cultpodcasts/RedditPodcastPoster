@@ -108,7 +108,7 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
         await Run(episodes);
 
         // Assert
-        _http.Requested.Should().Equal(StoredImage(episodes[0]), StoredImage(episodes[1]));
+        _http.Requested.Should().Equal(StoredImage(episodes[0])!, StoredImage(episodes[1])!);
         _cursorStore.Cursor!.LastProbedEpisodeId.Should().Be(episodes[1].Id);
         _cursorStore.Cursor.LastProbedReleaseUtc.Should().Be(episodes[1].ReleaseUtc);
     }
@@ -131,7 +131,7 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
         await Run(tied);
 
         // Assert
-        _http.Requested.Should().Equal(StoredImage(tied[1]), StoredImage(tied[2]));
+        _http.Requested.Should().Equal(StoredImage(tied[1])!, StoredImage(tied[2])!);
     }
 
     [Fact(DisplayName =
@@ -152,7 +152,7 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
         await Run(episodes);
 
         // Assert
-        _http.Requested.Should().Equal(StoredImage(episodes[0]));
+        _http.Requested.Should().Equal(StoredImage(episodes[0])!);
     }
 
     [Fact(DisplayName = "With nothing eligible, the run probes nothing and does not write the cursor.")]
@@ -205,7 +205,7 @@ public class RecentYouTubeThumbnailRecheckRoundRobinRules
         await Run(withArrival);
 
         // Assert
-        _http.Requested.Skip(before).Should().Equal(StoredImage(episodes[2]), StoredImage(arrival));
+        _http.Requested.Skip(before).Should().Equal(StoredImage(episodes[2])!, StoredImage(arrival)!);
     }
 
     [Fact(DisplayName =

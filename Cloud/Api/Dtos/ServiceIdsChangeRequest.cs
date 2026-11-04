@@ -17,6 +17,13 @@ public abstract class ServiceIdsChangeRequest : PublisherFieldsChangeRequest
     [JsonPropertyName("youTubePlaylistId")]
     public string? YouTubePlaylistId { get; set; }
 
+    /// <summary>
+    /// When <c>true</c>, clears <c>indexing.youTubeIndexingHints</c> only (force full playlist walk).
+    /// Omitting or <c>false</c> leaves hints alone.
+    /// </summary>
+    [JsonPropertyName("clearYouTubeIndexingHints")]
+    public bool? ClearYouTubeIndexingHints { get; set; }
+
     [JsonPropertyName("spotifyId")]
     public string? SpotifyId { get; set; }
 

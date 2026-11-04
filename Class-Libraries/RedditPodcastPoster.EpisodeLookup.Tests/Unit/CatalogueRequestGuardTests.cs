@@ -4,7 +4,6 @@ using Microsoft.Extensions.Time.Testing;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.EpisodeLookup;
-using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;

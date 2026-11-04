@@ -504,7 +504,8 @@ public class TweetIdRules
             LogLevel.Warning,
             It.IsAny<EventId>(),
             It.Is<It.IsAnyType>((state, _) =>
-                state.ToString()!.Contains(previous) && state.ToString()!.Contains(SyntheticTweetPost)),
+                (state == null ? string.Empty : state.ToString() ?? string.Empty).Contains(previous) &&
+                (state == null ? string.Empty : state.ToString() ?? string.Empty).Contains(SyntheticTweetPost)),
             It.IsAny<Exception?>(),
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
     }

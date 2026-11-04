@@ -585,7 +585,7 @@ public class CataloguePlayableServicesBackfillProcessor(
         logger.LogInformation(
             "CataloguePlayableServicesBackfill done. Scanned={Scanned} Identical={Identical} MissingTruth={MissingTruth} Discrepancies={Discrepancies} YouTubeIdFilled={Filled} YouTubeIdOverwritten={Overwritten} YouTubeIdCleared={Cleared} YouTubeIdSkippedUnparseable={SkippedUnparseable} Applied={Applied} SkippedNotFound={SkippedNotFound} SkippedConflict={SkippedConflict} SearchUploaded={SearchUploaded} FailedWrites={FailedWrites}",
             c.Scanned, c.Identical, c.MissingTruth, c.Discrepancies, c.YouTubeIdFilled, c.YouTubeIdOverwritten,
-            c.YouTubeIdCleared, c.YouTubeIdSkippedUnparseable, c.Applied, c.SkippedNotFound, c.SkippedConflict,
+            0, c.YouTubeIdSkippedUnparseable, c.Applied, c.SkippedNotFound, c.SkippedConflict,
             c.SearchUploaded, c.FailedWrites);
         var exitCode = c.FailedWrites > 0 ? ExitFailed : ExitOk;
         return new CataloguePlayableServicesBackfillRunResult(
@@ -594,7 +594,8 @@ public class CataloguePlayableServicesBackfillProcessor(
         {
             YouTubeIdFilled = c.YouTubeIdFilled,
             YouTubeIdOverwritten = c.YouTubeIdOverwritten,
-            YouTubeIdCleared = c.YouTubeIdCleared,
+            // Sync never clears an id (url-wins / skipped-unparseable keeps existing).
+            YouTubeIdCleared = 0,
             YouTubeIdSkippedUnparseable = c.YouTubeIdSkippedUnparseable,
             SkippedNotFound = c.SkippedNotFound,
             SkippedConflict = c.SkippedConflict
@@ -615,7 +616,6 @@ public class CataloguePlayableServicesBackfillProcessor(
         public int FailedWrites;
         public int YouTubeIdFilled;
         public int YouTubeIdOverwritten;
-        public int YouTubeIdCleared;
         public int YouTubeIdSkippedUnparseable;
         public int SkippedNotFound;
         public int SkippedConflict;

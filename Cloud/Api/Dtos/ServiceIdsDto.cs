@@ -15,6 +15,14 @@ public abstract class ServiceIdsDto : PublisherFieldsDto
     [JsonPropertyName("youTubePlaylistIdHistory")]
     public YouTubePlaylistIdHistoryEntry[]? YouTubePlaylistIdHistory { get; set; }
 
+    /// <summary>
+    /// From <c>indexing.youTubeIndexingHints</c> (read-only). Null when none. Clear via PATCH
+    /// <c>clearYouTubeIndexingHints: true</c>.
+    /// </summary>
+    [JsonPropertyName("youTubeIndexingHints")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public YouTubeIndexingHints? YouTubeIndexingHints { get; set; }
+
     [JsonPropertyName("spotifyId")]
     public string SpotifyId { get; set; } = "";
 
