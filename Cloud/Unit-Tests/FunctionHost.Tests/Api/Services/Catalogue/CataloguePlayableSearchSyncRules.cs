@@ -1,5 +1,5 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
 using Api.Services.Catalogue;
@@ -32,7 +32,7 @@ public class CataloguePlayableSearchSyncRules
 
     public CataloguePlayableSearchSyncRules()
     {
-        _mocker.Use(NullLogger<CataloguePlayableSearchSync>.Instance);
+        _mocker.GetMock<ILogger<CataloguePlayableSearchSync>>();
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<IPlayableSearchDocumentSwap>()
             .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
@@ -72,8 +72,39 @@ public class CataloguePlayableSearchSyncRules
         return report;
     }
 
+    private TvShowEpisode CreateEpisode(Action<TvShowEpisode>? customise = null, bool showRemoved = false)
+    {
+        var show = new TvShow(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Removed = showRemoved
+        };
+        var episode = new TvShowEpisode(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Length = _fixture.CreateDuration()
+        };
+        episode.SetTvShowProperties(show);
+        customise?.Invoke(episode);
+        _shows[show.Id] = show;
+        return episode;
+    }
+
     private static PodcastEpisode ShortLinkTarget(NewsReport report) =>
         SocialPostRemovalTarget.For(report).Projection;
+
+    private static PodcastEpisode ShortLinkTarget(TvShowEpisode episode) =>
+        SocialPostRemovalTarget.For(episode).Projection;
+
+    private void VerifyParentMissLogged(params string[] fragments) =>
+        _mocker.GetMock<ILogger<CataloguePlayableSearchSync>>().Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => fragments.All(fragment => state!.ToString()!.Contains(fragment))),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
 
     [Fact(DisplayName =
         "Plain English rule: when a news report edit is not a removal, then its search document is pushed straight away as a NewsReport under the organisation, because a curator edit must show in search without waiting for the pull indexer.")]
@@ -150,6 +181,48 @@ public class CataloguePlayableSearchSyncRules
     }
 
     [Fact(DisplayName =
+        "Plain English rule: when the live TV show is Removed but ParentRemoved still lags false, " +
+        "then an edit deletes the search document instead of pushing it, because ParentChangeCascade can leave denorm stale.")]
+    public async Task edit_under_live_removed_tv_show_with_lagging_denorm_deletes_search_document()
+    {
+        // Arrange
+        var episode = CreateEpisode(showRemoved: true);
+        episode.ParentRemoved = false;
+
+        // Act
+        await Sut.AfterSave(episode, ShortLinkTarget(episode), removedByChange: false, CancellationToken.None);
+
+        // Assert
+        _search.DeletedKeys.Should().Equal(episode.Id.ToString());
+        _uploaded.Should().BeEmpty();
+        _shortLinkDeletes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when AfterSave cannot load the live news organisation, then eligibility falls open to " +
+        "denormalised ParentRemoved and a Warning with prefix CataloguePlayableSearchSyncParentMiss is logged, " +
+        "because orphans must still push while a ParentChangeCascade-lag Cosmos miss stays observable.")]
+    public async Task edit_with_null_parent_lookup_fails_open_and_logs_parent_miss()
+    {
+        // Arrange — CreateReport seeds _organisations; remove so GetNewsOrganisation returns null.
+        var report = CreateReport();
+        report.ParentRemoved = false;
+        _organisations.Clear();
+
+        // Act
+        var response = await Sut.AfterSave(report, ShortLinkTarget(report), removedByChange: false, CancellationToken.None);
+
+        // Assert
+        response!.IndexerState.Should().Be(IndexerState.Executed);
+        _uploaded.Should().ContainSingle().Which.Id.Should().Be(report.Id.ToString());
+        _search.DeletedKeys.Should().BeEmpty();
+        VerifyParentMissLogged(
+            "CataloguePlayableSearchSyncParentMiss",
+            report.NewsOrganisationId.ToString(),
+            report.Id.ToString());
+    }
+
+    [Fact(DisplayName =
         "Plain English rule: when the search push fails, then the step reports a failed indexer state and does not throw, because the Cosmos save already succeeded and the pull indexer will catch up.")]
     public async Task failed_push_reports_failure_without_throwing()
     {
@@ -169,19 +242,15 @@ public class CataloguePlayableSearchSyncRules
     public async Task edit_pushes_tv_episode_document()
     {
         // Arrange
-        var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
-        var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
-        episode.SetTvShowProperties(show);
-        _shows[show.Id] = show;
+        var episode = CreateEpisode();
 
         // Act
-        await Sut.AfterSave(episode, SocialPostRemovalTarget.For(episode).Projection,
-            removedByChange: false, CancellationToken.None);
+        await Sut.AfterSave(episode, ShortLinkTarget(episode), removedByChange: false, CancellationToken.None);
 
         // Assert
         var document = _uploaded.Should().ContainSingle().Subject;
         document.ContentKind.Should().Be(SearchContentKind.TvShowEpisode);
-        document.SeriesName.Should().Be(show.Name);
+        document.SeriesName.Should().Be(episode.TvShowName);
         document.Title.Should().Be(episode.Title);
     }
 

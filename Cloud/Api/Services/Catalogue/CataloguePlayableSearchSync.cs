@@ -44,9 +44,21 @@ public class CataloguePlayableSearchSync(
         CancellationToken cancellationToken)
     {
         var organisation = await newsOrganisationRepository.GetNewsOrganisation(report.NewsOrganisationId);
-        var excluded = organisation is null
-            ? CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(report)
-            : CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(organisation, report);
+        bool excluded;
+        if (organisation is null)
+        {
+            // Fail-open to denorm so orphans still push when ParentRemoved says eligible; warn so a
+            // ParentChangeCascade-lag Cosmos miss is visible (stable App Insights prefix).
+            logger.LogWarning(
+                "CataloguePlayableSearchSyncParentMiss: GetNewsOrganisation returned null for {OrganisationId} on report {ReportId}; falling back to denormalised ParentRemoved eligibility.",
+                report.NewsOrganisationId, report.Id);
+            excluded = CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(report);
+        }
+        else
+        {
+            excluded = CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(organisation, report);
+        }
+
         return await AfterSave(
             report.Id,
             report.NewsOrganisationName ?? string.Empty,
@@ -64,9 +76,19 @@ public class CataloguePlayableSearchSync(
         CancellationToken cancellationToken)
     {
         var show = await tvShowRepository.GetTvShow(episode.TvShowId);
-        var excluded = show is null
-            ? CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(episode)
-            : CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(show, episode);
+        bool excluded;
+        if (show is null)
+        {
+            logger.LogWarning(
+                "CataloguePlayableSearchSyncParentMiss: GetTvShow returned null for {TvShowId} on episode {EpisodeId}; falling back to denormalised ParentRemoved eligibility.",
+                episode.TvShowId, episode.Id);
+            excluded = CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(episode);
+        }
+        else
+        {
+            excluded = CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(show, episode);
+        }
+
         return await AfterSave(
             episode.Id,
             episode.TvShowName ?? string.Empty,
