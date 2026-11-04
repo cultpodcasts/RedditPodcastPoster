@@ -11,6 +11,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Services;
 using Xunit;
@@ -25,6 +26,8 @@ public class CataloguePlayableSearchSyncRules
     private readonly SearchCleanupMock _search = new();
     private readonly List<EpisodeSearchRecord> _uploaded = [];
     private readonly List<PodcastEpisode> _shortLinkDeletes = [];
+    private readonly Dictionary<Guid, NewsOrganisation> _organisations = new();
+    private readonly Dictionary<Guid, TvShow> _shows = new();
     private bool _uploadSucceeds = true;
 
     public CataloguePlayableSearchSyncRules()
@@ -39,16 +42,23 @@ public class CataloguePlayableSearchSyncRules
             .Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
             .Callback<PodcastEpisode>(target => _shortLinkDeletes.Add(target))
             .ReturnsAsync(new DeleteResult(true));
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(r => r.GetNewsOrganisation(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid id) => _organisations.GetValueOrDefault(id));
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.GetTvShow(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid id) => _shows.GetValueOrDefault(id));
     }
 
     private CataloguePlayableSearchSync Sut => _mocker.CreateInstance<CataloguePlayableSearchSync>();
 
-    private NewsReport CreateReport(Action<NewsReport>? customise = null)
+    private NewsReport CreateReport(Action<NewsReport>? customise = null, bool organisationRemoved = false)
     {
         var organisation = new NewsOrganisation(_fixture.CreateTitle())
         {
             Id = _fixture.CreateGuid(),
-            SearchTerms = _fixture.CreateTitle()
+            SearchTerms = _fixture.CreateTitle(),
+            Removed = organisationRemoved
         };
         var report = new NewsReport(_fixture.CreateTitle())
         {
@@ -58,6 +68,7 @@ public class CataloguePlayableSearchSyncRules
         };
         report.SetNewsOrganisationProperties(organisation);
         customise?.Invoke(report);
+        _organisations[organisation.Id] = organisation;
         return report;
     }
 
@@ -121,6 +132,24 @@ public class CataloguePlayableSearchSyncRules
     }
 
     [Fact(DisplayName =
+        "Plain English rule: when the live news organisation is Removed but ParentRemoved still lags false, " +
+        "then an edit deletes the search document instead of pushing it, because ParentChangeCascade can leave denorm stale.")]
+    public async Task edit_under_live_removed_parent_with_lagging_denorm_deletes_search_document()
+    {
+        // Arrange
+        var report = CreateReport(organisationRemoved: true);
+        report.ParentRemoved = false;
+
+        // Act
+        await Sut.AfterSave(report, ShortLinkTarget(report), removedByChange: false, CancellationToken.None);
+
+        // Assert
+        _search.DeletedKeys.Should().Equal(report.Id.ToString());
+        _uploaded.Should().BeEmpty();
+        _shortLinkDeletes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "Plain English rule: when the search push fails, then the step reports a failed indexer state and does not throw, because the Cosmos save already succeeded and the pull indexer will catch up.")]
     public async Task failed_push_reports_failure_without_throwing()
     {
@@ -143,6 +172,7 @@ public class CataloguePlayableSearchSyncRules
         var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         episode.SetTvShowProperties(show);
+        _shows[show.Id] = show;
 
         // Act
         await Sut.AfterSave(episode, SocialPostRemovalTarget.For(episode).Projection,
@@ -175,21 +205,22 @@ public class CataloguePlayableSearchSyncRules
     }
 
     [Fact(DisplayName =
-        "Plain English rule: after an on-demand index, the saved TV episodes and news reports are pushed to search in one batch and no short link is touched, because the hourly indexer does not touch short links either.")]
+        "Plain English rule: after an on-demand index, the saved TV episodes are pushed to search in one batch and no short link is touched, because the hourly indexer does not touch short links either.")]
     public async Task after_index_pushes_changed_items_in_one_batch()
     {
         // Arrange
         var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         episode.SetTvShowProperties(show);
-        var report = CreateReport();
+        var second = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        second.SetTvShowProperties(show);
 
         // Act
-        var response = await Sut.AfterIndex(show.Name, [episode, report], CancellationToken.None);
+        var response = await Sut.AfterIndex(show, [episode, second], CancellationToken.None);
 
         // Assert
         response.IndexerState.Should().Be(IndexerState.Executed);
-        _uploaded.Select(d => d.Id).Should().BeEquivalentTo([episode.Id.ToString(), report.Id.ToString()]);
+        _uploaded.Select(d => d.Id).Should().BeEquivalentTo([episode.Id.ToString(), second.Id.ToString()]);
         _mocker.GetMock<IPlayableSearchDocumentSwap>().Verify(
             s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()), Times.Once);
         _search.DeleteBatches.Should().BeEmpty();
@@ -201,11 +232,15 @@ public class CataloguePlayableSearchSyncRules
     public async Task after_index_deletes_removed_items()
     {
         // Arrange
+        var organisation = new NewsOrganisation(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         var removed = CreateReport(r => r.Removed = true);
         var kept = CreateReport();
+        // Homogeneous Index batch under one live parent (as CatalogueParentIndexService does).
+        removed.NewsOrganisationId = organisation.Id;
+        kept.NewsOrganisationId = organisation.Id;
 
         // Act
-        var response = await Sut.AfterIndex(_fixture.CreateTitle(), [removed, kept], CancellationToken.None);
+        var response = await Sut.AfterIndex(organisation, [removed, kept], CancellationToken.None);
 
         // Assert
         response.IndexerState.Should().Be(IndexerState.Executed);
@@ -214,14 +249,34 @@ public class CataloguePlayableSearchSyncRules
     }
 
     [Fact(DisplayName =
+        "Plain English rule: after an on-demand index of a Removed parent whose children's ParentRemoved still lags false, " +
+        "every child is deleted from search and not pushed, because live parent Removed is authoritative.")]
+    public async Task after_index_under_removed_parent_deletes_lagging_children()
+    {
+        // Arrange
+        var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Removed = true };
+        var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        episode.SetTvShowProperties(show);
+        episode.ParentRemoved = false;
+
+        // Act
+        var response = await Sut.AfterIndex(show, [episode], CancellationToken.None);
+
+        // Assert
+        response.IndexerState.Should().Be(IndexerState.Executed);
+        _search.DeletedKeys.Should().Equal(episode.Id.ToString());
+        _uploaded.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "Plain English rule: after an on-demand index that saved nothing, search is not called and the state is NoDocuments, because there is nothing to push.")]
     public async Task after_index_with_no_changes_does_nothing()
     {
         // Arrange
-        var parentName = _fixture.CreateTitle();
+        var parent = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
 
         // Act
-        var response = await Sut.AfterIndex(parentName, [], CancellationToken.None);
+        var response = await Sut.AfterIndex(parent, [], CancellationToken.None);
 
         // Assert
         response.EpisodeIndexRequestState.Should().Be(EpisodeIndexRequestState.NoDocuments);
@@ -235,10 +290,12 @@ public class CataloguePlayableSearchSyncRules
     {
         // Arrange
         _uploadSucceeds = false;
+        var organisation = new NewsOrganisation(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         var report = CreateReport();
+        report.NewsOrganisationId = organisation.Id;
 
         // Act
-        var response = await Sut.AfterIndex(_fixture.CreateTitle(), [report], CancellationToken.None);
+        var response = await Sut.AfterIndex(organisation, [report], CancellationToken.None);
 
         // Assert
         response.IndexerState.Should().Be(IndexerState.Failure);

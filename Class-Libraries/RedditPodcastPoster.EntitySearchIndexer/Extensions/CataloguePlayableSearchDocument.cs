@@ -1,3 +1,4 @@
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Services;
@@ -87,9 +88,15 @@ public static class CataloguePlayableSearchDocument
         (record.SpotifyId, record.AppleId, record.PodcastAppleId) = PlayableServiceSearchIds.From(services);
     }
 
-    /// <summary>The pull query's filter: a removed item, or one whose parent is removed, has no document.</summary>
+    /// <summary>
+    /// Denormalised-only exclusion. Prefer
+    /// <see cref="CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(TvShow, TvShowEpisode)"/> /
+    /// <see cref="CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(NewsOrganisation, NewsReport)"/>
+    /// when the live parent is available (Api push / Index), so a lagging <c>ParentRemoved</c> cannot re-upload.
+    /// </summary>
     public static bool ShouldExcludeFromSearch(Playable playable) =>
-        playable.IsRemoved() || playable.ParentRemoved == true;
+        CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(playable);
 
-    public static bool ShouldExcludeFromSearch(Film film) => film.IsRemoved();
+    public static bool ShouldExcludeFromSearch(Film film) =>
+        CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(film);
 }

@@ -1,5 +1,6 @@
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -8,6 +9,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Services;
 
@@ -20,8 +22,10 @@ namespace Api.Services.Catalogue;
 /// <item><c>removed=true</c> deletes the search document and the short-link record (every time, so a retry finishes
 /// the job). A migrated item keeps the short-link record it was given as a podcast episode, under the same id.</item>
 /// <item>Otherwise the search document is pushed straight away (merge-or-upload under the item id), or deleted when the
-/// parent is removed, the same filter as the sibling pull indexer. That indexer still re-reads the item by <c>_ts</c>,
-/// so this only makes the change visible sooner.</item>
+/// parent is removed, the same filter as the sibling pull indexer — and, like
+/// <see cref="EpisodeSearchIndexEligibility"/>, the live parent's <c>Removed</c> is consulted as well as the child's
+/// denormalised <c>ParentRemoved</c> (see <see cref="CataloguePlayableSearchIndexEligibility"/>). That indexer still
+/// re-reads the item by <c>_ts</c>, so this only makes the change visible sooner.</item>
 /// </list>
 /// The Cosmos save has already succeeded, so a search or short-link failure is logged and does not fail the edit.
 /// </summary>
@@ -29,35 +33,49 @@ public class CataloguePlayableSearchSync(
     IPlayableSearchDocumentSwap searchUpload,
     EpisodeSearchIndexCleanup searchIndexCleanup,
     IShortnerService shortnerService,
+    ITvShowRepository tvShowRepository,
+    INewsOrganisationRepository newsOrganisationRepository,
     ILogger<CataloguePlayableSearchSync> logger)
 {
-    public Task<EntitySearchIndexerResponse?> AfterSave(
+    public async Task<EntitySearchIndexerResponse?> AfterSave(
         NewsReport report,
         PodcastEpisode shortLinkTarget,
         bool removedByChange,
-        CancellationToken cancellationToken) =>
-        AfterSave(
+        CancellationToken cancellationToken)
+    {
+        var organisation = await newsOrganisationRepository.GetNewsOrganisation(report.NewsOrganisationId);
+        var excluded = organisation is null
+            ? CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(report)
+            : CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(organisation, report);
+        return await AfterSave(
             report.Id,
             report.NewsOrganisationName ?? string.Empty,
             removedByChange,
-            CataloguePlayableSearchDocument.ShouldExcludeFromSearch(report),
+            excluded,
             () => CataloguePlayableSearchDocument.For(report),
             shortLinkTarget,
             cancellationToken);
+    }
 
-    public Task<EntitySearchIndexerResponse?> AfterSave(
+    public async Task<EntitySearchIndexerResponse?> AfterSave(
         TvShowEpisode episode,
         PodcastEpisode shortLinkTarget,
         bool removedByChange,
-        CancellationToken cancellationToken) =>
-        AfterSave(
+        CancellationToken cancellationToken)
+    {
+        var show = await tvShowRepository.GetTvShow(episode.TvShowId);
+        var excluded = show is null
+            ? CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(episode)
+            : CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(show, episode);
+        return await AfterSave(
             episode.Id,
             episode.TvShowName ?? string.Empty,
             removedByChange,
-            CataloguePlayableSearchDocument.ShouldExcludeFromSearch(episode),
+            excluded,
             () => CataloguePlayableSearchDocument.For(episode),
             shortLinkTarget,
             cancellationToken);
+    }
 
     /// <param name="trailersCleared">
     /// True when the edit removed the film's last trailer. A film with no trailers omits <c>trailers</c> (so films
@@ -74,7 +92,7 @@ public class CataloguePlayableSearchSync(
             film.Id,
             film.Name,
             removedByChange,
-            CataloguePlayableSearchDocument.ShouldExcludeFromSearch(film),
+            CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(film),
             () =>
             {
                 var document = CataloguePlayableSearchDocument.For(film);
@@ -96,7 +114,7 @@ public class CataloguePlayableSearchSync(
     /// </summary>
     /// <returns><c>NoDocuments</c> when nothing changed; otherwise Executed, or Failure when any push or delete failed.</returns>
     public async Task<EntitySearchIndexerResponse> AfterIndex(
-        string parentName,
+        Publisher parent,
         IReadOnlyList<Playable> changed,
         CancellationToken cancellationToken)
     {
@@ -107,16 +125,16 @@ public class CataloguePlayableSearchSync(
 
         try
         {
-            var excluded = changed.Where(CataloguePlayableSearchDocument.ShouldExcludeFromSearch)
+            var excluded = changed.Where(x => ShouldExcludeAfterIndex(parent, x))
                 .Select(x => x.Id)
                 .ToList();
-            var documents = changed.Where(x => !CataloguePlayableSearchDocument.ShouldExcludeFromSearch(x))
+            var documents = changed.Where(x => !ShouldExcludeAfterIndex(parent, x))
                 .Select(ToSearchDocument)
                 .ToList();
             var succeeded = true;
             if (excluded.Count > 0)
             {
-                succeeded &= await searchIndexCleanup.DeleteSearchEntries(parentName, excluded, cancellationToken);
+                succeeded &= await searchIndexCleanup.DeleteSearchEntries(parent.Name, excluded, cancellationToken);
             }
 
             if (documents.Count > 0)
@@ -125,7 +143,7 @@ public class CataloguePlayableSearchSync(
                 if (!pushed)
                 {
                     logger.LogError("Failed to push {count} search documents of '{parentName}' after an on-demand index.",
-                        documents.Count, parentName);
+                        documents.Count, parent.Name);
                 }
 
                 succeeded &= pushed;
@@ -138,10 +156,20 @@ public class CataloguePlayableSearchSync(
         {
             logger.LogError(ex,
                 "On-demand index of '{parentName}' saved {count} items but the search step failed. The pull indexer will pick them up.",
-                parentName, changed.Count);
+                parent.Name, changed.Count);
             return new EntitySearchIndexerResponse { IndexerState = IndexerState.Failure };
         }
     }
+
+    private static bool ShouldExcludeAfterIndex(Publisher parent, Playable playable) =>
+        (parent, playable) switch
+        {
+            (TvShow show, TvShowEpisode episode) =>
+                CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(show, episode),
+            (NewsOrganisation organisation, NewsReport report) =>
+                CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(organisation, report),
+            _ => CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(playable)
+        };
 
     private static EpisodeSearchRecord ToSearchDocument(Playable playable) => playable switch
     {
