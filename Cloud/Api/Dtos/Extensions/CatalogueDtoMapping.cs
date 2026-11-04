@@ -1,6 +1,7 @@
 using System.Globalization;
 using Api.Dtos.Mapping;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Podcasts;
 
 namespace Api.Dtos.Extensions;
 
@@ -13,7 +14,7 @@ public static class CatalogueDtoMapping
         dto.YouTubeChannelId = indexing?.YouTubeChannelId ?? "";
         dto.YouTubePlaylistId = indexing?.YouTubePlaylistId ?? "";
         dto.YouTubePlaylistIdHistory = indexing?.YouTubePlaylistIdHistory?.ToArray();
-        dto.YouTubeIndexingHints = indexing?.YouTubeIndexingHints?.Copy();
+        dto.YouTubeIndexingHints = indexing?.CurrentYouTubeIndexingHints()?.Copy();
         dto.SpotifyId = indexing?.SpotifyId ?? "";
         dto.AppleId = indexing?.AppleId;
         dto.IndexAllEpisodes = indexing?.IndexAllEpisodes ?? false;

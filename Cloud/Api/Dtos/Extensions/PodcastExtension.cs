@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Podcasts;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
 namespace Api.Dtos.Extensions;
@@ -34,7 +35,7 @@ public static class PodcastExtension
             YouTubeChannelId = podcast.YouTubeChannelId,
             YouTubePlaylistId = podcast.YouTubePlaylistId,
             YouTubePlaylistIdHistory = podcast.YouTubePlaylistIdHistory?.ToArray(),
-            YouTubeIndexingHints = podcast.YouTubeIndexingHints?.Copy(),
+            YouTubeIndexingHints = podcast.CurrentYouTubeIndexingHints()?.Copy(),
             IgnoredAssociatedSubjects = podcast.IgnoredAssociatedSubjects,
             IgnoredSubjects = podcast.IgnoredSubjects,
             KnownTerms = podcast.KnownTerms,

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.Podcasts;
@@ -45,6 +46,32 @@ public class PodcastChangeApplierYouTubeIndexingHintsRules
     }
 
     [Fact(DisplayName =
+        "Podcast GET returns null youTubeIndexingHints after a playlist swap when leftover hints still name the old playlist, " +
+        "because the next indexer pass will full-walk and the API must not show ignored hints.")]
+    public void get_nulls_youtube_indexing_hints_when_playlist_mismatched()
+    {
+        // Arrange
+        var oldPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var newPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var podcast = _fixture.CreatePodcast();
+        podcast.YouTubePlaylistId = newPlaylistId;
+        podcast.YouTubeIndexingHints = new YouTubeIndexingHints
+        {
+            PlaylistId = oldPlaylistId,
+            LastFullWalk = DomainTestFixture.UtcDaysAgo(1),
+            PlaylistItemCount = 90
+        };
+
+        // Act
+        var dto = podcast.ToDto();
+
+        // Assert
+        podcast.YouTubeIndexingHints.Should().NotBeNull();
+        podcast.YouTubeIndexingHints!.PlaylistId.Should().Be(oldPlaylistId);
+        dto.YouTubeIndexingHints.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "Podcast PATCH clearYouTubeIndexingHints true removes only youTubeIndexingHints so the next indexer pass does a full playlist walk.")]
     public void clear_youtube_indexing_hints_removes_hints_only()
     {
@@ -86,5 +113,19 @@ public class PodcastChangeApplierYouTubeIndexingHintsRules
 
         // Assert
         podcast.YouTubeIndexingHints.Should().BeSameAs(hints);
+    }
+
+    [Fact(DisplayName =
+        "PATCH clearYouTubeIndexingHints wire name reaches the podcast model via ToModel so a rename or missed copy fails tests.")]
+    public void clear_youtube_indexing_hints_wire_name()
+    {
+        // Arrange
+        const string json = """{"clearYouTubeIndexingHints":true}""";
+
+        // Act
+        var change = JsonSerializer.Deserialize<global::Api.Dtos.PodcastChangeRequest>(json)!.ToModel();
+
+        // Assert
+        change.ClearYouTubeIndexingHints.Should().BeTrue();
     }
 }

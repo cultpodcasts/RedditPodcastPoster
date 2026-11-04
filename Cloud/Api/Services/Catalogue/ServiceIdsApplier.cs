@@ -89,9 +89,9 @@ public static class ServiceIdsApplier
 
         if (change.ClearYouTubeIndexingHints == true)
         {
-            // Clear only the hints member; leave other indexing fields alone. An empty indexing
-            // block that only existed for hints stays as an empty source (setsSomething stays false
-            // from this clear alone when nothing else is set).
+            // Clear only the hints member; leave other indexing fields alone. Clear does not set
+            // setsSomething by itself; when indexing already existed, the existing setsSomething =
+            // true keeps the block so the nulled hints persist on save.
             if (indexing != null)
             {
                 source.YouTubeIndexingHints = null;
