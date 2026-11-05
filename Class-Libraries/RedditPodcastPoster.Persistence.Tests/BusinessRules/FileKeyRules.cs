@@ -301,6 +301,30 @@ public class FileKeyRules
     }
 
     [Fact(DisplayName =
+        "A rename that re-keys a wrong-case kind prefix when another same-kind item already holds the lower-case " +
+        "candidate gets the next free _2 suffix, so rename never persists a duplicate ignore-case key.")]
+    public async Task rename_wrong_case_prefix_suffixes_when_candidate_taken()
+    {
+        // Arrange
+        const string name = "Synthetic Signal";
+        var candidate = FileKeyFactory.GetNewsOrganisationFileKey(name);
+        _organisations.Add(new NewsOrganisation(name)
+        {
+            Id = _fixture.CreateGuid(),
+            FileKey = candidate
+        });
+        var id = _fixture.CreateGuid();
+        var wrongCaseKey = "News-synthetic_signal";
+
+        // Act
+        var renamed = await Allocator.AllocateForRename(
+            FileKeyKind.NewsOrganisation, name, id, wrongCaseKey);
+
+        // Assert
+        renamed.Should().Be(candidate + "_2");
+    }
+
+    [Fact(DisplayName =
         "A stored key of the form _10 is repaired on a rename that keeps keys; news-_12 likewise for a news organisation.")]
     public async Task numbered_placeholder_keys_are_repaired()
     {
@@ -420,12 +444,12 @@ public class FileKeyRules
     }
 
     [Fact(DisplayName =
-        "A rename whose new key equals the current key (ignoring case) keeps the current key unchanged.")]
+        "A rename whose new key equals the current key exactly (Ordinal) keeps the current key unchanged.")]
     public async Task rename_to_same_key_keeps_it()
     {
         // Arrange
         var name = _fixture.CreateTitle();
-        var podcast = _fixture.CreatePodcast(p => p.FileKey = FileKeyFactory.GetFileKey(name).ToUpperInvariant());
+        var podcast = _fixture.CreatePodcast(p => p.FileKey = FileKeyFactory.GetFileKey(name));
         _podcasts.Add(podcast);
 
         // Act
