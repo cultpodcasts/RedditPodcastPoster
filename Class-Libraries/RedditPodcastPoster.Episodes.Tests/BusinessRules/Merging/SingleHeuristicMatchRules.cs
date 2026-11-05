@@ -109,6 +109,30 @@ public class SingleHeuristicMatchRules
     }
 
     [Fact(DisplayName =
+        "A release-aligned fuzzy+duration Heuristic match whose composite score is below " +
+        "SingleHeuristicMinScore is rejected: the incoming episode is added as new and the " +
+        "lookalike is untouched.")]
+    public void Single_heuristic_below_min_score_is_added_as_new()
+    {
+        // Arrange — same pair as the genuine merge Fact; threshold raised so scoring rejects it.
+        var podcast = NotesToSelf444();
+        var youTube = YouTubeOnly(podcast, "RY7nt6KFpdA", "TikTok Live chat about Sister Wives",
+            new TimeSpan(1, 35, 34), _incomingRelease.AddHours(1), TikTokIntro);
+        var incoming = IncomingSpotify("Sister Wives New Season TikTok Live chat about", new TimeSpan(1, 35, 31),
+            _incomingRelease, TikTokIntro);
+
+        // Act
+        var result = Merger(o => o.SingleHeuristicMinScore = 100)
+            .MergeEpisodes(podcast, [youTube], [incoming]);
+
+        // Assert
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().BeEmpty();
+        result.AddedEpisodes.Should().ContainSingle().Which.Should().BeSameAs(incoming);
+        EpisodeServicePresence.SpotifyEpisodeId(youTube).Should().BeNullOrEmpty();
+    }
+
+    [Fact(DisplayName =
         "A genuine cross-platform single match (YouTube vs Spotify, same duration within seconds, released within the " +
         "publication offset, reordered title) still merges.")]
     public void Genuine_cross_platform_single_heuristic_match_still_merges()

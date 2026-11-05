@@ -24,7 +24,6 @@ public class MergeTieBreakRules
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
     private readonly DateTime _incomingRelease = DomainTestFixture.UtcAtTime(-2, new TimeSpan(2, 12, 0));
     private readonly DateTime _nearRelease = DomainTestFixture.UtcAtTime(-17, TimeSpan.FromHours(12));
-    private readonly DateTime _yearOldRelease = DomainTestFixture.UtcAtTime(-365, TimeSpan.FromHours(12));
 
     private Podcast CreateNotesToSelf444() =>
         _fixture.CreatePodcast(p =>
@@ -60,21 +59,21 @@ public class MergeTieBreakRules
     }
 
     [Fact(DisplayName =
-        "A Spotify episode that fuzzy-matches a release-aligned YouTube row merges into that row; " +
-        "a year-old near-title lookalike is not a Heuristic candidate without release alignment.")]
+        "When two release-aligned Heuristic candidates compete, the merge tie-breaks into the " +
+        "identical-duration same-description intro winner and leaves the weaker lookalike untouched.")]
     public void Notes_to_Self_444_tie_breaks_to_identical_duration_close_release_candidate()
     {
-        // Arrange — aligned TikTok is the only Heuristic match; year-old recap no longer shares fate.
+        // Arrange — both Heuristic (aligned release + fuzzy title); TikTok wins on duration + description.
         var podcast = CreateNotesToSelf444();
         var tikTok = CreateYouTubeOnly(podcast, "RY7nt6KFpdA", "TikTok Live chat about Sister Wives",
             new TimeSpan(1, 35, 34), _incomingRelease.AddHours(1), TikTokIntro);
-        var recap = CreateYouTubeOnly(podcast, "BndpMN1m7oQ", "Sister Wives Season 20 E 4 Recap",
-            new TimeSpan(1, 38, 12), _yearOldRelease, HoldingOutHelpIntro);
+        var weaker = CreateYouTubeOnly(podcast, "BndpMN1m7oQ", "Sister Wives New Season Live chat recap",
+            new TimeSpan(1, 38, 12), _incomingRelease.AddHours(1), HoldingOutHelpIntro);
         var incoming = CreateIncomingSpotify("Sister Wives New Season TikTok Live chat about",
             new TimeSpan(1, 35, 34), _incomingRelease, TikTokIntro);
 
         // Act
-        var result = _merger.MergeEpisodes(podcast, [recap, tikTok], [incoming]);
+        var result = _merger.MergeEpisodes(podcast, [weaker, tikTok], [incoming]);
 
         // Assert
         result.FailedEpisodes.Should().BeEmpty();
@@ -82,7 +81,7 @@ public class MergeTieBreakRules
         result.MergedEpisodes.Should().ContainSingle();
         result.MergedEpisodes.Single().Existing.Id.Should().Be(tikTok.Id);
         EpisodeServicePresence.SpotifyEpisodeId(tikTok).Should().Be(EpisodeServicePresence.SpotifyEpisodeId(incoming));
-        EpisodeServicePresence.SpotifyEpisodeId(recap).Should().BeNullOrEmpty();
+        EpisodeServicePresence.SpotifyEpisodeId(weaker).Should().BeNullOrEmpty();
     }
 
     [Fact(DisplayName =
