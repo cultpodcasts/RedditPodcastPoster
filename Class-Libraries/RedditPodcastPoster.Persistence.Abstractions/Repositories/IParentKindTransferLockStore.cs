@@ -32,6 +32,9 @@ public interface IParentKindTransferLockStore
 
     /// <summary>Removes the marker if this attempt still holds it. Never throws for a lost or missing marker.</summary>
     Task Release(ParentKindTransferLockHandle handle);
+
+    /// <summary>Reads the current marker when present; null when no transfer holds the podcast.</summary>
+    Task<ParentKindTransferLock?> TryGet(Guid podcastId);
 }
 
 public enum ParentKindTransferLockOutcome

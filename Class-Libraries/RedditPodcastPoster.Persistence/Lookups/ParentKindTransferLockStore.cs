@@ -165,4 +165,18 @@ public sealed class ParentKindTransferLockStore(
                 handle.PodcastId);
         }
     }
+
+    public async Task<ParentKindTransferLock?> TryGet(Guid podcastId)
+    {
+        try
+        {
+            var response = await lookUpsContainer.ReadItemAsync<ParentKindTransferLock>(
+                podcastId.ToString(), new PartitionKey(podcastId.ToString()));
+            return response.Resource;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
 }

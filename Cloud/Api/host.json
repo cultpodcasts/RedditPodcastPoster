@@ -14,5 +14,12 @@
       "RedditPodcastPoster.PodcastServices.YouTube.CandidatePreference": "Information",
       "Api": "Information"
     }
+  },
+  "extensions": {
+    "queues": {
+      "visibilityTimeout": "00:05:00",
+      "maxDequeueCount": 3,
+      "batchSize": 1
+    }
   }
 }

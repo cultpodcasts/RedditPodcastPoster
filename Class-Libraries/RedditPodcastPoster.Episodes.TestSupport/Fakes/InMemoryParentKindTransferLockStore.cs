@@ -117,4 +117,24 @@ public sealed class InMemoryParentKindTransferLockStore : IParentKindTransferLoc
 
         return Task.CompletedTask;
     }
+
+    public Task<ParentKindTransferLock?> TryGet(Guid podcastId)
+    {
+        lock (_markers)
+        {
+            if (!_markers.TryGetValue(podcastId, out var existing))
+            {
+                return Task.FromResult<ParentKindTransferLock?>(null);
+            }
+
+            return Task.FromResult<ParentKindTransferLock?>(new ParentKindTransferLock
+            {
+                Id = podcastId,
+                TargetKind = existing.TargetKind,
+                StartedUtc = existing.StartedUtc,
+                AttemptId = existing.AttemptId,
+                HeartbeatUtc = existing.LastAliveUtc == existing.StartedUtc ? null : existing.LastAliveUtc
+            });
+        }
+    }
 }

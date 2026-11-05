@@ -17,6 +17,7 @@ public class PodcastController(
     IGetPodcastHandler getPodcastHandler,
     IPostPodcastHandler postPodcastHandler,
     IPostPodcastKindTransferHandler postPodcastKindTransferHandler,
+    IGetPodcastKindTransferStatusHandler getPodcastKindTransferStatusHandler,
     IIndexPodcastHandler indexPodcastHandler,
     IRenamePodcastHandler renamePodcastHandler,
     IClientPrincipalFactory clientPrincipalFactory,
@@ -134,6 +135,14 @@ public class PodcastController(
             postPodcastKindTransferHandler.Handle,
             Unauthorised,
             ct);
+
+    [Function("PodcastKindTransferStatus")]
+    public Task<HttpResponseData> GetKindTransferStatus(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/{podcastId:guid}/kind")]
+        HttpRequestData req,
+        Guid podcastId,
+        CancellationToken ct
+    ) => HandleRequest(req, ["curate"], podcastId, getPodcastKindTransferStatusHandler.Handle, Unauthorised, ct);
 
     [Function("PodcastPatch")]
     public Task<HttpResponseData> Patch(
