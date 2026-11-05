@@ -102,11 +102,13 @@ public class ParentKindTransferLockStoreRules
             .TryAcquire(_podcastId, CatalogueParentKind.TvShow, _now, StaleAfter);
 
     [Fact(DisplayName =
-        "With no marker, the transfer creates one in LookUps under the podcast id (its own partition) and holds it.")]
+        "With no marker, the transfer creates one in LookUps under the podcast id (its own partition) with TTL " +
+        "of 2× the stale window, and holds it.")]
     public async Task no_marker_is_created_and_held()
     {
         // Arrange
         var sut = _mocker.CreateInstance<ParentKindTransferLockStore>();
+        var expectedTtl = ParentKindTransferLock.TimeToLiveSecondsFor(StaleAfter);
 
         // Act
         var acquisition = await sut.TryAcquire(_podcastId, CatalogueParentKind.TvShow, _now, StaleAfter);
@@ -116,7 +118,8 @@ public class ParentKindTransferLockStoreRules
         acquisition.Handle!.ETag.Should().Be(_ourETag);
         _mocker.GetMock<Container>().Verify(c => c.CreateItemAsync(
             It.Is<ParentKindTransferLock>(m => m.Id == _podcastId && m.StartedUtc == _now &&
-                                               m.TargetKind == CatalogueParentKind.TvShow),
+                                               m.TargetKind == CatalogueParentKind.TvShow &&
+                                               m.TimeToLiveSeconds == expectedTtl),
             new PartitionKey(_podcastId.ToString()),
             It.IsAny<ItemRequestOptions>(),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -141,11 +144,13 @@ public class ParentKindTransferLockStoreRules
     }
 
     [Fact(DisplayName =
-        "A stale marker is replaced with If-Match on the etag that was read, so only one request can take it over and resume.")]
+        "A stale marker is replaced with If-Match on the etag that was read (and TTL reset to 2× the stale window), " +
+        "so only one request can take it over and resume.")]
     public async Task stale_marker_is_taken_over_with_etag_check()
     {
         // Arrange
         ArrangeHeldMarker(_now - StaleAfter - TimeSpan.FromSeconds(1));
+        var expectedTtl = ParentKindTransferLock.TimeToLiveSecondsFor(StaleAfter);
 
         // Act
         var acquisition = await Acquire();
@@ -155,7 +160,8 @@ public class ParentKindTransferLockStoreRules
         acquisition.Handle!.ETag.Should().Be(_ourETag);
         acquisition.PreviousTargetKind.Should().Be(CatalogueParentKind.NewsOrganisation);
         _mocker.GetMock<Container>().Verify(c => c.ReplaceItemAsync(
-            It.Is<ParentKindTransferLock>(m => m.Id == _podcastId && m.StartedUtc == _now),
+            It.Is<ParentKindTransferLock>(m => m.Id == _podcastId && m.StartedUtc == _now &&
+                                               m.TimeToLiveSeconds == expectedTtl),
             _podcastId.ToString(),
             new PartitionKey(_podcastId.ToString()),
             It.Is<ItemRequestOptions>(o => o.IfMatchEtag == _theirETag),
@@ -301,12 +307,13 @@ public class ParentKindTransferLockStoreRules
     }
 
     [Fact(DisplayName =
-        "Renew writes the heartbeat with If-Match on this attempt's etag, keeps the start time and attempt, and " +
-        "returns the handle with the new etag.")]
+        "Renew writes the heartbeat with If-Match on this attempt's etag, refreshes TTL to 2× the stale window, " +
+        "keeps the start time and attempt, and returns the handle with the new etag.")]
     public async Task renew_writes_heartbeat_with_etag_check()
     {
         // Arrange
         var renewedETag = _fixture.Create<string>();
+        var expectedTtl = ParentKindTransferLock.TimeToLiveSecondsFor(StaleAfter);
         _mocker.GetMock<Container>()
             .Setup(c => c.ReplaceItemAsync(
                 It.IsAny<ParentKindTransferLock>(), It.IsAny<string>(), It.IsAny<PartitionKey?>(),
@@ -316,14 +323,15 @@ public class ParentKindTransferLockStoreRules
         var sut = _mocker.CreateInstance<ParentKindTransferLockStore>();
 
         // Act
-        var renewed = await sut.Renew(handle, _now);
+        var renewed = await sut.Renew(handle, _now, StaleAfter);
 
         // Assert
         renewed.Should().Be(handle with { ETag = renewedETag });
         _mocker.GetMock<Container>().Verify(c => c.ReplaceItemAsync(
             It.Is<ParentKindTransferLock>(m => m.Id == _podcastId && m.HeartbeatUtc == _now &&
                                                m.StartedUtc == handle.StartedUtc && m.AttemptId == handle.AttemptId &&
-                                               m.TargetKind == handle.TargetKind),
+                                               m.TargetKind == handle.TargetKind &&
+                                               m.TimeToLiveSeconds == expectedTtl),
             _podcastId.ToString(),
             new PartitionKey(_podcastId.ToString()),
             It.Is<ItemRequestOptions>(o => o.IfMatchEtag == _ourETag),
@@ -343,9 +351,24 @@ public class ParentKindTransferLockStoreRules
         var sut = _mocker.CreateInstance<ParentKindTransferLockStore>();
 
         // Act
-        var renewed = await sut.Renew(Handle(), _now);
+        var renewed = await sut.Renew(Handle(), _now, StaleAfter);
 
         // Assert
         renewed.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Marker TTL is twice the stale window (20 minutes when stale-after is 10), so an abandoned marker expires " +
+        "after the takeover window without waiting for the next transfer.")]
+    public void marker_ttl_is_twice_the_stale_window()
+    {
+        // Arrange
+        var staleAfter = TimeSpan.FromMinutes(10);
+
+        // Act
+        var ttlSeconds = ParentKindTransferLock.TimeToLiveSecondsFor(staleAfter);
+
+        // Assert
+        ttlSeconds.Should().Be((int)TimeSpan.FromMinutes(20).TotalSeconds);
     }
 }
