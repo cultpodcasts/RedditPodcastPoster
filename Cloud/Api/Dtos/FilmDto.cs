@@ -42,9 +42,11 @@ public class FilmDto : PublisherFieldsDto, IPlayableGuestFieldsDto
     [JsonPropertyName("guests")]
     public string[]? Guests { get; set; }
 
+    /// <summary>Resolved people for <see cref="Guests"/> (curator edit).</summary>
     [JsonPropertyName("guestPeople")]
     public IList<PersonDto>? GuestPeople { get; set; }
 
+    /// <summary>People matched from title/description who are not already in <see cref="Guests"/>.</summary>
     [JsonPropertyName("guestSuggestions")]
     public IList<EpisodeDto.PersonMatch>? GuestSuggestions { get; set; }
 

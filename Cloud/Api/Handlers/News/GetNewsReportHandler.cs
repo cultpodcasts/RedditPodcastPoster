@@ -38,7 +38,12 @@ public class GetNewsReportHandler(
     {
         var dto = report.ToDto();
         await guestDtoEnricher.EnrichAsync(
-            dto, report.Title, report.Description, report.Language, report.Guests, c);
+            dto,
+            report.Title,
+            report.Description,
+            report.Language,
+            report.Guests,
+            cancellationToken: c);
         return dto;
     }
 

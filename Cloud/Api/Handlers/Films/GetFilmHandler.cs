@@ -42,7 +42,12 @@ public class GetFilmHandler(
     {
         var dto = film.ToDto();
         await guestDtoEnricher.EnrichAsync(
-            dto, film.Name, film.Description, film.Language, film.Guests, c);
+            dto,
+            film.Name,
+            film.Description,
+            film.Language,
+            film.Guests,
+            cancellationToken: c);
         return dto;
     }
 

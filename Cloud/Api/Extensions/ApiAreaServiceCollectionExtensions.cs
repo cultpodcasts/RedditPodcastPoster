@@ -50,6 +50,7 @@ public static class ApiAreaServiceCollectionExtensions
 {
     public static IServiceCollection AddApiEpisodes(this IServiceCollection services) =>
         services
+            .AddCatalogueEditing()
             .AddScoped<EpisodeSearchIndexCleanup>()
             .AddScoped<EpisodeDtoMapper>()
             .AddScoped<EpisodeChangeApplier>()

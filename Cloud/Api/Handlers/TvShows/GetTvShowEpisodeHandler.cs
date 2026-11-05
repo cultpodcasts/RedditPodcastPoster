@@ -38,7 +38,12 @@ public class GetTvShowEpisodeHandler(
     {
         var dto = episode.ToDto();
         await guestDtoEnricher.EnrichAsync(
-            dto, episode.Title, episode.Description, episode.Language, episode.Guests, c);
+            dto,
+            episode.Title,
+            episode.Description,
+            episode.Language,
+            episode.Guests,
+            cancellationToken: c);
         return dto;
     }
 

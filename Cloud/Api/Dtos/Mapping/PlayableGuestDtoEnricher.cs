@@ -6,17 +6,22 @@ namespace Api.Dtos.Mapping;
 
 /// <summary>
 /// Resolves guest people and title/description suggestions for curator playable GETs
-/// (TV episode, news report, film), matching <see cref="EpisodeDtoMapper"/> when
-/// <c>includeGuestSuggestions</c> is true.
+/// (episode, TV episode, news report, film). Single path for guestPeople / guestSuggestions
+/// so episode and catalogue playables cannot drift.
 /// </summary>
 public interface IPlayableGuestDtoEnricher
 {
+    /// <param name="includeGuestSuggestions">
+    /// When false, only resolves <see cref="IPlayableGuestFieldsDto.GuestPeople"/>
+    /// (list/outgoing episode projections). Curator single-resource GETs pass true.
+    /// </param>
     Task EnrichAsync(
         IPlayableGuestFieldsDto dto,
         string title,
         string description,
         string? language,
         string[]? guests,
+        bool includeGuestSuggestions = true,
         CancellationToken cancellationToken = default);
 }
 
@@ -24,7 +29,11 @@ public interface IPlayableGuestDtoEnricher
 public interface IPlayableGuestFieldsDto
 {
     string[]? Guests { get; set; }
+
+    /// <summary>Resolved people for <see cref="Guests"/> (curator edit).</summary>
     IList<PersonDto>? GuestPeople { get; set; }
+
+    /// <summary>People matched from title/description who are not already in <see cref="Guests"/>.</summary>
     IList<EpisodeDto.PersonMatch>? GuestSuggestions { get; set; }
 }
 
@@ -36,6 +45,7 @@ public sealed class PlayableGuestDtoEnricher(IPersonService personService) : IPl
         string description,
         string? language,
         string[]? guests,
+        bool includeGuestSuggestions = true,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(dto);
@@ -46,10 +56,15 @@ public sealed class PlayableGuestDtoEnricher(IPersonService personService) : IPl
             dto.GuestPeople = guestPeople.Select(x => x.ToDto()).ToList();
         }
 
+        if (!includeGuestSuggestions)
+        {
+            return;
+        }
+
         var probe = new Episode
         {
-            Title = title ?? string.Empty,
-            Description = description ?? string.Empty,
+            Title = title,
+            Description = description,
             Language = language,
             Guests = guests
         };

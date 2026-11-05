@@ -1,11 +1,12 @@
 using System.Text.Json.Serialization;
+using Api.Dtos.Mapping;
 
 namespace Api.Dtos;
 
 /// <summary>
 /// Curate/admin episode JSON. Flat projection — does not inherit domain Episode.
 /// </summary>
-public class EpisodeDto : IPlayableKindDto
+public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
 {
     /// <summary><c>Episode</c>, <c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c>.</summary>
     [JsonPropertyName("contentKind")]
@@ -179,10 +180,12 @@ public class EpisodeDto : IPlayableKindDto
     [JsonPropertyOrder(250)]
     public Uri? Image { get; set; }
 
+    /// <summary>Resolved people for <see cref="Guests"/> (curator edit).</summary>
     [JsonPropertyName("guestPeople")]
     [JsonPropertyOrder(270)]
     public IList<PersonDto>? GuestPeople { get; set; }
 
+    /// <summary>People matched from title/description who are not already in <see cref="Guests"/>.</summary>
     [JsonPropertyName("guestSuggestions")]
     [JsonPropertyOrder(271)]
     public IList<PersonMatch>? GuestSuggestions { get; set; }
