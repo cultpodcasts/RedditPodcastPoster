@@ -14,6 +14,7 @@ public class TvShowService(
     EpisodeSearchIndexCleanup searchIndexCleanup,
     IServiceIdsUniqueness serviceIdsUniqueness,
     IYouTubePlaylistGuard youTubePlaylistGuard,
+    IChannelWideYouTubeClaimGuard channelWideYouTubeClaimGuard,
     ILogger<TvShowService> logger) : ITvShowService
 {
     public async Task<TvShowGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -88,6 +89,25 @@ public class TvShowService(
                     refused.IsRetryable ? TvShowUpdateStatus.ServiceUnavailable : TvShowUpdateStatus.BadRequest,
                     refused.Message,
                     Code: refused.Code);
+            }
+
+            var (projectedChannel, projectedPlaylist, projectedRemoved) =
+                ChannelWideYouTubeClaimProjection.ForParent(
+                    show.Indexing, show.IsRemoved(), request.Change);
+            if (await channelWideYouTubeClaimGuard.Check(
+                    show.Id,
+                    ChannelWideYouTubeClaimKind.TvShow,
+                    projectedChannel,
+                    projectedPlaylist,
+                    projectedRemoved,
+                    cancellationToken) is { } claimConflict)
+            {
+                logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                    show.Id, ChannelWideYouTubeClaimConflict.Code, claimConflict.Message);
+                return new TvShowUpdateResult(
+                    TvShowUpdateStatus.BadRequest,
+                    claimConflict.Message,
+                    Code: ChannelWideYouTubeClaimConflict.Code);
             }
 
             PublisherChangeApplier.Apply(show, request.Change);

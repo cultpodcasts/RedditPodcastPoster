@@ -84,6 +84,7 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<PodcastEpisodeProjectionHelper>()
             .AddScoped<PodcastChangeApplier>()
             .AddScoped<IYouTubePlaylistGuard, YouTubePlaylistGuard>()
+            .AddScoped<IChannelWideYouTubeClaimGuard, ChannelWideYouTubeClaimGuard>()
             .AddScoped<IPodcastGetService, PodcastGetService>()
             .AddScoped<IPodcastUpdateService, PodcastUpdateService>()
             .AddScoped<IPodcastKindTransferService, PodcastKindTransferService>()
@@ -114,6 +115,7 @@ public static class ApiAreaServiceCollectionExtensions
         services.TryAddScoped<IPlayableSocialRetraction, PlayableSocialRetraction>();
         services.TryAddScoped<IServiceIdsUniqueness, ServiceIdsUniqueness>();
         services.TryAddScoped<IYouTubePlaylistGuard, YouTubePlaylistGuard>();
+        services.TryAddScoped<IChannelWideYouTubeClaimGuard, ChannelWideYouTubeClaimGuard>();
         services.TryAddScoped<PlayableSearchRename>();
         services.TryAddScoped<CataloguePlayableSearchSync>();
         services.TryAddScoped<ICatalogueRenameService, CatalogueRenameService>();
