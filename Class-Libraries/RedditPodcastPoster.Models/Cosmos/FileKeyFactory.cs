@@ -66,12 +66,14 @@ public static class FileKeyFactory
 
     /// <summary>
     /// True when <paramref name="fileKey"/> is usable once <paramref name="prefix"/> is removed: it carries the
-    /// prefix (ignoring case) and the rest is a usable slug (<see cref="IsUsableSlug"/>). A bare prefix
-    /// (<c>"news-"</c>) or a prefix plus a placeholder (<c>"news-_12"</c>) is not usable.
+    /// prefix exactly (<see cref="StringComparison.Ordinal"/>, same as the public-database publisher) and the rest
+    /// is a usable slug (<see cref="IsUsableSlug"/>). A bare prefix (<c>"news-"</c>), a wrong-case prefix
+    /// (<c>"News-foo"</c>), or a prefix plus a placeholder (<c>"news-_12"</c>) is not usable, so the allocator
+    /// re-keys it to a generated lower-case key.
     /// </summary>
     public static bool IsUsableFileKey(string? fileKey, string prefix = "") =>
         fileKey is not null &&
-        fileKey.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+        fileKey.StartsWith(prefix, StringComparison.Ordinal) &&
         IsUsableSlug(fileKey[prefix.Length..]);
 
     /// <summary>Stable slug built from the id, for a name that gives no usable slug.</summary>

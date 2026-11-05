@@ -256,6 +256,50 @@ public class FileKeyRules
         usable.Should().BeFalse();
     }
 
+    [Theory(DisplayName =
+        "A wrong-case kind prefix (News-foo, TVShow-foo, Film-foo) is not usable, because the public-database " +
+        "publisher requires an exact lower-case prefix and generated keys are always lower-case.")]
+    [InlineData("News-foo", FileKeyFactory.NewsOrganisationPrefix)]
+    [InlineData("TVShow-foo", FileKeyFactory.TvShowPrefix)]
+    [InlineData("Film-foo", FileKeyFactory.FilmPrefix)]
+    [InlineData("NEWS-foo", FileKeyFactory.NewsOrganisationPrefix)]
+    [InlineData("tvShow-foo", FileKeyFactory.TvShowPrefix)]
+    public void wrong_case_prefix_is_not_usable(string fileKey, string prefix)
+    {
+        // Arrange
+        // Act
+        var usable = FileKeyFactory.IsUsableFileKey(fileKey, prefix);
+
+        // Assert
+        usable.Should().BeFalse();
+        FileKeyFactory.IsUsableFileKey(prefix + "foo", prefix).Should().BeTrue(
+            "the same slug under the exact lower-case prefix remains usable");
+    }
+
+    [Theory(DisplayName =
+        "Repair and rename treat a wrong-case kind prefix as unusable and re-key to a generated lower-case key, " +
+        "so a hand-set News-foo / TVShow-foo key cannot be kept by the allocator then rejected by the publisher.")]
+    [InlineData(FileKeyKind.NewsOrganisation, "News-")]
+    [InlineData(FileKeyKind.TvShow, "TVShow-")]
+    [InlineData(FileKeyKind.Film, "Film-")]
+    public async Task wrong_case_prefix_is_rekeyed_on_repair_and_rename(FileKeyKind kind, string wrongCasePrefix)
+    {
+        // Arrange
+        const string name = "Synthetic Signal";
+        var id = _fixture.CreateGuid();
+        var wrongCaseKey = wrongCasePrefix + "synthetic_signal";
+        var expected = FileKeyFactory.GetFileKey(kind, name, id);
+
+        // Act
+        var repaired = await Allocator.RepairIfUnusable(kind, name, id, wrongCaseKey);
+        var renamed = await Allocator.AllocateForRename(kind, name, id, wrongCaseKey);
+
+        // Assert
+        repaired.Should().Be(expected);
+        renamed.Should().Be(expected);
+        FileKeyFactory.IsUsableFileKey(repaired, FileKeyFactory.PrefixFor(kind)).Should().BeTrue();
+    }
+
     [Fact(DisplayName =
         "A stored key of the form _10 is repaired on a rename that keeps keys; news-_12 likewise for a news organisation.")]
     public async Task numbered_placeholder_keys_are_repaired()

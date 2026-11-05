@@ -40,7 +40,9 @@ public sealed class FileKeyAllocator(
         var candidate = FileKeyFactory.GetFileKey(kind, name ?? string.Empty, id);
         if (currentKey is not null && string.Equals(candidate, currentKey, StringComparison.OrdinalIgnoreCase))
         {
-            return currentKey;
+            // Keep the stored key when it is already publisher-valid (exact kind prefix). A wrong-case
+            // prefix such as News-foo matches the candidate ignoring case but fails PublicFileKeyGuard.
+            return FileKeyFactory.IsUsableFileKey(currentKey, prefix) ? currentKey : candidate;
         }
 
         return await MakeUnique(kind, candidate, id);
