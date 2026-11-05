@@ -38,7 +38,10 @@ public sealed class FileKeyAllocator(
         }
 
         var candidate = FileKeyFactory.GetFileKey(kind, name ?? string.Empty, id);
-        if (currentKey is not null && string.Equals(candidate, currentKey, StringComparison.OrdinalIgnoreCase))
+        // Ordinal-equal only: ignore-case match (wrong-case prefix / mixed slug) must go through MakeUnique
+        // so a taken lower-case key gets a _2 suffix instead of a bare colliding candidate.
+        if (currentKey is not null &&
+            string.Equals(candidate, currentKey, StringComparison.Ordinal))
         {
             return currentKey;
         }
