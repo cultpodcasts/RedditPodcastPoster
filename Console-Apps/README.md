@@ -380,6 +380,18 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 |--------|-------------|
 | `-a, --apply` | Patch the two flags; without this flag, report counts only |
 
+### UnusableFileKeyAudit
+
+**Purpose:** Read-only count of podcast / TV show / news organisation / film rows whose `fileKey` fails `FileKeyFactory.IsUsableFileKey` (empty, placeholder slug, wrong prefix). Use the totals to decide whether a consent-gated `RepairIfUnusable` backfill is needed (#1167). Never writes Cosmos.
+
+**Run:** `dotnet run --project Console-Apps/UnusableFileKeyAudit --` · PATH: `UnusableFileKeyAudit`
+
+| Option | Description |
+|--------|-------------|
+| `-k, --kind` | `all` (default), `podcast`, `tvshow`, `news`, or `film` |
+| `-l, --list` | Log sample unusable rows (id, name, fileKey) |
+| `--sample-limit` | Max samples per kind when listing (default 50; `0` = unlimited) |
+
 ### SeedTitleCasingRules
 
 **Purpose:** Seed a per-language `TitleCasingRules` document (default `en`) from static lower-case words + legacy LookUps KnownTerms. Dry-run unless `--apply`. Do not run `--apply` against production without explicit approval.
