@@ -21,11 +21,14 @@ public interface IParentKindTransferLockStore
         TimeSpan staleAfter);
 
     /// <summary>
-    /// Heartbeat: rewrites the marker's heartbeat with If-Match on this attempt's etag. Returns the new handle, or
-    /// null when the marker was taken over or removed (the lease is lost and the holder must stop). Other errors
-    /// throw; the caller may retry on its next heartbeat.
+    /// Heartbeat: rewrites the marker's heartbeat (and refreshes item TTL to 2× <paramref name="staleAfter"/>) with
+    /// If-Match on this attempt's etag. Returns the new handle, or null when the marker was taken over or removed
+    /// (the lease is lost and the holder must stop). Other errors throw; the caller may retry on its next heartbeat.
     /// </summary>
-    Task<ParentKindTransferLockHandle?> Renew(ParentKindTransferLockHandle handle, DateTime nowUtc);
+    Task<ParentKindTransferLockHandle?> Renew(
+        ParentKindTransferLockHandle handle,
+        DateTime nowUtc,
+        TimeSpan staleAfter);
 
     /// <summary>Removes the marker if this attempt still holds it. Never throws for a lost or missing marker.</summary>
     Task Release(ParentKindTransferLockHandle handle);

@@ -28,8 +28,10 @@ namespace Api.Services.Podcasts;
 /// <para>
 /// Only one transfer per podcast runs at a time: a LookUps marker (<see cref="IParentKindTransferLockStore"/>) is
 /// taken first, and a second request while it is fresh gets <see cref="PodcastKindTransferStatus.AlreadyRunning"/>.
-/// The holder renews the marker every <see cref="LockHeartbeatInterval"/> while it works; a marker with no heartbeat
-/// for <see cref="LockStaleAfter"/> belongs to a transfer that died, and the next request takes it over and resumes.
+/// The marker carries a Cosmos item TTL of 2× <see cref="LockStaleAfter"/> (refreshed on each heartbeat) so a leftover
+/// from a crashed holder expires on its own. The holder renews the marker every <see cref="LockHeartbeatInterval"/>
+/// while it works; a marker with no heartbeat for <see cref="LockStaleAfter"/> belongs to a transfer that died, and
+/// the next request takes it over and resumes.
 /// A holder whose renewal finds the marker taken over stops at once (without compensating: the new holder owns the
 /// rows). A holder that cannot renew for <see cref="LockSelfFenceAfter"/> stops writing on its own before the
 /// marker can go stale, and a failed write is compensated only after a forced renewal proves the marker is still
@@ -685,7 +687,7 @@ public class PodcastKindTransferService(
         {
             try
             {
-                var renewed = await store.Renew(Handle, now);
+                var renewed = await store.Renew(Handle, now, LockStaleAfter);
                 if (renewed is null)
                 {
                     _takenOver = true;

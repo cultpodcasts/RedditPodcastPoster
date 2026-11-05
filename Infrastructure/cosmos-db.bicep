@@ -183,6 +183,9 @@ resource lookupContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/con
         paths: ['/id']
         kind: 'Hash'
       }
+      // Opt-in TTL: items expire only when they set their own `ttl`. Kind-transfer markers use this;
+      // other LookUps docs omit `ttl` and never expire.
+      defaultTtl: -1
     }
     options: {}
   }

@@ -10,7 +10,8 @@ namespace RedditPodcastPoster.Persistence.Lookups;
 /// LookUps marker per podcast (id = podcast id, partition = id). Create fails with 409 when another transfer holds
 /// it. The holder renews a heartbeat with If-Match on its etag. A marker whose last heartbeat is older than the stale
 /// window is replaced with If-Match on the etag that was read, so only one taker wins. Release deletes with If-Match
-/// on this attempt's etag, so a taken-over marker is left to its new holder.
+/// on this attempt's etag, so a taken-over marker is left to its new holder. Each write sets item <c>ttl</c> to
+/// 2× the stale window so a leftover from a crashed holder expires without waiting for the next transfer.
 /// </summary>
 public sealed class ParentKindTransferLockStore(
     Container lookUpsContainer,
@@ -22,12 +23,14 @@ public sealed class ParentKindTransferLockStore(
         DateTime nowUtc,
         TimeSpan staleAfter)
     {
+        var ttlSeconds = ParentKindTransferLock.TimeToLiveSecondsFor(staleAfter);
         var marker = new ParentKindTransferLock
         {
             Id = podcastId,
             TargetKind = targetKind,
             StartedUtc = nowUtc,
-            AttemptId = Guid.NewGuid()
+            AttemptId = Guid.NewGuid(),
+            TimeToLiveSeconds = ttlSeconds
         };
         var partitionKey = new PartitionKey(podcastId.ToString());
 
@@ -98,7 +101,10 @@ public sealed class ParentKindTransferLockStore(
         return ParentKindTransferLockAcquisition.AlreadyRunning(nowUtc);
     }
 
-    public async Task<ParentKindTransferLockHandle?> Renew(ParentKindTransferLockHandle handle, DateTime nowUtc)
+    public async Task<ParentKindTransferLockHandle?> Renew(
+        ParentKindTransferLockHandle handle,
+        DateTime nowUtc,
+        TimeSpan staleAfter)
     {
         var marker = new ParentKindTransferLock
         {
@@ -106,7 +112,8 @@ public sealed class ParentKindTransferLockStore(
             TargetKind = handle.TargetKind,
             StartedUtc = handle.StartedUtc,
             AttemptId = handle.AttemptId,
-            HeartbeatUtc = nowUtc
+            HeartbeatUtc = nowUtc,
+            TimeToLiveSeconds = ParentKindTransferLock.TimeToLiveSecondsFor(staleAfter)
         };
         try
         {

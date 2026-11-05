@@ -80,8 +80,12 @@ public sealed class InMemoryParentKindTransferLockStore : IParentKindTransferLoc
         }
     }
 
-    public Task<ParentKindTransferLockHandle?> Renew(ParentKindTransferLockHandle handle, DateTime nowUtc)
+    public Task<ParentKindTransferLockHandle?> Renew(
+        ParentKindTransferLockHandle handle,
+        DateTime nowUtc,
+        TimeSpan staleAfter)
     {
+        _ = staleAfter;
         lock (_markers)
         {
             RenewAttempts++;
