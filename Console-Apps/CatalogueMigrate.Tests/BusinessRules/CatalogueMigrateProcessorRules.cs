@@ -1,6 +1,7 @@
 using CatalogueMigrate;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -8,6 +9,7 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Migration;
 using CatalogueMigrate.Tests.Fakes;
@@ -35,6 +37,10 @@ public class CatalogueMigrateProcessorRules
         _mocker.Use<ICatalogueMigrateDestinationReader>(_destination);
         _mocker.Use<ICatalogueMigrateEvidenceStore>(new InMemoryCatalogueMigrateEvidenceStore());
         _mocker.Use<TimeProvider>(new FixedTimeProvider(DateTimeOffset.UtcNow));
+        _mocker.GetMock<IYouTubePlaylistValidator>()
+            .Setup(v => v.Validate(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string? playlistId, CancellationToken _) =>
+                new YouTubePlaylistValidation(YouTubePlaylistValidationStatus.NotApplicable, playlistId));
         _mocker.Use(_mocker.CreateInstance<CatalogueMigrateRollbackPreviewer>());
         _mocker.Use<Func<CatalogueMigrateApplier>>(() => _mocker.CreateInstance<CatalogueMigrateApplier>());
     }

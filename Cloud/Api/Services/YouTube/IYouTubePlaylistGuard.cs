@@ -39,4 +39,14 @@ public interface IYouTubePlaylistGuard
         string? currentChannelId,
         string? requestedChannelId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Null when a stored channel/playlist pair may be copied onto another parent (kind transfer). Otherwise the
+    /// refused validation. Only checks when both ids are non-blank; see
+    /// <see cref="YouTubePlaylistChannelOwnership"/>.
+    /// </summary>
+    Task<YouTubePlaylistValidation?> CheckChannelOwnsPlaylist(
+        string? channelId,
+        string? playlistId,
+        CancellationToken cancellationToken);
 }

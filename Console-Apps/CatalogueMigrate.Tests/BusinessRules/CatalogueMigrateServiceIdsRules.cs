@@ -1,6 +1,8 @@
 using CatalogueMigrate;
 using FluentAssertions;
+using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using Xunit;
 
 namespace CatalogueMigrate.Tests.BusinessRules;
@@ -8,6 +10,7 @@ namespace CatalogueMigrate.Tests.BusinessRules;
 public class CatalogueMigrateServiceIdsRules
 {
     private readonly DomainTestFixture _fixture = new();
+    private readonly Mock<IYouTubePlaylistValidator> _validator = new();
 
     [Fact(DisplayName =
         "Service-id guard: when the destination parent document does not carry the podcast's YouTube channel, Spotify " +
@@ -82,5 +85,55 @@ public class CatalogueMigrateServiceIdsRules
 
         // Assert
         dropped.Should().Equal("youTubeChannelId");
+    }
+
+    [Fact(DisplayName =
+        "YouTube playlist ownership: a podcast whose channel does not own its playlist is refused with " +
+        "youTubePlaylistChannelMismatch before CatalogueMigrate copies the pair (#1178).")]
+    public async Task mismatched_channel_playlist_pair_is_refused()
+    {
+        // Arrange
+        var ownerChannelId = _fixture.CreateYouTubeChannelId();
+        var podcastChannelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = podcastChannelId;
+            p.YouTubePlaylistId = playlistId;
+        });
+        _validator.Setup(v => v.Validate(playlistId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new YouTubePlaylistValidation(
+                YouTubePlaylistValidationStatus.Valid, playlistId, ownerChannelId));
+
+        // Act
+        var refused = await CatalogueMigrateServiceIds.YouTubePlaylistOwnershipRefusal(
+            podcast, _validator.Object, CancellationToken.None);
+        var block = CatalogueMigrateServiceIds.OwnershipBlockReason(refused!);
+
+        // Assert
+        refused.Should().NotBeNull();
+        refused!.Code.Should().Be(YouTubePlaylistValidation.ChannelMismatchCode);
+        block.Should().StartWith(CatalogueMigratePlanner.YouTubePlaylistOwnershipRefusedPrefix);
+        block.Should().Contain(YouTubePlaylistValidation.ChannelMismatchCode);
+    }
+
+    [Fact(DisplayName =
+        "YouTube playlist ownership: a channel-only podcast (no playlist) is not checked, because there is no pair.")]
+    public async Task channel_only_podcast_is_not_checked()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.YouTubePlaylistId = string.Empty;
+        });
+
+        // Act
+        var refused = await CatalogueMigrateServiceIds.YouTubePlaylistOwnershipRefusal(
+            podcast, _validator.Object, CancellationToken.None);
+
+        // Assert
+        refused.Should().BeNull();
+        _validator.VerifyNoOtherCalls();
     }
 }

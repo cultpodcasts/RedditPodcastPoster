@@ -57,6 +57,20 @@ public class PostPodcastKindTransferHandler(
                 await ctx.BadRequest(
                     ApiErrorResponse.Failure("targetKind must be TvShow or NewsOrganisation"),
                     cancellationToken),
+            PodcastKindTransferStatus.BadRequest =>
+                await ctx.BadRequest(
+                    ApiErrorResponse.Failure(
+                        result.Error ?? "Invalid podcast kind transfer",
+                        result.Code),
+                    cancellationToken),
+            PodcastKindTransferStatus.ServiceUnavailable =>
+                await ctx.Json(
+                    HttpStatusCode.ServiceUnavailable,
+                    ApiErrorResponse.Failure(
+                        result.Error ?? "Unable to transfer podcast; try again",
+                        result.Code,
+                        true),
+                    cancellationToken),
             PodcastKindTransferStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to transfer podcast"), cancellationToken),
             _ => await LogAndFail(ctx, cancellationToken)
@@ -77,7 +91,9 @@ public class PostPodcastKindTransferHandler(
             PodcastKindTransferStatus.NotFound => HttpStatusCode.NotFound,
             PodcastKindTransferStatus.Conflict or PodcastKindTransferStatus.AlreadyRunning
                 or PodcastKindTransferStatus.Incomplete => HttpStatusCode.Conflict,
-            PodcastKindTransferStatus.InvalidTarget => HttpStatusCode.BadRequest,
+            PodcastKindTransferStatus.InvalidTarget or PodcastKindTransferStatus.BadRequest =>
+                HttpStatusCode.BadRequest,
+            PodcastKindTransferStatus.ServiceUnavailable => HttpStatusCode.ServiceUnavailable,
             _ => HttpStatusCode.InternalServerError
         });
     }

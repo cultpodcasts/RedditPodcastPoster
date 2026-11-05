@@ -2,6 +2,7 @@ using CatalogueMigrate;
 using CatalogueMigrate.Tests.Fakes;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -9,6 +10,7 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Migration;
@@ -37,6 +39,10 @@ public class CatalogueMigrateApplyRules
         _mocker.Use<ICatalogueMigrateDestinationReader>(_destination);
         _mocker.Use<ICatalogueMigrateEvidenceStore>(_evidence);
         _mocker.Use<TimeProvider>(_clock);
+        _mocker.GetMock<IYouTubePlaylistValidator>()
+            .Setup(v => v.Validate(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string? playlistId, CancellationToken _) =>
+                new YouTubePlaylistValidation(YouTubePlaylistValidationStatus.NotApplicable, playlistId));
         _mocker.Use(NullLogger<CatalogueMigrateProcessor>.Instance);
         _mocker.Use(NullLogger<CatalogueMigrateApplier>.Instance);
         _mocker.Use(NullLogger<CatalogueMigrateRollbackPreviewer>.Instance);
@@ -777,6 +783,38 @@ public class CatalogueMigrateApplyRules
         indexing.Should().NotBeNull();
         indexing!.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
         CatalogueMigrateServiceIds.Dropped(podcast, _destination.NewsOrganisations[podcast.Id]).Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when the podcast's youTubeChannelId does not own youTubePlaylistId, dry-run and apply " +
+        "report the ownership refusal and write nothing, because CatalogueMigrate must not copy a mismatched pair (#1178).")]
+    public async Task mismatched_youtube_playlist_blocks_dry_run_and_apply()
+    {
+        // Arrange
+        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var ownerChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.YouTubePlaylistId = playlistId;
+        _podcasts.Seed(podcast);
+        _mocker.GetMock<IYouTubePlaylistValidator>()
+            .Setup(v => v.Validate(playlistId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new YouTubePlaylistValidation(
+                YouTubePlaylistValidationStatus.Valid, playlistId, ownerChannelId));
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var dryRun = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+        var apply = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        dryRun.PlanLines.Single().Accepted.Should().BeFalse();
+        dryRun.PlanLines.Single().BlockReason.Should()
+            .StartWith(CatalogueMigratePlanner.YouTubePlaylistOwnershipRefusedPrefix)
+            .And.Contain(YouTubePlaylistValidation.ChannelMismatchCode);
+        apply.AppliedCount.Should().Be(0);
+        apply.PlanLines.Single().Accepted.Should().BeFalse();
+        _destination.NewsOrganisations.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
     }
 
     [Fact(DisplayName =

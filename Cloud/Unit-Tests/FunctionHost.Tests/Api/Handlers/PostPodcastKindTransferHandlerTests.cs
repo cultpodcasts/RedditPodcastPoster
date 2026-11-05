@@ -4,12 +4,14 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
 using PodcastKindTransferResponse = Api.Dtos.PodcastKindTransferResponse;
+using ApiErrorResponse = Api.Dtos.ApiErrorResponse;
 using Api.Handlers;
 using Api.Handlers.Podcasts;
 using Api.Models;
 using Api.Services.Podcasts;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Handlers;
@@ -141,6 +143,58 @@ public class PostPodcastKindTransferHandlerTests
         // Assert
         _ctx.Verify(x => x.Accepted(
             It.Is<PodcastKindTransferResponse>(r => r.PlayableCount == 3 && !r.TransferInProgress),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A kind transfer refused for youTubePlaylistChannelMismatch is a 400 with {error, code}, matching the " +
+        "podcast edit contract (#1178).")]
+    public async Task channel_mismatch_is_bad_request_with_code()
+    {
+        // Arrange
+        _result = new PodcastKindTransferResult(
+            PodcastKindTransferStatus.BadRequest,
+            _command.PodcastId,
+            CatalogueParentKind.NewsOrganisation,
+            Error: "channel does not own playlist",
+            Code: YouTubePlaylistValidation.ChannelMismatchCode);
+        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
+
+        // Act
+        await sut.Handle(_ctx.Object, _command, CancellationToken.None);
+
+        // Assert
+        _ctx.Verify(x => x.BadRequest(
+            It.Is<ApiErrorResponse>(r =>
+                r.Error == "channel does not own playlist" &&
+                r.Code == YouTubePlaylistValidation.ChannelMismatchCode &&
+                r.Retryable == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A kind transfer that could not look up the playlist is a 503 with {error, code, retryable:true}.")]
+    public async Task lookup_failed_is_service_unavailable_with_retryable()
+    {
+        // Arrange
+        _result = new PodcastKindTransferResult(
+            PodcastKindTransferStatus.ServiceUnavailable,
+            _command.PodcastId,
+            CatalogueParentKind.TvShow,
+            Error: "try again",
+            Code: YouTubePlaylistValidation.LookupFailedCode);
+        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
+
+        // Act
+        await sut.Handle(_ctx.Object, _command, CancellationToken.None);
+
+        // Assert
+        _ctx.Verify(x => x.Json(
+            HttpStatusCode.ServiceUnavailable,
+            It.Is<ApiErrorResponse>(r =>
+                r.Error == "try again" &&
+                r.Code == YouTubePlaylistValidation.LookupFailedCode &&
+                r.Retryable == true),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 }

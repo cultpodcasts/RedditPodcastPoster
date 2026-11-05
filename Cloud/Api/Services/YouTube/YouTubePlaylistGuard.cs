@@ -55,31 +55,14 @@ public class YouTubePlaylistGuard(IYouTubePlaylistValidator validator) : IYouTub
             return null;
         }
 
-        var validation = await validator.Validate(playlistId, cancellationToken);
-        if (!validation.IsAllowed)
-        {
-            return validation;
-        }
-
-        if (string.IsNullOrWhiteSpace(validation.OwnerChannelId))
-        {
-            // Valid without an owner fail-opens the ownership gate — refuse as retryable lookup failure.
-            return new YouTubePlaylistValidation(
-                YouTubePlaylistValidationStatus.LookupFailed,
-                playlistId);
-        }
-
-        if (string.Equals(validation.OwnerChannelId, channelId, StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        return new YouTubePlaylistValidation(
-            YouTubePlaylistValidationStatus.ChannelMismatch,
-            playlistId,
-            validation.OwnerChannelId,
-            validation.OwnerChannelTitle);
+        return await YouTubePlaylistChannelOwnership.Check(validator, channelId, playlistId, cancellationToken);
     }
+
+    public Task<YouTubePlaylistValidation?> CheckChannelOwnsPlaylist(
+        string? channelId,
+        string? playlistId,
+        CancellationToken cancellationToken) =>
+        YouTubePlaylistChannelOwnership.Check(validator, channelId, playlistId, cancellationToken);
 
     // Same rule as the appliers: whitespace clears, values are trimmed.
     private static string Normalise(string? value) => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
