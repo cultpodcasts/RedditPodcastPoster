@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
@@ -60,6 +61,16 @@ public class EpisodeUrlRouter(
         SpotifyPodcastServiceMatcher.IsMatch(url) ||
         YouTubePodcastServiceMatcher.IsMatch(url) ||
         ApplePodcastServiceMatcher.IsMatch(url);
+
+    /// <summary>
+    /// Curator catalogue filing for Film / TvShowEpisode / NewsReport: podcast platforms plus any URL the
+    /// streaming catalog recognises (Channel 4, BBC iPlayer, Netflix, …). Hub submit uses
+    /// <c>parentKind</c>/<c>parentId</c> for TV episodes and news reports; Film has no parent but the same
+    /// URL shape. Owner auto-routing still uses <see cref="IsPodcastPlatformUrl"/> only — channel/show
+    /// ownership is podcast-platform shaped.
+    /// </summary>
+    public static bool CanFileUnderCatalogueParent(Uri url) =>
+        IsPodcastPlatformUrl(url) || StreamingServiceCatalog.TryResolveKey(url) is not null;
 
     public async Task<EpisodeUrlRoute> RouteByOwner(Uri url, IndexingContext indexingContext)
     {

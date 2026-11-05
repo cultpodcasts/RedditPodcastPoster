@@ -249,6 +249,12 @@ public class UrlSubmitter(
     public static bool IsPodcastPlatformUrl(Uri url) => EpisodeUrlRouter.IsPodcastPlatformUrl(url);
 
     /// <summary>
+    /// Podcast platforms or a recognised streaming URL for curator catalogue filing
+    /// (Film, TvShowEpisode under a TV show, NewsReport under a news organisation).
+    /// </summary>
+    public static bool CanFileUnderCatalogueParent(Uri url) => EpisodeUrlRouter.CanFileUnderCatalogueParent(url);
+
+    /// <summary>
     /// The curator chose the news organisation / TV show (by id). No podcast lookup, no owner routing, and never a
     /// podcast: a missing parent is <see cref="SubmitParentNotFoundException"/>.
     /// </summary>
@@ -259,11 +265,11 @@ public class UrlSubmitter(
         SubmitOptions submitOptions,
         CatalogueServiceUrlOwner? catalogueOwner)
     {
-        if (!IsPodcastPlatformUrl(url))
+        if (!CanFileUnderCatalogueParent(url))
         {
             // SubmitUrlService answers this with a 400 first; this guard keeps other callers from reaching the categoriser.
             throw new InvalidOperationException(
-                $"Only Spotify, YouTube or Apple Podcasts URLs can be filed under a {target.Kind}; got '{url}'.");
+                $"Only Spotify, YouTube, Apple Podcasts, or a recognised streaming service URL can be filed as a Film, TvShowEpisode, or NewsReport (under {target.Kind}); got '{url}'.");
         }
 
         var parent = await catalogueParentLookup.FindById(target.Kind, target.Id);
