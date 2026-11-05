@@ -111,6 +111,7 @@ public static class ApiAreaServiceCollectionExtensions
     /// <summary>Shared by the news, TV and film editors (post-status retraction, rename). Safe to call more than once.</summary>
     private static IServiceCollection AddCatalogueEditing(this IServiceCollection services)
     {
+        services.TryAddScoped<IPlayableGuestDtoEnricher, PlayableGuestDtoEnricher>();
         services.TryAddScoped<IPlayableSocialRetraction, PlayableSocialRetraction>();
         services.TryAddScoped<IServiceIdsUniqueness, ServiceIdsUniqueness>();
         services.TryAddScoped<IYouTubePlaylistGuard, YouTubePlaylistGuard>();

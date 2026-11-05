@@ -133,16 +133,21 @@ public class CatalogueKindSubmitRules
                 episode.Subjects.AddRange(hits);
                 return new EnrichSubjectsResult([.. hits], []);
             });
-        // Synthetic guest matcher: a description naming the guest adds them; naming the "maybe" guest yields a
-        // low-confidence suggestion only, as the real enricher's SkippedLowConfidence.
+        // Synthetic guest matcher honouring TitleOnly: description hits only when TitleOnly is false
+        // (catalogue submit); title hits always. Naming the "maybe" guest yields a low-confidence suggestion.
         _mocker.GetMock<IEpisodeGuestEnricher>()
             .Setup(x => x.EnrichGuests(It.IsAny<Episode>(), It.IsAny<GuestEnrichmentOptions?>()))
-            .ReturnsAsync((Episode episode, GuestEnrichmentOptions? _) =>
+            .ReturnsAsync((Episode episode, GuestEnrichmentOptions? options) =>
             {
-                var additions = episode.Description.Contains(SyntheticGuest, StringComparison.Ordinal)
+                _guestOptions.Add(options);
+                var titleOnly = options?.TitleOnly ?? true;
+                bool Mentions(string name) =>
+                    episode.Title.Contains(name, StringComparison.Ordinal) ||
+                    (!titleOnly && episode.Description.Contains(name, StringComparison.Ordinal));
+                var additions = Mentions(SyntheticGuest)
                     ? new[] { new PersonMatch(new Person(SyntheticGuest), [new PersonMatchResult(SyntheticGuest, 1)]) }
                     : [];
-                var suggestions = episode.Description.Contains(SuggestedGuest, StringComparison.Ordinal)
+                var suggestions = Mentions(SuggestedGuest)
                     ? new[] { new PersonMatch(new Person(SuggestedGuest), [new PersonMatchResult(SuggestedGuest, 1)]) }
                     : [];
                 if (additions.Length > 0)
@@ -165,6 +170,7 @@ public class CatalogueKindSubmitRules
     }
 
     private readonly List<SubjectEnrichmentOptions?> _subjectOptions = [];
+    private readonly List<GuestEnrichmentOptions?> _guestOptions = [];
     private const string SyntheticSubject = "Synthetic Subject Zeta";
     private const string ParentIgnoredSubject = "Synthetic Ignored Subject";
     private const string LanguageIgnoredSubject = "Synthetic Language Ignored";
@@ -222,6 +228,29 @@ public class CatalogueKindSubmitRules
         var enriched = Enriched(saved);
         enriched.Subjects.Should().Equal(SyntheticSubject);
         enriched.Guests.Should().Equal(SyntheticGuest);
+        _guestOptions.Should().ContainSingle()
+            .Which!.TitleOnly.Should().BeFalse(
+                "catalogue submit must match guests in the description, not title only");
+    }
+
+    [Theory(DisplayName =
+        "When a film, TV episode or news report is submitted with a guest named only in the description " +
+        "(not the title), then that guest is still saved, because catalogue submit disables TitleOnly.")]
+    [MemberData(nameof(Kinds))]
+    public async Task description_only_guest_is_enriched_when_absent_from_title(string kind)
+    {
+        // Arrange — title has no guest name; description does (share-target TV / news / film pattern).
+        var source = KindSource($"With {SyntheticGuest}.") with
+        {
+            Title = "Weekly briefing without the guest name"
+        };
+
+        // Act
+        var (_, _, saved) = await SubmitKind(kind, source);
+
+        // Assert
+        Enriched(saved).Guests.Should().Equal(SyntheticGuest);
+        _guestOptions.Should().ContainSingle().Which!.TitleOnly.Should().BeFalse();
     }
 
     [Theory(DisplayName =
