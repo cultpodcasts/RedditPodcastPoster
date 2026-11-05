@@ -15,8 +15,9 @@ public interface IEpisodePlatformMatcher
 
     /// <summary>
     /// Same decision as <see cref="IsMatch"/>, plus how it was reached: <see cref="EpisodeMatchKind.Certain"/>
-    /// (same platform id, exact title, or the podcast's EpisodeMatchRegex) or <see cref="EpisodeMatchKind.Heuristic"/>
-    /// (fuzzy title + duration, or release + duration).
+    /// (same platform id, exact title with duration and release-strategy alignment, or the podcast's
+    /// EpisodeMatchRegex) or <see cref="EpisodeMatchKind.Heuristic"/>
+    /// (fuzzy title + duration + release-strategy alignment, or release + duration).
     /// </summary>
     EpisodeMatchKind Classify(
         Episode existingEpisode,

@@ -16,7 +16,7 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Merging;
 /// <summary>
 /// A single match reached by a heuristic path (fuzzy title + duration, or release + duration) is scored and
 /// rejected below the minimum, so a lookalike never absorbs a new episode. Certain matches (platform id,
-/// exact title, EpisodeMatchRegex) merge unscored as before.
+/// exact title with day+duration, EpisodeMatchRegex) merge unscored as before.
 /// </summary>
 public class SingleHeuristicMatchRules
 {
@@ -27,11 +27,13 @@ public class SingleHeuristicMatchRules
         "Holding Out Help supports people leaving polygamy. This week we recap Sister Wives Season 20 Episode 4.";
 
     private readonly DomainTestFixture _fixture = new();
+    private readonly DateTime _incomingRelease = DomainTestFixture.UtcAtTime(-2, new TimeSpan(2, 12, 0));
+    private readonly DateTime _yearOldRelease = DomainTestFixture.UtcAtTime(-365, TimeSpan.FromHours(12));
 
     private Podcast NotesToSelf444(string? episodeMatchRegex = null) =>
         _fixture.CreatePodcast(p =>
         {
-            p.Id = Guid.Parse("2cd74280-cc2a-4f84-9ad8-de87aa86c8ce");
+            p.Id = _fixture.CreateGuid();
             p.Name = "Notes to Self 444";
             p.EpisodeMatchRegex = episodeMatchRegex ?? string.Empty;
             p.YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks;
@@ -80,15 +82,15 @@ public class SingleHeuristicMatchRules
 
     private Episode WeakLookalikeRecap(Podcast podcast) =>
         YouTubeOnly(podcast, "BndpMN1m7oQ", "Sister Wives Season 20 E 4 Recap", new TimeSpan(1, 38, 12),
-            new DateTime(2025, 10, 27, 12, 0, 0, DateTimeKind.Utc), HoldingOutHelpIntro);
+            _yearOldRelease, HoldingOutHelpIntro);
 
     private Episode TikTokLiveIncoming() =>
         IncomingSpotify("Sister Wives New Season TikTok Live chat about", new TimeSpan(1, 35, 34),
-            new DateTime(2026, 10, 14, 2, 12, 0, DateTimeKind.Utc), TikTokIntro);
+            _incomingRelease, TikTokIntro);
 
     [Fact(DisplayName =
-        "Notes to Self 444: when the only fuzzy match is a year-old lookalike (2m38s longer, different show notes), " +
-        "the score is below the minimum, so the incoming episode is added as new and the lookalike is untouched.")]
+        "A year-old lookalike with a near title and similar duration does not Heuristic-match without " +
+        "release alignment, so the incoming episode is added as new and the lookalike is untouched.")]
     public void Weak_lookalike_single_heuristic_match_is_rejected()
     {
         // Arrange
@@ -107,6 +109,30 @@ public class SingleHeuristicMatchRules
     }
 
     [Fact(DisplayName =
+        "A release-aligned fuzzy+duration Heuristic match whose composite score is below " +
+        "SingleHeuristicMinScore is rejected: the incoming episode is added as new and the " +
+        "lookalike is untouched.")]
+    public void Single_heuristic_below_min_score_is_added_as_new()
+    {
+        // Arrange — same pair as the genuine merge Fact; threshold raised so scoring rejects it.
+        var podcast = NotesToSelf444();
+        var youTube = YouTubeOnly(podcast, "RY7nt6KFpdA", "TikTok Live chat about Sister Wives",
+            new TimeSpan(1, 35, 34), _incomingRelease.AddHours(1), TikTokIntro);
+        var incoming = IncomingSpotify("Sister Wives New Season TikTok Live chat about", new TimeSpan(1, 35, 31),
+            _incomingRelease, TikTokIntro);
+
+        // Act
+        var result = Merger(o => o.SingleHeuristicMinScore = 100)
+            .MergeEpisodes(podcast, [youTube], [incoming]);
+
+        // Assert
+        result.FailedEpisodes.Should().BeEmpty();
+        result.MergedEpisodes.Should().BeEmpty();
+        result.AddedEpisodes.Should().ContainSingle().Which.Should().BeSameAs(incoming);
+        EpisodeServicePresence.SpotifyEpisodeId(youTube).Should().BeNullOrEmpty();
+    }
+
+    [Fact(DisplayName =
         "A genuine cross-platform single match (YouTube vs Spotify, same duration within seconds, released within the " +
         "publication offset, reordered title) still merges.")]
     public void Genuine_cross_platform_single_heuristic_match_still_merges()
@@ -114,9 +140,9 @@ public class SingleHeuristicMatchRules
         // Arrange
         var podcast = NotesToSelf444();
         var youTube = YouTubeOnly(podcast, "RY7nt6KFpdA", "TikTok Live chat about Sister Wives",
-            new TimeSpan(1, 35, 34), new DateTime(2026, 10, 14, 3, 12, 0, DateTimeKind.Utc), TikTokIntro);
+            new TimeSpan(1, 35, 34), _incomingRelease.AddHours(1), TikTokIntro);
         var incoming = IncomingSpotify("Sister Wives New Season TikTok Live chat about", new TimeSpan(1, 35, 31),
-            new DateTime(2026, 10, 14, 2, 12, 0, DateTimeKind.Utc), TikTokIntro);
+            _incomingRelease, TikTokIntro);
 
         // Act
         var result = Merger().MergeEpisodes(podcast, [youTube], [incoming]);
@@ -127,21 +153,23 @@ public class SingleHeuristicMatchRules
     }
 
     [Fact(DisplayName =
-        "A certain single match by exact title merges unscored, even with a far release and different show notes.")]
-    public void Exact_title_single_match_is_unchanged()
+        "An exact title with a far release does not Certain-merge — the incoming episode is added " +
+        "and the lookalike is untouched, because title alone must not override the calendar-day gate.")]
+    public void Exact_title_far_release_does_not_certain_merge()
     {
         // Arrange
         var podcast = NotesToSelf444();
         var recap = WeakLookalikeRecap(podcast);
         var incoming = IncomingSpotify(recap.Title, new TimeSpan(1, 38, 12),
-            new DateTime(2026, 10, 14, 2, 12, 0, DateTimeKind.Utc), TikTokIntro);
+            _incomingRelease, TikTokIntro);
 
         // Act
         var result = Merger().MergeEpisodes(podcast, [recap], [incoming]);
 
         // Assert
-        result.AddedEpisodes.Should().BeEmpty();
-        result.MergedEpisodes.Should().ContainSingle().Which.Existing.Should().BeSameAs(recap);
+        result.MergedEpisodes.Should().BeEmpty();
+        result.AddedEpisodes.Should().ContainSingle().Which.Should().BeSameAs(incoming);
+        EpisodeServicePresence.SpotifyEpisodeId(recap).Should().BeNullOrEmpty();
     }
 
     [Fact(DisplayName =
@@ -151,9 +179,9 @@ public class SingleHeuristicMatchRules
         // Arrange
         var podcast = NotesToSelf444(@"Episode (?'episodematch'\d+)");
         var stored = YouTubeOnly(podcast, "abcDEF12345", "Episode 12 - The first title", new TimeSpan(0, 40, 0),
-            new DateTime(2025, 1, 1, 12, 0, 0, DateTimeKind.Utc), "One");
+            _yearOldRelease, "One");
         var incoming = IncomingSpotify("Episode 12 - Renamed later", new TimeSpan(0, 40, 30),
-            new DateTime(2026, 10, 14, 2, 12, 0, DateTimeKind.Utc), "Two");
+            _incomingRelease, "Two");
 
         // Act
         var result = Merger().MergeEpisodes(podcast, [stored], [incoming]);
@@ -164,19 +192,23 @@ public class SingleHeuristicMatchRules
     }
 
     [Fact(DisplayName =
-        "With ScoreSingleHeuristicMatches off, a single heuristic match merges unscored as before.")]
+        "With ScoreSingleHeuristicMatches off, a release-aligned fuzzy+duration heuristic match " +
+        "merges unscored (year-old lookalikes no longer Heuristic-match without release alignment).")]
     public void Toggle_off_restores_previous_behaviour()
     {
-        // Arrange
+        // Arrange — genuine cross-platform pair (aligned release); toggle only disables scoring.
         var podcast = NotesToSelf444();
-        var recap = WeakLookalikeRecap(podcast);
-        var incoming = TikTokLiveIncoming();
+        var youTube = YouTubeOnly(podcast, "RY7nt6KFpdA", "TikTok Live chat about Sister Wives",
+            new TimeSpan(1, 35, 34), _incomingRelease.AddHours(1), TikTokIntro);
+        var incoming = IncomingSpotify("Sister Wives New Season TikTok Live chat about", new TimeSpan(1, 35, 31),
+            _incomingRelease, TikTokIntro);
 
         // Act
-        var result = Merger(o => o.ScoreSingleHeuristicMatches = false).MergeEpisodes(podcast, [recap], [incoming]);
+        var result = Merger(o => o.ScoreSingleHeuristicMatches = false)
+            .MergeEpisodes(podcast, [youTube], [incoming]);
 
         // Assert
         result.AddedEpisodes.Should().BeEmpty();
-        result.MergedEpisodes.Should().ContainSingle().Which.Existing.Should().BeSameAs(recap);
+        result.MergedEpisodes.Should().ContainSingle().Which.Existing.Should().BeSameAs(youTube);
     }
 }
