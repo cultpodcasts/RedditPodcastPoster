@@ -35,7 +35,8 @@ namespace Api.Services.Podcasts;
 /// marker can go stale, and a failed write is compensated only after a forced renewal proves the marker is still
 /// ours, so two attempts never write at once. Resume is safe because destination writes are upserts under the source guids, an existing destination
 /// parent of the requested kind is reused, source deletes skip rows already gone, and the podcast row is deleted
-/// last, only once a re-read finds no episodes left (episodes that arrive mid-transfer are moved too).
+/// last, only once a re-read finds no episodes left (episodes that arrive mid-transfer are moved too). Each move
+/// pass re-reads the planned episode ids before mapping so indexer or curator edits after the snapshot are not lost.
 /// </para>
 /// <para>
 /// Reads honour the request's cancellation token; once writing starts it is no longer honoured, because a caller
@@ -397,14 +398,19 @@ public class PodcastKindTransferService(
         where TParent : Publisher
         where TPlayable : Playable
     {
+        // Re-read planned ids so an Indexer / submit / curator edit after the snapshot is what we map, index, and
+        // delete. Rows gone from Cosmos are dropped (already moved or deleted elsewhere).
+        await lease.Heartbeat();
+        var batch = await RefreshEpisodesForPass(podcast.Id, episodes);
+
         // Playables keep Services only. Fill missing services.*.url from nested ids (deterministic, no clients) so
         // a large podcast transfer stays Cosmos/search I/O and does not sequentially hit platform APIs.
-        foreach (var episode in episodes)
+        foreach (var episode in batch)
         {
             EpisodeServicePresence.EnsureServiceUrlsFromIds(episode, podcast.AppleId);
         }
 
-        var playables = episodes.Select(episode => target.MapPlayable(episode, parent)).ToList();
+        var playables = batch.Select(episode => target.MapPlayable(episode, parent)).ToList();
         var writtenPlayableIds = new ConcurrentBag<Guid>();
         var phase = Stopwatch.StartNew();
         try
@@ -449,7 +455,7 @@ public class PodcastKindTransferService(
 
         await lease.Heartbeat();
         phase.Restart();
-        var swap = await SwapSearch(podcast, episodes, target.SearchContentKind);
+        var swap = await SwapSearch(podcast, batch, target.SearchContentKind);
         stats.SearchElapsed += phase.Elapsed;
         if (!swap.DeleteSourceRows)
         {
@@ -458,7 +464,7 @@ public class PodcastKindTransferService(
 
         // Source rows go in chunks so the marker is renewed between them; the podcast row stays until the end.
         phase.Restart();
-        foreach (var chunk in episodes.Chunk(SourceDeleteChunkSize))
+        foreach (var chunk in batch.Chunk(SourceDeleteChunkSize))
         {
             await lease.Heartbeat();
             stats.Add(await episodeRepository.DeleteMany(podcast.Id, chunk));
@@ -466,6 +472,24 @@ public class PodcastKindTransferService(
 
         stats.DeleteElapsed += phase.Elapsed;
         return swap;
+    }
+
+    /// <summary>
+    /// Loads the current Cosmos rows for the episode ids this pass planned to move. Same-id edits after the snapshot
+    /// replace the stale copies; ids missing from the podcast are skipped.
+    /// </summary>
+    private async Task<IReadOnlyList<Episode>> RefreshEpisodesForPass(
+        Guid podcastId,
+        IReadOnlyList<Episode> planned)
+    {
+        if (planned.Count == 0)
+        {
+            return planned;
+        }
+
+        var plannedIds = planned.Select(episode => episode.Id).ToHashSet();
+        var live = await ReadEpisodes(podcastId, CancellationToken.None);
+        return live.Where(episode => plannedIds.Contains(episode.Id)).ToList();
     }
 
     private void LogSummary(

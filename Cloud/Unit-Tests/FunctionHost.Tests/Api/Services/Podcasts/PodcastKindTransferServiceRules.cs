@@ -1088,6 +1088,70 @@ public class PodcastKindTransferServiceRules
         _locks.IsHeld(podcast.Id).Should().BeFalse();
     }
 
+    [Theory(DisplayName =
+        "An edit to a snapshotted episode while the transfer runs (Indexer, curator) is what the destination " +
+        "playable and search upload use, because the transfer re-reads planned episode ids before mapping.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task mid_transfer_edit_to_snapshotted_episode_is_not_lost(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var originalTitle = episode.Title;
+        var editedTitle = _fixture.CreateTitle();
+        editedTitle.Should().NotBe(originalTitle);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        if (kind == CatalogueParentKind.TvShow)
+        {
+            _mocker.GetMock<ITvShowRepository>()
+                .Setup(r => r.Save(It.IsAny<TvShow>()))
+                .Callback<TvShow>(show =>
+                {
+                    _savedShow = show;
+                    _episodes.TryMutate(podcast.Id, episode.Id, stored => stored.Title = editedTitle)
+                        .Should().BeTrue();
+                })
+                .Returns(Task.CompletedTask);
+        }
+        else
+        {
+            _mocker.GetMock<INewsOrganisationRepository>()
+                .Setup(r => r.Save(It.IsAny<NewsOrganisation>()))
+                .Callback<NewsOrganisation>(organisation =>
+                {
+                    _savedOrganisation = organisation;
+                    _episodes.TryMutate(podcast.Id, episode.Id, stored => stored.Title = editedTitle)
+                        .Should().BeTrue();
+                })
+                .Returns(Task.CompletedTask);
+        }
+
+        // Act
+        var result = await Transfer(podcast.Id, kind);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        if (kind == CatalogueParentKind.TvShow)
+        {
+            _savedTvEpisode.Should().NotBeNull();
+            _savedTvEpisode!.Title.Should().Be(editedTitle);
+            _savedTvEpisode.Title.Should().NotBe(originalTitle);
+        }
+        else
+        {
+            _savedReport.Should().NotBeNull();
+            _savedReport!.Title.Should().Be(editedTitle);
+            _savedReport.Title.Should().NotBe(originalTitle);
+        }
+
+        _uploadedSearchDocuments.Should().NotBeNull();
+        _uploadedSearchDocuments!.Should().ContainSingle(document => document.Title == editedTitle);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+    }
+
     [Fact(DisplayName =
         "A transfer that runs past the heartbeat interval renews its marker while it works, so a long transfer is " +
         "not taken over as stale while it is still running.")]
