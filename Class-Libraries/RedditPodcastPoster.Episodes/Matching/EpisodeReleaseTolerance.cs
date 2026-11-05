@@ -38,9 +38,11 @@ public static class EpisodeReleaseTolerance
     private static readonly TimeSpan YouTubeReleaseAuthorityEnrichmentLookahead = TimeSpan.FromDays(14);
 
     /// <summary>
-    /// Tick fallback for catalogue parents (news/TV) when <see cref="Podcast.CatalogueParentSameTitleMatching"/> is set
-    /// and publishing delay is zero. Same-calendar-day matching is the primary gate
-    /// (<see cref="GetSpotifyCatalogueDayTolerance"/> returns 0); this covers same-day time-of-day skew only.
+    /// Tick band returned by <see cref="GetToleranceTicks"/> for catalogue parents (news/TV) when
+    /// <see cref="Podcast.CatalogueParentSameTitleMatching"/> is set and publishing delay is zero.
+    /// <see cref="SpotifyCatalogueReleaseMatches"/> treats the calendar-day gate as authoritative for those
+    /// podcasts and does not apply this band across days — a Spotify date-only midnight on D+1 must not match
+    /// a late Day-D report even when the absolute gap is under 3h (#1161).
     /// </summary>
     public static readonly TimeSpan CatalogueParentSameTitleReleaseTolerance = SameReleaseThreshold;
 
@@ -189,6 +191,12 @@ public static class EpisodeReleaseTolerance
                 dayTolerance))
         {
             return true;
+        }
+
+        // Catalogue parents: day gate is authoritative — do not bridge calendar days with the tick band (#1161).
+        if (podcast is { CatalogueParentSameTitleMatching: true })
+        {
+            return false;
         }
 
         return Math.Abs((spotifyCatalogueRelease - expectedRelease).Ticks) < toleranceTicks;

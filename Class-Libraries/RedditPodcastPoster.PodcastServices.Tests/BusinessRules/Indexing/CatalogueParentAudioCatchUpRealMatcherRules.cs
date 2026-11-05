@@ -428,6 +428,33 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
         candidate.Services.Should().NotContainKey(ServiceKeys.Apple);
     }
 
+    [Theory(DisplayName =
+        "Catalogue parent audio catch-up guard, real Apple matcher: when the show's only episode with the same " +
+        "title was released 1 or 12 days earlier (not the same UTC day), then the report is not given its link, " +
+        "because news parents reuse short titles and Apple catch-up must only attach the audio of its own release " +
+        "(#1161).")]
+    [InlineData(1)]
+    [InlineData(12)]
+    public async Task real_apple_same_title_on_another_day_is_not_linked(int daysEarlier)
+    {
+        // Arrange
+        var (organisation, podcast) = SeedOrganisation(spotifyShow: false, applePodcast: true);
+        var release = DomainTestFixture.UtcDateDaysAgo(2).AddHours(9);
+        var report = Report(podcast, organisation, release, FullLength);
+        _storedReports = [report];
+        _appleShow =
+        [
+            AppleEpisode(podcast, _fixture.CreateAppleId(), release.AddDays(-daysEarlier), FullLength)
+        ];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], OddHourPass(DomainTestFixture.UtcDateDaysAgo(30)));
+
+        // Assert
+        _savedReports.Should().BeEmpty();
+        report.Services.Should().NotContainKey(ServiceKeys.Apple);
+    }
+
     [Fact(DisplayName =
         "Catalogue parent audio catch-up guard, real Spotify matcher: when a 6-minute clip title is contained in a " +
         "same-day 42-minute report title (equals-or-contains, not exact), both lack Spotify, and the show has only " +

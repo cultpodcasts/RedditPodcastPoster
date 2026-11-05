@@ -39,4 +39,72 @@ public class CatalogueParentSameTitleReleaseToleranceRules
         sameDayMatches.Should().BeTrue();
         oneDayMatches.Should().BeFalse();
     }
+
+    [Fact(DisplayName =
+        "When a catalogue parent's expected release is late on UTC day D and Spotify catalogue is date-only midnight " +
+        "on D+1 within the 3h same-title tick band, SpotifyCatalogueReleaseMatches returns false, because the day " +
+        "gate is authoritative and must not bridge the calendar-day boundary for reused news titles (#1161).")]
+    public void catalogue_parent_rejects_spotify_midnight_on_next_day_within_three_hour_band()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(_fixture.CreateYouTubeChannelId(), 0);
+        podcast.CatalogueParentSameTitleMatching = true;
+        var expectedLateOnD = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(22));
+        var spotifyMidnightNextDay = expectedLateOnD.Date.AddDays(1);
+        var catalogueTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, _fixture.CreateDuration());
+        Math.Abs((spotifyMidnightNextDay - expectedLateOnD).Ticks)
+            .Should().BeLessThan(catalogueTicks, "sanity: the absolute gap sits inside the 3h band");
+
+        // Act
+        var matches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            spotifyMidnightNextDay, expectedLateOnD, catalogueTicks, podcast);
+
+        // Assert
+        matches.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a catalogue parent's expected release is late on UTC day D and Apple catalogue is early on D+1 within " +
+        "the 3h same-title tick band, SpotifyCatalogueReleaseMatches returns false, because Apple catch-up shares " +
+        "the same day-authoritative gate and must not bridge midnight for reused news titles (#1161).")]
+    public void catalogue_parent_rejects_apple_across_midnight_within_three_hour_band()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(_fixture.CreateYouTubeChannelId(), 0);
+        podcast.CatalogueParentSameTitleMatching = true;
+        var expectedLateOnD = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(22));
+        var appleEarlyNextDay = expectedLateOnD.Date.AddDays(1).AddMinutes(30);
+        var catalogueTicks = EpisodeReleaseTolerance.GetToleranceTicks(podcast, _fixture.CreateDuration());
+        Math.Abs((appleEarlyNextDay - expectedLateOnD).Ticks)
+            .Should().BeLessThan(catalogueTicks, "sanity: the absolute gap sits inside the 3h band");
+
+        // Act
+        var matches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            appleEarlyNextDay, expectedLateOnD, catalogueTicks, podcast);
+
+        // Assert
+        matches.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When an ordinary zero-delay podcast has expected release late on UTC day D and Spotify catalogue is " +
+        "date-only midnight on D+1 within the tick band, SpotifyCatalogueReleaseMatches still returns true, because " +
+        "ordinary podcasts keep the existing tick fallback across the calendar-day boundary.")]
+    public void ordinary_podcast_keeps_tick_fallback_across_midnight()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var expectedLateOnD = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(22));
+        var spotifyMidnightNextDay = expectedLateOnD.Date.AddDays(1);
+        var ticks = EpisodeReleaseTolerance.SameReleaseThreshold.Ticks;
+        Math.Abs((spotifyMidnightNextDay - expectedLateOnD).Ticks)
+            .Should().BeLessThan(ticks, "sanity: the absolute gap sits inside the 3h band");
+
+        // Act
+        var matches = EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+            spotifyMidnightNextDay, expectedLateOnD, ticks, podcast);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
 }
