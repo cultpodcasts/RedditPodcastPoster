@@ -46,7 +46,7 @@ public sealed class ParentKindTransferLock : CosmosSelector, IFileKeyed
     /// </summary>
     [JsonPropertyName("ttl")]
     [JsonPropertyOrder(14)]
-    public int TimeToLiveSeconds { get; set; }
+    public int? TimeToLiveSeconds { get; set; }
 
     [JsonIgnore]
     public DateTime LastAliveUtc => HeartbeatUtc ?? StartedUtc;
