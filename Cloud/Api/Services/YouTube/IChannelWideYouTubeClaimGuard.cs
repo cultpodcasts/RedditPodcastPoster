@@ -49,6 +49,17 @@ public interface IChannelWideYouTubeClaimGuard
 /// <summary>Post-apply YouTube channel / playlist / removed projection for the claim guard.</summary>
 public static class ChannelWideYouTubeClaimProjection
 {
+    /// <summary>
+    /// True when the PATCH can alter the channel-wide claim projection. Unrelated fields (language, publisher, …)
+    /// must not run the clash check — pre-existing HOLD clashes must not freeze non-YouTube edits.
+    /// </summary>
+    public static bool ChangeAffectsClaim(PodcastChangeRequest change) =>
+        change.YouTubeChannelId != null || change.YouTubePlaylistId != null || change.Removed != null;
+
+    /// <inheritdoc cref="ChangeAffectsClaim(PodcastChangeRequest)"/>
+    public static bool ChangeAffectsClaim(ServiceIdsChange change) =>
+        change.YouTubeChannelId != null || change.YouTubePlaylistId != null || change.Removed != null;
+
     public static (string? ChannelId, string? PlaylistId, bool Removed) ForPodcast(
         Podcast podcast,
         PodcastChangeRequest change)

@@ -83,23 +83,26 @@ public class NewsOrganisationService(
                     Code: refused.Code);
             }
 
-            var (projectedChannel, projectedPlaylist, projectedRemoved) =
-                ChannelWideYouTubeClaimProjection.ForParent(
-                    organisation.Indexing, organisation.IsRemoved(), request.Change);
-            if (await channelWideYouTubeClaimGuard.Check(
-                    organisation.Id,
-                    ChannelWideYouTubeClaimKind.NewsOrganisation,
-                    projectedChannel,
-                    projectedPlaylist,
-                    projectedRemoved,
-                    cancellationToken) is { } claimConflict)
+            if (ChannelWideYouTubeClaimProjection.ChangeAffectsClaim(request.Change))
             {
-                logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
-                    organisation.Id, ChannelWideYouTubeClaimConflict.Code, claimConflict.Message);
-                return new NewsOrganisationUpdateResult(
-                    NewsOrganisationUpdateStatus.BadRequest,
-                    claimConflict.Message,
-                    Code: ChannelWideYouTubeClaimConflict.Code);
+                var (projectedChannel, projectedPlaylist, projectedRemoved) =
+                    ChannelWideYouTubeClaimProjection.ForParent(
+                        organisation.Indexing, organisation.IsRemoved(), request.Change);
+                if (await channelWideYouTubeClaimGuard.Check(
+                        organisation.Id,
+                        ChannelWideYouTubeClaimKind.NewsOrganisation,
+                        projectedChannel,
+                        projectedPlaylist,
+                        projectedRemoved,
+                        cancellationToken) is { } claimConflict)
+                {
+                    logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                        organisation.Id, ChannelWideYouTubeClaimConflict.Code, claimConflict.Message);
+                    return new NewsOrganisationUpdateResult(
+                        NewsOrganisationUpdateStatus.BadRequest,
+                        claimConflict.Message,
+                        Code: ChannelWideYouTubeClaimConflict.Code);
+                }
             }
 
             PublisherChangeApplier.Apply(organisation, request.Change);

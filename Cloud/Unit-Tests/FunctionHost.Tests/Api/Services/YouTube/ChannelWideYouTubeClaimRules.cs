@@ -97,6 +97,9 @@ public class ChannelWideYouTubeClaimRules
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.GetByTvShowId(It.IsAny<Guid>()))
             .Returns(AsyncEnumerable.Empty<TvShowEpisode>());
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.GetByPodcastId(It.IsAny<Guid>()))
+            .Returns(AsyncEnumerable.Empty<RedditPodcastPoster.Models.Episodes.Episode>());
 
         _mocker.Use<IChannelWideYouTubeClaimGuard>(new ChannelWideYouTubeClaimGuard(
             _mocker.GetMock<IPodcastRepository>().Object,
@@ -361,5 +364,93 @@ public class ChannelWideYouTubeClaimRules
         result.Message.Should().Contain(podcast.Id.ToString());
         organisation.Indexing!.YouTubePlaylistId.Should().Be(playlistId);
         _savedOrganisation.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH news organisation channel-wide on a channel a channel-wide TV show already claims is a BadRequest with channelWideYouTubeConflict, and nothing is saved.")]
+    public async Task news_refused_when_tv_claims_channel_wide()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var show = AddShow(new CatalogueIndexingSource { YouTubeChannelId = channelId });
+        var organisation = AddOrganisation();
+
+        // Act
+        var result = await PatchOrganisation(organisation,
+            new NewsOrganisationChangeRequest { YouTubeChannelId = channelId });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.BadRequest);
+        result.Code.Should().Be(ChannelWideYouTubeClaimConflict.Code);
+        result.Message.Should().Contain(show.Id.ToString());
+        _savedOrganisation.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH TV show channel-wide on a channel a channel-wide news organisation already claims is a BadRequest with channelWideYouTubeConflict, and nothing is saved.")]
+    public async Task tv_show_refused_when_news_claims_channel_wide()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var organisation = AddOrganisation(new CatalogueIndexingSource { YouTubeChannelId = channelId });
+        var show = AddShow();
+
+        // Act
+        var result = await PatchShow(show, new TvShowChangeRequest { YouTubeChannelId = channelId });
+
+        // Assert
+        result.Status.Should().Be(TvShowUpdateStatus.BadRequest);
+        result.Code.Should().Be(ChannelWideYouTubeClaimConflict.Code);
+        result.Message.Should().Contain(organisation.Id.ToString());
+        _savedShow.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH podcast channel-wide on a channel a channel-wide TV show already claims is a BadRequest with channelWideYouTubeConflict, and nothing is saved.")]
+    public async Task podcast_refused_when_tv_claims_channel_wide()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var show = AddShow(new CatalogueIndexingSource { YouTubeChannelId = channelId });
+        var podcast = AddPodcast(p =>
+        {
+            p.YouTubeChannelId = string.Empty;
+            p.YouTubePlaylistId = string.Empty;
+        });
+
+        // Act
+        var result = await PatchPodcast(podcast, new PodcastChangeRequest { YouTubeChannelId = channelId });
+
+        // Assert
+        result.Status.Should().Be(PodcastUpdateStatus.BadRequest);
+        result.Code.Should().Be(ChannelWideYouTubeClaimConflict.Code);
+        result.Error.Should().Contain(show.Id.ToString());
+        podcast.YouTubeChannelId.Should().BeEmpty();
+        _savedPodcast.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Language-only PATCH on a channel-wide podcast that already clashes with a channel-wide news organisation is Accepted and saved, because the claim gate only runs when YouTube channel, playlist, or removed changes.")]
+    public async Task language_only_patch_on_already_clashing_podcast_is_accepted()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        AddOrganisation(new CatalogueIndexingSource { YouTubeChannelId = channelId });
+        var podcast = AddPodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = string.Empty;
+            p.Language = null;
+        });
+        var language = "es";
+
+        // Act
+        var result = await PatchPodcast(podcast, new PodcastChangeRequest { Language = language });
+
+        // Assert
+        result.Status.Should().Be(PodcastUpdateStatus.Accepted);
+        _savedPodcast.Should().NotBeNull();
+        _savedPodcast!.Language.Should().Be(language);
+        _savedPodcast.YouTubeChannelId.Should().Be(channelId);
     }
 }
