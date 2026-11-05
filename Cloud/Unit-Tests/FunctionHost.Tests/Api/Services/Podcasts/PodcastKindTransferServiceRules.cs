@@ -1174,6 +1174,200 @@ public class PodcastKindTransferServiceRules
         _locks.IsHeld(podcast.Id).Should().BeFalse();
     }
 
+    [Theory(DisplayName =
+        "An edit to a snapshotted episode before the move-pass refresh (Indexer, curator during parent save) is what " +
+        "the destination playable and search upload use, because the transfer re-reads planned episode ids before " +
+        "mapping.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task mid_transfer_edit_to_snapshotted_episode_is_not_lost(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var originalTitle = episode.Title;
+        var editedTitle = _fixture.CreateTitle();
+        editedTitle.Should().NotBe(originalTitle);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        if (kind == CatalogueParentKind.TvShow)
+        {
+            _mocker.GetMock<ITvShowRepository>()
+                .Setup(r => r.Save(It.IsAny<TvShow>()))
+                .Callback<TvShow>(show =>
+                {
+                    _savedShow = show;
+                    _episodes.TryMutate(podcast.Id, episode.Id, stored => stored.Title = editedTitle)
+                        .Should().BeTrue();
+                })
+                .Returns(Task.CompletedTask);
+        }
+        else
+        {
+            _mocker.GetMock<INewsOrganisationRepository>()
+                .Setup(r => r.Save(It.IsAny<NewsOrganisation>()))
+                .Callback<NewsOrganisation>(organisation =>
+                {
+                    _savedOrganisation = organisation;
+                    _episodes.TryMutate(podcast.Id, episode.Id, stored => stored.Title = editedTitle)
+                        .Should().BeTrue();
+                })
+                .Returns(Task.CompletedTask);
+        }
+
+        // Act
+        var result = await Transfer(podcast.Id, kind);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        if (kind == CatalogueParentKind.TvShow)
+        {
+            _savedTvEpisode.Should().NotBeNull();
+            _savedTvEpisode!.Title.Should().Be(editedTitle);
+            _savedTvEpisode.Title.Should().NotBe(originalTitle);
+        }
+        else
+        {
+            _savedReport.Should().NotBeNull();
+            _savedReport!.Title.Should().Be(editedTitle);
+            _savedReport.Title.Should().NotBe(originalTitle);
+        }
+
+        _uploadedSearchDocuments.Should().NotBeNull();
+        _uploadedSearchDocuments!.Should().ContainSingle(document => document.Title == editedTitle);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "An edit to a source episode during destination playable save (Indexer, curator) is remounted onto the " +
+        "destination playable and search document before the source row is deleted, because the transfer re-reads " +
+        "planned ids again immediately before source delete.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task edit_during_playable_save_is_remounted_before_source_delete(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var originalTitle = episode.Title;
+        var editedTitle = _fixture.CreateTitle();
+        editedTitle.Should().NotBe(originalTitle);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        if (kind == CatalogueParentKind.TvShow)
+        {
+            _mocker.GetMock<ITvShowEpisodeRepository>()
+                .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
+                .Callback<TvShowEpisode>(playable =>
+                {
+                    lock (_savedTvEpisodes)
+                    {
+                        _savedTvEpisode = playable;
+                        _savedTvEpisodes.Add(playable);
+                    }
+
+                    _episodes.TryMutate(podcast.Id, episode.Id, stored => stored.Title = editedTitle)
+                        .Should().BeTrue();
+                })
+                .Returns(Task.CompletedTask);
+        }
+        else
+        {
+            _mocker.GetMock<INewsReportRepository>()
+                .Setup(r => r.Save(It.IsAny<NewsReport>()))
+                .Callback<NewsReport>(report =>
+                {
+                    lock (_savedReports)
+                    {
+                        _savedReport = report;
+                        _savedReports.Add(report);
+                    }
+
+                    _episodes.TryMutate(podcast.Id, episode.Id, stored => stored.Title = editedTitle)
+                        .Should().BeTrue();
+                })
+                .Returns(Task.CompletedTask);
+        }
+
+        // Act
+        var result = await Transfer(podcast.Id, kind);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        if (kind == CatalogueParentKind.TvShow)
+        {
+            lock (_savedTvEpisodes)
+            {
+                _savedTvEpisodes.Should().HaveCountGreaterThanOrEqualTo(2);
+                _savedTvEpisodes[0].Title.Should().Be(originalTitle);
+                _savedTvEpisodes[^1].Title.Should().Be(editedTitle);
+            }
+        }
+        else
+        {
+            lock (_savedReports)
+            {
+                _savedReports.Should().HaveCountGreaterThanOrEqualTo(2);
+                _savedReports[0].Title.Should().Be(originalTitle);
+                _savedReports[^1].Title.Should().Be(editedTitle);
+            }
+        }
+
+        _uploadedSearchDocuments.Should().NotBeNull();
+        _uploadedSearchDocuments!.Should().ContainSingle(document => document.Title == editedTitle);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "When a planned episode is gone from Cosmos by the move-pass refresh, PlayableCount counts only the rows " +
+        "actually mapped this pass, not the pre-refresh planned list size.")]
+    [InlineData(CatalogueParentKind.TvShow)]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    public async Task playable_count_uses_refreshed_batch_size_not_planned_list(CatalogueParentKind kind)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var kept = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var vanished = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(kept, vanished);
+        if (kind == CatalogueParentKind.TvShow)
+        {
+            _mocker.GetMock<ITvShowRepository>()
+                .Setup(r => r.Save(It.IsAny<TvShow>()))
+                .Callback<TvShow>(show =>
+                {
+                    _savedShow = show;
+                    _episodes.Delete(podcast.Id, vanished.Id).GetAwaiter().GetResult();
+                })
+                .Returns(Task.CompletedTask);
+        }
+        else
+        {
+            _mocker.GetMock<INewsOrganisationRepository>()
+                .Setup(r => r.Save(It.IsAny<NewsOrganisation>()))
+                .Callback<NewsOrganisation>(organisation =>
+                {
+                    _savedOrganisation = organisation;
+                    _episodes.Delete(podcast.Id, vanished.Id).GetAwaiter().GetResult();
+                })
+                .Returns(Task.CompletedTask);
+        }
+
+        // Act
+        var result = await Transfer(podcast.Id, kind);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        result.PlayableCount.Should().Be(1);
+        SavedPlayableIds(kind).Should().BeEquivalentTo([kept.Id]);
+        SavedPlayableIds(kind).Should().NotContain(vanished.Id);
+        (await _episodes.GetEpisode(podcast.Id, kept.Id)).Should().BeNull();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().BeNull();
+    }
+
     [Fact(DisplayName =
         "A transfer that runs past the heartbeat interval renews its marker while it works, so a long transfer is " +
         "not taken over as stale while it is still running.")]
