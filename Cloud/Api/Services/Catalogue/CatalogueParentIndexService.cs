@@ -89,6 +89,8 @@ public class CatalogueParentIndexService(
                 case CatalogueParentIndexStatus.TimedOut:
                     // Nothing is pushed to search: the saved items (if any) are not known at the cut.
                     return new CatalogueIndexResult(CatalogueIndexStatus.TimedOut);
+                case CatalogueParentIndexStatus.AlreadyRunning:
+                    return new CatalogueIndexResult(CatalogueIndexStatus.AlreadyRunning);
                 default:
                     logger.LogError("Index {kind}: unexpected status '{status}'.", kind, result.Status);
                     return new CatalogueIndexResult(CatalogueIndexStatus.Failed);

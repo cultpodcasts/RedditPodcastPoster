@@ -26,6 +26,12 @@ public class IndexPodcastHandler(
                 await ctx.NotFound(ToResponse(result), c),
             PodcastIndexStatus.BadRequest =>
                 await ctx.BadRequest(ToResponse(result), c),
+            PodcastIndexStatus.AlreadyRunning =>
+                await ctx.Conflict(new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.IndexingInProgress,
+                    Message = CatalogueIndexRejection.IndexingInProgressMessage
+                }, c),
             PodcastIndexStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to index podcast"), c),
             _ => await LogAndFail(ctx, c)

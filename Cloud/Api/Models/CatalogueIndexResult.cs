@@ -14,6 +14,8 @@ public enum CatalogueIndexStatus
     SourcePodcastStillExists,
     /// <summary>The on-demand time budget cut the index off (504; what was saved is not known).</summary>
     TimedOut,
+    /// <summary>Another index already holds this parent's lease (HTTP 409).</summary>
+    AlreadyRunning,
     Failed
 }
 

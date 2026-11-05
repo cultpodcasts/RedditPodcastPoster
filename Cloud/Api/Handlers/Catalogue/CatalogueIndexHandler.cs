@@ -54,6 +54,12 @@ public class CatalogueIndexHandler(
                     Reason = CatalogueIndexRejection.TimedOut,
                     Message = CatalogueIndexRejection.TimedOutMessage
                 }, c);
+            case CatalogueIndexStatus.AlreadyRunning:
+                return await ctx.Conflict(new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.IndexingInProgress,
+                    Message = CatalogueIndexRejection.IndexingInProgressMessage
+                }, c);
             case CatalogueIndexStatus.Failed:
                 return await ctx.InternalError(ApiErrorResponse.Failure($"Unable to index {kind}"), c);
             default:

@@ -93,6 +93,8 @@ public class IndexingGuestEnrichmentRules
             subjectEnricher.Object,
             subjectEnrichmentOptionsFactory.Object,
             guestEnricher.Object,
+            new InMemoryParentIndexingLockStore(),
+            TimeProvider.System,
             NullLogger<Indexer>.Instance);
 
         // Act
@@ -163,6 +165,8 @@ public class IndexingGuestEnrichmentRules
             subjectEnricher.Object,
             subjectEnrichmentOptionsFactory.Object,
             guestEnricher.Object,
+            new InMemoryParentIndexingLockStore(),
+            TimeProvider.System,
             NullLogger<Indexer>.Instance);
 
         // Act

@@ -18,17 +18,22 @@ public class CatalogueIndexResponse
 
 /// <summary>
 /// Body of an index that did not complete: 400 with <c>NotAutoIndexed</c> or <c>SourcePodcastStillExists</c> (refused),
-/// or 504 with <c>TimedOut</c> (the on-demand time budget cut it off; <c>message</c> says what that means).
+/// 409 with <c>indexingInProgress</c> (another index holds the lease), or 504 with <c>TimedOut</c> (the on-demand time
+/// budget cut it off; <c>message</c> says what that means).
 /// </summary>
 public class CatalogueIndexRejection
 {
     public const string NotAutoIndexed = "NotAutoIndexed";
     public const string SourcePodcastStillExists = "SourcePodcastStillExists";
     public const string TimedOut = "TimedOut";
+    public const string IndexingInProgress = "indexingInProgress";
 
     /// <summary>The 504 message. It makes no claim about what was saved, because that is not known at the cut.</summary>
     public const string TimedOutMessage =
         "Indexing ran out of time; anything it saved will reach search on the next pull-indexer run. Try again later.";
+
+    public const string IndexingInProgressMessage =
+        "Another index of this parent is already running. Try again shortly.";
 
     [JsonPropertyName("reason")]
     public required string Reason { get; init; }

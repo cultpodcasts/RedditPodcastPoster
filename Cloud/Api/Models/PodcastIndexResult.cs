@@ -8,7 +8,10 @@ public enum PodcastIndexStatus
     Ok,
     NotFound,
     BadRequest,
-    Failed
+    Failed,
+
+    /// <summary>Another index already holds this podcast's lease (HTTP 409).</summary>
+    AlreadyRunning
 }
 
 public record PodcastIndexResult(

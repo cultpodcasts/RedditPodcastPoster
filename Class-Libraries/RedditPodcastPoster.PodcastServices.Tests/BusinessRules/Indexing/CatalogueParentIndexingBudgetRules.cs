@@ -9,6 +9,7 @@ using RedditPodcastPoster.Catalogue.Episodes;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Episodes.TestSupport;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
@@ -59,6 +60,7 @@ public class CatalogueParentIndexingBudgetRules
         _mocker.Use<IOptions<PodcastUpdateBudgetOptions>>(Options.Create(_budget));
         _mocker.Use<IOptions<PodcastIndexingStageLogOptions>>(Options.Create(_stageLog));
         _mocker.Use(new PodcastUpdateBudgetCutTracker());
+        _mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
 
         _mocker.GetMock<ITvShowRepository>()
             .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<RedditPodcastPoster.Models.TvShows.TvShow, bool>>>()))

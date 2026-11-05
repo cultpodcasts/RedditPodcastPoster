@@ -64,6 +64,7 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
         _mocker.Use(Options.Create(PodcastUpdaterTestHarness.DefaultPostingCriteria));
         _mocker.Use<TimeProvider>(TimeProvider.System);
         _mocker.Use<ILogger<CatalogueParentsUpdater>>(_logger);
+        _mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
 
         var organisations = _mocker.GetMock<INewsOrganisationRepository>();
         organisations.Setup(x => x.GetNewsOrganisation(It.IsAny<Guid>()))

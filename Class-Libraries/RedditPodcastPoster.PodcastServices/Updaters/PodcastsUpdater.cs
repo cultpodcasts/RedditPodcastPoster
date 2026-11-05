@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -16,6 +17,7 @@ public class PodcastsUpdater(
     IPodcastUpdater podcastUpdater,
     IPodcastRepository podcastRepository,
     IPodcastPassApiCache passApiCache,
+    IParentIndexingLockStore indexingLockStore,
     IOptions<PodcastUpdateBudgetOptions> budgetOptions,
     IOptions<PodcastIndexingStageLogOptions> stageLogOptions,
     PodcastUpdateBudgetCutTracker budgetCutTracker,
@@ -28,6 +30,25 @@ public class PodcastsUpdater(
 
     /// <summary>Stable log prefix when an abandoned update finally finishes in the background.</summary>
     public const string AbandonedCompletedMessagePrefix = "IndexerPodcastAbandonedCompleted";
+
+    /// <summary>
+    /// Stable log prefix when the hourly pass skips a podcast because an on-demand (or other) index holds its lease
+    /// (App Insights keys off it).
+    /// </summary>
+    public const string AlreadyRunningMessagePrefix = "IndexerParentIndexingAlreadyRunning";
+
+    /// <summary>
+    /// A marker with no heartbeat for this long belongs to an index that died.
+    /// At least on-demand budget (<see cref="PodcastUpdateBudgetOptions.MaxOnDemandBudgetSeconds"/>) plus abandon
+    /// grace and drain (~195s); five minutes covers that with margin.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockStaleAfter = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// How often the holder renews its marker while it works. Zero disables heartbeats: the 5-minute stale window
+    /// already covers on-demand budget + grace + drain (~195s) and the hourly per-podcast budget.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockHeartbeatInterval = TimeSpan.Zero;
 
     private readonly PodcastUpdateBudgetOptions _budget = budgetOptions.Value ?? new PodcastUpdateBudgetOptions();
 
@@ -75,9 +96,29 @@ public class PodcastsUpdater(
                     podcastToUpdate.Id, podcastToUpdate.Name, logger, timeProvider, _stageLogOptions);
                 var budget = _budget.BudgetFor(expensivePass);
                 Task<IndexPodcastResult>? updateTask = null;
+                // Register the budget timer before any await so fake-time advances in tests are not lost.
                 using var budgetCts = budget.HasValue
                     ? new CancellationTokenSource(budget.Value, timeProvider)
                     : new CancellationTokenSource();
+                // Acquire synchronously so fake-time budget tests can Advance after UpdatePodcasts starts and still
+                // hit WaitAsync (an await here would let Advances land before the timeout is registered).
+                var lease = ParentIndexingLease.TryStart(
+                    indexingLockStore,
+                    timeProvider,
+                    podcastToUpdate.Id,
+                    IndexingLockStaleAfter,
+                    IndexingLockHeartbeatInterval,
+                    ParentIndexingLock.SourceHourly,
+                    logger).GetAwaiter().GetResult();
+                if (lease is null)
+                {
+                    logger.LogWarning(
+                        AlreadyRunningMessagePrefix +
+                        " podcast-id='{PodcastId}' podcast-name='{PodcastName}' source='{Source}'. Continuing with the next podcast.",
+                        podcastToUpdate.Id, podcastToUpdate.Name, ParentIndexingLock.SourceHourly);
+                    continue;
+                }
+
                 try
                 {
                     stageLog.Stage("start");
@@ -158,6 +199,9 @@ public class PodcastsUpdater(
                 }
                 finally
                 {
+                    // Release even when abandoning: the update's cancelled token stops further Cosmos writes, and
+                    // holding the lease across an unbounded background task deadlocks fake-time budget tests.
+                    await lease.DisposeAsync();
                     passApiCache.Clear();
                 }
             }

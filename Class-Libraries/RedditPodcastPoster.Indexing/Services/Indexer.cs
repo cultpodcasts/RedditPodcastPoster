@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Indexing.Models;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People.Enrichers;
@@ -20,9 +21,17 @@ public class Indexer(
     ISubjectEnricher subjectEnricher,
     ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     IEpisodeGuestEnricher guestEnricher,
+    IParentIndexingLockStore indexingLockStore,
+    TimeProvider timeProvider,
     ILogger<Indexer> logger
 ) : IIndexer
 {
+    /// <summary>
+    /// A marker with no heartbeat for this long belongs to an index that died.
+    /// At least on-demand budget (150s) plus abandon grace and drain (~195s); five minutes covers that with margin.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockStaleAfter = TimeSpan.FromMinutes(5);
+
     public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
         var podcasts = await FindPodcastsByName(podcastName);
@@ -93,66 +102,85 @@ public class Indexer(
 
         if (performAutoIndex || enrichOnly || forceIndex)
         {
-            logger.LogInformation("Indexing podcast '{podcastName}' with podcast-id '{podcastId}'.", podcast.Name,
-                podcastId);
-
-            // Pass podcast directly ΓÇö no conversion needed.
-            var results = await podcastUpdater.Update(podcast, enrichOnly, indexingContext);
-
-            updatedEpisodes = results.MergeResult.AddedEpisodes
-                .Select(x =>
-                    new IndexedEpisode(
-                        x,
-                        EpisodeServicePresence.HasUrl(x, ServiceKeys.Spotify),
-                        EpisodeServicePresence.HasUrl(x, ServiceKeys.Apple),
-                        EpisodeServicePresence.HasUrl(x, ServiceKeys.YouTube)))
-                .Concat(results.EnrichmentResult.UpdatedEpisodes.Select(x =>
-                    new IndexedEpisode(
-                        x.Episode,
-                        x.EnrichmentContext.SpotifyUrlUpdated,
-                        x.EnrichmentContext.AppleUrlUpdated,
-                        x.EnrichmentContext.YouTubeUrlUpdated)))
-                // Elimination marks Removed in Cosmos; include those IDs so search push deletes them.
-                .Concat(results.FilterResult.FilteredEpisodes.Select(x =>
-                    new IndexedEpisode(
-                        x.Episode,
-                        EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Spotify),
-                        EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Apple),
-                        EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.YouTube))))
-                .Distinct()
-                .ToArray();
-
-            var resultsMessage = results.ToString();
-            if (results.MergeResult.FailedEpisodes.Any() ||
-                (results.SpotifyBypassed && !indexingContext.SkipSpotifyUrlResolving) ||
-                (results.YouTubeBypassed && !indexingContext.SkipYouTubeUrlResolving))
+            var now = timeProvider.GetUtcNow().UtcDateTime;
+            var acquisition = await indexingLockStore.TryAcquire(
+                podcastId, now, IndexingLockStaleAfter, ParentIndexingLock.SourceOnDemand);
+            if (acquisition.Outcome == ParentIndexingLockOutcome.AlreadyRunning || acquisition.Handle is null)
             {
-                logger.LogError(resultsMessage);
-            }
-            else
-            {
-                logger.LogInformation(resultsMessage);
+                logger.LogWarning(
+                    "IndexerParentIndexingAlreadyRunning podcast-id='{PodcastId}' podcast-name='{PodcastName}' source='{Source}'.",
+                    podcastId, podcast.Name, ParentIndexingLock.SourceOnDemand);
+                return new IndexResponse(IndexStatus.AlreadyRunning);
             }
 
-            foreach (var indexedEpisode in updatedEpisodes.Where(x => !x.Episode.IsRemoved()))
+            var handle = acquisition.Handle;
+            try
             {
-                var subjectsResult = await subjectEnricher.EnrichSubjects(
-                    indexedEpisode.Episode,
-                    await subjectEnrichmentOptionsFactory.CreateAsync(podcast, indexedEpisode.Episode));
+                logger.LogInformation("Indexing podcast '{podcastName}' with podcast-id '{podcastId}'.", podcast.Name,
+                    podcastId);
 
-                var guestsResult = await guestEnricher.EnrichGuests(indexedEpisode.Episode);
+                // Pass podcast directly — no conversion needed.
+                var results = await podcastUpdater.Update(podcast, enrichOnly, indexingContext);
 
-                var result = updatedEpisodes.FirstOrDefault(x => x.Episode.Id == indexedEpisode.Episode.Id);
-                result?.Subjects = subjectsResult.Additions;
+                updatedEpisodes = results.MergeResult.AddedEpisodes
+                    .Select(x =>
+                        new IndexedEpisode(
+                            x,
+                            EpisodeServicePresence.HasUrl(x, ServiceKeys.Spotify),
+                            EpisodeServicePresence.HasUrl(x, ServiceKeys.Apple),
+                            EpisodeServicePresence.HasUrl(x, ServiceKeys.YouTube)))
+                    .Concat(results.EnrichmentResult.UpdatedEpisodes.Select(x =>
+                        new IndexedEpisode(
+                            x.Episode,
+                            x.EnrichmentContext.SpotifyUrlUpdated,
+                            x.EnrichmentContext.AppleUrlUpdated,
+                            x.EnrichmentContext.YouTubeUrlUpdated)))
+                    // Elimination marks Removed in Cosmos; include those IDs so search push deletes them.
+                    .Concat(results.FilterResult.FilteredEpisodes.Select(x =>
+                        new IndexedEpisode(
+                            x.Episode,
+                            EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Spotify),
+                            EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Apple),
+                            EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.YouTube))))
+                    .Distinct()
+                    .ToArray();
 
-                if (subjectsResult.Additions.Any() || subjectsResult.Removals.Any() ||
-                    guestsResult.Additions.Any())
+                var resultsMessage = results.ToString();
+                if (results.MergeResult.FailedEpisodes.Any() ||
+                    (results.SpotifyBypassed && !indexingContext.SkipSpotifyUrlResolving) ||
+                    (results.YouTubeBypassed && !indexingContext.SkipYouTubeUrlResolving))
                 {
-                    await episodeRepository.Save(indexedEpisode.Episode);
+                    logger.LogError(resultsMessage);
                 }
-            }
+                else
+                {
+                    logger.LogInformation(resultsMessage);
+                }
 
-            status = IndexStatus.Performed;
+                foreach (var indexedEpisode in updatedEpisodes.Where(x => !x.Episode.IsRemoved()))
+                {
+                    var subjectsResult = await subjectEnricher.EnrichSubjects(
+                        indexedEpisode.Episode,
+                        await subjectEnrichmentOptionsFactory.CreateAsync(podcast, indexedEpisode.Episode));
+
+                    var guestsResult = await guestEnricher.EnrichGuests(indexedEpisode.Episode);
+
+                    var result = updatedEpisodes.FirstOrDefault(x => x.Episode.Id == indexedEpisode.Episode.Id);
+                    result?.Subjects = subjectsResult.Additions;
+
+                    if (subjectsResult.Additions.Any() || subjectsResult.Removals.Any() ||
+                        guestsResult.Additions.Any())
+                    {
+                        await episodeRepository.Save(indexedEpisode.Episode);
+                    }
+                }
+
+                status = IndexStatus.Performed;
+            }
+            finally
+            {
+                await indexingLockStore.Release(handle);
+            }
         }
         else
         {

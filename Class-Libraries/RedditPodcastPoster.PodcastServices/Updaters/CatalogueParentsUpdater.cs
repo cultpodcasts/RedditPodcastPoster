@@ -96,6 +96,7 @@ public class CatalogueParentsUpdater(
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IOptions<PostingCriteria> postingCriteria,
     IPodcastPassApiCache passApiCache,
+    IParentIndexingLockStore indexingLockStore,
     IOptions<PodcastUpdateBudgetOptions> budgetOptions,
     IOptions<PodcastIndexingStageLogOptions> stageLogOptions,
     PodcastUpdateBudgetCutTracker budgetCutTracker,
@@ -122,6 +123,25 @@ public class CatalogueParentsUpdater(
     /// (the update may then fail once the request scope is disposed).
     /// </summary>
     public const string AbandonedOutlivesRequestMessagePrefix = "IndexerCatalogueParentAbandonedOutlivesRequest";
+
+    /// <summary>
+    /// Stable log prefix when a parent is skipped / refused because another index holds its lease
+    /// (App Insights keys off it).
+    /// </summary>
+    public const string AlreadyRunningMessagePrefix = "IndexerParentIndexingAlreadyRunning";
+
+    /// <summary>
+    /// A marker with no heartbeat for this long belongs to an index that died.
+    /// At least on-demand budget (<see cref="PodcastUpdateBudgetOptions.MaxOnDemandBudgetSeconds"/>) plus abandon
+    /// grace and drain (~195s); five minutes covers that with margin.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockStaleAfter = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// How often the holder renews its marker while it works. Zero disables heartbeats: the 5-minute stale window
+    /// already covers on-demand budget + grace + drain (~195s) and the hourly per-parent budget.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockHeartbeatInterval = TimeSpan.Zero;
 
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
@@ -172,8 +192,12 @@ public class CatalogueParentsUpdater(
                 {
                     if (IsIndexable(tvShow) && !await SourcePodcastStillExists("TvShow", tvShow))
                     {
-                        success &= await IndexWithinBudget("TvShow", tvShow,
-                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass) is not null;
+                        var run = await IndexWithinBudget("TvShow", tvShow,
+                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass);
+                        if (run.Status == ParentIndexRunStatus.TimedOut)
+                        {
+                            success = false;
+                        }
                     }
 
                     continue;
@@ -183,8 +207,12 @@ public class CatalogueParentsUpdater(
                 if (organisation is not null && IsIndexable(organisation) &&
                     !await SourcePodcastStillExists("NewsOrganisation", organisation))
                 {
-                    success &= await IndexWithinBudget("NewsOrganisation", organisation,
-                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass) is not null;
+                    var run = await IndexWithinBudget("NewsOrganisation", organisation,
+                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass);
+                    if (run.Status == ParentIndexRunStatus.TimedOut)
+                    {
+                        success = false;
+                    }
                 }
             }
             catch (Exception ex)
@@ -249,33 +277,59 @@ public class CatalogueParentsUpdater(
         }
 
         var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
-        var changed = await IndexWithinBudget(kind, parent, index, indexingContext, expensivePass,
-            new BudgetPlan(_budget.OnDemandBudget, _budget.OnDemandAbandonGrace, _budget.OnDemandAbandonDrain));
-        return changed is null
-            ? new CatalogueParentIndexResult(CatalogueParentIndexStatus.TimedOut)
-            : new CatalogueParentIndexResult(CatalogueParentIndexStatus.Indexed, changed);
+        var run = await IndexWithinBudget(kind, parent, index, indexingContext, expensivePass,
+            new BudgetPlan(_budget.OnDemandBudget, _budget.OnDemandAbandonGrace, _budget.OnDemandAbandonDrain),
+            ParentIndexingLock.SourceOnDemand);
+        return run.Status switch
+        {
+            ParentIndexRunStatus.AlreadyRunning =>
+                new CatalogueParentIndexResult(CatalogueParentIndexStatus.AlreadyRunning),
+            ParentIndexRunStatus.TimedOut =>
+                new CatalogueParentIndexResult(CatalogueParentIndexStatus.TimedOut),
+            _ => new CatalogueParentIndexResult(CatalogueParentIndexStatus.Indexed, run.Changed)
+        };
     }
 
     /// <summary>
-    /// Runs one parent's index under its time budget. Returns the saved playables, or null when the budget cut it off;
-    /// other failures propagate to the caller's per-parent catch. The hourly pass uses <see cref="HourlyPlan"/>; an
-    /// on-demand index passes its own, always-bounded plan.
+    /// Runs one parent's index under its time budget and a per-parent indexing lease. The hourly pass uses
+    /// <see cref="HourlyPlan"/>; an on-demand index passes its own, always-bounded plan.
     /// </summary>
-    private async Task<IReadOnlyList<Playable>?> IndexWithinBudget(
+    private async Task<ParentIndexRun> IndexWithinBudget(
         string kind,
         Publisher parent,
         Func<IndexingContext, Task<IReadOnlyList<Playable>>> index,
         IndexingContext indexingContext,
         bool expensivePass,
-        BudgetPlan? plan = null)
+        BudgetPlan? plan = null,
+        string source = ParentIndexingLock.SourceHourly)
     {
         plan ??= HourlyPlan(expensivePass);
         var budget = plan.Budget;
         var stageLog = new PodcastIndexingStageLog(parent.Id, parent.Name, logger, timeProvider, _stageLogOptions);
         Task<IReadOnlyList<Playable>>? updateTask = null;
+        // Register the budget timer before any await so fake-time advances in tests are not lost.
         using var budgetCts = budget.HasValue
             ? new CancellationTokenSource(budget.Value, timeProvider)
             : new CancellationTokenSource();
+        // Acquire synchronously so fake-time budget tests can Advance after IndexWithinBudget starts and still
+        // hit WaitAsync (an await here would let Advances land before the timeout is registered).
+        var lease = ParentIndexingLease.TryStart(
+            indexingLockStore,
+            timeProvider,
+            parent.Id,
+            IndexingLockStaleAfter,
+            IndexingLockHeartbeatInterval,
+            source,
+            logger).GetAwaiter().GetResult();
+        if (lease is null)
+        {
+            logger.LogWarning(
+                AlreadyRunningMessagePrefix +
+                " kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}' source='{Source}'.",
+                kind, parent.Id, parent.Name, source);
+            return ParentIndexRun.AlreadyRunning();
+        }
+
         try
         {
             stageLog.Stage("start", $"catalogue-parent-kind={kind}");
@@ -291,7 +345,7 @@ public class CatalogueParentsUpdater(
 
             stageLog.Stage("complete");
             budgetCutTracker.RecordCompleted(parent.Id);
-            return changed;
+            return ParentIndexRun.Completed(changed);
         }
         catch (Exception ex) when (budgetCts.IsCancellationRequested &&
                                    ex is OperationCanceledException or TimeoutException)
@@ -311,8 +365,30 @@ public class CatalogueParentsUpdater(
                 await DrainAbandonedUpdate(updateTask, plan.AbandonDrain, kind, parent);
             }
 
-            return null;
+            return ParentIndexRun.TimedOut();
         }
+        finally
+        {
+            // Release even when abandoning: the update's cancelled token stops further Cosmos writes.
+            await lease.DisposeAsync();
+        }
+    }
+
+    private enum ParentIndexRunStatus
+    {
+        Completed,
+        TimedOut,
+        AlreadyRunning
+    }
+
+    private sealed record ParentIndexRun(ParentIndexRunStatus Status, IReadOnlyList<Playable>? Changed = null)
+    {
+        public static ParentIndexRun Completed(IReadOnlyList<Playable> changed) =>
+            new(ParentIndexRunStatus.Completed, changed);
+
+        public static ParentIndexRun TimedOut() => new(ParentIndexRunStatus.TimedOut);
+
+        public static ParentIndexRun AlreadyRunning() => new(ParentIndexRunStatus.AlreadyRunning);
     }
 
     /// <summary>
