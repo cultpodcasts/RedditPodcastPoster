@@ -136,4 +136,44 @@ public class CatalogueMigrateServiceIdsRules
         refused.Should().BeNull();
         _validator.VerifyNoOtherCalls();
     }
+
+    [Fact(DisplayName =
+        "YouTube playlist ownership block text: a retryable LookupFailed tells operators to re-run when YouTube is " +
+        "healthy, and must not tell them to fix or clear the channel/playlist ids.")]
+    public void lookup_failed_block_text_says_re_run_not_fix_ids()
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var refused = new YouTubePlaylistValidation(YouTubePlaylistValidationStatus.LookupFailed, playlistId);
+
+        // Act
+        var block = CatalogueMigrateServiceIds.OwnershipBlockReason(refused);
+
+        // Assert
+        block.Should().StartWith(CatalogueMigratePlanner.YouTubePlaylistOwnershipRefusedPrefix);
+        block.Should().Contain(YouTubePlaylistValidation.LookupFailedCode);
+        block.Should().Contain("Re-run when YouTube is healthy");
+        block.Should().NotContain("Fix the podcast's youTubeChannelId");
+        block.Should().NotContain("clear one of the ids");
+    }
+
+    [Fact(DisplayName =
+        "YouTube playlist ownership block text: a non-retryable ChannelMismatch keeps the fix/clear-ids remediation.")]
+    public void mismatch_block_text_keeps_fix_or_clear_guidance()
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var ownerChannelId = _fixture.CreateYouTubeChannelId();
+        var refused = new YouTubePlaylistValidation(
+            YouTubePlaylistValidationStatus.ChannelMismatch, playlistId, ownerChannelId);
+
+        // Act
+        var block = CatalogueMigrateServiceIds.OwnershipBlockReason(refused);
+
+        // Assert
+        block.Should().StartWith(CatalogueMigratePlanner.YouTubePlaylistOwnershipRefusedPrefix);
+        block.Should().Contain(YouTubePlaylistValidation.ChannelMismatchCode);
+        block.Should().Contain("Fix the podcast's youTubeChannelId / youTubePlaylistId pair");
+        block.Should().NotContain("Re-run when YouTube is healthy");
+    }
 }

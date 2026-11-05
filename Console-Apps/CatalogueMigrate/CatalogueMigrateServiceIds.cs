@@ -60,9 +60,11 @@ public static class CatalogueMigrateServiceIds
     {
         ArgumentNullException.ThrowIfNull(refused);
         var code = refused.Code ?? "youTubePlaylistOwnershipRefused";
-        return
-            $"YouTube playlist ownership refused ({code}): {refused.Message} " +
-            "Fix the podcast's youTubeChannelId / youTubePlaylistId pair before migrate, or clear one of the ids.";
+        var prefix = CatalogueMigratePlanner.YouTubePlaylistOwnershipRefusedPrefix;
+        var remediation = refused.IsRetryable
+            ? "Re-run when YouTube is healthy."
+            : "Fix the podcast's youTubeChannelId / youTubePlaylistId pair before migrate, or clear one of the ids.";
+        return $"{prefix} ({code}): {refused.Message} {remediation}";
     }
 
     private static void Collect(JsonNode? node, HashSet<(string, string)> carried)

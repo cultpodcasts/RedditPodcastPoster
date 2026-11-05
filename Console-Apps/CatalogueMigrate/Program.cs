@@ -31,6 +31,7 @@ builder.Services
     .AddRepositories()
     .AddEpisodeSearchIndexerService()
     // Playlist ownership check before copying channel/playlist onto a TV / news parent (#1178); 1 quota unit per pair.
+    // Dry-run and apply now need the same YouTube CLI secrets (youtube section / user-secrets) as other YouTube CLIs.
     .AddYouTubeServices(ApplicationUsage.Cli)
     .AddSingleton(TimeProvider.System)
     .AddSingleton<ICatalogueMigrateEvidenceStore, FileCatalogueMigrateEvidenceStore>()

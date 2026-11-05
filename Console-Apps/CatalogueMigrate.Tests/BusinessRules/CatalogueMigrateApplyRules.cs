@@ -39,10 +39,22 @@ public class CatalogueMigrateApplyRules
         _mocker.Use<ICatalogueMigrateDestinationReader>(_destination);
         _mocker.Use<ICatalogueMigrateEvidenceStore>(_evidence);
         _mocker.Use<TimeProvider>(_clock);
+        // Happy-path default: Valid with owner = channel of a seeded podcast that carries this playlist.
+        // NotApplicable + blank owner would fail-closed as LookupFailed for any channel+playlist pair (#1178 review).
         _mocker.GetMock<IYouTubePlaylistValidator>()
             .Setup(v => v.Validate(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string? playlistId, CancellationToken _) =>
-                new YouTubePlaylistValidation(YouTubePlaylistValidationStatus.NotApplicable, playlistId));
+            {
+                var owner = _podcasts.GetAll().ToBlockingEnumerable()
+                    .FirstOrDefault(p =>
+                        !string.IsNullOrWhiteSpace(playlistId)
+                        && string.Equals(p.YouTubePlaylistId, playlistId, StringComparison.Ordinal))
+                    ?.YouTubeChannelId;
+                return new YouTubePlaylistValidation(
+                    YouTubePlaylistValidationStatus.Valid,
+                    playlistId,
+                    string.IsNullOrWhiteSpace(owner) ? _fixture.CreateYouTubeChannelId() : owner);
+            });
         _mocker.Use(NullLogger<CatalogueMigrateProcessor>.Instance);
         _mocker.Use(NullLogger<CatalogueMigrateApplier>.Instance);
         _mocker.Use(NullLogger<CatalogueMigrateRollbackPreviewer>.Instance);

@@ -184,9 +184,11 @@ public class PodcastKindTransferServiceRules
     }
 
     [Theory(DisplayName =
-        "Kind transfer refuses a missing or uncheckable playlist with the same 400/503 codes as the edit endpoints.")]
+        "Kind transfer refuses a missing, invalid, or uncheckable playlist with the same 400/503 codes as the edit endpoints.")]
     [InlineData(YouTubePlaylistValidationStatus.PlaylistNotFound, PodcastKindTransferStatus.BadRequest,
         YouTubePlaylistValidation.NotFoundCode)]
+    [InlineData(YouTubePlaylistValidationStatus.InvalidPlaylistId, PodcastKindTransferStatus.BadRequest,
+        YouTubePlaylistValidation.InvalidIdCode)]
     [InlineData(YouTubePlaylistValidationStatus.LookupFailed, PodcastKindTransferStatus.ServiceUnavailable,
         YouTubePlaylistValidation.LookupFailedCode)]
     public async Task playlist_lookup_failures_map_to_edit_codes(
