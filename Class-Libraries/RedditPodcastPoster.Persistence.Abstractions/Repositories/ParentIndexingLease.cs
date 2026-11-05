@@ -1,8 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
-using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
-namespace RedditPodcastPoster.PodcastServices.Updaters;
+namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 /// <summary>
 /// Holds a parent indexing marker and renews its heartbeat until disposed. Dispose releases the marker (If-Match).

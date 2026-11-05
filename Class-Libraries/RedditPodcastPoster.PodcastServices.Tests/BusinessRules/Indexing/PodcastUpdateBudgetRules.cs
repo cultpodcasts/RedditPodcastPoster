@@ -285,8 +285,10 @@ public class PodcastUpdateBudgetRules
     private async Task<bool> RunPastBudgetAndGrace(Task<bool> run)
     {
         // The loop registers the budget and abandon timers synchronously; fire them in order with fake time.
+        // After abandon, DrainAbandonedUpdate waits OnDemandAbandonDrain (TimeProvider) before releasing the lease.
         _time.Advance(Budget);
         _time.Advance(TimeSpan.FromSeconds(_budget.AbandonGraceSeconds));
+        _time.Advance(_budget.OnDemandAbandonDrain);
         return await Completion(run);
     }
 

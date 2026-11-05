@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
@@ -12,6 +13,7 @@ using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Models;
@@ -93,6 +95,7 @@ public class IndexingSkipShortEpisodesRules
         mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
         mocker.Use<TimeProvider>(TimeProvider.System);
         mocker.Use(NullLogger<Indexer>.Instance);
+        mocker.Use(Options.Create(new PodcastUpdateBudgetOptions()));
 
         mocker.GetMock<IPodcastUpdater>()
             .Setup(x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()))

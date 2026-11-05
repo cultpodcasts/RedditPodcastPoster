@@ -45,10 +45,18 @@ public class PodcastsUpdater(
     public static readonly TimeSpan IndexingLockStaleAfter = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// How often the holder renews its marker while it works. Zero disables heartbeats: the 5-minute stale window
-    /// already covers on-demand budget + grace + drain (~195s) and the hourly per-podcast budget.
+    /// How often the holder renews its marker while it works. Zero disables heartbeats: every holder must stay
+    /// budget-capped under <see cref="IndexingLockStaleAfter"/> (on-demand ≤ ~195s; hourly uses
+    /// <see cref="PodcastUpdateBudgetOptions.BudgetFor"/> — including expensive-pass when the multiplier is &gt; 0).
+    /// An expensive pass with <c>ExpensivePassBudgetMultiplier &lt;= 0</c> is unbounded and must not rely on Zero alone.
     /// </summary>
     public static readonly TimeSpan IndexingLockHeartbeatInterval = TimeSpan.Zero;
+
+    /// <summary>
+    /// Stable log prefix when an abandoned hourly update is still running after the bounded drain
+    /// (App Insights keys off it).
+    /// </summary>
+    public const string AbandonedOutlivesDrainMessagePrefix = "IndexerPodcastAbandonedOutlivesDrain";
 
     private readonly PodcastUpdateBudgetOptions _budget = budgetOptions.Value ?? new PodcastUpdateBudgetOptions();
 
@@ -187,6 +195,9 @@ public class PodcastsUpdater(
                     if (abandoned && updateTask != null)
                     {
                         ObserveAbandonedUpdate(updateTask, podcastToUpdate, stageLog);
+                        // Hold the lease through a bounded drain (TimeProvider) so a concurrent index cannot acquire
+                        // while the abandoned task may still write — same shape as CatalogueParentsUpdater on-demand.
+                        await DrainAbandonedUpdate(updateTask, _budget.OnDemandAbandonDrain, podcastToUpdate);
                     }
 
                     success = false;
@@ -199,8 +210,6 @@ public class PodcastsUpdater(
                 }
                 finally
                 {
-                    // Release even when abandoning: the update's cancelled token stops further Cosmos writes, and
-                    // holding the lease across an unbounded background task deadlocks fake-time budget tests.
                     await lease.DisposeAsync();
                     passApiCache.Clear();
                 }
@@ -253,5 +262,26 @@ public class PodcastsUpdater(
             CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// Bounded wait (fake-time friendly via <see cref="TimeProvider"/>) before releasing the lease after abandon, so a
+    /// concurrent on-demand/hourly index cannot take the marker while the abandoned task may still complete a write.
+    /// </summary>
+    private async Task DrainAbandonedUpdate(Task updateTask, TimeSpan drain, Podcast podcast)
+    {
+        if (drain <= TimeSpan.Zero || updateTask.IsCompleted)
+        {
+            return;
+        }
+
+        await Task.WhenAny(updateTask, Task.Delay(drain, timeProvider));
+        if (!updateTask.IsCompleted)
+        {
+            logger.LogWarning(
+                AbandonedOutlivesDrainMessagePrefix +
+                " podcast-id='{PodcastId}' podcast-name='{PodcastName}' drain-seconds='{DrainSeconds}'. The abandoned update is still running after the drain; the lease will be released.",
+                podcast.Id, podcast.Name, (int) drain.TotalSeconds);
+        }
     }
 }

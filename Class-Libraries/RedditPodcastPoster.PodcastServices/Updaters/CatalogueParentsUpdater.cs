@@ -138,8 +138,10 @@ public class CatalogueParentsUpdater(
     public static readonly TimeSpan IndexingLockStaleAfter = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// How often the holder renews its marker while it works. Zero disables heartbeats: the 5-minute stale window
-    /// already covers on-demand budget + grace + drain (~195s) and the hourly per-parent budget.
+    /// How often the holder renews its marker while it works. Zero disables heartbeats: every holder must stay
+    /// budget-capped under <see cref="IndexingLockStaleAfter"/> (on-demand ≤ ~195s; hourly uses
+    /// <see cref="PodcastUpdateBudgetOptions.BudgetFor"/>). An expensive pass with
+    /// <c>ExpensivePassBudgetMultiplier &lt;= 0</c> is unbounded and must not rely on Zero alone.
     /// </summary>
     public static readonly TimeSpan IndexingLockHeartbeatInterval = TimeSpan.Zero;
 
