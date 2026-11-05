@@ -75,7 +75,8 @@ public class PostPodcastKindTransferHandlerTests
         _ctx.Verify(x => x.Conflict(
             It.Is<PodcastKindTransferEnqueueResponse>(r =>
                 r.Status == nameof(PodcastKindTransferEnqueueStatus.AlreadyRunning) &&
-                r.ParentId == _command.PodcastId),
+                r.ParentId == _command.PodcastId &&
+                r.StatusPath == $"podcast/{_command.PodcastId:D}/kind"),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

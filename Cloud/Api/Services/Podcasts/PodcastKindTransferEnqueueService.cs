@@ -8,8 +8,9 @@ namespace Api.Services.Podcasts;
 
 /// <summary>
 /// Accepts a kind-transfer command: validates the podcast and target, refuses when a fresh single-flight
-/// marker is held, writes a LookUps job in <see cref="ParentKindTransferJobPhase.Queued"/>, and enqueues
-/// work for the queue worker. The HTTP request returns before the move runs.
+/// marker is held or a Queued job already exists, writes a LookUps job in
+/// <see cref="ParentKindTransferJobPhase.Queued"/>, and enqueues work for the queue worker. The HTTP
+/// request returns before the move runs.
 /// </summary>
 public class PodcastKindTransferEnqueueService(
     IPodcastRepository podcastRepository,
@@ -47,6 +48,16 @@ public class PodcastKindTransferEnqueueService(
                 PodcastKindTransferEnqueueStatus.AlreadyRunning, podcastId, marker.TargetKind);
         }
 
+        // Refuse a second POST while a Queued job is waiting. Stuck Running (no fresh lock) is allowed
+        // so curators can re-enqueue after GET surfaces Failed for a dead worker.
+        var existingJob = await jobStore.Get(podcastId);
+        if (existingJob is { Phase: ParentKindTransferJobPhase.Queued })
+        {
+            return new PodcastKindTransferEnqueueResult(
+                PodcastKindTransferEnqueueStatus.AlreadyRunning, podcastId, existingJob.TargetKind,
+                existingJob.EnqueuedUtc);
+        }
+
         var job = new ParentKindTransferJob
         {
             PodcastId = podcastId,
@@ -58,14 +69,36 @@ public class PodcastKindTransferEnqueueService(
         try
         {
             await jobStore.Save(job);
-            await queue.EnqueueAsync(
-                new PodcastKindTransferQueueMessage
+            try
+            {
+                await queue.EnqueueAsync(
+                    new PodcastKindTransferQueueMessage
+                    {
+                        PodcastId = podcastId,
+                        TargetKind = targetKind,
+                        EnqueuedUtc = now
+                    },
+                    cancellationToken);
+            }
+            catch (Exception enqueueEx)
+            {
+                logger.LogError(
+                    enqueueEx,
+                    "{method}: Queue send failed after saving Queued job for podcast '{podcastId}'; compensating to Failed.",
+                    nameof(EnqueueAsync),
+                    podcastId);
+                await jobStore.Save(new ParentKindTransferJob
                 {
                     PodcastId = podcastId,
                     TargetKind = targetKind,
-                    EnqueuedUtc = now
-                },
-                cancellationToken);
+                    Phase = ParentKindTransferJobPhase.Failed,
+                    EnqueuedUtc = now,
+                    CompletedUtc = now,
+                    FailureReason = "Failed to enqueue queue message."
+                });
+                return new PodcastKindTransferEnqueueResult(
+                    PodcastKindTransferEnqueueStatus.Failed, podcastId, targetKind);
+            }
         }
         catch (Exception ex)
         {

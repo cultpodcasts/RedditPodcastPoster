@@ -218,9 +218,15 @@ Cloud/Api/
 
 ## Podcast kind transfer (background job)
 
-`POST podcast/{id}/kind` **enqueues** a transfer (Storage Queue `podcast-kind-transfer`) and returns **202** with a command-outcome body (`status: Queued`, `statusPath`). It does **not** wait for the move. A queue-triggered function runs `PodcastKindTransferService` (single-flight LookUps lock unchanged). `GET podcast/{id}/kind` is the query: Queued / Running / Completed / Failed / Incomplete / Idle / NotFound from the job document, lock, and parent presence.
+`POST podcast/{id}/kind` **enqueues** a transfer (Storage Queue `podcast-kind-transfer`) and returns **202** with a command-outcome body (`status: Queued`, `statusPath`). It does **not** wait for the move. A queue-triggered function runs `PodcastKindTransferService` (single-flight LookUps lock unchanged). `GET podcast/{id}/kind` is the query: Queued / Running / Completed / Failed / Incomplete / Idle / NotFound from the job document, lock, and parent presence. Job phase `Running` without a fresh single-flight marker is surfaced as **Failed** (dead worker), never authoritative Running.
 
-Website polling is a separate ticket; the Api Worker proxies both routes.
+### Release train (do not deploy ahead of website)
+
+This POST contract is **breaking** for the live curator UI: the website still binds the old sync body (`transferInProgress` / `retryRequired` / `playableCount`). Merge to `main` ships `api-infra` via `deploy.yml`. **Do not merge or deploy this Function change until the website polling PR is ready to ship in the same release train** (or hold Actions / use an interim dual-read). Api Worker proxy alone is not enough — the Angular client must poll `GET …/kind` after `202 Queued`. Companion Worker: Api `#212`.
+
+### Operators: queue host settings
+
+`Cloud/Api/host.json` sets `extensions.queues` for this workload: `visibilityTimeout` 5 minutes (host renews while the invocation runs; transfers heartbeat about once a minute), `maxDequeueCount` 3, `batchSize` 1. The enqueue path still calls `CreateIfNotExistsAsync` (UAMI needs Storage Queue Data Contributor). Manual `QueueClient` uses the connection string locally and identity-based `AzureWebJobsStorage__accountName` / `__clientId` in production (same split settings as the `[QueueTrigger]` binding).
 
 ---
 

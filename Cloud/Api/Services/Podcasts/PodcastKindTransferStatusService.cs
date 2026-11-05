@@ -69,12 +69,30 @@ public class PodcastKindTransferStatusService(
             PodcastKindTransferJobQueryStatus.NotFound, podcastId);
     }
 
-    private static PodcastKindTransferJobStatusResult FromJob(ParentKindTransferJob job) =>
-        new(
+    /// <summary>
+    /// Maps a LookUps job when no fresh lock is held. Job phase Running without a live marker is never
+    /// authoritative Running (worker likely crashed) — surface Failed so the curator can re-enqueue.
+    /// </summary>
+    private static PodcastKindTransferJobStatusResult FromJob(ParentKindTransferJob job)
+    {
+        if (job.Phase == ParentKindTransferJobPhase.Running)
+        {
+            return new PodcastKindTransferJobStatusResult(
+                PodcastKindTransferJobQueryStatus.Failed,
+                job.PodcastId,
+                job.TargetKind,
+                job.PlayableCount,
+                job.FailureIndexingPlayables,
+                job.FailureReason ?? "Transfer marker expired while job was Running.",
+                job.EnqueuedUtc,
+                job.StartedUtc,
+                job.CompletedUtc);
+        }
+
+        return new(
             job.Phase switch
             {
                 ParentKindTransferJobPhase.Queued => PodcastKindTransferJobQueryStatus.Queued,
-                ParentKindTransferJobPhase.Running => PodcastKindTransferJobQueryStatus.Running,
                 ParentKindTransferJobPhase.Completed => PodcastKindTransferJobQueryStatus.Completed,
                 ParentKindTransferJobPhase.Failed => PodcastKindTransferJobQueryStatus.Failed,
                 ParentKindTransferJobPhase.Incomplete => PodcastKindTransferJobQueryStatus.Incomplete,
@@ -88,4 +106,5 @@ public class PodcastKindTransferStatusService(
             job.EnqueuedUtc,
             job.StartedUtc,
             job.CompletedUtc);
+    }
 }

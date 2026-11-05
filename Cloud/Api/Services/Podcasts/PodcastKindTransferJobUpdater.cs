@@ -42,8 +42,21 @@ public class PodcastKindTransferJobUpdater(
             return;
         }
 
-        var now = timeProvider.GetUtcNow().UtcDateTime;
         var existing = await jobStore.Get(podcastId);
+
+        // A late/duplicate worker that lost the lock must not clobber a terminal job into eternal Running,
+        // and must never write CompletedUtc while leaving phase Running.
+        if (result.Status == PodcastKindTransferStatus.AlreadyRunning)
+        {
+            logger.LogInformation(
+                "{method}: AlreadyRunning for podcast '{podcastId}' — leaving existing job phase {phase} unchanged.",
+                nameof(ApplyResultAsync),
+                podcastId,
+                existing?.Phase);
+            return;
+        }
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         var job = new ParentKindTransferJob
         {
             PodcastId = podcastId,
@@ -57,7 +70,6 @@ public class PodcastKindTransferJobUpdater(
             {
                 PodcastKindTransferStatus.Accepted => ParentKindTransferJobPhase.Completed,
                 PodcastKindTransferStatus.Incomplete => ParentKindTransferJobPhase.Incomplete,
-                PodcastKindTransferStatus.AlreadyRunning => ParentKindTransferJobPhase.Running,
                 PodcastKindTransferStatus.NotFound => ParentKindTransferJobPhase.Failed,
                 PodcastKindTransferStatus.Conflict => ParentKindTransferJobPhase.Failed,
                 PodcastKindTransferStatus.InvalidTarget => ParentKindTransferJobPhase.Failed,
@@ -66,8 +78,7 @@ public class PodcastKindTransferJobUpdater(
             },
             FailureReason = result.Status switch
             {
-                PodcastKindTransferStatus.Accepted or PodcastKindTransferStatus.Incomplete
-                    or PodcastKindTransferStatus.AlreadyRunning => null,
+                PodcastKindTransferStatus.Accepted or PodcastKindTransferStatus.Incomplete => null,
                 PodcastKindTransferStatus.NotFound => "Podcast not found.",
                 PodcastKindTransferStatus.Conflict => "Transfer conflict.",
                 PodcastKindTransferStatus.InvalidTarget => "Invalid target kind.",

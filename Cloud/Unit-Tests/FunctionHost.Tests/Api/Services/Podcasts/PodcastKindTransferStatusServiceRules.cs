@@ -130,4 +130,30 @@ public class PodcastKindTransferStatusServiceRules
         // Assert
         result.Status.Should().Be(PodcastKindTransferJobQueryStatus.Idle);
     }
+
+    [Fact(DisplayName =
+        "Status is Failed (not Running) when the LookUps job says Running but no fresh single-flight marker " +
+        "exists, so a crashed worker cannot leave the curator polling Running forever.")]
+    public async Task stale_running_job_without_lock_is_failed()
+    {
+        // Arrange
+        var podcastId = _podcast!.Id;
+        _job = new ParentKindTransferJob
+        {
+            PodcastId = podcastId,
+            TargetKind = CatalogueParentKind.TvShow,
+            Phase = ParentKindTransferJobPhase.Running,
+            EnqueuedUtc = _now.AddMinutes(-20),
+            StartedUtc = _now.AddMinutes(-20)
+        };
+        var sut = _mocker.CreateInstance<PodcastKindTransferStatusService>();
+
+        // Act
+        var result = await sut.GetAsync(podcastId, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferJobQueryStatus.Failed);
+        result.FailureReason.Should().NotBeNullOrWhiteSpace();
+        result.TargetKind.Should().Be(CatalogueParentKind.TvShow);
+    }
 }

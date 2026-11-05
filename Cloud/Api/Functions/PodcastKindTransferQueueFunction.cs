@@ -11,8 +11,7 @@ namespace Api.Functions;
 /// single-flight LookUps marker and updates the job document for <c>GET podcast/{id}/kind</c>.
 /// </summary>
 public class PodcastKindTransferQueueFunction(
-    IPodcastKindTransferService transferService,
-    IPodcastKindTransferJobUpdater jobUpdater,
+    IPodcastKindTransferQueueProcessor processor,
     ILogger<PodcastKindTransferQueueFunction> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -45,20 +44,6 @@ public class PodcastKindTransferQueueFunction(
             message.PodcastId,
             message.TargetKind);
 
-        await jobUpdater.MarkRunningAsync(message.PodcastId, message.TargetKind, message.EnqueuedUtc);
-
-        var result = await transferService.TransferAsync(
-            message.PodcastId,
-            new PodcastKindTransferRequest { TargetKind = message.TargetKind },
-            CancellationToken.None);
-
-        await jobUpdater.ApplyResultAsync(result, message.EnqueuedUtc);
-
-        logger.LogInformation(
-            "{method}: Queued kind transfer for podcast '{podcastId}' finished with {status} ({playableCount} playables).",
-            nameof(Run),
-            message.PodcastId,
-            result.Status,
-            result.PlayableCount);
+        await processor.ProcessAsync(message, CancellationToken.None);
     }
 }

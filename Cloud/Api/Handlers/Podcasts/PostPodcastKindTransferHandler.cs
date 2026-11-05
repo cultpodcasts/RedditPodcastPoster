@@ -28,15 +28,7 @@ public class PostPodcastKindTransferHandler(
             PodcastKindTransferEnqueueStatus.NotFound =>
                 await ctx.NotFound(new { id = result.ParentId }, cancellationToken),
             PodcastKindTransferEnqueueStatus.AlreadyRunning =>
-                await ctx.Conflict(
-                    new PodcastKindTransferEnqueueResponse
-                    {
-                        Status = nameof(PodcastKindTransferEnqueueStatus.AlreadyRunning),
-                        ParentId = result.ParentId,
-                        TargetKind = result.TargetKind,
-                        StatusPath = result.ParentId is { } id ? $"podcast/{id:D}/kind" : null
-                    },
-                    cancellationToken),
+                await ctx.Conflict(result.ToDto(), cancellationToken),
             PodcastKindTransferEnqueueStatus.InvalidTarget =>
                 await ctx.BadRequest(
                     ApiErrorResponse.Failure("targetKind must be TvShow or NewsOrganisation"),

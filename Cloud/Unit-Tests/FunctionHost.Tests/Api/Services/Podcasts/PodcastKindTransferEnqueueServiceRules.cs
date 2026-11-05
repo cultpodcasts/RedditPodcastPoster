@@ -22,6 +22,8 @@ public class PodcastKindTransferEnqueueServiceRules
     private readonly List<PodcastKindTransferQueueMessage> _enqueued = [];
     private DateTime _now;
     private Podcast? _podcast;
+    private ParentKindTransferJob? _existingJob;
+    private Exception? _enqueueException;
 
     public PodcastKindTransferEnqueueServiceRules()
     {
@@ -35,13 +37,24 @@ public class PodcastKindTransferEnqueueServiceRules
             .Setup(r => r.GetPodcast(It.IsAny<Guid>()))
             .ReturnsAsync(() => _podcast);
         _mocker.GetMock<IParentKindTransferJobStore>()
+            .Setup(s => s.Get(It.IsAny<Guid>()))
+            .ReturnsAsync(() => _existingJob);
+        _mocker.GetMock<IParentKindTransferJobStore>()
             .Setup(s => s.Save(It.IsAny<ParentKindTransferJob>()))
             .Callback<ParentKindTransferJob>(j => _savedJobs.Add(j))
             .Returns(Task.CompletedTask);
         _mocker.GetMock<IPodcastKindTransferQueue>()
             .Setup(q => q.EnqueueAsync(It.IsAny<PodcastKindTransferQueueMessage>(), It.IsAny<CancellationToken>()))
-            .Callback<PodcastKindTransferQueueMessage, CancellationToken>((m, _) => _enqueued.Add(m))
-            .Returns(Task.CompletedTask);
+            .Returns<PodcastKindTransferQueueMessage, CancellationToken>((m, _) =>
+            {
+                if (_enqueueException is not null)
+                {
+                    return Task.FromException(_enqueueException);
+                }
+
+                _enqueued.Add(m);
+                return Task.CompletedTask;
+            });
     }
 
     [Fact(DisplayName =
@@ -110,5 +123,88 @@ public class PodcastKindTransferEnqueueServiceRules
         // Assert
         result.Status.Should().Be(PodcastKindTransferEnqueueStatus.NotFound);
         _enqueued.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Enqueue refuses with AlreadyRunning when a LookUps job is already Queued, so a second POST before the " +
+        "worker acquires the lock cannot duplicate queue work.")]
+    public async Task enqueue_refuses_when_queued_job_exists()
+    {
+        // Arrange
+        var podcastId = _podcast!.Id;
+        _existingJob = new ParentKindTransferJob
+        {
+            PodcastId = podcastId,
+            TargetKind = CatalogueParentKind.TvShow,
+            Phase = ParentKindTransferJobPhase.Queued,
+            EnqueuedUtc = _now.AddMinutes(-1)
+        };
+        var sut = _mocker.CreateInstance<PodcastKindTransferEnqueueService>();
+
+        // Act
+        var result = await sut.EnqueueAsync(
+            podcastId,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferEnqueueStatus.AlreadyRunning);
+        _enqueued.Should().BeEmpty();
+        _savedJobs.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When the queue send fails after the Queued job was saved, enqueue compensates by marking the job Failed " +
+        "and returns Failed, so GET does not poll Queued forever with no message.")]
+    public async Task enqueue_compensates_to_failed_when_queue_send_fails()
+    {
+        // Arrange
+        var podcastId = _podcast!.Id;
+        _enqueueException = new InvalidOperationException(_fixture.Create<string>());
+        var sut = _mocker.CreateInstance<PodcastKindTransferEnqueueService>();
+
+        // Act
+        var result = await sut.EnqueueAsync(
+            podcastId,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.TvShow },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferEnqueueStatus.Failed);
+        _enqueued.Should().BeEmpty();
+        _savedJobs.Should().Contain(j =>
+            j.Phase == ParentKindTransferJobPhase.Queued);
+        _savedJobs.Should().Contain(j =>
+            j.Phase == ParentKindTransferJobPhase.Failed &&
+            j.FailureReason == "Failed to enqueue queue message.");
+    }
+
+    [Fact(DisplayName =
+        "Enqueue allows a new Queued job when the existing LookUps job is Running but no fresh lock is held, " +
+        "so a stuck worker (GET Failed) can be re-enqueued.")]
+    public async Task enqueue_allows_requeue_when_running_job_has_stale_lock()
+    {
+        // Arrange
+        var podcastId = _podcast!.Id;
+        _existingJob = new ParentKindTransferJob
+        {
+            PodcastId = podcastId,
+            TargetKind = CatalogueParentKind.TvShow,
+            Phase = ParentKindTransferJobPhase.Running,
+            EnqueuedUtc = _now.AddMinutes(-30),
+            StartedUtc = _now.AddMinutes(-30)
+        };
+        var sut = _mocker.CreateInstance<PodcastKindTransferEnqueueService>();
+
+        // Act
+        var result = await sut.EnqueueAsync(
+            podcastId,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferEnqueueStatus.Queued);
+        _enqueued.Should().ContainSingle();
+        _savedJobs.Should().ContainSingle(j => j.Phase == ParentKindTransferJobPhase.Queued);
     }
 }
