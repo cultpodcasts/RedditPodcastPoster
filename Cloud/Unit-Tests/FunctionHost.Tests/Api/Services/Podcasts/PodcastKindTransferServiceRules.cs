@@ -785,7 +785,8 @@ public class PodcastKindTransferServiceRules
             l => l.Log(
                 level,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains(fragment)),
+                It.Is<It.IsAnyType>((state, _) =>
+                    (state == null ? string.Empty : state.ToString() ?? string.Empty).Contains(fragment)),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             times);

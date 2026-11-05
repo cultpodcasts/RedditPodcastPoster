@@ -448,7 +448,8 @@ public class FilmSearchPusherRules
             x => x.Log(
                 LogLevel.Error,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains("run with --full next")),
+                It.Is<It.IsAnyType>((state, _) =>
+                    (state == null ? string.Empty : state.ToString() ?? string.Empty).Contains("run with --full next")),
                 It.IsAny<TimeoutException>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
