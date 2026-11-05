@@ -1,9 +1,11 @@
 using Api.Services.YouTube;
 using Api.Services.Catalogue;
+using Azure.Storage.Queues;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Api.Dtos.Mapping;
+using Api.Models;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.DiscoverySubmissions;
@@ -89,11 +91,23 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPodcastGetService, PodcastGetService>()
             .AddScoped<IPodcastUpdateService, PodcastUpdateService>()
             .AddScoped<IPodcastKindTransferService, PodcastKindTransferService>()
+            .AddScoped<IPodcastKindTransferEnqueueService, PodcastKindTransferEnqueueService>()
+            .AddScoped<IPodcastKindTransferStatusService, PodcastKindTransferStatusService>()
+            .AddScoped<IPodcastKindTransferJobUpdater, PodcastKindTransferJobUpdater>()
+            .AddSingleton(_ =>
+            {
+                var connection = Environment.GetEnvironmentVariable("AzureWebJobsStorage")
+                    ?? throw new InvalidOperationException(
+                        "AzureWebJobsStorage is required for the podcast kind-transfer queue.");
+                return new QueueClient(connection, PodcastKindTransferQueueMessage.QueueName);
+            })
+            .AddSingleton<IPodcastKindTransferQueue, PodcastKindTransferQueue>()
             .AddScoped<IPodcastIndexService, PodcastIndexService>()
             .AddScoped<IPodcastRenameService, PodcastRenameService>()
             .AddScoped<IGetPodcastHandler, GetPodcastHandler>()
             .AddScoped<IPostPodcastHandler, PostPodcastHandler>()
             .AddScoped<IPostPodcastKindTransferHandler, PostPodcastKindTransferHandler>()
+            .AddScoped<IGetPodcastKindTransferStatusHandler, GetPodcastKindTransferStatusHandler>()
             .AddScoped<IIndexPodcastHandler, IndexPodcastHandler>()
             .AddScoped<IRenamePodcastHandler, RenamePodcastHandler>()
             .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()

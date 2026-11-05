@@ -216,6 +216,14 @@ Cloud/Api/
 
 ---
 
+## Podcast kind transfer (background job)
+
+`POST podcast/{id}/kind` **enqueues** a transfer (Storage Queue `podcast-kind-transfer`) and returns **202** with a command-outcome body (`status: Queued`, `statusPath`). It does **not** wait for the move. A queue-triggered function runs `PodcastKindTransferService` (single-flight LookUps lock unchanged). `GET podcast/{id}/kind` is the query: Queued / Running / Completed / Failed / Incomplete / Idle / NotFound from the job document, lock, and parent presence.
+
+Website polling is a separate ticket; the Api Worker proxies both routes.
+
+---
+
 ## Adding a new endpoint
 
 1. **Decide the area** (or add `Handlers/NewArea` + `Services/NewArea` with matching namespaces).

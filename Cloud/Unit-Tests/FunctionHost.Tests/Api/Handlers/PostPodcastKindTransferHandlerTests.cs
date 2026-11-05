@@ -1,10 +1,7 @@
-using System.Net;
-using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
-using PodcastKindTransferResponse = Api.Dtos.PodcastKindTransferResponse;
-using ApiErrorResponse = Api.Dtos.ApiErrorResponse;
+using PodcastKindTransferEnqueueResponse = Api.Dtos.PodcastKindTransferEnqueueResponse;
+using Api.Dtos;
 using Api.Handlers;
 using Api.Handlers.Podcasts;
 using Api.Models;
@@ -13,6 +10,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using Xunit;
+using PodcastKindTransferRequest = Api.Models.PodcastKindTransferRequest;
 
 namespace FunctionHost.Tests.Api.Handlers;
 
@@ -22,7 +20,7 @@ public class PostPodcastKindTransferHandlerTests
     private readonly AutoMocker _mocker = new();
     private readonly Mock<IHandlerContext> _ctx;
     private readonly PodcastKindTransferCommand _command;
-    private PodcastKindTransferResult _result;
+    private PodcastKindTransferEnqueueResult _result;
 
     public PostPodcastKindTransferHandlerTests()
     {
@@ -30,109 +28,19 @@ public class PostPodcastKindTransferHandlerTests
         _command = new PodcastKindTransferCommand(
             podcastId,
             new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation });
-        _result = new PodcastKindTransferResult(
-            PodcastKindTransferStatus.Accepted, podcastId, CatalogueParentKind.NewsOrganisation, 3);
-        _mocker.GetMock<IPodcastKindTransferService>()
-            .Setup(s => s.TransferAsync(It.IsAny<Guid>(), It.IsAny<PodcastKindTransferRequest>(),
+        _result = new PodcastKindTransferEnqueueResult(
+            PodcastKindTransferEnqueueStatus.Queued, podcastId, CatalogueParentKind.NewsOrganisation,
+            _fixture.Create<DateTime>().ToUniversalTime());
+        _mocker.GetMock<IPodcastKindTransferEnqueueService>()
+            .Setup(s => s.EnqueueAsync(It.IsAny<Guid>(), It.IsAny<PodcastKindTransferRequest>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _result);
         _ctx = _mocker.GetMock<IHandlerContext>();
     }
 
-    private void VerifyLogged(LogLevel level, Times times) =>
-        _mocker.GetMock<ILogger<PostPodcastKindTransferHandler>>().Verify(l => l.Log(
-            level,
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception?>(),
-            It.IsAny<Func<It.IsAnyType, Exception?, string>>()), times);
-
     [Fact(DisplayName =
-        "A transfer refused because another transfer of the podcast is running is a 409 whose body says " +
-        "transferInProgress, so the site can tell it apart from an id clash.")]
-    public async Task already_running_is_conflict_with_in_progress_flag()
-    {
-        // Arrange
-        _result = new PodcastKindTransferResult(
-            PodcastKindTransferStatus.AlreadyRunning, _command.PodcastId, CatalogueParentKind.NewsOrganisation);
-        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
-
-        // Act
-        await sut.Handle(_ctx.Object, _command, CancellationToken.None);
-
-        // Assert
-        _ctx.Verify(x => x.Conflict(
-            It.Is<PodcastKindTransferResponse>(r => r.TransferInProgress && r.ParentId == _command.PodcastId),
-            It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact(DisplayName =
-        "A transfer that kept the podcast because episodes kept arriving is a 409 whose body says retryRequired " +
-        "(and not transferInProgress), so the site asks the curator to run the transfer again.")]
-    public async Task incomplete_is_conflict_with_retry_required_flag()
-    {
-        // Arrange
-        _result = new PodcastKindTransferResult(
-            PodcastKindTransferStatus.Incomplete, _command.PodcastId, CatalogueParentKind.NewsOrganisation, 5);
-        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
-
-        // Act
-        await sut.Handle(_ctx.Object, _command, CancellationToken.None);
-
-        // Assert
-        _ctx.Verify(x => x.Conflict(
-            It.Is<PodcastKindTransferResponse>(r => r.RetryRequired && !r.TransferInProgress &&
-                                                    r.ParentId == _command.PodcastId),
-            It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact(DisplayName =
-        "When the caller disconnects and writing the 202 reply is cancelled after a successful transfer, the " +
-        "handler logs it as information (not an error) and returns the 202 status, because the transfer is stored.")]
-    public async Task cancelled_reply_after_success_is_information()
-    {
-        // Arrange
-        using var caller = new CancellationTokenSource();
-        _ctx.Setup(x => x.Accepted(It.IsAny<object>(), It.IsAny<CancellationToken>()))
-            .Returns(() =>
-            {
-                caller.Cancel();
-                return Task.FromException<Microsoft.Azure.Functions.Worker.Http.HttpResponseData>(
-                    new TaskCanceledException());
-            });
-        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
-
-        // Act
-        var act = () => sut.Handle(_ctx.Object, _command, caller.Token);
-
-        // Assert
-        await act.Should().NotThrowAsync();
-        _ctx.Verify(x => x.Status(HttpStatusCode.Accepted), Times.Once);
-        VerifyLogged(LogLevel.Information, Times.Once());
-        VerifyLogged(LogLevel.Error, Times.Never());
-    }
-
-    [Fact(DisplayName =
-        "When the caller has already gone by the time the transfer finishes, the handler does not try to write a " +
-        "body and logs the stored outcome as information.")]
-    public async Task caller_gone_before_reply_skips_body()
-    {
-        // Arrange
-        using var caller = new CancellationTokenSource();
-        caller.Cancel();
-        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
-
-        // Act
-        await sut.Handle(_ctx.Object, _command, caller.Token);
-
-        // Assert
-        _ctx.Verify(x => x.Accepted(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
-        _ctx.Verify(x => x.Status(HttpStatusCode.Accepted), Times.Once);
-        VerifyLogged(LogLevel.Information, Times.Once());
-    }
-
-    [Fact(DisplayName = "A successful transfer with a connected caller is a 202 with the transfer body.")]
-    public async Task success_is_accepted_with_body()
+        "A successful enqueue is a 202 whose body says Queued and points at GET podcast/{id}/kind for progress.")]
+    public async Task queued_is_accepted_with_status_path()
     {
         // Arrange
         var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
@@ -142,7 +50,67 @@ public class PostPodcastKindTransferHandlerTests
 
         // Assert
         _ctx.Verify(x => x.Accepted(
-            It.Is<PodcastKindTransferResponse>(r => r.PlayableCount == 3 && !r.TransferInProgress),
+            It.Is<PodcastKindTransferEnqueueResponse>(r =>
+                r.Status == nameof(PodcastKindTransferEnqueueStatus.Queued) &&
+                r.ParentId == _command.PodcastId &&
+                r.StatusPath == $"podcast/{_command.PodcastId:D}/kind"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "An enqueue refused because another transfer of the podcast is running is a 409 whose body says " +
+        "AlreadyRunning, so the site can poll status instead of retrying the command.")]
+    public async Task already_running_is_conflict()
+    {
+        // Arrange
+        _result = new PodcastKindTransferEnqueueResult(
+            PodcastKindTransferEnqueueStatus.AlreadyRunning, _command.PodcastId,
+            CatalogueParentKind.NewsOrganisation);
+        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
+
+        // Act
+        await sut.Handle(_ctx.Object, _command, CancellationToken.None);
+
+        // Assert
+        _ctx.Verify(x => x.Conflict(
+            It.Is<PodcastKindTransferEnqueueResponse>(r =>
+                r.Status == nameof(PodcastKindTransferEnqueueStatus.AlreadyRunning) &&
+                r.ParentId == _command.PodcastId),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "An enqueue for an unknown podcast is a 404.")]
+    public async Task missing_podcast_is_not_found()
+    {
+        // Arrange
+        _result = new PodcastKindTransferEnqueueResult(
+            PodcastKindTransferEnqueueStatus.NotFound, _command.PodcastId, CatalogueParentKind.NewsOrganisation);
+        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
+
+        // Act
+        await sut.Handle(_ctx.Object, _command, CancellationToken.None);
+
+        // Assert
+        _ctx.Verify(x => x.NotFound(
+            It.Is<object>(o => o != null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "An enqueue with an invalid target kind is a 400.")]
+    public async Task invalid_target_is_bad_request()
+    {
+        // Arrange
+        _result = new PodcastKindTransferEnqueueResult(PodcastKindTransferEnqueueStatus.InvalidTarget);
+        var sut = _mocker.CreateInstance<PostPodcastKindTransferHandler>();
+
+        // Act
+        await sut.Handle(_ctx.Object, _command, CancellationToken.None);
+
+        // Assert
+        _ctx.Verify(x => x.BadRequest(
+            It.Is<ApiErrorResponse>(e => e != null),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
