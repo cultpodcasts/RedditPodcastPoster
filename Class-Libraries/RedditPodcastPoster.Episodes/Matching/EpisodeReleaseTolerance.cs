@@ -37,12 +37,23 @@ public static class EpisodeReleaseTolerance
     public static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
     private static readonly TimeSpan YouTubeReleaseAuthorityEnrichmentLookahead = TimeSpan.FromDays(14);
 
+    /// <summary>
+    /// Tick band returned by <see cref="GetToleranceTicks"/> for catalogue parents (news/TV) when
+    /// <see cref="Podcast.CatalogueParentSameTitleMatching"/> is set and publishing delay is zero.
+    /// <see cref="SpotifyCatalogueReleaseMatches"/> treats the calendar-day gate as authoritative for those
+    /// podcasts and does not apply this band across days — a Spotify date-only midnight on D+1 must not match
+    /// a late Day-D report even when the absolute gap is under 3h (#1161).
+    /// </summary>
+    public static readonly TimeSpan CatalogueParentSameTitleReleaseTolerance = SameReleaseThreshold;
+
     public static long GetToleranceTicks(Podcast podcast, TimeSpan episodeLength)
     {
         var delay = podcast.YouTubePublishingDelay();
         if (delay == TimeSpan.Zero)
         {
-            return YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
+            return podcast.CatalogueParentSameTitleMatching
+                ? CatalogueParentSameTitleReleaseTolerance.Ticks
+                : YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
         }
 
         if (delay.Ticks < 0)
@@ -99,10 +110,18 @@ public static class EpisodeReleaseTolerance
         return YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
     }
 
-    public static int GetSpotifyCatalogueDayTolerance(Podcast? podcast) =>
-        podcast is { ReleaseAuthority: Service.YouTube } && podcast.YouTubePublishingDelay().Ticks < 0
+    public static int GetSpotifyCatalogueDayTolerance(Podcast? podcast)
+    {
+        if (podcast is { CatalogueParentSameTitleMatching: true })
+        {
+            // Same UTC calendar day only — reused news titles must not attach to yesterday's audio (#1161).
+            return 0;
+        }
+
+        return podcast is { ReleaseAuthority: Service.YouTube } && podcast.YouTubePublishingDelay().Ticks < 0
             ? YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance
             : 1;
+    }
 
     /// <summary>
     /// Band around the expected release of the service being matched. A submit looks here
@@ -172,6 +191,12 @@ public static class EpisodeReleaseTolerance
                 dayTolerance))
         {
             return true;
+        }
+
+        // Catalogue parents: day gate is authoritative — do not bridge calendar days with the tick band (#1161).
+        if (podcast is { CatalogueParentSameTitleMatching: true })
+        {
+            return false;
         }
 
         return Math.Abs((spotifyCatalogueRelease - expectedRelease).Ticks) < toleranceTicks;

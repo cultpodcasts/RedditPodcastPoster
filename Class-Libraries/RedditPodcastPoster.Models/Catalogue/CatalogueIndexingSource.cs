@@ -246,7 +246,9 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
             TitleRegex = TitleRegex ?? string.Empty,
             DescriptionRegex = DescriptionRegex ?? string.Empty,
             EpisodeMatchRegex = EpisodeMatchRegex ?? string.Empty,
-            EpisodeIncludeTitleRegex = EpisodeIncludeTitleRegex ?? string.Empty
+            EpisodeIncludeTitleRegex = EpisodeIncludeTitleRegex ?? string.Empty,
+            // News/TV reuse short titles; do not inherit the zero-delay 14-day Spotify/Apple window (#1161).
+            CatalogueParentSameTitleMatching = true
         };
     }
 

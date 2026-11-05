@@ -59,9 +59,9 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// claims its link before a shorter item of the same title when both are looked up). A shorter item is kept out of a
 /// service while a strictly longer same-title item in the window still lacks that service and is not in this pass's
 /// capped set, including when that longer item is outside the recency window, outside the newest few, or older than
-/// this pass's release cutoff while still inside the matcher's 14-day acceptance (one half-open release + missing-audio
-/// read of <c>[acceptance, repositoryReleasedSince)</c>; the provider cutoff and the parent's whole history stay as they
-/// are, and #1161 stays deferred). Only items released
+/// this pass's release cutoff while still inside the matcher's same-day acceptance for catalogue parents (#1161;
+/// one half-open release + missing-audio read of <c>[acceptance, repositoryReleasedSince)</c>; the provider cutoff
+/// and the parent's whole history stay as they are). Only items released
 /// in the last <see cref="AudioCatchUpRecency"/> are looked up, no item
 /// shorter than <see cref="AudioCatchUpMinimumLength"/> (a clip is not looked up), and a soft stop once
 /// <see cref="AudioCatchUpBudgetShare"/> of the pass budget has elapsed. A stopped or failed catch-up never fails the
@@ -824,8 +824,8 @@ public class CatalogueParentsUpdater(
         // Newest first picks which items this pass looks up. A shorter item stays out of a service while a
         // strictly longer same-title item still lacks that service and is not in this capped set. That longer
         // item may sit outside the recency window, outside the newest few, or older than this pass's release
-        // cutoff while still inside the matcher's 14-day acceptance (#1161 leaves that tolerance unchanged).
-        // When both are in the set, longest first lets the full item claim the link before the shorter one.
+        // cutoff while still inside a same-title acceptance window the matcher could honour (catalogue parents:
+        // same UTC day, #1161). When both are in the set, longest first lets the full item claim the link first.
         var capped = longEnough
             .OrderByDescending(x => x.ReleaseUtc)
             .Take(AudioCatchUpMaxCandidatesPerPass)
@@ -845,11 +845,11 @@ public class CatalogueParentsUpdater(
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                // Hourly passes cut the provider read at about two days, which is newer than the matcher's
-                // acceptance. One half-open release + missing-audio read brings in older gaps; they are not
-                // lookup candidates. The matcher measures its 14 days from the probe's release, so the read
-                // reaches 14 days before the oldest item that could be offered (not 14 days before now) and
-                // stops before the pass window so in-window items and the holders query are not re-read.
+                // Hourly passes cut the provider read at about two days. One half-open release + missing-audio
+                // read brings in older gaps used for longer-same-title holder decisions; they are not lookup
+                // candidates. The read still spans YouTubeAuthorityToAudioReleaseConsiderationThreshold before
+                // the oldest capped probe so those holder rows are visible; catalogue same-title linking itself
+                // is same-day only (#1161). Stops before the pass window so in-window items are not re-read.
                 var acceptanceSince = capped.Min(x => x.ReleaseUtc)
                     - EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold;
                 if (repositoryReleasedSince > acceptanceSince)

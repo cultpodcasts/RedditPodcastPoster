@@ -324,25 +324,64 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
         candidate.Services.Should().NotContainKey(ServiceKeys.Spotify);
     }
 
-    [Fact(DisplayName =
+    [Theory(DisplayName =
         "Catalogue parent audio catch-up guard, real Spotify matcher: when the show's only episode with the same " +
-        "title was released outside the matcher's release tolerance (14 days for a YouTube-authority parent without " +
-        "a publishing delay), then the report is not given its link, because a report must only be linked to the " +
-        "episode of its own release.")]
-    public async Task real_spotify_same_title_on_another_day_is_not_linked()
+        "title was released 1, 3, 7, 12 or 20 days earlier (not the same UTC day), then the report is not given its " +
+        "link, because news parents reuse short titles and must only attach the audio of their own release (#1161).")]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(7)]
+    [InlineData(12)]
+    [InlineData(20)]
+    public async Task real_spotify_same_title_on_another_day_is_not_linked(int daysEarlier)
     {
         // Arrange
         var (organisation, podcast) = SeedOrganisation(spotifyShow: true, applePodcast: false);
         var release = DomainTestFixture.UtcDateDaysAgo(2).AddHours(9);
         var report = Report(podcast, organisation, release, FullLength);
         _storedReports = [report];
-        _spotifyShow = [SpotifyEpisode(_fixture.CreateSpotifyId(), release.AddDays(-20), FullLength)];
+        _spotifyShow = [SpotifyEpisode(_fixture.CreateSpotifyId(), release.AddDays(-daysEarlier), FullLength)];
 
         // Act
         await Sut.UpdateParents([organisation.Id], OddHourPass(DomainTestFixture.UtcDateDaysAgo(30)));
 
         // Assert
         _savedReports.Should().BeEmpty();
+        report.Services.Should().NotContainKey(ServiceKeys.Spotify);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent audio catch-up, real Spotify matcher: two reports that reuse the same title a few days " +
+        "apart (both inside the catch-up recency window) each link to the Spotify episode of their own UTC day, " +
+        "because recurring headlines must not cross-wire (#1161).")]
+    public async Task real_spotify_recurring_title_links_each_report_to_its_own_day()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedOrganisation(spotifyShow: true, applePodcast: false);
+        var newer = DomainTestFixture.UtcDateDaysAgo(1).AddHours(9);
+        var older = DomainTestFixture.UtcDateDaysAgo(4).AddHours(9);
+        var newerId = _fixture.CreateSpotifyId();
+        var olderId = _fixture.CreateSpotifyId();
+        _storedReports =
+        [
+            Report(podcast, organisation, newer, FullLength),
+            Report(podcast, organisation, older, FullLength)
+        ];
+        _spotifyShow =
+        [
+            SpotifyEpisode(newerId, newer.Date, FullLength),
+            SpotifyEpisode(olderId, older.Date, FullLength)
+        ];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], OddHourPass(DomainTestFixture.UtcDateDaysAgo(30)));
+
+        // Assert
+        _savedReports.Should().HaveCount(2);
+        _savedReports.Single(r => r.ReleaseSort.Date == newer.Date)
+            .Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(newerId));
+        _savedReports.Single(r => r.ReleaseSort.Date == older.Date)
+            .Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(olderId));
     }
 
     [Fact(DisplayName =
@@ -387,6 +426,33 @@ public class CatalogueParentAudioCatchUpRealMatcherRules
         _reportReads.Should().Be(3);
         _savedReports.Should().BeEmpty();
         candidate.Services.Should().NotContainKey(ServiceKeys.Apple);
+    }
+
+    [Theory(DisplayName =
+        "Catalogue parent audio catch-up guard, real Apple matcher: when the show's only episode with the same " +
+        "title was released 1 or 12 days earlier (not the same UTC day), then the report is not given its link, " +
+        "because news parents reuse short titles and Apple catch-up must only attach the audio of its own release " +
+        "(#1161).")]
+    [InlineData(1)]
+    [InlineData(12)]
+    public async Task real_apple_same_title_on_another_day_is_not_linked(int daysEarlier)
+    {
+        // Arrange
+        var (organisation, podcast) = SeedOrganisation(spotifyShow: false, applePodcast: true);
+        var release = DomainTestFixture.UtcDateDaysAgo(2).AddHours(9);
+        var report = Report(podcast, organisation, release, FullLength);
+        _storedReports = [report];
+        _appleShow =
+        [
+            AppleEpisode(podcast, _fixture.CreateAppleId(), release.AddDays(-daysEarlier), FullLength)
+        ];
+
+        // Act
+        await Sut.UpdateParents([organisation.Id], OddHourPass(DomainTestFixture.UtcDateDaysAgo(30)));
+
+        // Assert
+        _savedReports.Should().BeEmpty();
+        report.Services.Should().NotContainKey(ServiceKeys.Apple);
     }
 
     [Fact(DisplayName =
