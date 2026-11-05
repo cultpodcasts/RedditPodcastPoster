@@ -20,6 +20,7 @@ public class NewsOrganisationService(
     EpisodeSearchIndexCleanup searchIndexCleanup,
     IServiceIdsUniqueness serviceIdsUniqueness,
     IYouTubePlaylistGuard youTubePlaylistGuard,
+    IChannelWideYouTubeClaimGuard channelWideYouTubeClaimGuard,
     ILogger<NewsOrganisationService> logger) : INewsOrganisationService
 {
     public async Task<NewsOrganisationGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -80,6 +81,28 @@ public class NewsOrganisationService(
                     refused.IsRetryable ? NewsOrganisationUpdateStatus.ServiceUnavailable : NewsOrganisationUpdateStatus.BadRequest,
                     refused.Message,
                     Code: refused.Code);
+            }
+
+            if (ChannelWideYouTubeClaimProjection.ChangeAffectsClaim(request.Change))
+            {
+                var (projectedChannel, projectedPlaylist, projectedRemoved) =
+                    ChannelWideYouTubeClaimProjection.ForParent(
+                        organisation.Indexing, organisation.IsRemoved(), request.Change);
+                if (await channelWideYouTubeClaimGuard.Check(
+                        organisation.Id,
+                        ChannelWideYouTubeClaimKind.NewsOrganisation,
+                        projectedChannel,
+                        projectedPlaylist,
+                        projectedRemoved,
+                        cancellationToken) is { } claimConflict)
+                {
+                    logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                        organisation.Id, ChannelWideYouTubeClaimConflict.Code, claimConflict.Message);
+                    return new NewsOrganisationUpdateResult(
+                        NewsOrganisationUpdateStatus.BadRequest,
+                        claimConflict.Message,
+                        Code: ChannelWideYouTubeClaimConflict.Code);
+                }
             }
 
             PublisherChangeApplier.Apply(organisation, request.Change);

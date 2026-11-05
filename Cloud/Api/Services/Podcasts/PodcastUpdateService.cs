@@ -25,6 +25,7 @@ public class PodcastUpdateService(
     PodcastEpisodeProjectionHelper episodeProjectionHelper,
     IFileKeyAllocator fileKeyAllocator,
     IYouTubePlaylistGuard youTubePlaylistGuard,
+    IChannelWideYouTubeClaimGuard channelWideYouTubeClaimGuard,
     ILogger<PodcastUpdateService> logger) : IPodcastUpdateService
 {
     public async Task<PodcastUpdateResult> UpdateAsync(
@@ -89,6 +90,28 @@ public class PodcastUpdateService(
                     podcastChangeRequestWrapper.PodcastId,
                     Error: refusedChannel.Message,
                     Code: refusedChannel.Code);
+            }
+
+            if (ChannelWideYouTubeClaimProjection.ChangeAffectsClaim(podcastChangeRequestWrapper.Podcast))
+            {
+                var (projectedChannel, projectedPlaylist, projectedRemoved) =
+                    ChannelWideYouTubeClaimProjection.ForPodcast(podcast, podcastChangeRequestWrapper.Podcast);
+                if (await channelWideYouTubeClaimGuard.Check(
+                        podcast.Id,
+                        ChannelWideYouTubeClaimKind.Podcast,
+                        projectedChannel,
+                        projectedPlaylist,
+                        projectedRemoved,
+                        c) is { } claimConflict)
+                {
+                    logger.LogWarning("{method}: podcast-id '{podcastId}' refused: {code}. {message}", nameof(UpdateAsync),
+                        podcastChangeRequestWrapper.PodcastId, ChannelWideYouTubeClaimConflict.Code, claimConflict.Message);
+                    return new PodcastUpdateResult(
+                        PodcastUpdateStatus.BadRequest,
+                        podcastChangeRequestWrapper.PodcastId,
+                        Error: claimConflict.Message,
+                        Code: ChannelWideYouTubeClaimConflict.Code);
+                }
             }
 
             var previousPodcastLanguage = podcast.Language;
