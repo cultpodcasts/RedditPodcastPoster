@@ -10,8 +10,8 @@ public class CatalogueParentSubmitUrlRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "Curator catalogue filing as Film, TvShowEpisode, or NewsReport accepts a Channel 4 programme URL, " +
-        "because streaming catalogue services can own those playables — not only Spotify, YouTube, or Apple.")]
+        "Hub filing under a TV show or news organisation accepts a Channel 4 programme URL, " +
+        "because a TvShowEpisode or NewsReport can use a streaming catalogue service — not only Spotify, YouTube, or Apple.")]
     public void channel4_programme_url_can_file_under_catalogue_parent()
     {
         // Arrange
@@ -28,7 +28,7 @@ public class CatalogueParentSubmitUrlRules
     }
 
     [Fact(DisplayName =
-        "Curator catalogue filing as Film, TvShowEpisode, or NewsReport still accepts Spotify episode URLs.")]
+        "Hub filing under a TV show or news organisation still accepts Spotify episode URLs for a TvShowEpisode or NewsReport.")]
     public void spotify_episode_url_can_file_under_catalogue_parent()
     {
         // Arrange
@@ -42,7 +42,7 @@ public class CatalogueParentSubmitUrlRules
     }
 
     [Fact(DisplayName =
-        "An unrecognised host cannot be filed as a Film, TvShowEpisode, or NewsReport via catalogue submit.")]
+        "An unrecognised host cannot be filed as a TvShowEpisode or NewsReport under a TV show or news organisation.")]
     public void unknown_host_cannot_file_under_catalogue_parent()
     {
         // Arrange

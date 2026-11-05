@@ -44,7 +44,7 @@ public class SubmitUrlService(
             if (parentTarget != null && !UrlSubmitter.CanFileUnderCatalogueParent(submitUrlModel.Url))
             {
                 return new SubmitUrlResult(SubmitUrlStatus.BadRequest,
-                    Message: "Only Spotify, YouTube, Apple Podcasts, or a recognised streaming service URL can be filed as a Film, TvShowEpisode, or NewsReport.");
+                    Message: "Only Spotify, YouTube, Apple Podcasts, or a recognised streaming service URL can be filed as a TvShowEpisode or NewsReport.");
             }
 
             if (parentTarget != null)

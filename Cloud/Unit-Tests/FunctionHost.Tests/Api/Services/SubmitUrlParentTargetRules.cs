@@ -133,7 +133,7 @@ public class SubmitUrlParentTargetRules
     }
 
     [Fact(DisplayName =
-        "A parent target with a URL that is not Spotify, YouTube or Apple Podcasts is a 400, because only those can be filed under a news organisation or TV show.")]
+        "A parent target with an unrecognised host is a 400, because only Spotify, YouTube, Apple Podcasts, or a recognised streaming service can be filed as a TvShowEpisode or NewsReport.")]
     public async Task non_platform_url_with_parent_is_bad_request()
     {
         // Arrange

@@ -249,8 +249,8 @@ public class UrlSubmitter(
     public static bool IsPodcastPlatformUrl(Uri url) => EpisodeUrlRouter.IsPodcastPlatformUrl(url);
 
     /// <summary>
-    /// Podcast platforms or a recognised streaming URL for curator catalogue filing
-    /// (Film, TvShowEpisode under a TV show, NewsReport under a news organisation).
+    /// Podcast platforms or a recognised streaming URL for hub filing
+    /// (TvShowEpisode under a TV show, NewsReport under a news organisation).
     /// </summary>
     public static bool CanFileUnderCatalogueParent(Uri url) => EpisodeUrlRouter.CanFileUnderCatalogueParent(url);
 
@@ -269,7 +269,7 @@ public class UrlSubmitter(
         {
             // SubmitUrlService answers this with a 400 first; this guard keeps other callers from reaching the categoriser.
             throw new InvalidOperationException(
-                $"Only Spotify, YouTube, Apple Podcasts, or a recognised streaming service URL can be filed as a Film, TvShowEpisode, or NewsReport (under {target.Kind}); got '{url}'.");
+                $"Only Spotify, YouTube, Apple Podcasts, or a recognised streaming service URL can be filed as a TvShowEpisode or NewsReport (under {target.Kind}); got '{url}'.");
         }
 
         var parent = await catalogueParentLookup.FindById(target.Kind, target.Id);
