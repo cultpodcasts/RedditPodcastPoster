@@ -7,11 +7,14 @@ public enum EpisodeMatchKind
     None = 0,
 
     /// <summary>
-    /// Same platform id, exact title with duration and calendar-day alignment, or the podcast's
-    /// EpisodeMatchRegex. Never scored.
+    /// Same platform id, exact title with duration and release-strategy alignment
+    /// (<c>EpisodesReleaseMatch</c>), or the podcast's EpisodeMatchRegex. Never scored.
     /// </summary>
     Certain = 1,
 
-    /// <summary>Fuzzy title + duration, or release + duration. Scored by the merge scorer when enabled.</summary>
+    /// <summary>
+    /// Fuzzy title + duration + release-strategy alignment, or release + duration.
+    /// Scored by the merge scorer when enabled.
+    /// </summary>
     Heuristic = 2
 }

@@ -135,7 +135,7 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         return MatchesByReleaseAndDuration(existingEpisode, incomingEpisode, podcast);
     }
 
-    private static bool MatchesByFuzzyTitleAndDuration(
+    private bool MatchesByFuzzyTitleAndDuration(
         Episode existingEpisode,
         Episode incomingEpisode,
         Podcast podcast)
@@ -145,7 +145,15 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
             return false;
         }
 
-        return DurationsMatch(existingEpisode, incomingEpisode, podcast);
+        if (!DurationsMatch(existingEpisode, incomingEpisode, podcast))
+        {
+            return false;
+        }
+
+        // Offset confidence model: fuzzy/near-exact title + duration alone must not Heuristic-match
+        // a recycled title months away from the stored release (Ágora-class hole). Same release gate
+        // as exact-title Certain — case/one-edit variants must not outrank byte-exact title.
+        return EpisodesReleaseMatch(existingEpisode, incomingEpisode, podcast);
     }
 
     private bool MatchesByReleaseAndDuration(
@@ -241,9 +249,11 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
     }
 
     /// <summary>
-    /// Calendar-day gate for exact-title Certain and catalogue title-containment short-circuits.
-    /// Uses <see cref="EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance"/> only — not the
-    /// 14-day tick bridge — so title equality cannot attach a wrong-week Spotify row.
+    /// Calendar-day gate for catalogue title-containment short-circuits
+    /// (<see cref="SelectReleaseAlignedTitleMatch"/>). Uses
+    /// <see cref="EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance"/> only — not the
+    /// 14-day tick bridge — so title containment cannot attach a wrong-week Spotify row.
+    /// Exact-title Certain uses <see cref="EpisodesReleaseMatch"/> (full strategy chain), not this helper.
     /// </summary>
     internal static bool CalendarDaysWithinSpotifyCatalogueDayTolerance(
         DateTime left,

@@ -220,10 +220,11 @@ public sealed partial class EpisodePlatformMatcher
 
     /// <summary>
     /// Among equals-or-contains title candidates, keep only those within Spotify catalogue day
-    /// tolerance of the probe (or candidates with unknown release). Prefer exact normalised title,
-    /// then closest release. When <paramref name="requireDayAlignment"/> is true and nothing is
-    /// day-aligned, returns null so the caller can fall through to scoring. Otherwise falls back
-    /// to unconstrained title containment (out-of-band years-apart lookup).
+    /// tolerance of the probe. Prefer exact normalised title, then closest release. When
+    /// <paramref name="requireDayAlignment"/> is true, unknown (<see cref="DateTime.MinValue"/>)
+    /// catalogue releases are not treated as day-aligned and a null return falls through to
+    /// scoring. When false, unknown-release candidates remain eligible (years-apart
+    /// <see cref="FindCatalogueMatchByDate"/> fallback).
     /// </summary>
     private static Episode? SelectReleaseAlignedTitleMatch(
         Episode probe,
@@ -242,9 +243,11 @@ public sealed partial class EpisodePlatformMatcher
             return requireDayAlignment ? null : candidates.MaxBy(x => x.Title);
         }
 
+        // Unknown catalogue release is only admitted on the non-require path (date-match
+        // years-apart fallback). YouTube-discovered enrich must not title-short-circuit on MinValue.
         var dayAligned = candidates
             .Where(x =>
-                x.ReleaseUtc == DateTime.MinValue ||
+                (!requireDayAlignment && x.ReleaseUtc == DateTime.MinValue) ||
                 CalendarDaysWithinSpotifyCatalogueDayTolerance(probe.ReleaseUtc, x.ReleaseUtc, podcast))
             .ToList();
 

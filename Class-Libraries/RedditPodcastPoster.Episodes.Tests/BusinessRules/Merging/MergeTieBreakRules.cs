@@ -60,14 +60,14 @@ public class MergeTieBreakRules
     }
 
     [Fact(DisplayName =
-        "Notes to Self 444 (real case): a Spotify episode that fuzzy-matches two YouTube-only episodes " +
-        "merges into the one with identical duration, close release and the same description intro, with no failures.")]
+        "A Spotify episode that fuzzy-matches a release-aligned YouTube row merges into that row; " +
+        "a year-old near-title lookalike is not a Heuristic candidate without release alignment.")]
     public void Notes_to_Self_444_tie_breaks_to_identical_duration_close_release_candidate()
     {
-        // Arrange
+        // Arrange — aligned TikTok is the only Heuristic match; year-old recap no longer shares fate.
         var podcast = CreateNotesToSelf444();
         var tikTok = CreateYouTubeOnly(podcast, "RY7nt6KFpdA", "TikTok Live chat about Sister Wives",
-            new TimeSpan(1, 35, 34), _nearRelease, TikTokIntro);
+            new TimeSpan(1, 35, 34), _incomingRelease.AddHours(1), TikTokIntro);
         var recap = CreateYouTubeOnly(podcast, "BndpMN1m7oQ", "Sister Wives Season 20 E 4 Recap",
             new TimeSpan(1, 38, 12), _yearOldRelease, HoldingOutHelpIntro);
         var incoming = CreateIncomingSpotify("Sister Wives New Season TikTok Live chat about",

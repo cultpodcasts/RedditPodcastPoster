@@ -89,8 +89,8 @@ public class SingleHeuristicMatchRules
             _incomingRelease, TikTokIntro);
 
     [Fact(DisplayName =
-        "Notes to Self 444: when the only fuzzy match is a year-old lookalike (2m38s longer, different show notes), " +
-        "the score is below the minimum, so the incoming episode is added as new and the lookalike is untouched.")]
+        "A year-old lookalike with a near title and similar duration does not Heuristic-match without " +
+        "release alignment, so the incoming episode is added as new and the lookalike is untouched.")]
     public void Weak_lookalike_single_heuristic_match_is_rejected()
     {
         // Arrange
@@ -168,19 +168,23 @@ public class SingleHeuristicMatchRules
     }
 
     [Fact(DisplayName =
-        "With ScoreSingleHeuristicMatches off, a single heuristic match merges unscored as before.")]
+        "With ScoreSingleHeuristicMatches off, a release-aligned fuzzy+duration heuristic match " +
+        "merges unscored (year-old lookalikes no longer Heuristic-match without release alignment).")]
     public void Toggle_off_restores_previous_behaviour()
     {
-        // Arrange
+        // Arrange — genuine cross-platform pair (aligned release); toggle only disables scoring.
         var podcast = NotesToSelf444();
-        var recap = WeakLookalikeRecap(podcast);
-        var incoming = TikTokLiveIncoming();
+        var youTube = YouTubeOnly(podcast, "RY7nt6KFpdA", "TikTok Live chat about Sister Wives",
+            new TimeSpan(1, 35, 34), _incomingRelease.AddHours(1), TikTokIntro);
+        var incoming = IncomingSpotify("Sister Wives New Season TikTok Live chat about", new TimeSpan(1, 35, 31),
+            _incomingRelease, TikTokIntro);
 
         // Act
-        var result = Merger(o => o.ScoreSingleHeuristicMatches = false).MergeEpisodes(podcast, [recap], [incoming]);
+        var result = Merger(o => o.ScoreSingleHeuristicMatches = false)
+            .MergeEpisodes(podcast, [youTube], [incoming]);
 
         // Assert
         result.AddedEpisodes.Should().BeEmpty();
-        result.MergedEpisodes.Should().ContainSingle().Which.Existing.Should().BeSameAs(recap);
+        result.MergedEpisodes.Should().ContainSingle().Which.Existing.Should().BeSameAs(youTube);
     }
 }

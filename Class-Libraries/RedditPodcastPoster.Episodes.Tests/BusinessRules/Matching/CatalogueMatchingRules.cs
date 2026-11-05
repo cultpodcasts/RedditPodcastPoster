@@ -1304,32 +1304,56 @@ public class CatalogueMatchingRules
         matches.Should().BeFalse();
     }
 
-    [Theory(DisplayName =
-        "Exact title match for IsCatalogueMatch still requires day and duration alignment — " +
-        "differing case or mismatched release/duration does not auto-accept on title alone.")]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void exact_title_match_requires_day_and_duration(bool alterCaseOnCatalogueTitle)
+    [Fact(DisplayName =
+        "Exact title IsCatalogueMatch accepts when release-strategy day and duration both align.")]
+    public void exact_title_match_accepts_when_day_and_duration_align()
     {
         // Arrange
-        var baseTitle = _fixture.CreateShortTitle();
-        var probeTitle = baseTitle;
-        var catalogueTitle = alterCaseOnCatalogueTitle
-            ? new string(baseTitle.Select(c => char.IsLetter(c) ? char.ToUpperInvariant(c) : c).ToArray())
-            : baseTitle;
-        var probeLength = _fixture.CreateDuration();
+        var title = _fixture.CreateShortTitle();
+        var length = _fixture.CreateDuration();
+        var release = DomainTestFixture.UtcDateDaysAgo(2);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = title;
+            e.Length = length;
+            e.ReleaseUtc = release;
+        });
+        var catalogueItem = _fixture.CreateEpisode(e =>
+        {
+            e.Title = title;
+            e.Length = length;
+            e.ReleaseUtc = release;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var matches = _matcher.IsCatalogueMatch(probe, catalogueItem, podcast, episodeMatchRegex: null);
+
+        // Assert
+        matches.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Exact title IsCatalogueMatch rejects when release is misaligned even if duration matches, " +
+        "because title alone must not auto-accept.")]
+    public void exact_title_match_rejects_misaligned_release_with_matching_duration()
+    {
+        // Arrange
+        var title = _fixture.CreateShortTitle();
+        var length = _fixture.CreateDuration();
         var probeRelease = DomainTestFixture.UtcDateDaysAgo(30);
         var catalogueRelease = DomainTestFixture.UtcDateDaysAgo(2);
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = probeTitle;
-            e.Length = probeLength;
+            e.Title = title;
+            e.Length = length;
             e.ReleaseUtc = probeRelease;
         });
         var catalogueItem = _fixture.CreateEpisode(e =>
         {
-            e.Title = catalogueTitle;
-            e.Length = probeLength + TimeSpan.FromMinutes(30);
+            e.Title = title;
+            e.Length = length;
             e.ReleaseUtc = catalogueRelease;
             e.SpotifyId = _fixture.CreateSpotifyId();
         });
@@ -1711,6 +1735,45 @@ public class CatalogueMatchingRules
         var result = _matcher.FindCatalogueMatchByLength(
             probe,
             [wrongWeek],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode, title containment with an unknown " +
+        "(MinValue) catalogue release must not title-short-circuit under requireDayAlignment.")]
+    public void youtube_discovered_title_containment_min_release_does_not_title_short_circuit()
+    {
+        // Arrange
+        var sharedTitle = _fixture.CreateTitle();
+        var probeLength = _fixture.CreateDuration();
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = probeLength;
+            e.ReleaseUtc = probeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var unknownRelease = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = probeLength;
+            e.ReleaseUtc = DateTime.MinValue;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [unknownRelease],
             podcast,
             episodeMatchRegex: null,
             new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
