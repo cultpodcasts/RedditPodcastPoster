@@ -17,9 +17,12 @@ public class ActiveEpisodesFilterRules
     public void active_episodes_filter_treats_null_removed_as_not_removed()
     {
         // Arrange
+        // Filter is a const SQL fragment; no mutable arrange.
+
+        // Act
         var filter = FindDuplicateEpisodesProcessor.ActiveEpisodesFilter;
 
-        // Act / Assert
+        // Assert
         filter.Should().Contain(Playable.CosmosNotRemovedSql);
         filter.Should().Contain("IS_NULL(e.removed)");
         filter.Should().Contain(Playable.CosmosParentNotRemovedSql);
