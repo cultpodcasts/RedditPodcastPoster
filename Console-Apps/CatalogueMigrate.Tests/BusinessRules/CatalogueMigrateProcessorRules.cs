@@ -1,6 +1,7 @@
 using CatalogueMigrate;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -8,6 +9,7 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Migration;
 using CatalogueMigrate.Tests.Fakes;
@@ -35,6 +37,22 @@ public class CatalogueMigrateProcessorRules
         _mocker.Use<ICatalogueMigrateDestinationReader>(_destination);
         _mocker.Use<ICatalogueMigrateEvidenceStore>(new InMemoryCatalogueMigrateEvidenceStore());
         _mocker.Use<TimeProvider>(new FixedTimeProvider(DateTimeOffset.UtcNow));
+        // Happy-path default: Valid with owner = channel of a seeded podcast that carries this playlist.
+        // NotApplicable + blank owner would fail-closed as LookupFailed for any channel+playlist pair (#1178 review).
+        _mocker.GetMock<IYouTubePlaylistValidator>()
+            .Setup(v => v.Validate(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string? playlistId, CancellationToken _) =>
+            {
+                var owner = _podcasts.GetAll().ToBlockingEnumerable()
+                    .FirstOrDefault(p =>
+                        !string.IsNullOrWhiteSpace(playlistId)
+                        && string.Equals(p.YouTubePlaylistId, playlistId, StringComparison.Ordinal))
+                    ?.YouTubeChannelId;
+                return new YouTubePlaylistValidation(
+                    YouTubePlaylistValidationStatus.Valid,
+                    playlistId,
+                    string.IsNullOrWhiteSpace(owner) ? _fixture.CreateYouTubeChannelId() : owner);
+            });
         _mocker.Use(_mocker.CreateInstance<CatalogueMigrateRollbackPreviewer>());
         _mocker.Use<Func<CatalogueMigrateApplier>>(() => _mocker.CreateInstance<CatalogueMigrateApplier>());
     }

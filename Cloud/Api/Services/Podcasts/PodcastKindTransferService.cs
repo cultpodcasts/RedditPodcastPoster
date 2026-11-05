@@ -16,7 +16,9 @@ using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.Search.Models;
+using Api.Services.YouTube;
 
 namespace Api.Services.Podcasts;
 
@@ -56,6 +58,7 @@ public class PodcastKindTransferService(
     IPlayableSearchDocumentSwap searchSwap,
     IFileKeyAllocator fileKeyAllocator,
     IParentKindTransferLockStore lockStore,
+    IYouTubePlaylistGuard youTubePlaylistGuard,
     TimeProvider timeProvider,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
 {
@@ -197,6 +200,39 @@ public class PodcastKindTransferService(
             }
 
             return new PodcastKindTransferResult(PodcastKindTransferStatus.Conflict, podcastId, targetKind);
+        }
+
+        // CatalogueParentKindMapper copies youTubeChannelId/youTubePlaylistId as-is; refuse a mismatched pair first
+        // (#1178), with the same 400/503 codes as the parent edit endpoints.
+        YouTubePlaylistValidation? refusedPlaylist;
+        try
+        {
+            refusedPlaylist = await youTubePlaylistGuard.CheckChannelOwnsPlaylist(
+                podcast.YouTubeChannelId,
+                podcast.YouTubePlaylistId,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(
+                "{method}: Caller cancelled the kind transfer of podcast '{podcastId}' before any write.",
+                nameof(TransferAsync), podcastId);
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.Failed, podcastId);
+        }
+
+        if (refusedPlaylist is { } refused)
+        {
+            logger.LogWarning(
+                "{method}: Kind transfer of podcast '{podcastId}' refused: {code}. {message}",
+                nameof(TransferAsync), podcastId, refused.Code, refused.Message);
+            return new PodcastKindTransferResult(
+                refused.IsRetryable
+                    ? PodcastKindTransferStatus.ServiceUnavailable
+                    : PodcastKindTransferStatus.BadRequest,
+                podcastId,
+                targetKind,
+                Error: refused.Message,
+                Code: refused.Code);
         }
 
         // From here on the transfer writes; the caller's token is no longer honoured, and any exception (including

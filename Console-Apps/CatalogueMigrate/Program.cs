@@ -8,6 +8,8 @@ using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Persistence.Extensions;
+using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
+using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 
 if (VersionInfo.TryHandleVersionRequest(args))
 {
@@ -28,6 +30,9 @@ builder.Services
     .AddLogging()
     .AddRepositories()
     .AddEpisodeSearchIndexerService()
+    // Playlist ownership check before copying channel/playlist onto a TV / news parent (#1178); 1 quota unit per pair.
+    // Dry-run and apply now need the same YouTube CLI secrets (youtube section / user-secrets) as other YouTube CLIs.
+    .AddYouTubeServices(ApplicationUsage.Cli)
     .AddSingleton(TimeProvider.System)
     .AddSingleton<ICatalogueMigrateEvidenceStore, FileCatalogueMigrateEvidenceStore>()
     .AddScoped<ICatalogueMigrateDestinationReader, RepositoryCatalogueMigrateDestinationReader>()

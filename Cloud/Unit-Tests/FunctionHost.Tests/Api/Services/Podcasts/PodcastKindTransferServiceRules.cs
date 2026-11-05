@@ -8,6 +8,7 @@ using Moq;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Podcasts;
+using Api.Services.YouTube;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -20,6 +21,7 @@ using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
 using Xunit;
@@ -131,9 +133,93 @@ public class PodcastKindTransferServiceRules
             .Callback<IReadOnlyList<Guid>, CancellationToken>((ids, _) => _deletedSearchIds = ids)
             .ReturnsAsync(() => _searchDeleteSucceeds);
         _mocker.GetMock<ILogger<PodcastKindTransferService>>();
+        _mocker.GetMock<IYouTubePlaylistGuard>()
+            .Setup(g => g.CheckChannelOwnsPlaylist(
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((YouTubePlaylistValidation?)null);
         TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(() => _existingOrganisations);
         TakenFileKeys<ITvShowRepository, TvShow>(() => []);
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
+    }
+
+    [Fact(DisplayName =
+        "Kind transfer of a podcast whose youTubeChannelId does not own youTubePlaylistId is a BadRequest with " +
+        "youTubePlaylistChannelMismatch and nothing is written (#1178).")]
+    public async Task mismatched_youtube_playlist_pair_is_refused()
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var ownerChannelId = _fixture.CreateYouTubeChannelId();
+        var podcastChannelId = _fixture.CreateYouTubeChannelId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = podcastChannelId;
+            p.YouTubePlaylistId = playlistId;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        _mocker.GetMock<IYouTubePlaylistGuard>()
+            .Setup(g => g.CheckChannelOwnsPlaylist(
+                podcastChannelId, playlistId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new YouTubePlaylistValidation(
+                YouTubePlaylistValidationStatus.ChannelMismatch, playlistId, ownerChannelId));
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.BadRequest);
+        result.Code.Should().Be(YouTubePlaylistValidation.ChannelMismatchCode);
+        result.Error.Should().NotBeNullOrWhiteSpace();
+        _savedOrganisation.Should().BeNull();
+        _savedReport.Should().BeNull();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        _mocker.GetMock<IYouTubePlaylistGuard>().Verify(g =>
+            g.CheckChannelOwnsPlaylist(podcastChannelId, playlistId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory(DisplayName =
+        "Kind transfer refuses a missing, invalid, or uncheckable playlist with the same 400/503 codes as the edit endpoints.")]
+    [InlineData(YouTubePlaylistValidationStatus.PlaylistNotFound, PodcastKindTransferStatus.BadRequest,
+        YouTubePlaylistValidation.NotFoundCode)]
+    [InlineData(YouTubePlaylistValidationStatus.InvalidPlaylistId, PodcastKindTransferStatus.BadRequest,
+        YouTubePlaylistValidation.InvalidIdCode)]
+    [InlineData(YouTubePlaylistValidationStatus.LookupFailed, PodcastKindTransferStatus.ServiceUnavailable,
+        YouTubePlaylistValidation.LookupFailedCode)]
+    public async Task playlist_lookup_failures_map_to_edit_codes(
+        YouTubePlaylistValidationStatus status,
+        PodcastKindTransferStatus expectedStatus,
+        string code)
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = channelId;
+            p.YouTubePlaylistId = playlistId;
+        });
+        _podcasts.Seed(podcast);
+        _mocker.GetMock<IYouTubePlaylistGuard>()
+            .Setup(g => g.CheckChannelOwnsPlaylist(channelId, playlistId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new YouTubePlaylistValidation(status, playlistId));
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.TvShow },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(expectedStatus);
+        result.Code.Should().Be(code);
+        _savedShow.Should().BeNull();
     }
 
     [Fact(DisplayName =

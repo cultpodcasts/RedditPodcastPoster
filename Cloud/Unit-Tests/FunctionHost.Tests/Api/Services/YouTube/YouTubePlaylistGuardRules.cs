@@ -218,6 +218,35 @@ public class YouTubePlaylistGuardRules
         refused.Message.Should().Contain(OwnerChannel);
     }
 
+    [Fact(DisplayName =
+        "CheckChannelOwnsPlaylist refuses a stored channel/playlist pair the channel does not own, so kind transfer " +
+        "cannot copy a mismatched pair (#1178).")]
+    public async Task stored_pair_mismatch_is_refused()
+    {
+        // Arrange
+        ValidatorReturns(YouTubePlaylistValidationStatus.Valid, OwnerChannel);
+
+        // Act
+        var refused = await Guard().CheckChannelOwnsPlaylist(OtherChannel, Playlist, CancellationToken.None);
+
+        // Assert
+        refused.Should().NotBeNull();
+        refused!.Code.Should().Be(YouTubePlaylistValidation.ChannelMismatchCode);
+        _validator.Verify(v => v.Validate(Playlist, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "CheckChannelOwnsPlaylist skips a channel-only parent with no playlist, because there is no pair to check.")]
+    public async Task stored_channel_without_playlist_is_not_checked()
+    {
+        // Act
+        var refused = await Guard().CheckChannelOwnsPlaylist(OtherChannel, null, CancellationToken.None);
+
+        // Assert
+        refused.Should().BeNull();
+        _validator.VerifyNoOtherCalls();
+    }
+
     [Theory(DisplayName =
         "A Valid playlist lookup with a blank owner channel is refused as youTubePlaylistLookupFailed, so ownership does not fail-open.")]
     [InlineData(null)]
