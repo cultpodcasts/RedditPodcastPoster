@@ -258,6 +258,24 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         "(NOT IS_DEFINED(e.parentRemoved) OR IS_NULL(e.parentRemoved) OR e.parentRemoved=false)";
 
     /// <summary>
+    /// Cosmos SQL: playable itself is not removed (<c>removed</c> absent, null or false). Alias <c>e</c>.
+    /// Explicit null counts as not removed, the same as <see cref="IsRemoved"/>
+    /// (in Cosmos SQL <c>null = false</c> is not true, so null needs its own arm — #1153).
+    /// </summary>
+    public const string CosmosNotRemovedSql =
+        "(NOT IS_DEFINED(e.removed) OR IS_NULL(e.removed) OR e.removed=false)";
+
+    /// <summary>
+    /// Same as <see cref="CosmosNotRemovedSql"/> for an arbitrary document alias
+    /// (sibling search SQL uses <c>c</c>).
+    /// </summary>
+    public static string CosmosNotRemovedSqlFor(string documentAlias)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentAlias);
+        return $"(NOT IS_DEFINED({documentAlias}.removed) OR IS_NULL({documentAlias}.removed) OR {documentAlias}.removed=false)";
+    }
+
+    /// <summary>
     /// Applies a curator subject update (episodes, TV episodes, news reports) and maintains <see cref="Playable.RemovedSubjects"/>.
     /// </summary>
     public bool ApplyUserSubjects(IEnumerable<string> newSubjects)

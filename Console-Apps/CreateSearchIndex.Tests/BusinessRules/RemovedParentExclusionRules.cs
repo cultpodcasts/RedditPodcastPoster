@@ -64,7 +64,24 @@ public class RemovedParentExclusionRules
         where.Should().Be(
             " WHERE ((NOT IS_DEFINED(e.parentRemoved) OR IS_NULL(e.parentRemoved) OR e.parentRemoved=false)" +
             " AND (NOT IS_DEFINED(e.podcastRemoved) OR IS_NULL(e.podcastRemoved) OR e.podcastRemoved=false))" +
-            " and ((NOT IS_DEFINED(e.removed)) OR e.removed=false) and e._ts >= @HighWaterMark ORDER BY e._ts");
+            $" and {Playable.CosmosNotRemovedSql} and e._ts >= @HighWaterMark ORDER BY e._ts");
+    }
+
+    [Fact(DisplayName =
+        "The episode data source SQL keeps an episode whose removed is absent, null or false, " +
+        "because explicit null means the episode is not removed (same rule as Playable.IsRemoved / #1153) " +
+        "and Cosmos null = false alone would drop those rows from search.")]
+    public void episode_datasource_sql_treats_null_removed_as_not_removed()
+    {
+        // Arrange
+        var query = CreateSearchIndexProcessor.EpisodeDataSourceQuery();
+
+        // Act
+        var where = WhereClause(query);
+
+        // Assert
+        where.Should().Contain(Playable.CosmosNotRemovedSql);
+        where.Should().Contain("IS_NULL(e.removed)");
     }
 
     [Fact(DisplayName =
@@ -95,8 +112,38 @@ public class RemovedParentExclusionRules
             var where = WhereClause(sibling.Query);
             where.Should().StartWith(
                 " WHERE ((NOT IS_DEFINED(c.parentRemoved) OR IS_NULL(c.parentRemoved) OR c.parentRemoved = false)" +
-                " AND (NOT IS_DEFINED(c.removed) OR c.removed = false))",
+                $" AND {Playable.CosmosNotRemovedSqlFor("c")})",
                 $"{sibling.ContentKind} must exclude removed parents and removed items");
+        }
+    }
+
+    [Fact(DisplayName =
+        "The TV show episode and news report data source SQL keeps a playable whose removed is absent, null or false, " +
+        "because explicit null means the item is not removed (same rule as Playable.IsRemoved / #1153).")]
+    public void sibling_datasource_sql_treats_null_removed_as_not_removed()
+    {
+        // Arrange
+        var settings = new CosmosDbSettings
+        {
+            Endpoint = "https://synthetic.documents.example/", AuthKeyOrResourceToken = "synthetic",
+            DatabaseId = "db", PodcastsContainer = "podcasts", EpisodesContainer = "episodes",
+            TvShowsContainer = "tvshows", TvShowEpisodesContainer = "tvshowepisodes", FilmsContainer = "films",
+            NewsOrganisationsContainer = "newsorganisations", NewsReportsContainer = "newsreports",
+            SubjectsContainer = "subjects", PeopleContainer = "people", ActivitiesContainer = "activities",
+            DiscoveryContainer = "discovery", DiscoverySubmissionsContainer = "submissions",
+            LookUpsContainer = "lookups", TitleCasingRulesContainer = "titlecasing",
+            PushSubscriptionsContainer = "push"
+        };
+
+        // Act
+        var siblings = PlayableSearchSources.Siblings(settings, "synthetic-index");
+
+        // Assert
+        foreach (var sibling in siblings)
+        {
+            var where = WhereClause(sibling.Query);
+            where.Should().Contain(Playable.CosmosNotRemovedSqlFor("c"));
+            where.Should().Contain("IS_NULL(c.removed)");
         }
     }
 }

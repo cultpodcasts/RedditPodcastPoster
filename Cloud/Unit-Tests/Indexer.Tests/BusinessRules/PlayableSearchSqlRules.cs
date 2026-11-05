@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Search.Formatting;
@@ -83,6 +84,27 @@ public class PlayableSearchSqlRules
         // Assert
         sql.Should().Contain(
             "(NOT IS_DEFINED(c.parentRemoved) OR IS_NULL(c.parentRemoved) OR c.parentRemoved = false)");
+    }
+
+    [Fact(DisplayName =
+        "Sibling search SQL keeps a TV episode or news report whose removed is absent, null or false, " +
+        "because explicit null means the playable is not removed, the same rule as Playable.CosmosNotRemovedSql " +
+        "and Playable.IsRemoved (#1153).")]
+    public void sibling_sql_treats_null_removed_as_not_removed()
+    {
+        // Arrange
+        var projection = new PlayableSearchSql.SiblingProjection(
+            SearchContentKind.NewsReport, "c.title", "c.newsOrganisationName", IncludeSeries: true);
+
+        // Act
+        var sql = PlayableSearchSql.SiblingQuery(
+            projection,
+            StreamingServiceCatalog.SearchEncodedKeys,
+            StreamingServiceCatalog.ImageCoalesceOrder);
+
+        // Assert
+        sql.Should().Contain(Playable.CosmosNotRemovedSqlFor("c"));
+        sql.Should().Contain("IS_NULL(c.removed)");
     }
 
     private static void AssertCardColumns(string sql, string descriptionSql, string releaseSql)
