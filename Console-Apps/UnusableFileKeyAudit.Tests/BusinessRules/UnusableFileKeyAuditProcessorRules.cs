@@ -101,6 +101,11 @@ public class UnusableFileKeyAuditProcessorRules
         _mocker.GetMock<ITvShowRepository>().Verify(r => r.GetAll(), Times.Once);
         _mocker.GetMock<INewsOrganisationRepository>().Verify(r => r.GetAll(), Times.Once);
         _mocker.GetMock<IFilmRepository>().Verify(r => r.GetAll(), Times.Once);
+        _mocker.GetMock<IPodcastRepository>().Verify(r => r.Save(It.IsAny<Podcast>()), Times.Never);
+        _mocker.GetMock<ITvShowRepository>().Verify(r => r.Save(It.IsAny<TvShow>()), Times.Never);
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Verify(r => r.Save(It.IsAny<NewsOrganisation>()), Times.Never);
+        _mocker.GetMock<IFilmRepository>().Verify(r => r.Save(It.IsAny<Film>()), Times.Never);
     }
 
     [Fact(DisplayName =
