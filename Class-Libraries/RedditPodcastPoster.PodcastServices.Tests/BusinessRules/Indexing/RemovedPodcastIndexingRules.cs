@@ -34,6 +34,7 @@ public class RemovedPodcastIndexingRules
         mocker.Use<IPodcastRepository>(repository);
         mocker.Use(NullLogger<PodcastsUpdater>.Instance);
         mocker.Use(Mock.Of<IIndexablePodcastIdProvider>());
+        mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
         var sut = mocker.CreateInstance<PodcastsUpdater>();
 
         // Act
@@ -61,6 +62,7 @@ public class RemovedPodcastIndexingRules
         mocker.Use<IPodcastRepository>(repository);
         mocker.Use(NullLogger<PodcastsUpdater>.Instance);
         mocker.Use(Mock.Of<IIndexablePodcastIdProvider>());
+        mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
         var sut = mocker.CreateInstance<PodcastsUpdater>();
 
         // Act

@@ -36,6 +36,7 @@ public class PodcastPassApiCacheComponentRules
         _mocker.Use<ILogger<PodcastsUpdater>>(NullLogger<PodcastsUpdater>.Instance);
         _mocker.Use<IOptions<PodcastUpdateBudgetOptions>>(Options.Create(new PodcastUpdateBudgetOptions()));
         _mocker.Use<TimeProvider>(TimeProvider.System);
+        _mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
         _mocker.GetMock<IApplePodcastService>()
             .Setup(x => x.GetEpisodes(_appleId, It.IsAny<IndexingContext>()))
             .ReturnsAsync(() => [CreateAppleEpisode()]);

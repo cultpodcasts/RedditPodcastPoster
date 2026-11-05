@@ -51,6 +51,7 @@ public class PodcastUpdateBudgetRules
         _mocker.Use<IOptions<PodcastUpdateBudgetOptions>>(Options.Create(_budget));
         _mocker.Use<IOptions<PodcastIndexingStageLogOptions>>(Options.Create(_stageLog));
         _mocker.Use(_cuts);
+        _mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
         _mocker.GetMock<IPodcastUpdater>()
             .Setup(x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()))
             .Returns((Podcast podcast, bool _, IndexingContext context) =>
@@ -284,8 +285,10 @@ public class PodcastUpdateBudgetRules
     private async Task<bool> RunPastBudgetAndGrace(Task<bool> run)
     {
         // The loop registers the budget and abandon timers synchronously; fire them in order with fake time.
+        // After abandon, DrainAbandonedUpdate waits OnDemandAbandonDrain (TimeProvider) before releasing the lease.
         _time.Advance(Budget);
         _time.Advance(TimeSpan.FromSeconds(_budget.AbandonGraceSeconds));
+        _time.Advance(_budget.OnDemandAbandonDrain);
         return await Completion(run);
     }
 

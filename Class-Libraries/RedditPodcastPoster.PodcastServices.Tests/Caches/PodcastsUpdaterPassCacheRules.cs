@@ -28,6 +28,7 @@ public class PodcastsUpdaterPassCacheRules
         _mocker.Use<ILogger<PodcastsUpdater>>(NullLogger<PodcastsUpdater>.Instance);
         _mocker.Use<IOptions<PodcastUpdateBudgetOptions>>(Options.Create(new PodcastUpdateBudgetOptions()));
         _mocker.Use<TimeProvider>(TimeProvider.System);
+        _mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
     }
 
     [Fact(DisplayName =

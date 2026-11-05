@@ -202,11 +202,12 @@ public class CatalogueParentIndexRules
     }
 
     [Theory(DisplayName =
-        "A refused or timed-out index maps to its status and nothing is pushed to search: NotIndexable, " +
-        "SourcePodcastStillExists, and TimedOut (what was saved is not known at the cut).")]
+        "A refused, busy, or timed-out index maps to its status and nothing is pushed to search: NotIndexable, " +
+        "SourcePodcastStillExists, AlreadyRunning (409), and TimedOut (what was saved is not known at the cut).")]
     [InlineData(CatalogueParentIndexStatus.NotIndexable, CatalogueIndexStatus.NotIndexable)]
     [InlineData(CatalogueParentIndexStatus.SourcePodcastStillExists, CatalogueIndexStatus.SourcePodcastStillExists)]
     [InlineData(CatalogueParentIndexStatus.TimedOut, CatalogueIndexStatus.TimedOut)]
+    [InlineData(CatalogueParentIndexStatus.AlreadyRunning, CatalogueIndexStatus.AlreadyRunning)]
     public async Task refused_index_maps_status(CatalogueParentIndexStatus indexStatus, CatalogueIndexStatus expected)
     {
         // Arrange

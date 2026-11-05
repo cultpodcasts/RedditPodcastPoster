@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Indexing.Services;
@@ -8,8 +10,10 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People.Enrichers;
 using RedditPodcastPoster.People.Models;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Models;
@@ -73,6 +77,7 @@ public class IndexingSkipShortEpisodesRules
         bool? bypassShortEpisodeChecking,
         Action<IndexingContext> captureContext)
     {
+        var mocker = new AutoMocker();
         var podcastRepository = new InMemoryPodcastRepository();
         var episodeRepository = new InMemoryEpisodeRepository();
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
@@ -85,8 +90,14 @@ public class IndexingSkipShortEpisodesRules
         added.Id = _fixture.CreateGuid();
         added.PodcastId = podcast.Id;
 
-        var podcastUpdater = new Mock<IPodcastUpdater>();
-        podcastUpdater
+        mocker.Use<IPodcastRepository>(podcastRepository);
+        mocker.Use<IEpisodeRepository>(episodeRepository);
+        mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
+        mocker.Use<TimeProvider>(TimeProvider.System);
+        mocker.Use(NullLogger<Indexer>.Instance);
+        mocker.Use(Options.Create(new PodcastUpdateBudgetOptions()));
+
+        mocker.GetMock<IPodcastUpdater>()
             .Setup(x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()))
             .Callback<Podcast, bool, IndexingContext>((_, _, context) => captureContext(context))
             .ReturnsAsync(new IndexPodcastResult(
@@ -97,33 +108,21 @@ public class IndexingSkipShortEpisodesRules
                 SpotifyBypassed: false,
                 YouTubeBypassed: false));
 
-        var subjectEnricher = new Mock<ISubjectEnricher>();
-        subjectEnricher
+        mocker.GetMock<ISubjectEnricher>()
             .Setup(x => x.EnrichSubjects(added, It.IsAny<SubjectEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichSubjectsResult([], []));
 
-        var guestEnricher = new Mock<IEpisodeGuestEnricher>();
-        guestEnricher
+        mocker.GetMock<IEpisodeGuestEnricher>()
             .Setup(x => x.EnrichGuests(added, It.IsAny<GuestEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichGuestsResult([], []));
 
-        var subjectEnrichmentOptionsFactory = new Mock<ISubjectEnrichmentOptionsFactory>();
-        subjectEnrichmentOptionsFactory
+        mocker.GetMock<ISubjectEnrichmentOptionsFactory>()
             .Setup(x => x.CreateAsync(
                 It.IsAny<Podcast>(),
                 It.IsAny<Episode?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubjectEnrichmentOptions(null, null, null, string.Empty));
 
-        var indexer = new Indexer(
-            podcastRepository,
-            episodeRepository,
-            podcastUpdater.Object,
-            subjectEnricher.Object,
-            subjectEnrichmentOptionsFactory.Object,
-            guestEnricher.Object,
-            NullLogger<Indexer>.Instance);
-
-        return (indexer, podcast);
+        return (mocker.CreateInstance<Indexer>(), podcast);
     }
 }

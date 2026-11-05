@@ -7,6 +7,7 @@ using RedditPodcastPoster.Catalogue.Episodes;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
@@ -50,6 +51,7 @@ public class CatalogueParentIndexingRules
     {
         _mocker.Use(Options.Create(PodcastUpdaterTestHarness.DefaultPostingCriteria));
         _mocker.Use<TimeProvider>(TimeProvider.System);
+        _mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
 
         var tvShows = _mocker.GetMock<ITvShowRepository>();
         tvShows.Setup(x => x.GetTvShow(It.IsAny<Guid>()))

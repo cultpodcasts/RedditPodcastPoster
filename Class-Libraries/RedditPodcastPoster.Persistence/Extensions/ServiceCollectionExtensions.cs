@@ -116,6 +116,10 @@ public static class ServiceCollectionExtensions
                     new ParentKindTransferLockStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
                         s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ParentKindTransferLockStore>>()))
+                .AddSingleton<IParentIndexingLockStore>(s =>
+                    new ParentIndexingLockStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ParentIndexingLockStore>>()))
                 .AddSingleton<IFilmSearchPushWatermarkStore>(s =>
                     new FilmSearchPushWatermarkStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))

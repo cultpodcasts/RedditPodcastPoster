@@ -86,5 +86,8 @@ public enum ModelType
     ParentKindTransferLock = 27,
 
     [JsonPropertyName(nameof(XOAuth2TokenState))]
-    XOAuth2TokenState = 28
+    XOAuth2TokenState = 28,
+
+    [JsonPropertyName(nameof(ParentIndexingLock))]
+    ParentIndexingLock = 29
 }

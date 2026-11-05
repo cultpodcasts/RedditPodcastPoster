@@ -19,7 +19,10 @@ public enum CatalogueParentIndexStatus
     /// batch near the end, and an update that ignored cancellation may still finish. Anything that was saved reaches
     /// search on the next pull-indexer run.
     /// </summary>
-    TimedOut
+    TimedOut,
+
+    /// <summary>Another on-demand or hourly index already holds this parent's indexing lease (HTTP 409).</summary>
+    AlreadyRunning
 }
 
 /// <param name="Status">What happened.</param>
