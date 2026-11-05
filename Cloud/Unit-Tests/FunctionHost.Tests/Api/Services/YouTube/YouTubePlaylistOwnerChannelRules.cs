@@ -13,23 +13,6 @@ public class YouTubePlaylistOwnerChannelRules
 {
     private readonly DomainTestFixture _fixture = new();
 
-    [Fact(DisplayName =
-        "When playlist Check is Valid with an owner and the parent channel is blank, the owner is returned for persistence.")]
-    public void blank_channel_derives_owner()
-    {
-        // Arrange
-        var ownerChannelId = _fixture.CreateYouTubeChannelId();
-        var playlistId = _fixture.CreateYouTubePlaylistId();
-        var check = new YouTubePlaylistValidation(
-            YouTubePlaylistValidationStatus.Valid, playlistId, ownerChannelId);
-
-        // Act
-        var derived = YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(check, currentChannelId: null);
-
-        // Assert
-        derived.Should().Be(ownerChannelId);
-    }
-
     [Theory(DisplayName =
         "When the parent channel is blank (null, empty, or whitespace), a Valid playlist owner is derived.")]
     [InlineData(null)]

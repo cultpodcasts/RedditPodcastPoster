@@ -103,8 +103,22 @@ public class TvShowService(
             if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
                     playlistCheck, show.Indexing?.YouTubeChannelId) is { } derivedOwner)
             {
-                show.Indexing ??= new CatalogueIndexingSource();
-                show.Indexing.YouTubeChannelId = derivedOwner;
+                // Derive runs after Apply, so request.Change never included this channel for FindConflict.
+                // On conflict, skip derive + warn and still save the playlist — playlist-only edits stay
+                // allowed; do not refuse the whole PATCH for an automatic channel write.
+                if (await serviceIdsUniqueness.FindConflict(
+                        show.Id,
+                        new TvShowChangeRequest { YouTubeChannelId = derivedOwner }) is { } deriveConflict)
+                {
+                    logger.LogWarning(
+                        "{method}: skipping derived youTubeChannelId '{channelId}' for '{id}': {message}",
+                        nameof(UpdateAsync), derivedOwner, show.Id, deriveConflict.Message);
+                }
+                else
+                {
+                    show.Indexing ??= new CatalogueIndexingSource();
+                    show.Indexing.YouTubeChannelId = derivedOwner;
+                }
             }
 
             await tvShowRepository.Save(show);

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
 using Api.Models;
+using Api.Services.Catalogue;
 using Api.Services.News;
 using Api.Services.Podcasts;
 using Api.Services.TvShows;
@@ -235,5 +236,74 @@ public class ParentEditPlaylistOwnerChannelRules
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
         organisation.Indexing!.YouTubePlaylistId.Should().Be(requestedPlaylist);
         organisation.Indexing.YouTubeChannelId.Should().Be(storedChannelId);
+    }
+
+    [Fact(DisplayName =
+        "PATCH TV show with a new playlist leaves a non-blank indexing channel unchanged.")]
+    public async Task tv_show_playlist_save_keeps_non_blank_channel()
+    {
+        // Arrange
+        var storedChannelId = _fixture.CreateYouTubeChannelId();
+        var requestedPlaylist = _fixture.CreateYouTubePlaylistId();
+        var ownerChannelId = _fixture.CreateYouTubeChannelId();
+        var show = new TvShow(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Indexing = new CatalogueIndexingSource { YouTubeChannelId = storedChannelId }
+        };
+        _mocker.Use(NullLogger<TvShowService>.Instance);
+        _mocker.Use(_search.Cleanup);
+        _mocker.GetMock<ITvShowRepository>().Setup(r => r.GetTvShow(show.Id)).ReturnsAsync(show);
+        GuardReturnsValid(requestedPlaylist, ownerChannelId);
+
+        // Act
+        var result = await _mocker.CreateInstance<TvShowService>().UpdateAsync(
+            new TvShowChangeRequestWrapper(show.Id, new TvShowChangeRequest { YouTubePlaylistId = requestedPlaylist }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(TvShowUpdateStatus.Accepted);
+        show.Indexing!.YouTubePlaylistId.Should().Be(requestedPlaylist);
+        show.Indexing.YouTubeChannelId.Should().Be(storedChannelId);
+        _mocker.GetMock<ITvShowRepository>().Verify(r => r.Save(show), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "PATCH news organisation with a Valid playlist and blank channel skips derive when the owner channel is already taken, still saves the playlist, and leaves the channel blank.")]
+    public async Task news_organisation_playlist_save_skips_derive_when_owner_channel_taken()
+    {
+        // Arrange
+        var requestedPlaylist = _fixture.CreateYouTubePlaylistId();
+        var ownerChannelId = _fixture.CreateYouTubeChannelId();
+        var otherOwnerId = _fixture.CreateGuid();
+        var organisation = new NewsOrganisation(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid()
+        };
+        _mocker.Use(NullLogger<NewsOrganisationService>.Instance);
+        _mocker.Use(_search.Cleanup);
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(r => r.GetNewsOrganisation(organisation.Id)).ReturnsAsync(organisation);
+        GuardReturnsValid(requestedPlaylist, ownerChannelId);
+        _mocker.GetMock<IServiceIdsUniqueness>()
+            .Setup(u => u.FindConflict(
+                organisation.Id,
+                It.Is<ServiceIdsChange>(c => c.YouTubeChannelId == ownerChannelId)))
+            .ReturnsAsync(new ServiceIdConflict("youTubeChannelId", ownerChannelId, [otherOwnerId]));
+
+        // Act
+        var result = await _mocker.CreateInstance<NewsOrganisationService>().UpdateAsync(
+            new NewsOrganisationChangeRequestWrapper(organisation.Id, new NewsOrganisationChangeRequest
+            {
+                YouTubePlaylistId = requestedPlaylist
+            }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
+        organisation.Indexing.Should().NotBeNull();
+        organisation.Indexing!.YouTubePlaylistId.Should().Be(requestedPlaylist);
+        organisation.Indexing.YouTubeChannelId.Should().BeNullOrEmpty();
+        _mocker.GetMock<INewsOrganisationRepository>().Verify(r => r.Save(organisation), Times.Once);
     }
 }

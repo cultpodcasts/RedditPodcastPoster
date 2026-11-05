@@ -95,8 +95,22 @@ public class NewsOrganisationService(
             if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
                     playlistCheck, organisation.Indexing?.YouTubeChannelId) is { } derivedOwner)
             {
-                organisation.Indexing ??= new CatalogueIndexingSource();
-                organisation.Indexing.YouTubeChannelId = derivedOwner;
+                // Derive runs after Apply, so request.Change never included this channel for FindConflict.
+                // On conflict, skip derive + warn and still save the playlist — playlist-only edits stay
+                // allowed; do not refuse the whole PATCH for an automatic channel write.
+                if (await serviceIdsUniqueness.FindConflict(
+                        organisation.Id,
+                        new NewsOrganisationChangeRequest { YouTubeChannelId = derivedOwner }) is { } deriveConflict)
+                {
+                    logger.LogWarning(
+                        "{method}: skipping derived youTubeChannelId '{channelId}' for '{id}': {message}",
+                        nameof(UpdateAsync), derivedOwner, organisation.Id, deriveConflict.Message);
+                }
+                else
+                {
+                    organisation.Indexing ??= new CatalogueIndexingSource();
+                    organisation.Indexing.YouTubeChannelId = derivedOwner;
+                }
             }
 
             await newsOrganisationRepository.Save(organisation);
