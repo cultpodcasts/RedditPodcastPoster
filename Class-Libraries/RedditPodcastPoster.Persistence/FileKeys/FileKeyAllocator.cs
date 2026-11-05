@@ -1,8 +1,9 @@
 using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
-namespace RedditPodcastPoster.Persistence.Abstractions.FileKeys;
+namespace RedditPodcastPoster.Persistence.FileKeys;
 
 /// <inheritdoc cref="IFileKeyAllocator"/>
 /// <remarks>
