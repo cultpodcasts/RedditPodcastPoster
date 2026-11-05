@@ -101,7 +101,7 @@ Every production code change **MUST** ship with tests in the same PR:
 
 | | Rule |
 |---|------|
-| **MUST** | Generate episode/podcast **titles** with `_fixture.CreateTitle()` (or `CreateShortTitle()` / `CreateLongTitle()` / `CreateTitle(wordCount)`) — word-based titles for matching/fuzzy tests |
+| **MUST** | Generate episode/podcast **titles** with `_fixture.CreateTitle()` (or `CreateShortTitle()` / `CreateLongTitle()` / `CreateTitle(wordCount)`) — word-based titles for matching/fuzzy tests. When a second title must not be a case-insensitive substring of another arranged string, use `_fixture.CreateTitleNotContainedIn(text)` (do not invent a private retry loop) |
 | **MUST** | Generate other strings with `_fixture.Create<string>()` unless the rule is about that exact string (typo match, regex, truncated description) |
 | **NEVER** | Use `_fixture.Create<string>()` for episode titles when word-based matching or fuzzy title variants are under test |
 | **MUST** | Generate Guids with `_fixture.CreateGuid()` or `_fixture.Create<Guid>()` unless the assertion depends on that exact Guid |
@@ -399,7 +399,7 @@ public class MyServiceTests
 | Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |
 | Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `Create*CatalogueInputSameDayAs`, `Create*CatalogueEpisodeSameDayAs` |
 | Generated values | `CreateTitle()`, `CreateTitleNotContainedIn(text)`, `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()`, `CreateGuid()` |
-| Title variants | `CreateTypoTitleVariant(title)` — one character changed in the longest word (typo probes). `CreateFuzzyTitleVariant(title)` — one word-level edit (replace/drop filler/add filler/swap adjacent). `CreateFuzzyTitleVariant(title, FuzzyTitleVariantStrategy)` — force a specific strategy (matrix / theory tests). Input must be word-based from `CreateShortTitle()` or `CreateTitle(5+)`. `CreateTitleNotContainedIn(text)` when a second title must not appear inside another string |
+| Title variants | `CreateTypoTitleVariant(title)` — one character changed in the longest word (typo probes). `CreateFuzzyTitleVariant(title)` — one word-level edit (replace/drop filler/add filler/swap adjacent). `CreateFuzzyTitleVariant(title, FuzzyTitleVariantStrategy)` — force a specific strategy (matrix / theory tests). Input must be word-based from `CreateShortTitle()` or `CreateTitle(5+)`. For a disjoint second title (not a transform of an existing title), see Generated values → `CreateTitleNotContainedIn` |
 | Same calendar date + time | `SameCalendarDateWithTime(dateOnlyRelease, timeOfDay)`, `SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, days)` |
 | Relative dates | `UtcToday`, `UtcDaysAgo(n)`, `UtcDateDaysAgo(n)`, `UtcAtTime(dayOffset, timeOfDay)` |
 | Assert vocabulary | `EpisodeExpectation.From(episode)`, `.WithSpotify/.WithApple/.WithYouTube`, `ShouldMatchExpectation` |
