@@ -163,6 +163,7 @@ Default builders produce **fully valid, platform-correct** objects. Tests trust 
 | `CreateTitle(wordCount)` | Explicit word count (1–25 words) |
 | `CreateShortTitle()` | Short episode title (5–10 words) |
 | `CreateLongTitle()` | Long episode title (11–25 words) |
+| `CreateTitleNotContainedIn(text)` | Title that is not a case-insensitive substring of `text` (avoids random-title overlap flakes) |
 
 ---
 
@@ -397,8 +398,8 @@ public class MyServiceTests
 | Catalogue input (override) | `CreateSpotifyCatalogueInput(b => b.WithRelease(...))`, `CreateSpotifyCatalogueInputDaysAfterYouTubeRelease(...)` |
 | Catalogue episode | `CreateSpotifyCatalogueEpisode()`, `CreateSpotifyCatalogueEpisode(configure)`, overload with explicit id |
 | Same-day backfill probe | `CreateMidnightUtcStoredEpisode`, `Create*CatalogueInputSameDayAs`, `Create*CatalogueEpisodeSameDayAs` |
-| Generated values | `CreateTitle()`, `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()`, `CreateGuid()` |
-| Title variants | `CreateTypoTitleVariant(title)` — one character changed in the longest word (typo probes). `CreateFuzzyTitleVariant(title)` — one word-level edit (replace/drop filler/add filler/swap adjacent). `CreateFuzzyTitleVariant(title, FuzzyTitleVariantStrategy)` — force a specific strategy (matrix / theory tests). Input must be word-based from `CreateShortTitle()` or `CreateTitle(5+)` |
+| Generated values | `CreateTitle()`, `CreateTitleNotContainedIn(text)`, `CreateDuration()`, `CreateNonMidnightTimeOfDay()`, `CreateSpotifyId()`, `CreateAppleId()`, `CreateYouTubeId()`, `CreateYouTubeChannelId()`, `CreateGuid()` |
+| Title variants | `CreateTypoTitleVariant(title)` — one character changed in the longest word (typo probes). `CreateFuzzyTitleVariant(title)` — one word-level edit (replace/drop filler/add filler/swap adjacent). `CreateFuzzyTitleVariant(title, FuzzyTitleVariantStrategy)` — force a specific strategy (matrix / theory tests). Input must be word-based from `CreateShortTitle()` or `CreateTitle(5+)`. `CreateTitleNotContainedIn(text)` when a second title must not appear inside another string |
 | Same calendar date + time | `SameCalendarDateWithTime(dateOnlyRelease, timeOfDay)`, `SpotifyCatalogueReleaseDaysAfterYouTube(youTubeRelease, days)` |
 | Relative dates | `UtcToday`, `UtcDaysAgo(n)`, `UtcDateDaysAgo(n)`, `UtcAtTime(dayOffset, timeOfDay)` |
 | Assert vocabulary | `EpisodeExpectation.From(episode)`, `.WithSpotify/.WithApple/.WithYouTube`, `ShouldMatchExpectation` |

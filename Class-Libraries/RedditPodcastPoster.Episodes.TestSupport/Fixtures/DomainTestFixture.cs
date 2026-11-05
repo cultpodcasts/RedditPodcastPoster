@@ -326,6 +326,23 @@ public sealed class DomainTestFixture
   public string CreateLongTitle() =>
     CreateTitleSpecimen(_fixture, 11 + Math.Abs(_fixture.Create<int>()) % 15);
 
+  /// <summary>
+  /// Random title that does not occur (case-insensitively) within <paramref name="text"/>.
+  /// Use when a second generated title must not be a substring of another title or marketing
+  /// string — <see cref="CreateTitle()"/> draws from a small word list and can otherwise overlap.
+  /// </summary>
+  public string CreateTitleNotContainedIn(string text)
+  {
+    for (var attempt = 0; attempt < 100; attempt++)
+    {
+      var candidate = CreateTitle();
+      if (!text.Contains(candidate, StringComparison.OrdinalIgnoreCase))
+        return candidate;
+    }
+
+    throw new InvalidOperationException($"Could not generate a title not contained in '{text}'.");
+  }
+
   /// <summary>UTC time-of-day with non-midnight seconds (Apple/YouTube publish times).</summary>
   public TimeSpan CreateNonMidnightTimeOfDay() => CreateNonMidnightTimeOfDaySpecimen(_fixture);
 
