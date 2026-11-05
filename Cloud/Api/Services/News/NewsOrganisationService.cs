@@ -3,6 +3,7 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -69,10 +70,11 @@ public class NewsOrganisationService(
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.NotFound);
             }
 
-            if (await youTubePlaylistGuard.Check(
-                    organisation.Indexing?.YouTubePlaylistId,
-                    request.Change.YouTubePlaylistId,
-                    cancellationToken) is { } refused)
+            var playlistCheck = await youTubePlaylistGuard.Check(
+                organisation.Indexing?.YouTubePlaylistId,
+                request.Change.YouTubePlaylistId,
+                cancellationToken);
+            if (playlistCheck is { IsAllowed: false } refused)
             {
                 logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
                     organisation.Id, refused.Code, refused.Message);
@@ -90,6 +92,13 @@ public class NewsOrganisationService(
             }
 
             organisation.Indexing = ServiceIdsApplier.Apply(organisation.Indexing, request.Change, organisation, logger);
+            if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
+                    playlistCheck, organisation.Indexing?.YouTubeChannelId) is { } derivedOwner)
+            {
+                organisation.Indexing ??= new CatalogueIndexingSource();
+                organisation.Indexing.YouTubeChannelId = derivedOwner;
+            }
+
             await newsOrganisationRepository.Save(organisation);
 
             if (!request.Change.ChangesChildProjection)

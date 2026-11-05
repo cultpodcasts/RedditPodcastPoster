@@ -55,31 +55,39 @@ public class YouTubePlaylistGuardRules
         _validator.VerifyNoOtherCalls();
     }
 
-    [Fact(DisplayName = "A new playlist owned by any channel is allowed, because with a playlist the playlist alone is the parent's YouTube source.")]
+    [Fact(DisplayName =
+        "A new playlist owned by any channel is Valid (allowed) and returns OwnerChannelId, so save can derive a blank parent channel without a second quota call.")]
     public async Task new_playlist_owned_by_another_channel_is_allowed()
     {
         // Arrange
-        ValidatorReturns(YouTubePlaylistValidationStatus.Valid, "UCsyntheticotherowner001");
+        const string ownerChannelId = "UCsyntheticotherowner001";
+        ValidatorReturns(YouTubePlaylistValidationStatus.Valid, ownerChannelId);
 
         // Act
-        var refused = await Guard().Check(Playlist, $" {OtherPlaylist} ", CancellationToken.None);
+        var result = await Guard().Check(Playlist, $" {OtherPlaylist} ", CancellationToken.None);
 
         // Assert
-        refused.Should().BeNull();
+        result.Should().NotBeNull();
+        result!.IsAllowed.Should().BeTrue();
+        result.Status.Should().Be(YouTubePlaylistValidationStatus.Valid);
+        result.OwnerChannelId.Should().Be(ownerChannelId);
         _validator.Verify(v => v.Validate(OtherPlaylist, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact(DisplayName = "A playlist set on a parent that had none is checked.")]
+    [Fact(DisplayName =
+        "A playlist set on a parent that had none is checked and returns Valid so the owner can be persisted when the channel is blank.")]
     public async Task first_playlist_is_checked()
     {
         // Arrange
-        ValidatorReturns(YouTubePlaylistValidationStatus.Valid);
+        ValidatorReturns(YouTubePlaylistValidationStatus.Valid, OwnerChannel);
 
         // Act
-        var refused = await Guard().Check(null, Playlist, CancellationToken.None);
+        var result = await Guard().Check(null, Playlist, CancellationToken.None);
 
         // Assert
-        refused.Should().BeNull();
+        result.Should().NotBeNull();
+        result!.IsAllowed.Should().BeTrue();
+        result.OwnerChannelId.Should().Be(OwnerChannel);
         _validator.Verify(v => v.Validate(Playlist, It.IsAny<CancellationToken>()), Times.Once);
     }
 

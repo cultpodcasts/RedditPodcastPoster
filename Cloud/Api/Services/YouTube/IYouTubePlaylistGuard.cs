@@ -17,9 +17,11 @@ namespace Api.Services.YouTube;
 public interface IYouTubePlaylistGuard
 {
     /// <summary>
-    /// Null when the save may go ahead. Otherwise the refused validation (invalid id, playlist not found, or a
-    /// retryable lookup failure). Only checks when the request sets the playlist id to a new non-blank value (null =
-    /// the request leaves it unchanged), so an unrelated edit of an existing parent is never blocked and costs no quota.
+    /// Null when no playlist check ran (request leaves the playlist unchanged, clears it, or re-sends the stored id) —
+    /// the save may go ahead and no owner was fetched. When the request sets a new non-blank playlist id: a
+    /// <see cref="YouTubePlaylistValidationStatus.Valid"/> result (with <c>OwnerChannelId</c> when YouTube returned one)
+    /// means the save may go ahead and callers may persist that owner onto a blank parent channel; otherwise the
+    /// refused validation (invalid id, playlist not found, or a retryable lookup failure).
     /// </summary>
     Task<YouTubePlaylistValidation?> Check(
         string? currentPlaylistId,

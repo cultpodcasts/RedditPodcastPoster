@@ -21,8 +21,9 @@ public class YouTubePlaylistGuard(IYouTubePlaylistValidator validator) : IYouTub
             return null;
         }
 
-        var validation = await validator.Validate(playlistId, cancellationToken);
-        return validation.IsAllowed ? null : validation;
+        // Return Valid (with OwnerChannelId) so callers can persist the owner onto a blank parent channel
+        // without a second playlists.list. Refusals keep the previous shape.
+        return await validator.Validate(playlistId, cancellationToken);
     }
 
     public async Task<YouTubePlaylistValidation?> CheckChannelAgainstPlaylist(
