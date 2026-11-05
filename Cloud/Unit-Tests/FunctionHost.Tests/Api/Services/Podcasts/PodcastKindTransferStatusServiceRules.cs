@@ -23,8 +23,8 @@ public class PodcastKindTransferStatusServiceRules
     private DateTime _now;
     private Podcast? _podcast;
     private ParentKindTransferJob? _job;
-    private TvShow? _tvShow;
-    private NewsOrganisation? _news;
+    private TvShow? _tvShow = null;
+    private NewsOrganisation? _news = null;
 
     public PodcastKindTransferStatusServiceRules()
     {
