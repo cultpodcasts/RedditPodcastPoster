@@ -1,9 +1,10 @@
 using System.Text.Json.Serialization;
+using Api.Dtos.Mapping;
 
 namespace Api.Dtos;
 
 /// <summary>Playable fields returned by the curator GET for a news report or TV-show episode.</summary>
-public abstract class PlayableFieldsDto
+public abstract class PlayableFieldsDto : IPlayableGuestFieldsDto
 {
     [JsonPropertyName("id")]
     public Guid Id { get; set; }
@@ -59,6 +60,14 @@ public abstract class PlayableFieldsDto
     /// <summary>Guest person names, as on episodes. Null when there are none.</summary>
     [JsonPropertyName("guests")]
     public string[]? Guests { get; set; }
+
+    /// <summary>Resolved people for <see cref="Guests"/> (curator edit).</summary>
+    [JsonPropertyName("guestPeople")]
+    public IList<PersonDto>? GuestPeople { get; set; }
+
+    /// <summary>People matched from title/description who are not already in <see cref="Guests"/>.</summary>
+    [JsonPropertyName("guestSuggestions")]
+    public IList<EpisodeDto.PersonMatch>? GuestSuggestions { get; set; }
 
     [JsonPropertyName("services")]
     public Dictionary<string, ServiceLinkDto>? Services { get; set; }

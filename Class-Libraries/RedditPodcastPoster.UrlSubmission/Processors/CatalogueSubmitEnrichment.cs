@@ -5,6 +5,7 @@ using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.People.Enrichers;
+using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -110,7 +111,11 @@ public sealed class CatalogueSubmitEnrichment(
         var subjectsResult = await subjectEnricher.EnrichSubjects(
             projection,
             await subjectEnrichmentOptionsFactory.CreateAsync(transient, projection));
-        var guestsResult = await guestEnricher.EnrichGuests(projection);
+        // Catalogue playables often name people only in the description (share-target TV/news/film).
+        // Podcast indexing still defaults to title-only; submit for these kinds matches description too.
+        var guestsResult = await guestEnricher.EnrichGuests(
+            projection,
+            GuestEnrichmentOptions.Default with { TitleOnly = false });
 
         if (!projection.Subjects.Any())
         {

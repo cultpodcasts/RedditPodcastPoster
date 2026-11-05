@@ -3,25 +3,67 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using Api.Dtos.Mapping;
 using Api.Handlers;
 using Api.Handlers.Episodes;
 using Api.Models;
 using Api.Services.Episodes;
-using RedditPodcastPoster.People.Services;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Text.Sanitisers;
 using Xunit;
-using Episode = RedditPodcastPoster.Models.Episodes.Episode;
-using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using Subject = RedditPodcastPoster.Models.Subjects.Subject;
 
 namespace FunctionHost.Tests.Api.Handlers;
 
 public class GetEpisodeHandlerTests
 {
+    private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+    private EpisodeGetResult _getResult = new(EpisodeGetStatus.Failed);
+
+    public GetEpisodeHandlerTests()
+    {
+        _mocker.GetMock<IEpisodeGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _getResult);
+
+        _mocker.GetMock<ITextSanitiser>()
+            .Setup(s => s.SanitiseTitle(
+                It.IsAny<string>(),
+                It.IsAny<Regex?>(),
+                It.IsAny<string[]>(),
+                It.IsAny<string[]>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _) => title);
+        _mocker.GetMock<ITextSanitiser>()
+            .Setup(s => s.SanitiseDescription(It.IsAny<string>(), It.IsAny<Regex?>()))
+            .Returns((string description, Regex? _) => description);
+
+        _mocker.GetMock<IPlayableGuestDtoEnricher>()
+            .Setup(e => e.EnrichAsync(
+                It.IsAny<IPlayableGuestFieldsDto>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string[]?>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        _mocker.GetMock<ICachedSubjectProvider>()
+            .Setup(p => p.GetAll())
+            .Returns(EmptyAsync<Subject>());
+    }
+
+    private GetEpisodeHandler CreateSut()
+    {
+        _mocker.Use(_mocker.CreateInstance<EpisodeDtoMapper>());
+        return _mocker.CreateInstance<GetEpisodeHandler>();
+    }
+
     private static async Task<JsonElement> ReadJsonBodyAsync(HttpResponseData response)
     {
         response.Body.Position = 0;
@@ -36,38 +78,30 @@ public class GetEpisodeHandlerTests
     public async Task ok_returns_200_with_stable_episode_dto_keys()
     {
         // Arrange
-        var episodeId = Guid.NewGuid();
-        var podcastId = Guid.NewGuid();
-        var episode = new Episode
+        var podcastName = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p => p.Name = podcastName);
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
         {
-            Id = episodeId,
-            PodcastId = podcastId,
-            Title = "Episode title",
-            Length = TimeSpan.FromMinutes(45),
-            BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2",
-            ReleaseUtc = DateTime.UtcNow.AddDays(-1)
-        };
-        var podcast = new Podcast { Id = podcastId, Name = "Podcast name" };
-
-        var getService = new Mock<IEpisodeGetService>();
-        getService.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EpisodeGetResult(EpisodeGetStatus.Ok, episode, podcast, Array.Empty<Subject>()));
-
-        var handler = new GetEpisodeHandler(getService.Object, CreateEpisodeDtoMapper(), NullLogger<GetEpisodeHandler>.Instance);
+            e.Length = TimeSpan.FromMinutes(45);
+            e.BlueskyPost = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2";
+        });
+        _getResult = new EpisodeGetResult(
+            EpisodeGetStatus.Ok, episode, podcast, Array.Empty<Subject>());
+        var sut = CreateSut();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
         // Act
-        var result = await handler.Handle(
+        var result = await sut.Handle(
             new HandlerContext(req.Object, null),
-            new PodcastEpisodeRequestWrapper(podcastId, episodeId),
+            new PodcastEpisodeRequestWrapper(podcast.Id, episode.Id),
             CancellationToken.None);
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await ReadJsonBodyAsync(result);
-        body.GetProperty("id").GetGuid().Should().Be(episodeId);
-        body.GetProperty("podcastId").GetGuid().Should().Be(podcastId);
-        body.GetProperty("podcastName").GetString().Should().Be("Podcast name");
+        body.GetProperty("id").GetGuid().Should().Be(episode.Id);
+        body.GetProperty("podcastId").GetGuid().Should().Be(podcast.Id);
+        body.GetProperty("podcastName").GetString().Should().Be(podcastName);
         body.TryGetProperty("duration", out _).Should().BeTrue();
         body.GetProperty("bluesky").GetBoolean().Should().BeTrue();
     }
@@ -77,17 +111,14 @@ public class GetEpisodeHandlerTests
     public async Task episode_not_found_returns_404()
     {
         // Arrange
-        var getService = new Mock<IEpisodeGetService>();
-        getService.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EpisodeGetResult(EpisodeGetStatus.EpisodeNotFound));
-
-        var handler = new GetEpisodeHandler(getService.Object, CreateEpisodeDtoMapper(), NullLogger<GetEpisodeHandler>.Instance);
+        _getResult = new EpisodeGetResult(EpisodeGetStatus.EpisodeNotFound);
+        var sut = CreateSut();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
         // Act
-        var result = await handler.Handle(
+        var result = await sut.Handle(
             new HandlerContext(req.Object, null),
-            new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid()),
+            new PodcastEpisodeRequestWrapper(_fixture.CreateGuid(), _fixture.CreateGuid()),
             CancellationToken.None);
 
         // Assert
@@ -99,17 +130,14 @@ public class GetEpisodeHandlerTests
     public async Task podcast_not_found_returns_404()
     {
         // Arrange
-        var getService = new Mock<IEpisodeGetService>();
-        getService.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EpisodeGetResult(EpisodeGetStatus.PodcastNotFound));
-
-        var handler = new GetEpisodeHandler(getService.Object, CreateEpisodeDtoMapper(), NullLogger<GetEpisodeHandler>.Instance);
+        _getResult = new EpisodeGetResult(EpisodeGetStatus.PodcastNotFound);
+        var sut = CreateSut();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
         // Act
-        var result = await handler.Handle(
+        var result = await sut.Handle(
             new HandlerContext(req.Object, null),
-            new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid()),
+            new PodcastEpisodeRequestWrapper(_fixture.CreateGuid(), _fixture.CreateGuid()),
             CancellationToken.None);
 
         // Assert
@@ -121,43 +149,18 @@ public class GetEpisodeHandlerTests
     public async Task failed_returns_500()
     {
         // Arrange
-        var getService = new Mock<IEpisodeGetService>();
-        getService.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new EpisodeGetResult(EpisodeGetStatus.Failed));
-
-        var handler = new GetEpisodeHandler(getService.Object, CreateEpisodeDtoMapper(), NullLogger<GetEpisodeHandler>.Instance);
+        _getResult = new EpisodeGetResult(EpisodeGetStatus.Failed);
+        var sut = CreateSut();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
         // Act
-        var result = await handler.Handle(
+        var result = await sut.Handle(
             new HandlerContext(req.Object, null),
-            new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid()),
+            new PodcastEpisodeRequestWrapper(_fixture.CreateGuid(), _fixture.CreateGuid()),
             CancellationToken.None);
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
-    }
-
-    private static EpisodeDtoMapper CreateEpisodeDtoMapper()
-    {
-        var sanitiser = new Mock<ITextSanitiser>();
-        sanitiser.Setup(s => s.SanitiseTitle(
-                It.IsAny<string>(),
-                It.IsAny<Regex?>(),
-                It.IsAny<string[]>(),
-                It.IsAny<string[]>(),
-                It.IsAny<string?>()))
-            .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _) => title);
-        sanitiser.Setup(s => s.SanitiseDescription(It.IsAny<string>(), It.IsAny<Regex?>()))
-            .Returns((string description, Regex? _) => description);
-
-        var personService = new Mock<IPersonService>();
-        personService.Setup(p => p.MatchEpisode(It.IsAny<Episode>())).ReturnsAsync([]);
-
-        var subjectsProvider = new Mock<ICachedSubjectProvider>();
-        subjectsProvider.Setup(p => p.GetAll()).Returns(EmptyAsync<Subject>());
-
-        return new EpisodeDtoMapper(sanitiser.Object, personService.Object, subjectsProvider.Object);
     }
 
     private static async IAsyncEnumerable<T> EmptyAsync<T>()
