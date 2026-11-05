@@ -9,8 +9,9 @@ using RedditPodcastPoster.Models.Podcasts;
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 
 /// <summary>
-/// <see cref="IEpisodePlatformMatcher.Classify"/>: certain paths (platform id, exact title, EpisodeMatchRegex) are
-/// never scored by the merge; heuristic paths (fuzzy title + duration, release + duration) may be.
+/// <see cref="IEpisodePlatformMatcher.Classify"/>: certain paths (platform id, exact title with day+duration,
+/// EpisodeMatchRegex) are never scored by the merge; heuristic paths (fuzzy title + duration, release + duration)
+/// may be.
 /// </summary>
 public class MatchKindRules
 {
@@ -52,11 +53,20 @@ public class MatchKindRules
         Classify(YouTube("abcDEF12345", "Same", TimeSpan.FromHours(1)), YouTube("zyxWVU98765", "Same", TimeSpan.FromHours(1)))
             .Should().Be(EpisodeMatchKind.None);
 
-    [Fact(DisplayName = "An exact title is a certain match, whatever the release and duration.")]
-    public void Exact_title_is_certain() =>
+    [Fact(DisplayName =
+        "An exact title with matching duration and the same calendar day is a certain match.")]
+    public void Exact_title_with_day_and_duration_is_certain() =>
+        Classify(YouTube("abcDEF12345", "Exact Title", TimeSpan.FromHours(1)),
+                Spotify("Exact Title", TimeSpan.FromHours(1), Release))
+            .Should().Be(EpisodeMatchKind.Certain);
+
+    [Fact(DisplayName =
+        "An exact title alone is not a certain match when release or duration clearly differ, " +
+        "because title must not override calendar-day and duration gates.")]
+    public void Exact_title_alone_is_not_certain() =>
         Classify(YouTube("abcDEF12345", "Exact Title", TimeSpan.FromHours(1)),
                 Spotify("Exact Title", TimeSpan.FromHours(3), Release.AddYears(-2)))
-            .Should().Be(EpisodeMatchKind.Certain);
+            .Should().Be(EpisodeMatchKind.None);
 
     [Fact(DisplayName = "An EpisodeMatchRegex episode number match is certain.")]
     public void Episode_match_regex_is_certain() =>

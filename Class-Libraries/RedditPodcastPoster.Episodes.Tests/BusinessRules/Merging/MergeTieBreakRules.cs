@@ -22,11 +22,14 @@ public class MergeTieBreakRules
 
     private readonly DomainTestFixture _fixture = new();
     private readonly EpisodeMerger _merger = EpisodeDomainTestServices.CreateMerger();
+    private readonly DateTime _incomingRelease = DomainTestFixture.UtcAtTime(-2, new TimeSpan(2, 12, 0));
+    private readonly DateTime _nearRelease = DomainTestFixture.UtcAtTime(-17, TimeSpan.FromHours(12));
+    private readonly DateTime _yearOldRelease = DomainTestFixture.UtcAtTime(-365, TimeSpan.FromHours(12));
 
     private Podcast CreateNotesToSelf444() =>
         _fixture.CreatePodcast(p =>
         {
-            p.Id = Guid.Parse("2cd74280-cc2a-4f84-9ad8-de87aa86c8ce");
+            p.Id = _fixture.CreateGuid();
             p.Name = "Notes to Self 444";
             p.EpisodeMatchRegex = string.Empty;
             p.YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks;
@@ -57,18 +60,18 @@ public class MergeTieBreakRules
     }
 
     [Fact(DisplayName =
-        "Notes to Self 444 (real case 2026-10-14): a Spotify episode that fuzzy-matches two YouTube-only episodes " +
+        "Notes to Self 444 (real case): a Spotify episode that fuzzy-matches two YouTube-only episodes " +
         "merges into the one with identical duration, close release and the same description intro, with no failures.")]
     public void Notes_to_Self_444_tie_breaks_to_identical_duration_close_release_candidate()
     {
         // Arrange
         var podcast = CreateNotesToSelf444();
         var tikTok = CreateYouTubeOnly(podcast, "RY7nt6KFpdA", "TikTok Live chat about Sister Wives",
-            new TimeSpan(1, 35, 34), new DateTime(2026, 9, 29, 12, 0, 0, DateTimeKind.Utc), TikTokIntro);
+            new TimeSpan(1, 35, 34), _nearRelease, TikTokIntro);
         var recap = CreateYouTubeOnly(podcast, "BndpMN1m7oQ", "Sister Wives Season 20 E 4 Recap",
-            new TimeSpan(1, 38, 12), new DateTime(2025, 10, 27, 12, 0, 0, DateTimeKind.Utc), HoldingOutHelpIntro);
+            new TimeSpan(1, 38, 12), _yearOldRelease, HoldingOutHelpIntro);
         var incoming = CreateIncomingSpotify("Sister Wives New Season TikTok Live chat about",
-            new TimeSpan(1, 35, 34), new DateTime(2026, 10, 14, 2, 12, 0, DateTimeKind.Utc), TikTokIntro);
+            new TimeSpan(1, 35, 34), _incomingRelease, TikTokIntro);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [recap, tikTok], [incoming]);
@@ -89,7 +92,7 @@ public class MergeTieBreakRules
     {
         // Arrange
         var podcast = CreateNotesToSelf444();
-        var release = new DateTime(2026, 9, 29, 12, 0, 0, DateTimeKind.Utc);
+        var release = _nearRelease;
         var length = new TimeSpan(1, 0, 0);
         var first = CreateYouTubeOnly(podcast, _fixture.CreateYouTubeId(), "Weekly Live Chat", length, release, TikTokIntro);
         var second = CreateYouTubeOnly(podcast, _fixture.CreateYouTubeId(), "Weekly Live Chat", length, release, TikTokIntro);
@@ -119,7 +122,7 @@ public class MergeTieBreakRules
     {
         // Arrange
         var podcast = _fixture.CreatePodcast(p => p.Name = "Surviving the Black Church Podcast");
-        var release = new DateTime(2026, 10, 1, 17, 0, 0, DateTimeKind.Utc);
+        var release = DomainTestFixture.UtcAtTime(-5, TimeSpan.FromHours(17));
         var length = new TimeSpan(0, 52, 10);
         var original = CreateYouTubeOnly(podcast, "Wm-fDWIIZr0", "Leaving the church: a survivor story", length, release, "Story");
         var duplicate = CreateYouTubeOnly(podcast, "Wm-fDWIIZr0", "Leaving the church", length.Add(TimeSpan.FromMinutes(3)),
@@ -146,15 +149,18 @@ public class MergeTieBreakRules
     }
 
     [Fact(DisplayName =
-        "A single matching stored episode merges exactly as before, even when its tie-break score would be low.")]
+        "A single exact-title match with aligned release and duration merges unscored, even when " +
+        "its tie-break score would be low.")]
     public void Single_match_is_unchanged_and_never_scored()
     {
         // Arrange
         var podcast = CreateNotesToSelf444();
-        var recap = CreateYouTubeOnly(podcast, "BndpMN1m7oQ", "Sister Wives Season 20 E 4 Recap",
-            new TimeSpan(1, 38, 12), new DateTime(2025, 10, 27, 12, 0, 0, DateTimeKind.Utc), HoldingOutHelpIntro);
-        var incoming = CreateIncomingSpotify("Sister Wives Season 20 E 4 Recap",
-            new TimeSpan(1, 38, 12), new DateTime(2026, 10, 14, 2, 12, 0, DateTimeKind.Utc), TikTokIntro);
+        var release = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(12));
+        var length = new TimeSpan(1, 38, 12);
+        const string title = "Sister Wives Season 20 E 4 Recap";
+        var recap = CreateYouTubeOnly(podcast, "BndpMN1m7oQ", title, length, release, HoldingOutHelpIntro);
+        var incoming = CreateIncomingSpotify(title, length,
+            DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(2)), TikTokIntro);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [recap], [incoming]);

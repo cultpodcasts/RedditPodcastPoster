@@ -81,7 +81,16 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         {
             if (incomingEpisode.Title == existingEpisode.Title)
             {
-                return EpisodeMatchKind.Certain;
+                // Offset confidence model: title is never alone. Exact title Certain only when
+                // duration and the release-strategy chain also align — otherwise months-late
+                // Spotify with a recycled/shared title wrong-merges onto the wrong YouTube row.
+                if (DurationsMatch(existingEpisode, incomingEpisode, podcast) &&
+                    EpisodesReleaseMatch(existingEpisode, incomingEpisode, podcast))
+                {
+                    return EpisodeMatchKind.Certain;
+                }
+
+                return EpisodeMatchKind.None;
             }
 
             return Heuristic(MatchesByDefaultHeuristics(existingEpisode, incomingEpisode, podcast));
@@ -230,4 +239,27 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         var bringsApple = audioSide.HasAppleIdentity() && !youTubeSide.HasAppleIdentity();
         return bringsSpotify || bringsApple;
     }
+
+    /// <summary>
+    /// Calendar-day gate for exact-title Certain and catalogue title-containment short-circuits.
+    /// Uses <see cref="EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance"/> only — not the
+    /// 14-day tick bridge — so title equality cannot attach a wrong-week Spotify row.
+    /// </summary>
+    internal static bool CalendarDaysWithinSpotifyCatalogueDayTolerance(
+        DateTime left,
+        DateTime right,
+        Podcast podcast)
+    {
+        if (left == DateTime.MinValue || right == DateTime.MinValue)
+        {
+            return false;
+        }
+
+        var dayTolerance = EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance(podcast);
+        return Math.Abs(
+                   DateOnly.FromDateTime(left).DayNumber -
+                   DateOnly.FromDateTime(right).DayNumber) <=
+               dayTolerance;
+    }
+
 }

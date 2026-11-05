@@ -2,7 +2,6 @@ using FluentAssertions;
 using FuzzySharp;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport;
-using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -572,12 +571,10 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "When probe and catalogue item share an exact title, IsCatalogueMatch accepts the match " +
-        "even when release and duration clearly differ.")]
-    public void exact_title_match_accepts_despite_mismatched_release_and_duration()
+        "When probe and catalogue item share an exact title but release and duration clearly differ, " +
+        "IsCatalogueMatch rejects the pair so title alone cannot wrong-merge across weeks.")]
+    public void exact_title_match_rejects_mismatched_release_and_duration()
     {
-        // KNOWN: likely wrong-merge risk — exact title short-circuits before release tolerance
-        // (EpisodePlatformMatcher.MatchesByTitleHeuristics lines 67–69; pre-soak characterization)
         // Arrange
         var sharedTitle = _fixture.CreateTitle();
         var probeLength = _fixture.CreateDuration();
@@ -603,7 +600,7 @@ public class CatalogueMatchingRules
         var matches = _matcher.IsCatalogueMatch(probe, catalogueItem, podcast, episodeMatchRegex: null);
 
         // Assert
-        matches.Should().BeTrue();
+        matches.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -1237,11 +1234,10 @@ public class CatalogueMatchingRules
     }
 
     [Fact(DisplayName =
-        "When probe and catalogue item share an exact title via IsMatch, merge accepts the pair " +
-        "even when release and duration clearly differ.")]
-    public void exact_title_is_match_merges_despite_mismatched_release_and_duration()
+        "When probe and catalogue item share an exact title via IsMatch but release and duration " +
+        "clearly differ, merge does not attach platforms — the incoming episode is added instead.")]
+    public void exact_title_is_match_does_not_merge_mismatched_release_and_duration()
     {
-        // KNOWN: likely wrong-merge risk — exact title short-circuits before release tolerance
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var sharedTitle = _fixture.CreateTitle();
@@ -1263,14 +1259,14 @@ public class CatalogueMatchingRules
             e.ReleaseUtc = incomingRelease;
             e.AppleId = _fixture.CreateAppleId();
         });
-        var expected = EpisodeExpectation.From(stored);
 
         // Act
         var result = _merger.MergeEpisodes(podcast, [stored], [incoming]);
 
         // Assert
-        result.MergedEpisodes.Should().ContainSingle();
-        stored.AppleId.Should().Be(incoming.AppleId);
+        result.MergedEpisodes.Should().BeEmpty();
+        result.AddedEpisodes.Should().ContainSingle().Which.Should().BeSameAs(incoming);
+        stored.AppleId.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -1309,11 +1305,11 @@ public class CatalogueMatchingRules
     }
 
     [Theory(DisplayName =
-        "Exact title match for IsCatalogueMatch is case-sensitive — differing case falls through " +
-        "to fuzzy heuristics and does not auto-accept on title alone.")]
+        "Exact title match for IsCatalogueMatch still requires day and duration alignment — " +
+        "differing case or mismatched release/duration does not auto-accept on title alone.")]
     [InlineData(true)]
     [InlineData(false)]
-    public void exact_title_match_is_case_sensitive(bool alterCaseOnCatalogueTitle)
+    public void exact_title_match_requires_day_and_duration(bool alterCaseOnCatalogueTitle)
     {
         // Arrange
         var baseTitle = _fixture.CreateShortTitle();
@@ -1343,7 +1339,7 @@ public class CatalogueMatchingRules
         var matches = _matcher.IsCatalogueMatch(probe, catalogueItem, podcast, episodeMatchRegex: null);
 
         // Assert
-        matches.Should().Be(!alterCaseOnCatalogueTitle);
+        matches.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -1643,6 +1639,85 @@ public class CatalogueMatchingRules
         result.Should().BeSameAs(candidateWithoutRelease);
     }
 
+
+    [Fact(DisplayName =
+        "When FindCatalogueMatchByDate sees two title-containment candidates and only one shares the " +
+        "probe calendar day, it selects the day-aligned row rather than the first title match.")]
+    public void date_match_title_containment_prefers_calendar_day_aligned_candidate()
+    {
+        // Arrange — indexer enrich shape: shared title substring across nearby releases.
+        var sharedCore = _fixture.CreateShortTitle();
+        var probeRelease = DomainTestFixture.UtcDateDaysAgo(2);
+        var wrongRelease = probeRelease.AddDays(-3);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedCore;
+            e.ReleaseUtc = probeRelease;
+        });
+        var wrongWeek = _fixture.CreateEpisode(e =>
+        {
+            e.Title = $"{sharedCore}: earlier broadcast";
+            e.ReleaseUtc = wrongRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var correct = _fixture.CreateEpisode(e =>
+        {
+            e.Title = $"{sharedCore}: same-day broadcast";
+            e.ReleaseUtc = probeRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act — wrong-week listed first so a FirstOrDefault title gate would pick it.
+        var result = _matcher.FindCatalogueMatchByDate(
+            probe,
+            [wrongWeek, correct],
+            podcast,
+            episodeMatchRegex: null);
+
+        // Assert
+        result.Should().BeSameAs(correct);
+    }
+
+    [Fact(DisplayName =
+        "When enriching a YouTube-discovered episode, FindCatalogueMatchByLength must not accept a " +
+        "title-containment Spotify row whose release sits outside the Spotify catalogue day tolerance.")]
+    public void youtube_discovered_title_containment_outside_day_tolerance_falls_through_to_scorer()
+    {
+        // Arrange
+        var sharedTitle = _fixture.CreateTitle();
+        var probeLength = _fixture.CreateDuration();
+        var probeRelease = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
+        var wrongRelease = probeRelease.Date.AddDays(-3);
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = probeLength;
+            e.ReleaseUtc = probeRelease;
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var wrongWeek = _fixture.CreateEpisode(e =>
+        {
+            e.Title = sharedTitle;
+            e.Length = probeLength;
+            e.ReleaseUtc = wrongRelease;
+            e.SpotifyId = _fixture.CreateSpotifyId();
+            e.Subjects = [];
+        });
+        var podcast = _fixture.CreatePodcast();
+
+        // Act
+        var result = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [wrongWeek],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        result.Should().BeNull();
+    }
 
     [Fact(DisplayName =
         "Incident (Jul 2026 / Aug 2026): when enriching a YouTube-discovered episode, title containment " +
