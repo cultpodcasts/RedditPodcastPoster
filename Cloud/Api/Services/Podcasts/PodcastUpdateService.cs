@@ -62,10 +62,11 @@ public class PodcastUpdateService(
             logger.LogInformation("{method}: Updating podcast-id '{podcastId}'.", nameof(UpdateAsync),
                 podcastChangeRequestWrapper.PodcastId);
 
-            if (await youTubePlaylistGuard.Check(
-                    podcast.YouTubePlaylistId,
-                    podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
-                    c) is { } refusedPlaylist)
+            var playlistCheck = await youTubePlaylistGuard.Check(
+                podcast.YouTubePlaylistId,
+                podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
+                c);
+            if (playlistCheck is { IsAllowed: false } refusedPlaylist)
             {
                 logger.LogWarning("{method}: podcast-id '{podcastId}' refused: {code}. {message}", nameof(UpdateAsync),
                     podcastChangeRequestWrapper.PodcastId, refusedPlaylist.Code, refusedPlaylist.Message);
@@ -116,6 +117,11 @@ public class PodcastUpdateService(
 
             var previousPodcastLanguage = podcast.Language;
             podcastChangeApplier.Apply(podcast, podcastChangeRequestWrapper.Podcast);
+            if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(playlistCheck, podcast.YouTubeChannelId) is
+                { } derivedOwner)
+            {
+                podcast.YouTubeChannelId = derivedOwner;
+            }
             var nameChanged = false;
             if (podcastChangeRequestWrapper.AllowNameChange &&
                 !string.IsNullOrWhiteSpace(podcastChangeRequestWrapper.Podcast.Name))

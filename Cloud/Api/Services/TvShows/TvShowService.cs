@@ -3,6 +3,7 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
 
@@ -78,10 +79,11 @@ public class TvShowService(
                 request.Change.ImdbId,
                 request.Change.TmdbId,
                 request.Change.TvdbId);
-            if (await youTubePlaylistGuard.Check(
-                    show.Indexing?.YouTubePlaylistId,
-                    request.Change.YouTubePlaylistId,
-                    cancellationToken) is { } refused)
+            var playlistCheck = await youTubePlaylistGuard.Check(
+                show.Indexing?.YouTubePlaylistId,
+                request.Change.YouTubePlaylistId,
+                cancellationToken);
+            if (playlistCheck is { IsAllowed: false } refused)
             {
                 logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
                     show.Id, refused.Code, refused.Message);
@@ -121,6 +123,27 @@ public class TvShowService(
             }
 
             show.Indexing = ServiceIdsApplier.Apply(show.Indexing, request.Change, show, logger);
+            if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
+                    playlistCheck, show.Indexing?.YouTubeChannelId) is { } derivedOwner)
+            {
+                // Derive runs after Apply, so request.Change never included this channel for FindConflict.
+                // On conflict, skip derive + warn and still save the playlist — playlist-only edits stay
+                // allowed; do not refuse the whole PATCH for an automatic channel write.
+                if (await serviceIdsUniqueness.FindConflict(
+                        show.Id,
+                        new TvShowChangeRequest { YouTubeChannelId = derivedOwner }) is { } deriveConflict)
+                {
+                    logger.LogWarning(
+                        "{method}: skipping derived youTubeChannelId '{channelId}' for '{id}': {message}",
+                        nameof(UpdateAsync), derivedOwner, show.Id, deriveConflict.Message);
+                }
+                else
+                {
+                    show.Indexing ??= new CatalogueIndexingSource();
+                    show.Indexing.YouTubeChannelId = derivedOwner;
+                }
+            }
+
             await tvShowRepository.Save(show);
 
             if (!request.Change.ChangesChildProjection)
