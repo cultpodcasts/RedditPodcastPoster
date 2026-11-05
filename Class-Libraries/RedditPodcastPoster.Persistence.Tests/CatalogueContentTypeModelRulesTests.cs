@@ -300,6 +300,22 @@ public class CatalogueContentTypeModelRulesTests
     }
 
     [Fact(DisplayName =
+        "Playable.CosmosNotRemovedSql treats absent, null and false removed as not removed, matching Playable.IsRemoved, " +
+        "because Cosmos SQL null = false is not true and search / FindDuplicateEpisodes SQL must keep explicit null (#1153).")]
+    public void Playable_cosmos_not_removed_sql_includes_null_arm()
+    {
+        // Arrange / Act
+        var fragment = Playable.CosmosNotRemovedSql;
+        var forAlias = Playable.CosmosNotRemovedSqlFor("c");
+
+        // Assert
+        fragment.Should().Be("(NOT IS_DEFINED(e.removed) OR IS_NULL(e.removed) OR e.removed=false)");
+        fragment.Should().Contain("IS_NULL(e.removed)");
+        forAlias.Should().Be("(NOT IS_DEFINED(c.removed) OR IS_NULL(c.removed) OR c.removed=false)");
+        Playable.CosmosNotRemovedSqlFor("e").Should().Be(fragment);
+    }
+
+    [Fact(DisplayName =
         "INTEGRITY CatalogueRelease DateTimeUtc round-trip preserves fractional seconds: deserialize fractional " +
         "Zulu → serialize → deserialize retains the same UTC instant.")]
     public void CatalogueRelease_datetime_round_trip_preserves_fractional_seconds()

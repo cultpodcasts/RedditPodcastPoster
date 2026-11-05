@@ -42,10 +42,11 @@ public partial class CreateSearchIndexProcessor(
 
     /// <summary>
     /// Episodes the search pull indexer may index: the podcast is not removed (<c>parentRemoved</c>, plus the
-    /// <see cref="LegacyPodcastNotRemovedSql"/> guard) and the episode itself is not removed.
+    /// <see cref="LegacyPodcastNotRemovedSql"/> guard) and the episode itself is not removed
+    /// (<see cref="Playable.CosmosNotRemovedSql"/> — absent, null or false).
     /// </summary>
     internal const string ActiveEpisodesFilter =
-        $"({Playable.CosmosParentNotRemovedSql} AND {LegacyPodcastNotRemovedSql}) and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
+        $"({Playable.CosmosParentNotRemovedSql} AND {LegacyPodcastNotRemovedSql}) and {Playable.CosmosNotRemovedSql}";
 
     private static readonly Regex Whitespace = CreateWhitespaceRegex();
     private static readonly TimeSpan IndexAtMinutes = TimeSpan.FromMinutes(15);

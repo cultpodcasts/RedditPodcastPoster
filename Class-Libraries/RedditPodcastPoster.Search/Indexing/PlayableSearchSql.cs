@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Search.Formatting;
 using RedditPodcastPoster.Search.Models;
@@ -153,7 +154,7 @@ public static class PlayableSearchSql
                 {documentAlias}._ts
             FROM c
             WHERE ((NOT IS_DEFINED({documentAlias}.parentRemoved) OR IS_NULL({documentAlias}.parentRemoved) OR {documentAlias}.parentRemoved = false)
-                AND (NOT IS_DEFINED({documentAlias}.removed) OR {documentAlias}.removed = false))
+                AND {Playable.CosmosNotRemovedSqlFor(documentAlias)})
               AND {documentAlias}._ts >= @HighWaterMark
             ORDER BY {documentAlias}._ts
             """;
