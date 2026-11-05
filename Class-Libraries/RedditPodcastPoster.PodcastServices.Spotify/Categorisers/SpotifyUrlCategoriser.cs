@@ -86,11 +86,18 @@ public class SpotifyUrlCategoriser(
             request.YouTubePublishingDelay,
             request.ReleaseAuthority);
 
+        // Catalogue parents (news/TV): same calendar-day gate as Apple. Ordinary podcasts keep the raw tick window.
         var findEpisodeResponse = await spotifyEpisodeResolver.FindEpisode(
             request,
             indexingContext,
             y => request.Released.HasValue &&
-                 Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) < ticks);
+                 (matchingPodcast is { CatalogueParentSameTitleMatching: true }
+                     ? EpisodeReleaseTolerance.SpotifyCatalogueReleaseMatches(
+                         y.GetReleaseDate(),
+                         request.Released.Value,
+                         ticks,
+                         matchingPodcast)
+                     : Math.Abs((y.GetReleaseDate() - request.Released.Value).Ticks) < ticks));
 
         if (findEpisodeResponse.FullEpisode == null)
         {

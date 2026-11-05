@@ -37,12 +37,21 @@ public static class EpisodeReleaseTolerance
     public static readonly TimeSpan YouTubeAuthorityToAudioReleaseConsiderationThreshold = TimeSpan.FromDays(14);
     private static readonly TimeSpan YouTubeReleaseAuthorityEnrichmentLookahead = TimeSpan.FromDays(14);
 
+    /// <summary>
+    /// Tick fallback for catalogue parents (news/TV) when <see cref="Podcast.CatalogueParentSameTitleMatching"/> is set
+    /// and publishing delay is zero. Same-calendar-day matching is the primary gate
+    /// (<see cref="GetSpotifyCatalogueDayTolerance"/> returns 0); this covers same-day time-of-day skew only.
+    /// </summary>
+    public static readonly TimeSpan CatalogueParentSameTitleReleaseTolerance = SameReleaseThreshold;
+
     public static long GetToleranceTicks(Podcast podcast, TimeSpan episodeLength)
     {
         var delay = podcast.YouTubePublishingDelay();
         if (delay == TimeSpan.Zero)
         {
-            return YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
+            return podcast.CatalogueParentSameTitleMatching
+                ? CatalogueParentSameTitleReleaseTolerance.Ticks
+                : YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
         }
 
         if (delay.Ticks < 0)
@@ -99,10 +108,18 @@ public static class EpisodeReleaseTolerance
         return YouTubeAuthorityToAudioReleaseConsiderationThreshold.Ticks;
     }
 
-    public static int GetSpotifyCatalogueDayTolerance(Podcast? podcast) =>
-        podcast is { ReleaseAuthority: Service.YouTube } && podcast.YouTubePublishingDelay().Ticks < 0
+    public static int GetSpotifyCatalogueDayTolerance(Podcast? podcast)
+    {
+        if (podcast is { CatalogueParentSameTitleMatching: true })
+        {
+            // Same UTC calendar day only — reused news titles must not attach to yesterday's audio (#1161).
+            return 0;
+        }
+
+        return podcast is { ReleaseAuthority: Service.YouTube } && podcast.YouTubePublishingDelay().Ticks < 0
             ? YouTubeReleaseAuthoritySpotifyCatalogueDayTolerance
             : 1;
+    }
 
     /// <summary>
     /// Band around the expected release of the service being matched. A submit looks here

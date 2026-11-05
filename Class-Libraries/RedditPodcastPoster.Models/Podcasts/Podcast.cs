@@ -120,6 +120,14 @@ public class Podcast : Publisher, IYouTubeIndexingSettings, IHasYouTubeIndexingS
     [JsonPropertyOrder(151)]
     public long? YouTubePublicationOffset { get; set; }
 
+    /// <summary>
+    /// Set on unsaved podcasts from <c>CatalogueIndexingSource.ToTransientPodcast</c> (news / TV). When true with
+    /// zero publishing delay, Spotify/Apple same-title matching uses a same-calendar-day window instead of the
+    /// 14-day podcast threshold, because catalogue parents reuse short titles across days (#1161). Never persisted.
+    /// </summary>
+    [JsonIgnore]
+    public bool CatalogueParentSameTitleMatching { get; set; }
+
     [JsonPropertyName("youTubePlaylistQueryIsExpensive")]
     [JsonPropertyOrder(160)]
     public bool? YouTubePlaylistQueryIsExpensive { get; set; }
