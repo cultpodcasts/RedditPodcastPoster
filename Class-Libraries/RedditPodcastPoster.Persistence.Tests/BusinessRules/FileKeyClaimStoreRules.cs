@@ -40,7 +40,7 @@ public class FileKeyClaimStoreRules
         new("synthetic", status, 0, string.Empty, 0);
 
     [Fact(DisplayName =
-        "The first claim of a file key is created in LookUps, because nothing else holds that key yet.")]
+        "The first claim of a file key is created in FileKeyClaims, because nothing else holds that key yet.")]
     public async Task first_claim_is_created()
     {
         // Arrange

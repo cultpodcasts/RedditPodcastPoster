@@ -7,8 +7,9 @@ namespace RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 /// kind transfer and on a rename that sets the key. The key is never empty: a name with no usable Latin slug (for
 /// example Korean only, or emoji only) falls back to a usable fallback slug, then to a slug built from the id. The key
 /// is unique (ignoring case) among the other stored items of the same kind, using the <c>_2</c>, <c>_3</c> suffix.
-/// The chosen key is claimed in LookUps until the item is saved. A create that is never saved releases that claim
-/// when this allocator is disposed. Another owner's claim moves on to the next suffix (issue #1165).
+/// The chosen key is claimed in <c>FileKeyClaims</c> (via <see cref="IFileKeyClaimStore"/>) until the item is saved.
+/// A create that is never saved releases that claim when this allocator is disposed. Another owner's claim moves on
+/// to the next suffix (issue #1165).
 /// </summary>
 public interface IFileKeyAllocator : IAsyncDisposable
 {

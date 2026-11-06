@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.Persistence.FileKeys;
 
 /// <inheritdoc cref="IFileKeyAllocator"/>
 /// <remarks>
-/// Taken keys are read per allocation from the kind's own container, then claimed in LookUps
+/// Taken keys are read per allocation from the kind's own container, then claimed in <c>FileKeyClaims</c>
 /// (<see cref="IFileKeyClaimStore"/>). A 409 from another owner moves on to the next <c>_N</c> suffix.
 /// The same owner's retry keeps the key. A second scope that only sees that uncommitted claim does not release
 /// it. Saving the item acknowledges the claim. Disposing this allocator releases claims it created that were

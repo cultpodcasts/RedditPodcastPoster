@@ -13,8 +13,8 @@ public enum FileKeyClaimResult
 }
 
 /// <summary>
-/// Cross-process file-key claims in LookUps. One document per key, created with <c>CreateItemAsync</c>.
-/// A 409 is <see cref="FileKeyClaimResult.HeldByOther"/> unless the same owner already holds it.
+/// Cross-process file-key claims in the <c>FileKeyClaims</c> container. One document per key, created with
+/// <c>CreateItemAsync</c>. A 409 is <see cref="FileKeyClaimResult.HeldByOther"/> unless the same owner already holds it.
 /// </summary>
 public interface IFileKeyClaimStore
 {
