@@ -135,12 +135,16 @@ public class BlueskyEmbedCardPostFactory(
         var preamble = postBuilder.ToString();
         var enrichedTitle = episodeTitle;
 
-        // The end line is chosen from the title that will actually be posted. A tag inserted into the
-        // title is left off that line, then truncation can cut the tag away; the next pass puts it back
-        // and shortens the original title again so the longer line still fits.
+        // Choose the end line from the exact title string that will be posted. Accept that candidate
+        // only when it fits the budget just computed. Otherwise cut the original enriched title to the
+        // budget and try the shorter string. The uncut title is posted only when the end line was
+        // selected from it, so a cut that looks like a shorter tag cannot bring the uncut title back
+        // with that tag linked nowhere.
+        var candidate = enrichedTitle;
+        var accepted = false;
         for (var attempt = 0; attempt < 8; attempt++)
         {
-            var endHashTags = SelectEndHashTags(episodeTitle, episodeHashtags);
+            var endHashTags = SelectEndHashTags(candidate, episodeHashtags);
             postBuilder.Clear();
             postBuilder.Append(preamble);
             if (!string.IsNullOrWhiteSpace(endHashTags))
@@ -155,9 +159,10 @@ public class BlueskyEmbedCardPostFactory(
 
             var permittedTitleLength = MaxPostLength -
                                        (postBuilder.Length + titleWrapperLength + (reserveSecondUrlBudget ? 26 : 0));
-            if (enrichedTitle.Length <= permittedTitleLength)
+            if (candidate.Length <= permittedTitleLength)
             {
-                episodeTitle = enrichedTitle;
+                episodeTitle = candidate;
+                accepted = true;
                 break;
             }
 
@@ -172,12 +177,18 @@ public class BlueskyEmbedCardPostFactory(
             }
 
             var shortened = truncatedTitle + "…";
-            if (shortened == episodeTitle)
+            if (shortened == candidate)
             {
                 break;
             }
 
-            episodeTitle = shortened;
+            candidate = shortened;
+        }
+
+        if (!accepted)
+        {
+            throw new InvalidOperationException(
+                $"Unable to form tweet body from '\"{candidate}\"{Environment.NewLine}{postBuilder}' because the end hashtags were chosen from a different title.");
         }
 
         postBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
