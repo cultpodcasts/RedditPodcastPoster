@@ -1,29 +1,10 @@
-using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CommandLine;
-using iTunesSearch.Library;
 using SubmitUrl;
-using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.EdgeApi.Extensions;
-using RedditPodcastPoster.EntitySearchIndexer.Extensions;
-using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.People.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Clients;
-using RedditPodcastPoster.PodcastServices.Apple.Extensions;
-using RedditPodcastPoster.PodcastServices.Clients;
-using RedditPodcastPoster.PodcastServices.Extensions;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.Subjects.Extensions;
-using RedditPodcastPoster.Text.Extensions;
-using RedditPodcastPoster.UrlSubmission.Extensions;
 using RedditPodcastPoster.Configuration;
 
 if (VersionInfo.TryHandleVersionRequest(args))
@@ -46,29 +27,7 @@ async Task<int> Run(SubmitUrlRequest request, string[] hostArgs)
         .AddCommandLine(hostArgs)
         .AddSecrets(Assembly.GetExecutingAssembly());
 
-    builder.Services
-        .AddLogging()
-        .AddEpisodesDomain().AddEpisodeLookup()
-        .AddRepositories()
-        .AddCatalogueServices()
-        .AddPodcastServices()
-        .AddEdgeApiClient(bypassCertificateValidation: false)
-        .AddSpotifyServices()
-        .AddAppleServices()
-        .AddYouTubeServices(ApplicationUsage.Cli)
-        .AddScoped<IRemoteClient, RemoteClient>()
-        .AddScoped(s => new iTunesSearchManager())
-        .AddPeopleServices()
-        .AddUrlSubmission(useRefreshMetaEnricher: request.RefreshMeta)
-        .AddSubjectServices()
-        .AddCachedSubjectProvider()
-        .AddTextSanitiser()
-        .AddScoped<SubmitUrlProcessor>()
-        .AddEpisodeSearchIndexerService()
-        .AddNonPodcastScrapers()
-        .AddHttpClient();
-
-    builder.Services.AddPostingCriteria();
+    builder.Services.AddSubmitUrlConsoleServices(request.RefreshMeta);
 
     using var host = builder.Build();
     var urlSubmitter = host.Services.GetRequiredService<SubmitUrlProcessor>();
