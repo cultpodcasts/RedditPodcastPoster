@@ -16,8 +16,11 @@ param monthlyFunctionsBudgetAmount int
 @description('Optional email address for budget notifications.')
 param alertEmailAddress string = ''
 
-@description('Budget start date. Defaults to the first day of the current UTC month.')
-param budgetStartDate string = utcNow('yyyy-MM-01T00:00:00Z')
+// Azure forbids updating budget startDate after create ("Please delete and create a new budget").
+// Keep this pinned to the live functions-cost-budget-infra start (2026-04-01). Do not use utcNow —
+// month rollover would change the default and fail the whole Provision job before Cosmos runs.
+@description('Budget start date. Immutable after create; must match the existing Azure budget.')
+param budgetStartDate string = '2026-04-01T00:00:00Z'
 
 resource functionsCostBudget 'Microsoft.Consumption/budgets@2023-11-01' = if (enableAlerts) {
   name: 'functions-cost-budget-${suffix}'
