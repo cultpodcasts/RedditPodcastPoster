@@ -125,6 +125,7 @@ public class YouTubeChannelVideosLookupOutcomeRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(lookup);
         _mocker.Use<ILogger<YouTubeChannelVideosService>>(_logger);

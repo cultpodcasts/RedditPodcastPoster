@@ -17,7 +17,7 @@ public class TolerantYouTubePlaylistService(
 ) : ITolerantYouTubePlaylistService
 {
     public async Task<GetPlaylistVideoSnippetsResponse> GetPlaylistVideoSnippets(
-        YouTubePlaylistId playlistId, IndexingContext indexingContext,         bool withContentDetails = false, PlaylistOrder? playlistOrder = null)
+        YouTubePlaylistId playlistId, IndexingContext indexingContext, bool withContentDetails = false, PlaylistOrder? playlistOrder = null)
     {
         if (indexingContext.SkipYouTubeUrlResolving)
         {

@@ -68,6 +68,7 @@ public class YouTubeQuotaRotationRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((IYouTubeServiceWrapper w, IEnumerable<string> ids, IndexingContext ic, bool b1, bool b2, bool b3) =>
             {
@@ -112,6 +113,7 @@ public class YouTubeQuotaRotationRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ThrowsAsync(new YouTubeQuotaException());
 
@@ -140,7 +142,7 @@ public class YouTubeQuotaRotationRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
-            .ReturnsAsync((IYouTubeServiceWrapper w, YouTubePlaylistId id, IndexingContext ic, bool b1, bool b2, PlaylistOrder? po) =>
+            .ReturnsAsync((IYouTubeServiceWrapper w, YouTubePlaylistId id, IndexingContext ic, bool b1, PlaylistOrder? po) =>
             {
                 seenApps.Add(w.CurrentApplication);
                 if (seenApps.Count == 1)

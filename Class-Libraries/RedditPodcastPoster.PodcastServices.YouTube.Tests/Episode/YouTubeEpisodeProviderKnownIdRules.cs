@@ -43,6 +43,7 @@ public class YouTubeEpisodeProviderKnownIdRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .Callback<IYouTubeServiceWrapper, IEnumerable<string>, IndexingContext?, bool, bool, bool>(
                 (_, ids, _, _, _, _) => _requestedVideoIds = ids.ToArray())
@@ -97,6 +98,7 @@ public class YouTubeEpisodeProviderKnownIdRules
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>()),
             Times.Never);
