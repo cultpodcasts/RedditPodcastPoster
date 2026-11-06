@@ -50,7 +50,6 @@ public class YouTubeEpisodeProviderScheduledUploadRules
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
                 [CreateScheduledPlaylistItem(scheduledVideoId, addedToPlaylistAt, videoPublishedAt)]));
@@ -102,7 +101,6 @@ public class YouTubeEpisodeProviderScheduledUploadRules
             .Setup(x => x.GetPlaylistVideoSnippets(
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(

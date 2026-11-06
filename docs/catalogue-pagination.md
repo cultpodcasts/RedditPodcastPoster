@@ -385,16 +385,13 @@ page is 1 quota unit. The stop is still `StoppedAtWindow` when a next token rema
 - Circuit breaker: `MaxPages = 20` (~1000 items). Before fetching past the budget with a
   next token remaining → **LogError** and stop (prefer operator signal over quota burn).
 
-### `RunExpensiveYouTubePlaylistPagination`
+### Playlist page size
 
-```text
-HasExpensiveYouTubePlaylistQuery() && !SkipExpensiveYouTubeQueries
-```
-
-Passed as `expensivePlaylist` into the service. It no longer changes the request: every
-playlist walk uses `YouTubePlaylistService.PlaylistPageSize` = 50, the YouTube maximum
-(playlistItems.list is 1 unit per page whatever its size, so the old 1 / 3 / 5 / 10 sizes only
-added calls).
+Every playlist walk uses `YouTubePlaylistService.PlaylistPageSize` = 50, the YouTube maximum.
+`playlistItems.list` is 1 unit per page whatever its size, so the old `expensivePlaylist` argument
+(1 / 3 / 5 / 10) only added calls and has been removed. `YouTubePlaylistQueryIsExpensive` is still
+stored from the head-order probe for callers that treat an oldest-first playlist as expensive. It
+does not change how many items a page requests.
 
 Every non-arbitrary playlist pages on every pass (until it leaves the window when newest-first,
 to the end otherwise). The handler logs this as
@@ -521,7 +518,6 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Scheduled-upload indexing window (later of added-at / video-published-at) | `YouTube.Tests/Extensions/ScheduledUploadIndexingWindowRules.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderScheduledUploadRules.cs` |
 | Playlist discovery skips known video ids (window-aligned; incomplete stored episodes stay re-fetched); path labels | `YouTube.Tests/Episode/YouTubeEpisodeProviderKnownIdRules.cs`, `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerPlaylistCostRules.cs` |
 | Discovery path wiring | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerTests.cs` |
-| `RunExpensiveYouTubePlaylistPagination` | `YouTube.Tests/IndexingContextExtensionsTests.cs` |
 | Known-channel submit searches the release band; forbidden and PreferUploadsPlaylist use a band-bounded playlist | `YouTube.Tests/BusinessRules/Services/YouTubeSubmitMatchBandRules.cs` |
 | Channel search is at most two pages and throws when Search.List is account-delegation forbidden | `YouTube.Tests/BusinessRules/ChannelSnippets/YouTubeChannelReleaseBandSearchRules.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |

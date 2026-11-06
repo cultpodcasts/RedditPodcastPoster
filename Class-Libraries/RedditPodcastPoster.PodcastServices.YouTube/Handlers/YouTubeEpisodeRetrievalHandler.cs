@@ -44,19 +44,10 @@ public class YouTubeEpisodeRetrievalHandler(
         if (podcast.UsesYouTubePlaylist())
         {
             var arbitraryOrder = podcast.HasArbitraryYouTubePlaylistOrder();
-            var runExpensivePagination = indexingContext.RunExpensiveYouTubePlaylistPagination(podcast);
-            // Every non-arbitrary playlist pages (until it leaves the window when newest-first, to the end otherwise);
-            // the expensive-query flag only changes the page size. The old "playlist-single-page" label was misleading.
+            // Every non-arbitrary playlist pages (until it leaves the window when newest-first, to the end otherwise).
             var discoveryPath = arbitraryOrder
                 ? "playlist-arbitrary-full-walk"
                 : "playlist-paginated";
-            if (!arbitraryOrder && podcast.HasExpensiveYouTubePlaylistQuery() &&
-                indexingContext.SkipExpensiveYouTubeQueries)
-            {
-                logger.LogInformation(
-                    "Podcast '{PodcastId}' has known expensive playlist query; expensive-sized pages are not used this pass (smaller batch size, playlist still paginated).",
-                    podcast.Id);
-            }
 
             var playlistId = new YouTubePlaylistId(podcast.YouTubePlaylistId,
                 YouTubePlaylistIdSource.PodcastEntity, podcast.Id.ToString());
@@ -87,7 +78,7 @@ public class YouTubeEpisodeRetrievalHandler(
             var getPlaylistEpisodesResult = await youTubeEpisodeProvider.GetPlaylistEpisodes(
                 podcast,
                 playlistId,
-                indexingContext, runExpensivePagination, podcast.YouTubePlaylistOrder,
+                indexingContext, podcast.YouTubePlaylistOrder,
                 knownPlaylistIds);
             if (getPlaylistEpisodesResult.Results != null)
             {
