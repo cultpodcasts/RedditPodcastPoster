@@ -11,6 +11,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.People.Resolvers;
 using RedditPodcastPoster.Subjects.HashTags;
+using RedditPodcastPoster.Text.Enrichers;
 using RedditPodcastPoster.Text.Sanitisers;
 using static RedditPodcastPoster.Episodes.TestSupport.Fixtures.DomainTestFixture;
 using Xunit;
@@ -154,6 +155,27 @@ public class BlueskyEmbedCardPostFactoryLengthRules
         // Assert
         await create.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*calculated title-length: 3 which is less than 10*");
+    }
+
+    [Fact(DisplayName =
+        "When truncation cuts a hashtag that was inserted into the title, that tag is written on the end line and the post stays within 300 graphemes, because a tag the posted title no longer contains would otherwise be linked nowhere.")]
+    public async Task truncated_title_keeps_a_cut_hashtag_on_the_end_line()
+    {
+        // Arrange
+        var (podcast, episode) = CreatePodcastEpisode();
+        const string tag = "Orchid";
+        episode.HashTag = $"#{tag} #{tag.ToLowerInvariant()}";
+        _title = new string('x', 400) + " " + tag;
+        _mocker.Use<IHashTagEnricher>(new HashTagEnricher());
+        var sut = _mocker.CreateInstance<BlueskyEmbedCardPostFactory>();
+
+        // Act
+        var post = await sut.Create(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        QuotedTitle(post.Text).Should().NotContain("#" + tag);
+        post.Text.Should().Contain("#" + tag);
+        GraphemeCount(post.Text).Should().BeLessThanOrEqualTo(BlueskyGraphemeLimit);
     }
 
     private (RedditPodcastPoster.Models.Podcasts.Podcast Podcast, Episode Episode) CreatePodcastEpisode()
