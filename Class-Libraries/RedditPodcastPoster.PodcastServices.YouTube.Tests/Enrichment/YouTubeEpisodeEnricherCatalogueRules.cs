@@ -322,6 +322,74 @@ public class YouTubeEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
+        "When a podcast description regex has no tokens, the YouTube enricher compiles it with IgnoreCase and " +
+        "Singleline, so a different case and a later line are both part of the captured description.")]
+    public async Task enrich_compiles_token_free_description_regex_with_description_flags()
+    {
+        // Arrange
+        var youTubeInput = _fixture.CreateYouTubeCatalogueInput(b => b.WithDescription(string.Empty));
+        var firstLine = _fixture.CreateTitle();
+        var secondLine = _fixture.CreateTitle();
+        var rawDescription = "hello " + firstLine + "\n" + secondLine;
+        var expectedBody = firstLine + "\n" + secondLine;
+        var podcast = _fixture.CreatePodcast();
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.DescriptionRegex = @"^Hello (?<body>.*)$";
+        var episode = _fixture.BuildEpisode()
+            .WithPodcast(podcast)
+            .Customize(e =>
+            {
+                e.Title = youTubeInput.Title;
+                e.Length = youTubeInput.Duration;
+                e.ReleaseUtc = youTubeInput.Release;
+                e.Description = string.Empty;
+                EpisodeServicePresence.SetYouTubeIdentity(e, null);
+                e.Urls = new ServiceUrls();
+            })
+            .Create();
+        Regex? compiled = null;
+        var textSanitiser = _mocker.GetMock<ITextSanitiser>();
+        textSanitiser
+            .Setup(x => x.SanitiseDescription(rawDescription, It.IsAny<Regex>()))
+            .Callback<string, Regex>((_, regex) => compiled = regex)
+            .Returns((string _, Regex regex) => regex.Match(rawDescription).Groups["body"].Value);
+        var resolver = _mocker.GetMock<IYouTubeItemResolver>();
+        resolver
+            .Setup(x => x.FindEpisode(It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync(CreateSearchResultResponse(youTubeInput.YouTubeId, youTubeInput.Title, youTubeInput.Release));
+        var videoService = _mocker.GetMock<ITolerantYouTubeVideoService>();
+        videoService
+            .Setup(x => x.GetVideoContentDetails(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<IndexingContext>(),
+                true,
+                It.IsAny<bool>()))
+            .ReturnsAsync([
+                new Google.Apis.YouTube.v3.Data.Video
+                {
+                    Id = youTubeInput.YouTubeId,
+                    Snippet = new VideoSnippet { Description = rawDescription }
+                }
+            ]);
+        var sut = CreateEnricher(
+            resolver.Object,
+            videoService.Object,
+            textSanitiser.Object);
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            new EnrichmentContext());
+
+        // Assert
+        compiled.Should().NotBeNull();
+        compiled!.Options.Should().Be(Podcast.DescriptionFlags);
+        episode.Description.Should().Be(expectedBody);
+    }
+
+    [Fact(DisplayName =
         "When the podcast description regex uses the {episode-title} token, the enricher expands it with the " +
         "episode title and the title prefix is stripped from the YouTube video description.")]
     public async Task enrich_expands_episode_title_token_in_description_regex()

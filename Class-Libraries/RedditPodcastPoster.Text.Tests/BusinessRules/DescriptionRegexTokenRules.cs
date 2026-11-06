@@ -536,8 +536,8 @@ public class DescriptionRegexTokenRules
     }
 
     [Fact(DisplayName =
-        "When a token-free pattern is created with the caller's historic options (the YouTube enricher uses none), " +
-        "those options are kept and the result is identical to the regex the caller built before.")]
+        "When a token-free pattern is created with explicit options, those options are kept and the result is " +
+        "identical to a regex built with the same options.")]
     public void token_free_pattern_keeps_caller_options()
     {
         // Arrange
