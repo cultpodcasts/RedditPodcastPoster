@@ -3,13 +3,15 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Repositories;
 
 public class NewsOrganisationRepository(
     Container newsOrganisationsContainer,
-    ILogger<NewsOrganisationRepository> logger)
+    ILogger<NewsOrganisationRepository> logger,
+    IFileKeyClaimStore fileKeyClaims)
     : INewsOrganisationRepository
 {
     public async Task<NewsOrganisation?> GetNewsOrganisation(Guid newsOrganisationId)
@@ -31,6 +33,7 @@ public class NewsOrganisationRepository(
         await newsOrganisationsContainer.UpsertItemAsync(
             organisation,
             new PartitionKey(organisation.Id.ToString()));
+        await fileKeyClaims.Acknowledge(organisation.FileKey);
     }
 
     public Task<bool> PatchIndexerState(Guid newsOrganisationId, CatalogueParentIndexerPatch patch) =>

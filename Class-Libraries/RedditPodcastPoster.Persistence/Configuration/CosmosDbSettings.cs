@@ -18,6 +18,7 @@ public class CosmosDbSettings
     public required string DiscoveryContainer { get; set; }
     public required string DiscoverySubmissionsContainer { get; set; }
     public required string LookUpsContainer { get; set; }
+    public required string FileKeyClaimsContainer { get; set; }
     public required string TitleCasingRulesContainer { get; set; }
     public required string PushSubscriptionsContainer { get; set; }
     public bool? UseGateway { get; set; }

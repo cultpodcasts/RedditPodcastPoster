@@ -7,9 +7,8 @@ namespace RedditPodcastPoster.Catalogue.Podcasts;
 /// <summary>
 /// Creates a podcast whose file key comes from <see cref="IFileKeyAllocator"/>: never empty (a name with no usable
 /// Latin slug gets a key built from the new id, <see cref="FileKeyFactory.GetIdSlug"/>) and unique, ignoring case,
-/// among stored podcasts. Nothing is reserved until the podcast is saved: two creates of the same name that are not
-/// saved in between (in this process or another) get the same key, and only the public-database publisher's
-/// <c>PublicFileKeyGuard</c> catches that (cross-process claim: issue #1165).
+/// among stored podcasts. The key is claimed until the podcast is saved. A create that is never saved releases
+/// that claim when the allocator is disposed, so the next create of the same name can take the key (issue #1165).
 /// </summary>
 public class PodcastFactory(
     IFileKeyAllocator fileKeyAllocator) : IPodcastFactory

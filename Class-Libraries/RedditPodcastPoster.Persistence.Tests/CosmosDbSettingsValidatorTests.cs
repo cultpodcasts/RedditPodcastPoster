@@ -261,6 +261,21 @@ public class CosmosDbSettingsValidatorTests
         result.FailureMessage.Should().Contain("LookUpsContainer");
     }
 
+    [Fact(DisplayName = "Fails when FileKeyClaimsContainer is blank")]
+    public void Fails_when_FileKeyClaimsContainer_is_blank()
+    {
+        // Arrange
+        var options = ValidOptions();
+        options.FileKeyClaimsContainer = " ";
+
+        // Act
+        var result = _validator.Validate(null, options);
+
+        // Assert
+        result.Failed.Should().BeTrue();
+        result.FailureMessage.Should().Contain("FileKeyClaimsContainer");
+    }
+
     [Fact(DisplayName = "Fails when TitleCasingRulesContainer is blank")]
     public void Fails_when_TitleCasingRulesContainer_is_blank()
     {
@@ -309,6 +324,7 @@ public class CosmosDbSettingsValidatorTests
         DiscoveryContainer = "discovery",
         DiscoverySubmissionsContainer = "discovery-submissions",
         LookUpsContainer = "lookups",
+        FileKeyClaimsContainer = "filekeyclaims",
         TitleCasingRulesContainer = "titlecasingrules",
         PushSubscriptionsContainer = "push"
     };

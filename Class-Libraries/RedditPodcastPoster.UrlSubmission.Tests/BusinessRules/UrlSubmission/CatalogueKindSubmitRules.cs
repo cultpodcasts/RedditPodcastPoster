@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
@@ -113,6 +114,7 @@ public class CatalogueKindSubmitRules
         TakenFileKeys<IFilmRepository, Film>(_films);
         TakenFileKeys<ITvShowRepository, TvShow>(_shows);
         TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(_organisations);
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
         // Synthetic subject matcher honouring the options the real SubjectEnricher reads: a term named in the
         // description is applied unless the options ignore it; with no hit, the options' default subject applies.

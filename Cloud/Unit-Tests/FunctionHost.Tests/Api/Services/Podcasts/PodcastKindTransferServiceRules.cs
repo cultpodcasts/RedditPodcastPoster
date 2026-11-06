@@ -140,6 +140,7 @@ public class PodcastKindTransferServiceRules
             .ReturnsAsync((YouTubePlaylistValidation?)null);
         TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(() => _existingOrganisations);
         TakenFileKeys<ITvShowRepository, TvShow>(() => []);
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
     }
 
@@ -540,6 +541,47 @@ public class PodcastKindTransferServiceRules
         (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
         (await _episodes.GetEpisode(podcast.Id, firstEpisode.Id)).Should().NotBeNull();
         (await _episodes.GetEpisode(podcast.Id, secondEpisode.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "When compensation release of the destination file key is throttled, the parent delete and the release are retried together, so a 429 does not leave the key reserved.")]
+    public async Task throttled_file_key_release_is_retried_with_the_parent_delete()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var firstEpisode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var secondEpisode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(firstEpisode, secondEpisode);
+        var claims = new ThrottledOnceFileKeyClaimStore();
+        _mocker.Use<IFileKeyClaimStore>(claims);
+        _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
+        var playableSaves = 0;
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.Save(It.IsAny<TvShowEpisode>()))
+            .Returns<TvShowEpisode>(playable =>
+            {
+                if (Interlocked.Increment(ref playableSaves) > 1)
+                {
+                    return Task.FromException(new InvalidOperationException(_fixture.Create<string>()));
+                }
+
+                _savedTvEpisode = playable;
+                return Task.CompletedTask;
+            });
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.TvShow },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Failed);
+        claims.Deletes.Should().Be(2);
+        _deletedTvShowIds.Count(id => id == podcast.Id).Should().Be(2);
+        VerifyLogged(LogLevel.Warning, "Failed to compensate dest parent", Times.Never);
     }
 
     [Fact(DisplayName =
@@ -1817,6 +1859,7 @@ public class PodcastKindTransferServiceRules
                 .ReturnsAsync(show);
         }
 
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
         _locks.SeedMarker(podcast.Id, _now - PodcastKindTransferService.LockStaleAfter - TimeSpan.FromMinutes(1), kind);
 
@@ -1827,5 +1870,32 @@ public class PodcastKindTransferServiceRules
         result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
         var savedKey = kind == CatalogueParentKind.TvShow ? _savedShow!.FileKey : _savedOrganisation!.FileKey;
         savedKey.Should().Be(existingKey);
+    }
+
+    /// <summary>First <see cref="IFileKeyClaimStore.Delete"/> is a 429; the retry deletes the claim.</summary>
+    private sealed class ThrottledOnceFileKeyClaimStore : IFileKeyClaimStore
+    {
+        private readonly InMemoryFileKeyClaimStore _inner = new();
+        private int _deletes;
+
+        public int Deletes => _deletes;
+
+        public Task<FileKeyClaimResult> TryClaim(
+            string fileKey,
+            Guid ownerId,
+            Guid scopeId,
+            CancellationToken cancellationToken = default) =>
+            _inner.TryClaim(fileKey, ownerId, scopeId, cancellationToken);
+
+        public Task Acknowledge(string? fileKey, CancellationToken cancellationToken = default) =>
+            _inner.Acknowledge(fileKey, cancellationToken);
+
+        public Task ReleaseUnacknowledged(Guid scopeId, CancellationToken cancellationToken = default) =>
+            _inner.ReleaseUnacknowledged(scopeId, cancellationToken);
+
+        public Task Delete(string fileKey, Guid ownerId, CancellationToken cancellationToken = default) =>
+            Interlocked.Increment(ref _deletes) == 1
+                ? Task.FromException(CosmosStatus(HttpStatusCode.TooManyRequests))
+                : _inner.Delete(fileKey, ownerId, cancellationToken);
     }
 }

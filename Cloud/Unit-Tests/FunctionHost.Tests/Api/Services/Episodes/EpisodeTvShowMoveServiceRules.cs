@@ -59,6 +59,7 @@ public class EpisodeTvShowMoveServiceRules
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
             .Returns((Expression<Func<TvShow, bool>> selector) => _shows.Where(selector.Compile()).ToAsyncEnumerable());
         TakenFileKeys<ITvShowRepository, TvShow>(() => _shows);
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
         shows
             .Setup(r => r.Save(It.IsAny<TvShow>()))

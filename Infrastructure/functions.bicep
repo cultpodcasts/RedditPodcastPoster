@@ -252,6 +252,7 @@ var cosmosdb= {
     cosmosdb__DiscoveryContainer: 'Discovery'
     cosmosdb__DiscoverySubmissionsContainer: 'DiscoverySubmissions'
     cosmosdb__LookUpsContainer: 'LookUps'
+    cosmosdb__FileKeyClaimsContainer: 'FileKeyClaims'
     cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
     cosmosdb__PushSubscriptionsContainer: 'PushSubscriptions'
     cosmosdb__UseGateway: 'false'

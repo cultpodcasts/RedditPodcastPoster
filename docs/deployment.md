@@ -113,8 +113,9 @@ Local deploy scripts are **code-only**. App settings come from bicep ([`Infrastr
 | `cosmosdb__FilmsContainer` | `Films` |
 | `cosmosdb__NewsOrganisationsContainer` | `NewsOrganisations` |
 | `cosmosdb__NewsReportsContainer` | `NewsReports` |
+| `cosmosdb__FileKeyClaimsContainer` | `FileKeyClaims` |
 
-Shipping Phase 1 code without those keys on every Function app is the same class of miss as the TitleCasingRules incident.
+Shipping Phase 1 code (or later keys such as `FileKeyClaims`) without those settings on every Function app is the same class of miss as the TitleCasingRules incident. The `FileKeyClaims` container must exist in Cosmos (`cosmos-db.bicep`) before code that validates `cosmosdb__FileKeyClaimsContainer` is live.
 
 ### Episode JSON cutover (Phase 1 dual-key queries)
 
