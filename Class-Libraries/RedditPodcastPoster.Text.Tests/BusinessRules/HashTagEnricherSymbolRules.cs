@@ -43,4 +43,21 @@ public class HashTagEnricherSymbolRules
         added.Should().BeFalse();
         result.Should().Be(input);
     }
+
+    [Theory(DisplayName =
+        "A stored tag containing $ is written unchanged apart from the leading #, because a dollar sign in the written tag is literal text and not a substitution backreference.")]
+    [InlineData("Talk about Price$1 today", "Price$1", "Talk about #Price$1 today")]
+    [InlineData("Talk about $$ today", "$$", "Talk about #$$ today")]
+    public void dollar_tag_is_written_literally(string input, string hashTag, string expected)
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<HashTagEnricher>();
+
+        // Act
+        var (result, added) = sut.AddHashTag(input, hashTag);
+
+        // Assert
+        added.Should().BeTrue();
+        result.Should().Be(expected);
+    }
 }

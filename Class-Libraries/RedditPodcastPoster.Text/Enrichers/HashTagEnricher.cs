@@ -13,7 +13,8 @@ public class HashTagEnricher : IHashTagEnricher
         var inputMatch = regex.Match(input);
         if (inputMatch.Success && !inputMatch.Captures.Single().Value.StartsWith("#"))
         {
-            return (regex.Replace(input, $"#{replacement ?? match}", 1, 0), true);
+            // MatchEvaluator writes the tag as text. A replacement string would treat $ as a backreference.
+            return (regex.Replace(input, _ => "#" + (replacement ?? match), 1), true);
         }
 
         return (input, false);
