@@ -228,15 +228,13 @@ public class YouTubePlaylistServicePagingRules
     }
 
     [Theory(DisplayName =
-        "Every playlistItems.list request asks for 50 items (the YouTube maximum) whatever the expensive flag, " +
-        "date window or declared order, because the call costs 1 unit per page regardless of size.")]
-    [InlineData(false, false, null)]
-    [InlineData(true, false, null)]
-    [InlineData(false, true, null)]
-    [InlineData(true, true, null)]
-    [InlineData(false, true, PlaylistOrder.Arbitrary)]
-    [InlineData(true, false, PlaylistOrder.Arbitrary)]
-    public async Task Page_size_fifty_is_used(bool expensivePlaylist, bool withWindow, PlaylistOrder? order)
+        "Every playlistItems.list request asks for 50 items (the YouTube maximum) whatever the date window or " +
+        "declared order, because the call costs 1 unit per page regardless of size.")]
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    [InlineData(true, PlaylistOrder.Arbitrary)]
+    [InlineData(false, PlaylistOrder.Arbitrary)]
+    public async Task Page_size_fifty_is_used(bool withWindow, PlaylistOrder? order)
     {
         // Arrange: every item is inside the window, so a dated walk reads all three pages.
         var newest = new DateTimeOffset(2026, 10, 22, 12, 0, 0, TimeSpan.Zero);
@@ -246,8 +244,7 @@ public class YouTubePlaylistServicePagingRules
         var context = new IndexingContext(withWindow ? newest.UtcDateTime.AddDays(-30) : null);
 
         // Act
-        await CreateSut().GetPlaylistVideoSnippets(Wrapper(), PlaylistId, context,
-            expensivePlaylist: expensivePlaylist, playlistOrder: order);
+        await CreateSut().GetPlaylistVideoSnippets(Wrapper(), PlaylistId, context, playlistOrder: order);
 
         // Assert
         _api.Requests.Should().NotBeEmpty();

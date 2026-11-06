@@ -138,7 +138,7 @@ public class YouTubeEpisodeProviderBuildPlaylistEpisodesRules
         var playlistId = new YouTubePlaylistId(_fixture.CreateYouTubePlaylistId());
         _mocker.GetMock<ITolerantYouTubePlaylistService>()
             .Setup(x => x.GetPlaylistVideoSnippets(playlistId, It.IsAny<IndexingContext>(), It.IsAny<bool>(),
-                It.IsAny<bool>(), It.IsAny<PlaylistOrder?>()))
+                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse([Item(_fixture.CreateYouTubeId())], TotalResults: 400,
                 WalkOutcome: YouTubePlaylistWalkOutcome.Complete));
         var sut = _mocker.CreateInstance<YouTubeEpisodeProvider>();

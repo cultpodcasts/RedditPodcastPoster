@@ -40,7 +40,6 @@ public class YouTubeEpisodeRetrievalHandlerPlaylistCostRules
                 It.IsAny<Podcast>(),
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()))
             .Callback<Podcast, YouTubePlaylistId, IndexingContext, bool, PlaylistOrder?,

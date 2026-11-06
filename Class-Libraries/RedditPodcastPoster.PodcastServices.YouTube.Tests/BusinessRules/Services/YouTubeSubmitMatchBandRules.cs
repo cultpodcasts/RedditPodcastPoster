@@ -85,7 +85,6 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()),
             Times.Never);
     }
@@ -182,7 +181,6 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?>((_, ctx, _, _, _) =>
                 capturedContext = ctx)
@@ -242,14 +240,12 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(CreateChannel(uploadsPlaylistId));
         _mocker.GetMock<ITolerantYouTubePlaylistService>()
             .Setup(x => x.GetPlaylistVideoSnippets(
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?>((id, _, _, _, _) =>
@@ -302,7 +298,6 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(CreateChannel(_fixture.CreateYouTubePlaylistId()));
         _mocker.GetMock<IYouTubeChannelVideoRetrievalPolicy>()
@@ -321,7 +316,6 @@ public class YouTubeSubmitMatchBandRules
             .Setup(x => x.GetPlaylistVideoSnippets(
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
@@ -365,7 +359,6 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
             [
@@ -384,7 +377,6 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>()),
             Times.Never);
@@ -414,7 +406,6 @@ public class YouTubeSubmitMatchBandRules
             .Setup(x => x.GetPlaylistVideoSnippets(
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .Callback<YouTubePlaylistId, IndexingContext, bool, bool, PlaylistOrder?>((id, _, _, _, order) =>
@@ -470,7 +461,6 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse([item]));
         StubVideoDetails();
@@ -499,7 +489,6 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(new List<Google.Apis.YouTube.v3.Data.Video>());

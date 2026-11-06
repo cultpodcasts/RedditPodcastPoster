@@ -1,4 +1,3 @@
-using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
@@ -66,16 +65,6 @@ public static class IndexingContextExtensions
         {
             batchContext.YouTubeQuotaExhausted = true;
         }
-    }
-
-    /// <summary>
-    /// Full playlist pagination is only allowed when the podcast is known-expensive and this pass
-    /// permits expensive YouTube queries (hour 0 UTC primary pass). Channel listing and single-page
-    /// playlist fetches are unaffected by <see cref="IndexingContext.SkipExpensiveYouTubeQueries"/>.
-    /// </summary>
-    public static bool RunExpensiveYouTubePlaylistPagination(this IndexingContext indexingContext, Podcast podcast)
-    {
-        return podcast.HasExpensiveYouTubePlaylistQuery() && !indexingContext.SkipExpensiveYouTubeQueries;
     }
 
     public static List<string> GetIndexingContextChanges(this IndexingContext before, IndexingContext after)

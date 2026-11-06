@@ -24,8 +24,7 @@ public class YouTubeChannelVideosService(
     }
 
     public async Task<GetChannelVideosResponse> GetChannelVideos(YouTubeChannelId channelId,
-        IndexingContext indexingContext,
-        bool expensivePlaylist = false)
+        IndexingContext indexingContext)
     {
         if (_cache.TryGetValue(channelId.ChannelId, out var cachedVideos))
         {
@@ -62,7 +61,7 @@ public class YouTubeChannelVideosService(
         var uploadsChannelId = channel.ContentDetails.RelatedPlaylists.Uploads;
         var response = await youTubePlaylistService.GetPlaylistVideoSnippets(
             new YouTubePlaylistId(uploadsChannelId, YouTubePlaylistIdSource.ChannelUploads, channelId.ChannelId),
-            indexingContext, expensivePlaylist: expensivePlaylist);
+            indexingContext);
         if (response.Failure == YouTubePlaylistFetchFailure.Skipped)
         {
             return new GetChannelVideosResponse(channel, null, YouTubePlaylistFetchFailure.Skipped);

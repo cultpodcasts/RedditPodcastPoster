@@ -47,7 +47,6 @@ public class YouTubePlaylistService(
         YouTubePlaylistId playlistId,
         IndexingContext indexingContext,
         bool withContentDetails = false,
-        bool expensivePlaylist = false,
         PlaylistOrder? playlistOrder = null)
     {
         if (indexingContext.SkipYouTubeUrlResolving)
@@ -65,9 +64,8 @@ public class YouTubePlaylistService(
         // expensive-query flag is never flipped by a meaningless head sample.
         var arbitraryOrder = playlistOrder == PlaylistOrder.Arbitrary;
 
-        // Every walk pages at the YouTube maximum. `expensivePlaylist` used to pick 10 vs 1 items per
-        // page after a newest-first probe; playlistItems.list is 1 unit per page regardless of size, so
-        // 50 is never more calls than 10 or 1 and the flag no longer changes the request (removal: #1104).
+        // Every walk pages at the YouTube maximum. playlistItems.list is 1 unit per page regardless of
+        // size, so 50 is never more calls than a smaller page.
         const int batchSize = PlaylistPageSize;
 
         var result = new List<PlaylistItem>();

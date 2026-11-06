@@ -21,39 +21,35 @@ public class YouTubeEpisodeRetrievalHandlerRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "Across successive indexer passes a flipping playlist flips YouTubePlaylistQueryIsExpensive each time " +
-        "because a playlist that switches order must switch pagination strategy on the following pass.")]
+        "Across successive indexer passes a flipping playlist flips YouTubePlaylistQueryIsExpensive each time, " +
+        "because later callers still read the stored order even though playlist page size stays 50.")]
     public async Task Expensive_flag_round_trips_across_indexer_passes()
     {
         // Arrange — probes: oldest-first, newest-first, oldest-first
         var podcast = CreatePlaylistPodcast();
-        var requestedExpensiveFlags = new List<bool>();
-        var sut = CreateSut(requestedExpensiveFlags, true, false, true);
+        var sut = CreateSut(true, false, true);
 
         // Act
         var storedFlags = await RunPasses(sut, podcast, passes: 3);
 
-        // Assert — each pass requests using the flag as it stood before that pass's probe
+        // Assert
         storedFlags.Should().Equal(true, false, true);
-        requestedExpensiveFlags.Should().Equal(false, true, false);
     }
 
     [Fact(DisplayName =
-        "An inconclusive probe between two conclusive probes leaves YouTubePlaylistQueryIsExpensive intact " +
-        "because a pass that could not measure order must not reset the playlist pagination strategy.")]
+        "An inconclusive probe between two conclusive probes leaves YouTubePlaylistQueryIsExpensive intact, " +
+        "because a pass that could not measure order must not reset the stored flag.")]
     public async Task Inconclusive_pass_preserves_flag_between_flips()
     {
         // Arrange — probes: oldest-first, inconclusive, newest-first
         var podcast = CreatePlaylistPodcast();
-        var requestedExpensiveFlags = new List<bool>();
-        var sut = CreateSut(requestedExpensiveFlags, true, null, false);
+        var sut = CreateSut(true, null, false);
 
         // Act
         var storedFlags = await RunPasses(sut, podcast, passes: 3);
 
         // Assert
         storedFlags.Should().Equal(true, true, false);
-        requestedExpensiveFlags.Should().Equal(false, true, true);
     }
 
     [Fact(DisplayName =
@@ -73,11 +69,10 @@ public class YouTubeEpisodeRetrievalHandlerRules
                 It.IsAny<Podcast>(),
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()))
-            .Callback<Podcast, YouTubePlaylistId, IndexingContext, bool, PlaylistOrder?, IEnumerable<string>?>(
-                (_, _, _, _, playlistOrder, _) => forwardedOrder = playlistOrder)
+            .Callback<Podcast, YouTubePlaylistId, IndexingContext, PlaylistOrder?, IEnumerable<string>?>(
+                (_, _, _, playlistOrder, _) => forwardedOrder = playlistOrder)
             .ReturnsAsync(new GetPlaylistEpisodesResponse([], IsExpensiveQuery: true));
         var sut = mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();
 
@@ -110,7 +105,6 @@ public class YouTubeEpisodeRetrievalHandlerRules
                 podcast,
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse([], IsExpensiveQuery: null));
@@ -129,7 +123,6 @@ public class YouTubeEpisodeRetrievalHandlerRules
                 podcast,
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 PlaylistOrder.Arbitrary,
                 It.IsAny<IEnumerable<string>?>()),
             Times.Once);
@@ -162,12 +155,9 @@ public class YouTubeEpisodeRetrievalHandlerRules
     }
 
     /// <summary>
-    /// Yields one playlist-order probe per pass and records the expensive-query flag each request carried,
-    /// so a test can observe the stored flag feeding back into the following pass.
+    /// Yields one playlist-order probe per pass so a test can observe the stored flag after each pass.
     /// </summary>
-    private static YouTubeEpisodeRetrievalHandler CreateSut(
-        List<bool> requestedExpensiveFlags,
-        params bool?[] probes)
+    private static YouTubeEpisodeRetrievalHandler CreateSut(params bool?[] probes)
     {
         var remainingProbes = new Queue<bool?>(probes);
         var mocker = new AutoMocker();
@@ -176,11 +166,8 @@ public class YouTubeEpisodeRetrievalHandlerRules
                 It.IsAny<Podcast>(),
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()))
-            .Callback<Podcast, YouTubePlaylistId, IndexingContext, bool, PlaylistOrder?, IEnumerable<string>?>(
-                (_, _, _, expensivePlaylist, _, _) => requestedExpensiveFlags.Add(expensivePlaylist))
             .ReturnsAsync(() => new GetPlaylistEpisodesResponse([], remainingProbes.Dequeue()));
 
         return mocker.CreateInstance<YouTubeEpisodeRetrievalHandler>();

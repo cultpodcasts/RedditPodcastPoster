@@ -117,14 +117,13 @@ public class YouTubeItemResolverFetchFailureRules
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(null, Failure: playlistFailure));
         _mocker.GetMock<IYouTubeChannelVideoRetrievalPolicy>()
             .Setup(x => x.GetUploadsPlaylistReason(It.IsAny<Podcast>()))
             .Returns(_fixture.CreateTitle());
         _mocker.GetMock<IYouTubeChannelVideosService>()
-            .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>()))
+            .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new GetChannelVideosResponse(null, null, channelVideosFailure));
         return _mocker.CreateInstance<YouTubeItemResolver>();
     }

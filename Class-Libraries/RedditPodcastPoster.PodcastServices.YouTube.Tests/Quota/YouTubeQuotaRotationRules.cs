@@ -68,7 +68,6 @@ public class YouTubeQuotaRotationRules
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((IYouTubeServiceWrapper w, IEnumerable<string> ids, IndexingContext ic, bool b1, bool b2, bool b3) =>
             {
@@ -82,7 +81,6 @@ public class YouTubeQuotaRotationRules
 
         _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeVideoService>>(NullLogger<TolerantYouTubeVideoService>.Instance);
         var sut = _mocker.CreateInstance<TolerantYouTubeVideoService>();
-        
         var indexingContext = new IndexingContext();
         var videoIds = _fixture.Create<string[]>();
 
@@ -95,7 +93,6 @@ public class YouTubeQuotaRotationRules
         seenApps.Should().HaveCount(2);
         seenApps[0].ApiKey.Should().Be(_apiKey1);
         seenApps[1].ApiKey.Should().Be(_apiKey2);
-        
         _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(
             _app1,
             ApplicationUsage.Indexer,
@@ -110,19 +107,16 @@ public class YouTubeQuotaRotationRules
     {
         // Arrange
         _mocker.GetMock<IYouTubeServiceWrapper>().Setup(x => x.Rotate()).Throws(new Exception(_fixture.Create<string>()));
-        
         _mocker.GetMock<IYouTubeVideoService>().Setup(x => x.GetVideoContentDetails(
                 It.IsAny<IYouTubeServiceWrapper>(),
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<bool>()))
             .ThrowsAsync(new YouTubeQuotaException());
 
         _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeVideoService>>(NullLogger<TolerantYouTubeVideoService>.Instance);
         var sut = _mocker.CreateInstance<TolerantYouTubeVideoService>();
-        
         var indexingContext = new IndexingContext();
         var videoIds = _fixture.Create<string[]>();
 
@@ -145,7 +139,6 @@ public class YouTubeQuotaRotationRules
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync((IYouTubeServiceWrapper w, YouTubePlaylistId id, IndexingContext ic, bool b1, bool b2, PlaylistOrder? po) =>
             {
@@ -159,7 +152,6 @@ public class YouTubeQuotaRotationRules
 
         _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubePlaylistService>>(NullLogger<TolerantYouTubePlaylistService>.Instance);
         var sut = _mocker.CreateInstance<TolerantYouTubePlaylistService>();
-        
         var indexingContext = new IndexingContext();
         var playlistId = _fixture.Create<YouTubePlaylistId>();
 
@@ -204,7 +196,6 @@ public class YouTubeQuotaRotationRules
 
         _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeSearcher>>(NullLogger<TolerantYouTubeSearcher>.Instance);
         var sut = _mocker.CreateInstance<TolerantYouTubeSearcher>();
-        
         var indexingContext = new IndexingContext();
 
         // Act
@@ -249,7 +240,6 @@ public class YouTubeQuotaRotationRules
 
         _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeChannelResolver>>(NullLogger<TolerantYouTubeChannelResolver>.Instance);
         var sut = _mocker.CreateInstance<TolerantYouTubeChannelResolver>();
-        
         var indexingContext = new IndexingContext();
 
         // Act
@@ -292,7 +282,6 @@ public class YouTubeQuotaRotationRules
 
         _mocker.Use<Microsoft.Extensions.Logging.ILogger<TolerantYouTubeChannelVideoSnippetsService>>(NullLogger<TolerantYouTubeChannelVideoSnippetsService>.Instance);
         var sut = _mocker.CreateInstance<TolerantYouTubeChannelVideoSnippetsService>();
-        
         var indexingContext = new IndexingContext();
         var channelId = _fixture.Create<YouTubeChannelId>();
 

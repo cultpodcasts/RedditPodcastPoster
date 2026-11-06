@@ -1,45 +1,58 @@
 using FluentAssertions;
-using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
-using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests;
 
 public class IndexingContextExtensionsTests
 {
-    [Fact]
+    [Fact(DisplayName =
+        "A podcast update context inherits the batch's Spotify bypass, because Spotify rate limiting is batch-global.")]
     public void ForPodcastUpdate_InheritsBatchGlobalSpotifyBypass()
     {
+        // Arrange
         var batchContext = new IndexingContext(DateTime.UtcNow.AddDays(-2), SkipSpotifyUrlResolving: true);
 
-        batchContext.ForPodcastUpdate().SkipSpotifyUrlResolving.Should().BeTrue();
+        // Act
+        var updateContext = batchContext.ForPodcastUpdate();
+
+        // Assert
+        updateContext.SkipSpotifyUrlResolving.Should().BeTrue();
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "Absorbing a podcast pass turns Spotify bypass on for the batch immediately, because later podcasts in the same batch must skip Spotify.")]
     public void AbsorbPodcastPass_PropagatesSpotifyBypassToBatchImmediately()
     {
+        // Arrange
         var batchContext = new IndexingContext(DateTime.UtcNow.AddDays(-2));
         var podcastContext = batchContext.ForPodcastUpdate();
         podcastContext.SkipSpotifyUrlResolving = true;
-
         var state = new IndexingContextExtensions.PodcastBatchBypassState(false, false);
+
+        // Act
         state = batchContext.AbsorbPodcastPass(podcastContext, state);
 
+        // Assert
         batchContext.SkipSpotifyUrlResolving.Should().BeTrue();
         state.AnySpotifyBypassed.Should().BeTrue();
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "Absorbing a podcast pass records YouTube bypass without applying it to the batch until rollup, because YouTube bypass stays per podcast until the batch ends.")]
     public void AbsorbPodcastPass_DoesNotRollUpYouTubeBypassUntilBatchEnd()
     {
+        // Arrange
         var batchContext = new IndexingContext(DateTime.UtcNow.AddDays(-2));
         var podcastContext = batchContext.ForPodcastUpdate();
         podcastContext.SkipYouTubeUrlResolving = true;
-
         var state = new IndexingContextExtensions.PodcastBatchBypassState(false, false);
+
+        // Act
         state = batchContext.AbsorbPodcastPass(podcastContext, state);
 
+        // Assert
         batchContext.SkipYouTubeUrlResolving.Should().BeFalse();
         state.AnyYouTubeBypassed.Should().BeTrue();
 
@@ -47,45 +60,21 @@ public class IndexingContextExtensionsTests
         batchContext.SkipYouTubeUrlResolving.Should().BeTrue();
     }
 
-    [Fact]
+    [Fact(DisplayName =
+        "Batch rollup does not clear a Spotify bypass that a podcast pass already applied, because that bypass is already on the batch parent.")]
     public void ApplyBatchBypassRollup_DoesNotReapplySpotifyBypass()
     {
+        // Arrange
         var batchContext = new IndexingContext(DateTime.UtcNow.AddDays(-2));
         var podcastContext = batchContext.ForPodcastUpdate();
         podcastContext.SkipSpotifyUrlResolving = true;
-
         var state = new IndexingContextExtensions.PodcastBatchBypassState(false, false);
         state = batchContext.AbsorbPodcastPass(podcastContext, state);
 
-        batchContext.SkipSpotifyUrlResolving.Should().BeTrue();
+        // Act
         batchContext.ApplyBatchBypassRollup(state);
+
+        // Assert
         batchContext.SkipSpotifyUrlResolving.Should().BeTrue();
-    }
-
-    [Fact]
-    public void RunExpensiveYouTubePlaylistPagination_WhenSkipExpensive_ReturnsFalse()
-    {
-        var podcast = new Podcast { YouTubePlaylistQueryIsExpensive = true };
-        var indexingContext = new IndexingContext(DateTime.UtcNow.AddDays(-2), SkipExpensiveYouTubeQueries: true);
-
-        indexingContext.RunExpensiveYouTubePlaylistPagination(podcast).Should().BeFalse();
-    }
-
-    [Fact]
-    public void RunExpensiveYouTubePlaylistPagination_WhenExpensiveAllowed_ReturnsTrue()
-    {
-        var podcast = new Podcast { YouTubePlaylistQueryIsExpensive = true };
-        var indexingContext = new IndexingContext(DateTime.UtcNow.AddDays(-2), SkipExpensiveYouTubeQueries: false);
-
-        indexingContext.RunExpensiveYouTubePlaylistPagination(podcast).Should().BeTrue();
-    }
-
-    [Fact]
-    public void RunExpensiveYouTubePlaylistPagination_WhenNotKnownExpensive_ReturnsFalse()
-    {
-        var podcast = new Podcast();
-        var indexingContext = new IndexingContext(DateTime.UtcNow.AddDays(-2), SkipExpensiveYouTubeQueries: false);
-
-        indexingContext.RunExpensiveYouTubePlaylistPagination(podcast).Should().BeFalse();
     }
 }

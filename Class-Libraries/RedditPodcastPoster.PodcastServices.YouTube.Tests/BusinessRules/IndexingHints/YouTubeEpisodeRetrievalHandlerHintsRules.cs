@@ -52,7 +52,7 @@ public class YouTubeEpisodeRetrievalHandlerHintsRules
         _mocker.Use<IOptions<YouTubeIndexingHintsOptions>>(Options.Create(_options));
         _mocker.Use<TimeProvider>(new FixedTimeProvider(_now));
         _mocker.GetMock<IYouTubeEpisodeProvider>()
-            .Setup(x => x.GetPlaylistEpisodes(It.IsAny<Podcast>(), It.IsAny<YouTubePlaylistId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>(),
+            .Setup(x => x.GetPlaylistEpisodes(It.IsAny<Podcast>(), It.IsAny<YouTubePlaylistId>(), It.IsAny<IndexingContext>(),
                 It.IsAny<PlaylistOrder?>(), It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(() => _walk);
         _mocker.GetMock<IYouTubeEpisodeProvider>()
@@ -72,7 +72,7 @@ public class YouTubeEpisodeRetrievalHandlerHintsRules
     private void VerifyFullWalk(Times times) =>
         _mocker.GetMock<IYouTubeEpisodeProvider>().Verify(x => x.GetPlaylistEpisodes(It.IsAny<Podcast>(),
             It.IsAny<YouTubePlaylistId>(), It.IsAny<IndexingContext>(),
-            It.IsAny<bool>(), It.IsAny<PlaylistOrder?>(), It.IsAny<IEnumerable<string>?>()), times);
+            It.IsAny<PlaylistOrder?>(), It.IsAny<IEnumerable<string>?>()), times);
 
     [Fact(DisplayName =
         "With fresh hints a large playlist is read from the uploads head: the member found is built, no full walk runs, " +
