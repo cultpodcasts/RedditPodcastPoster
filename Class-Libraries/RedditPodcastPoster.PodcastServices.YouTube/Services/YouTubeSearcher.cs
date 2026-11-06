@@ -108,6 +108,10 @@ public class YouTubeSearcher(
                 totalResults: null);
             if (stop != YouTubePageWalkStopReason.None)
             {
+                // search.list is known to repeat results across pages, and these pages hold 25
+                // items, so a page of nothing but already-seen ids (NoNewItems) can happen without
+                // YouTube looping. It is accepted here as a cost stop (another page is 100 units),
+                // not a fault, so it logs at Warning rather than Error.
                 walkGuard.LogStop(
                     logger,
                     stop,

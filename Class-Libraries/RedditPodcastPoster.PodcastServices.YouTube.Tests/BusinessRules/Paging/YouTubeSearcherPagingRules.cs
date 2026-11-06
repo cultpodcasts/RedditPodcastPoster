@@ -7,6 +7,8 @@ using YouTubeVideo = Google.Apis.YouTube.v3.Data.Video;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Channel;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -20,8 +22,6 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.BusinessRules.Paging
 
 public class YouTubeSearcherPagingRules
 {
-    private static readonly DateTime ReleasedSince = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
     private readonly Fixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly RecordingLogger<YouTubeSearcher> _logger = new();
@@ -54,26 +54,87 @@ public class YouTubeSearcherPagingRules
 
     [Fact(DisplayName =
         "A query search stops after one extra call when search.list returns an empty page whose token repeats, " +
-        "and keeps the videos already found, because each repeated call costs 100 quota units.")]
+        "keeps the videos already found, and logs Warning for each duration, because each repeated call costs 100 quota units.")]
     public async Task repeating_empty_page_ends_the_search_and_keeps_earlier_results()
     {
         // Arrange
         var found = FakeYouTubePagingApi.Ids("q", 0, 3);
         var api = new FakeYouTubePagingApi()
-            .Page("", new FakeYouTubePage(found, "repeat"))
+            .Page("", Videos(found, "repeat"))
             .Page("repeat", new FakeYouTubePage([], "repeat"));
         _mocker.GetMock<IYouTubeServiceWrapper>().SetupGet(wrapper => wrapper.YouTubeService).Returns(api.CreateService());
         var sut = _mocker.CreateInstance<YouTubeSearcher>();
 
         // Act
-        var results = await sut.Search(_fixture.Create<string>(), new IndexingContext(ReleasedSince: ReleasedSince));
+        var results = await sut.Search(_fixture.Create<string>(), SearchWindow());
 
         // Assert
         api.Requests.Should().HaveCount(4);
         results.Select(result => result.Id).Distinct().Should().Equal(found);
-        _logger.Entries.Should().Contain(entry =>
-            entry.Message.StartsWith(YouTubePageWalkGuard.StoppedMessagePrefix) &&
+        var stops = StopEntries();
+        stops.Should().HaveCount(2);
+        stops.Should().OnlyContain(entry =>
+            entry.Level == LogLevel.Warning &&
             entry.Message.Contains(nameof(YouTubePageWalkStopReason.RepeatedPageToken)));
+    }
+
+    [Fact(DisplayName =
+        "A query search stops at Warning when a later page repeats ids already seen and still offers another page, " +
+        "and keeps those earlier ids, because search.list repeats results and another page costs 100 quota units.")]
+    public async Task already_seen_page_stops_at_warning_before_the_next_page()
+    {
+        // Arrange
+        var seen = FakeYouTubePagingApi.Ids("q", 0, 3);
+        var later = FakeYouTubePagingApi.Ids("q", 3, 2);
+        var api = new FakeYouTubePagingApi()
+            .Page("", Videos(seen, "next"))
+            .Page("next", Videos(seen, "further"))
+            .Page("further", Videos(later, null));
+        _mocker.GetMock<IYouTubeServiceWrapper>().SetupGet(wrapper => wrapper.YouTubeService).Returns(api.CreateService());
+        var sut = _mocker.CreateInstance<YouTubeSearcher>();
+
+        // Act
+        var results = await sut.Search(_fixture.Create<string>(), SearchWindow());
+
+        // Assert
+        api.Requests.Should().HaveCount(4);
+        results.Select(result => result.Id).Distinct().Should().Equal(seen);
+        results.Select(result => result.Id).Should().NotContain(later);
+        var stops = StopEntries();
+        stops.Should().HaveCount(2);
+        stops.Should().OnlyContain(entry =>
+            entry.Level == LogLevel.Warning &&
+            entry.Message.Contains(nameof(YouTubePageWalkStopReason.NoNewItems)));
+    }
+
+    [Fact(DisplayName =
+        "A query search ignores an estimated pageInfo.totalResults, so an empty page with a new token stops as " +
+        "Information EmptyPage, does not fetch the following page, and keeps the videos already found.")]
+    public async Task estimated_total_does_not_keep_an_empty_page_walking()
+    {
+        // Arrange
+        var found = FakeYouTubePagingApi.Ids("q", 0, 3);
+        var later = FakeYouTubePagingApi.Ids("q", 3, 2);
+        const int estimatedTotal = 5_000;
+        var api = new FakeYouTubePagingApi()
+            .Page("", Videos(found, "next"))
+            .Page("next", new FakeYouTubePage([], "further", estimatedTotal))
+            .Page("further", Videos(later, null));
+        _mocker.GetMock<IYouTubeServiceWrapper>().SetupGet(wrapper => wrapper.YouTubeService).Returns(api.CreateService());
+        var sut = _mocker.CreateInstance<YouTubeSearcher>();
+
+        // Act
+        var results = await sut.Search(_fixture.Create<string>(), SearchWindow());
+
+        // Assert
+        api.Requests.Should().HaveCount(4);
+        results.Select(result => result.Id).Distinct().Should().Equal(found);
+        results.Select(result => result.Id).Should().NotContain(later);
+        var stops = StopEntries();
+        stops.Should().HaveCount(2);
+        stops.Should().OnlyContain(entry =>
+            entry.Level == LogLevel.Information &&
+            entry.Message.Contains(nameof(YouTubePageWalkStopReason.EmptyPage)));
     }
 
     [Fact(DisplayName =
@@ -85,13 +146,13 @@ public class YouTubeSearcherPagingRules
         var first = FakeYouTubePagingApi.Ids("q", 0, 2);
         var second = FakeYouTubePagingApi.Ids("q", 2, 2);
         var api = new FakeYouTubePagingApi()
-            .Page("", new FakeYouTubePage(first, "next"))
-            .Page("next", new FakeYouTubePage(second, null));
+            .Page("", Videos(first, "next"))
+            .Page("next", Videos(second, null));
         _mocker.GetMock<IYouTubeServiceWrapper>().SetupGet(wrapper => wrapper.YouTubeService).Returns(api.CreateService());
         var sut = _mocker.CreateInstance<YouTubeSearcher>();
 
         // Act
-        var results = await sut.Search(_fixture.Create<string>(), new IndexingContext(ReleasedSince: ReleasedSince));
+        var results = await sut.Search(_fixture.Create<string>(), SearchWindow());
 
         // Assert
         api.Requests.Should().HaveCount(4);
@@ -99,4 +160,16 @@ public class YouTubeSearcherPagingRules
         _logger.Entries.Should().NotContain(entry =>
             entry.Message.StartsWith(YouTubePageWalkGuard.StoppedMessagePrefix));
     }
+
+    private static IndexingContext SearchWindow() =>
+        new(ReleasedSince: DomainTestFixture.UtcDaysAgo(7));
+
+    private static FakeYouTubePage Videos(IReadOnlyList<string> videoIds, string? nextPageToken) =>
+        new(videoIds, nextPageToken)
+        {
+            Newest = UtcDateTimes.ToUtcOffset(DomainTestFixture.UtcAtTime(-1, TimeSpan.FromHours(12)))
+        };
+
+    private List<(LogLevel Level, string Message)> StopEntries() =>
+        _logger.Entries.Where(entry => entry.Message.StartsWith(YouTubePageWalkGuard.StoppedMessagePrefix)).ToList();
 }
