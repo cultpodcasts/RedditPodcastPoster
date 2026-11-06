@@ -3,7 +3,7 @@ using FluentAssertions;
 using RedditPodcastPoster.Bluesky.RichText;
 using Xunit;
 
-namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
+namespace RedditPodcastPoster.Bluesky.Tests.BusinessRules;
 
 public class HashtagScannerRules
 {
@@ -166,6 +166,29 @@ public class HashtagScannerRules
         // Assert
         tagText.Should().Be(expected);
         HashtagScanner.Find("#" + tagText).Should().ContainSingle().Which.Tag.Should().Be(expected);
+    }
+
+    [Theory(DisplayName =
+        "A stored hashtag is reproducible as-is only when writing it drops no character, so Q&A is not a hashtag and Cult is.")]
+    [InlineData("#Cult", true)]
+    [InlineData("Cult", true)]
+    [InlineData("#Señor", true)]
+    [InlineData("#Q&A", false)]
+    [InlineData("C++", false)]
+    [InlineData("#LGBTQ+", false)]
+    [InlineData("#Some-Tag", false)]
+    [InlineData("#Cult_Watch_", false)]
+    [InlineData("#🙏", false)]
+    public void stored_hashtag_is_reproduced_as_is_only_when_no_character_is_dropped(string stored, bool expected)
+    {
+        // Arrange
+        // (stored and expected come from the inline data)
+
+        // Act
+        var reproduced = HashtagScanner.IsReproducedAsIs(stored);
+
+        // Assert
+        reproduced.Should().Be(expected);
     }
 
     [Theory(DisplayName =

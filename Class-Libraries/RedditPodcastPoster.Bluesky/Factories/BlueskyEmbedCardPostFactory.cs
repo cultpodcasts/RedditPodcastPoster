@@ -16,6 +16,7 @@ using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Text.Enrichers;
+using RedditPodcastPoster.Text.HashTags;
 using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
@@ -62,14 +63,14 @@ public class BlueskyEmbedCardPostFactory(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
-                // Write the tag in the form the facet scanner links whole ("#Some-Tag" -> "#SomeTag"),
-                // so the linked tag always matches the text in the post.
-                var tagText = HashtagScanner.ToTagText(hashtag.MatchingText ?? hashtag.Tag);
-                if (tagText == null)
+                // Decide from the stored tag. MatchingText can already be a shortened
+                // form (Some-Tag → #SomeTag). The text written after '#' must be that stored body.
+                if (!HashtagText.IsReproducedAsIs(hashtag.Tag))
                 {
                     continue;
                 }
 
+                var tagText = HashtagText.ToTagText(hashtag.Tag)!;
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
@@ -77,7 +78,7 @@ public class BlueskyEmbedCardPostFactory(
                         tagText);
                 if (addedHashTag)
                 {
-                    hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
+                    hashtagsAdded.Add(hashtag.Tag);
                 }
             }
         }
@@ -117,8 +118,8 @@ public class BlueskyEmbedCardPostFactory(
 
         postBuilder.AppendLine(SocialPostKindTemplate.ReleaseLine(podcastEpisode));
 
-        // Bluesky tags are case-insensitive, and two stored tags can write the same tag text ("#Some-Tag" and
-        // "#SomeTag"), so an end-of-post tag is skipped when the title or an earlier end tag already links it.
+        // Bluesky tags are case-insensitive, so an end-of-post tag is skipped when the title or an
+        // earlier end tag already links that text. A tag that cannot be written unchanged is left out.
         var linkedTags = new HashSet<string>(
             HashtagScanner.Find(episodeTitle).Select(x => x.Tag), StringComparer.OrdinalIgnoreCase);
         var endHashTags = string.Join(" ",
@@ -127,7 +128,8 @@ public class BlueskyEmbedCardPostFactory(
                 .Select(x => x.Tag)
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
-                .Select(HashtagScanner.ToTagText)
+                .Where(HashtagText.IsReproducedAsIs)
+                .Select(HashtagText.ToTagText)
                 .OfType<string>()
                 .Where(linkedTags.Add)
                 .Select(x => $"#{x}"));

@@ -12,6 +12,7 @@ using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Enrichers;
+using RedditPodcastPoster.Text.HashTags;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Twitter.Configuration;
@@ -58,14 +59,22 @@ public class TweetBuilder(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
+                // Decide from the stored tag. MatchingText can already be a shortened
+                // form (Some-Tag → #SomeTag). The text written after '#' must be that stored body.
+                if (!HashtagText.IsReproducedAsIs(hashtag.Tag))
+                {
+                    continue;
+                }
+
+                var tagText = HashtagText.ToTagText(hashtag.Tag)!;
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
                         hashtag.Tag.TrimStart('#'),
-                        hashtag.MatchingText?.TrimStart('#'));
+                        tagText);
                 if (addedHashTag)
                 {
-                    hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
+                    hashtagsAdded.Add(hashtag.Tag);
                 }
             }
         }
@@ -111,6 +120,7 @@ public class TweetBuilder(
                 .Select(x => x.Tag)
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
+                .Where(HashtagText.IsReproducedAsIs)
                 .Select(x => $"#{x.TrimStart('#')}"));
         if (!string.IsNullOrWhiteSpace(endHashTags))
         {
