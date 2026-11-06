@@ -34,6 +34,8 @@ public class TweetBuilder(
     : ITweetBuilder
 {
     private const int MinTitleLength = 10;
+    /// <summary>X automation rules discourage a long hashtag list; keep title + end tags to this many.</summary>
+    private const int MaxHashTags = 2;
     public const string LengthFormat = @"\[h\:mm\:ss\]";
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
@@ -57,6 +59,11 @@ public class TweetBuilder(
         var hashtagsAdded = new List<string>();
         foreach (var hashtag in episodeHashtags)
         {
+            if (hashtagsAdded.Count >= MaxHashTags)
+            {
+                break;
+            }
+
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
                 // Decide from the stored tag. MatchingText can already be a shortened
@@ -114,14 +121,18 @@ public class TweetBuilder(
 
         tweetBuilder.AppendLine(SocialPostKindTemplate.ReleaseLine(podcastEpisode));
 
-        var endHashTags = string.Join(" ",
-            episodeHashtags
-                .Where(x => x.MatchingText == null)
-                .Select(x => x.Tag)
-                .Distinct()
-                .Where(x => !hashtagsAdded.Contains(x))
-                .Where(HashtagText.IsReproducedAsIs)
-                .Select(x => $"#{x.TrimStart('#')}"));
+        var endHashTagSlots = MaxHashTags - hashtagsAdded.Count;
+        var endHashTags = endHashTagSlots <= 0
+            ? string.Empty
+            : string.Join(" ",
+                episodeHashtags
+                    .Where(x => x.MatchingText == null)
+                    .Select(x => x.Tag)
+                    .Distinct()
+                    .Where(x => !hashtagsAdded.Contains(x))
+                    .Where(HashtagText.IsReproducedAsIs)
+                    .Take(endHashTagSlots)
+                    .Select(x => $"#{x.TrimStart('#')}"));
         if (!string.IsNullOrWhiteSpace(endHashTags))
         {
             tweetBuilder.AppendLine(endHashTags);
