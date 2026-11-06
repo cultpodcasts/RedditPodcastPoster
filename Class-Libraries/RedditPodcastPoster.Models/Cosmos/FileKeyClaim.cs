@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Serialization;
 
 namespace RedditPodcastPoster.Models.Cosmos;
 
@@ -15,6 +16,20 @@ public sealed class FileKeyClaim : IFileKeyed
 
     /// <summary>Cosmos item TTL for a claim that has not been kept by a save.</summary>
     public const int UncommittedLifetimeSeconds = 24 * 60 * 60;
+
+    /// <summary>
+    /// True when <paramref name="claimedUtc"/> is at least the uncommitted lifetime old.
+    /// A missing timestamp is not stale: another process must not adopt a claim it cannot age.
+    /// </summary>
+    public static bool IsPastUncommittedLifetime(DateTime claimedUtc, DateTime utcNow)
+    {
+        if (claimedUtc == default)
+        {
+            return false;
+        }
+
+        return utcNow - UtcDateTimes.ToUtc(claimedUtc) >= TimeSpan.FromSeconds(UncommittedLifetimeSeconds);
+    }
 
     public static string DocumentIdFor(string fileKey)
     {
@@ -41,16 +56,21 @@ public sealed class FileKeyClaim : IFileKeyed
     public bool Committed { get; set; }
 
     /// <summary>
-    /// Allocator scope that may release this claim while it is uncommitted. A retry whose creating scope is gone
-    /// replaces it with If-Match; a release deletes only when the stored value still matches.
+    /// Allocator scope that may release this claim while it is uncommitted. It stays with the creator until the
+    /// claim is past <see cref="UncommittedLifetimeSeconds"/>. A release deletes only when the stored value still matches.
     /// </summary>
     [JsonPropertyName("scopeId")]
     [JsonPropertyOrder(12)]
     public Guid ScopeId { get; set; }
 
+    /// <summary>When this uncommitted claim was created or last taken over. Used to tell a live claim from a stale one.</summary>
+    [JsonPropertyName("claimedUtc")]
+    [JsonPropertyOrder(13)]
+    public DateTime ClaimedUtc { get; set; }
+
     /// <summary>Cosmos per-item TTL. A day until the save keeps the claim, then none.</summary>
     [JsonPropertyName("ttl")]
-    [JsonPropertyOrder(13)]
+    [JsonPropertyOrder(14)]
     public int? TimeToLiveSeconds { get; set; }
 
     [JsonPropertyName("fileKey")]

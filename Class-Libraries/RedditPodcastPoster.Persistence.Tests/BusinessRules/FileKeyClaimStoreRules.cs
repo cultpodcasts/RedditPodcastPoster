@@ -56,6 +56,7 @@ public class FileKeyClaimStoreRules
                 claim.Id == FileKeyClaim.DocumentIdFor(_fileKey) &&
                 claim.OwnerId == _ownerId &&
                 claim.ScopeId == _scopeId &&
+                claim.ClaimedUtc != default &&
                 !claim.Committed),
             It.IsAny<PartitionKey?>(),
             It.IsAny<ItemRequestOptions>(),
@@ -160,6 +161,7 @@ public class FileKeyClaimStoreRules
             Id = FileKeyClaim.DocumentIdFor(_fileKey),
             OwnerId = _ownerId,
             ScopeId = _scopeId,
+            ClaimedUtc = DateTime.UtcNow,
             Committed = false
         };
         var read = Mock.Of<ItemResponse<FileKeyClaim>>(r =>
@@ -231,8 +233,81 @@ public class FileKeyClaimStoreRules
     }
 
     [Fact(DisplayName =
-        "A retry whose creating scope is gone takes over the uncommitted claim with an etag replace, so this scope can release it and the old scope cannot.")]
-    public async Task retry_takes_over_an_uncommitted_claim_when_no_scope_is_tracking_it()
+        "A second store that did not create a fresh uncommitted claim does not replace its scope id and does not delete it on dispose, so the creator keeps the lease.")]
+    public async Task second_store_observing_a_fresh_uncommitted_claim_does_not_take_the_lease()
+    {
+        // Arrange
+        var creator = Store;
+        var observer = Store;
+        var observerScope = _fixture.CreateGuid();
+        var id = FileKeyClaim.DocumentIdFor(_fileKey);
+        var creates = 0;
+        _mocker.GetMock<Container>()
+            .Setup(c => c.CreateItemAsync(
+                It.IsAny<FileKeyClaim>(),
+                It.IsAny<PartitionKey?>(),
+                It.IsAny<ItemRequestOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                if (creates++ > 0)
+                {
+                    throw CosmosStatus(HttpStatusCode.Conflict);
+                }
+
+                return Task.FromResult(_mocker.GetMock<ItemResponse<FileKeyClaim>>().Object);
+            });
+        var held = new FileKeyClaim
+        {
+            Id = id,
+            OwnerId = _ownerId,
+            ScopeId = _scopeId,
+            ClaimedUtc = DateTime.UtcNow,
+            Committed = false
+        };
+        var read = Mock.Of<ItemResponse<FileKeyClaim>>(r =>
+            r.Resource == held &&
+            r.ETag == _fixture.Create<string>());
+        _mocker.GetMock<Container>()
+            .Setup(c => c.ReadItemAsync<FileKeyClaim>(
+                id,
+                It.IsAny<PartitionKey>(),
+                It.IsAny<ItemRequestOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(read);
+        var replaced = _mocker.GetMock<ItemResponse<FileKeyClaim>>();
+        _mocker.GetMock<Container>()
+            .Setup(c => c.ReplaceItemAsync(
+                It.IsAny<FileKeyClaim>(),
+                It.IsAny<string>(),
+                It.IsAny<PartitionKey?>(),
+                It.IsAny<ItemRequestOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(replaced.Object);
+        await creator.TryClaim(_fileKey, _ownerId, _scopeId);
+
+        // Act
+        var observed = await observer.TryClaim(_fileKey, _ownerId, observerScope);
+        await observer.ReleaseUnacknowledged(observerScope);
+
+        // Assert
+        observed.Should().Be(FileKeyClaimResult.AlreadyOurs);
+        _mocker.GetMock<Container>().Verify(c => c.ReplaceItemAsync(
+            It.IsAny<FileKeyClaim>(),
+            It.IsAny<string>(),
+            It.IsAny<PartitionKey?>(),
+            It.IsAny<ItemRequestOptions>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<Container>().Verify(c => c.DeleteItemAsync<FileKeyClaim>(
+            It.IsAny<string>(),
+            It.IsAny<PartitionKey>(),
+            It.IsAny<ItemRequestOptions>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A claim older than the uncommitted lifetime is adopted with an etag replace, so the new scope can release it and the previous scope cannot.")]
+    public async Task stale_uncommitted_claim_is_adopted_with_an_etag_replace()
     {
         // Arrange
         var store = Store;
@@ -251,6 +326,7 @@ public class FileKeyClaimStoreRules
             Id = id,
             OwnerId = _ownerId,
             ScopeId = previousScope,
+            ClaimedUtc = DateTime.UtcNow.AddSeconds(-(FileKeyClaim.UncommittedLifetimeSeconds + 60)),
             Committed = false
         };
         var after = new FileKeyClaim

@@ -10,12 +10,12 @@ namespace RedditPodcastPoster.Persistence.Lookups;
 /// <summary>
 /// LookUps claim per file key (id = <c>filekey:{lowercased key}</c>, partition = id).
 /// <c>CreateItemAsync</c> fails with 409 when another owner holds it. The same owner may retry.
-/// Only the call that creates the document tracks it. A second scope that sees the same owner's
-/// uncommitted claim does not, so ending that scope cannot delete the creator's key. A retry whose
-/// creating scope is no longer tracked in this process replaces <see cref="FileKeyClaim.ScopeId"/>
-/// with If-Match and then tracks the lease. A save acknowledges the claim so it is kept.
-/// <see cref="ReleaseUnacknowledged"/> deletes only when the stored scope id still matches.
-/// An unacknowledged claim expires after a day if the process dies first.
+/// Only the call that creates the document tracks it. A second process that sees the same owner's
+/// fresh uncommitted claim does not track it and does not replace <see cref="FileKeyClaim.ScopeId"/>,
+/// so disposing that process cannot delete the creator's key. The lease is adopted with If-Match only
+/// once the claim is past <see cref="FileKeyClaim.UncommittedLifetimeSeconds"/>. A save acknowledges the
+/// claim so it is kept. <see cref="ReleaseUnacknowledged"/> deletes only when the stored scope id still
+/// matches. An unacknowledged claim expires after a day if the process dies first.
 /// </summary>
 public sealed class FileKeyClaimStore(
     Container lookUpsContainer,
@@ -117,9 +117,11 @@ public sealed class FileKeyClaimStore(
             return FileKeyClaimResult.HeldByOther;
         }
 
-        // The creating scope in this process still holds the lease. Observing it must not track it:
-        // disposing the observer would otherwise delete the key before that scope saves.
-        if (existing.Committed || IsTracked(fileKey))
+        // Another function instance has an empty scope map. That is not a reason to take the lease:
+        // its dispose would delete the document while the creator is still in flight. A dead creator
+        // expires after the one-day ttl. Adopt only once that lifetime has passed, the way a transfer
+        // lock waits out its heartbeat window before replacing the marker.
+        if (existing.Committed || !FileKeyClaim.IsPastUncommittedLifetime(existing.ClaimedUtc, DateTime.UtcNow))
         {
             return FileKeyClaimResult.AlreadyOurs;
         }
@@ -252,22 +254,10 @@ public sealed class FileKeyClaimStore(
             Id = id,
             OwnerId = ownerId,
             ScopeId = scopeId,
+            ClaimedUtc = DateTime.UtcNow,
             Committed = false,
             TimeToLiveSeconds = FileKeyClaim.UncommittedLifetimeSeconds
         };
-
-    private bool IsTracked(string fileKey)
-    {
-        foreach (var pending in _scopes.Values)
-        {
-            if (pending.ContainsKey(fileKey))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private void Track(Guid scopeId, string fileKey, Guid ownerId)
     {

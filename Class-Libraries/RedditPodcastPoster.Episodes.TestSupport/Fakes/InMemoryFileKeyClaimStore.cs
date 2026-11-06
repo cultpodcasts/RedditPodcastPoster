@@ -5,8 +5,8 @@ namespace RedditPodcastPoster.Episodes.TestSupport.Fakes;
 
 /// <summary>
 /// Process-local file-key claims for tests. Same results as <c>FileKeyClaimStore</c>: create, 409 for another
-/// owner, a second scope that only observes an uncommitted claim does not release it, a retry takes over the
-/// lease when no scope in this process is tracking it, acknowledge keeps the claim, and releasing the scope
+/// owner, a second scope that only observes a fresh uncommitted claim does not replace its scope or release it,
+/// a claim past the uncommitted lifetime can be adopted, acknowledge keeps the claim, and releasing the scope
 /// drops one that was never saved only while that scope still holds the lease.
 /// </summary>
 public sealed class InMemoryFileKeyClaimStore : IFileKeyClaimStore
@@ -31,17 +31,17 @@ public sealed class InMemoryFileKeyClaimStore : IFileKeyClaimStore
                     return Task.FromResult(FileKeyClaimResult.HeldByOther);
                 }
 
-                if (existing.Committed || IsTracked(fileKey))
+                if (existing.Committed || !FileKeyClaim.IsPastUncommittedLifetime(existing.ClaimedUtc, DateTime.UtcNow))
                 {
                     return Task.FromResult(FileKeyClaimResult.AlreadyOurs);
                 }
 
-                _docs[id] = existing with { ScopeId = scopeId };
+                _docs[id] = existing with { ScopeId = scopeId, ClaimedUtc = DateTime.UtcNow };
                 Track(scopeId, fileKey, ownerId);
                 return Task.FromResult(FileKeyClaimResult.AlreadyOurs);
             }
 
-            _docs[id] = new Claim(ownerId, scopeId, false);
+            _docs[id] = new Claim(ownerId, scopeId, DateTime.UtcNow, false);
             Track(scopeId, fileKey, ownerId);
             return Task.FromResult(FileKeyClaimResult.Created);
         }
@@ -108,19 +108,6 @@ public sealed class InMemoryFileKeyClaimStore : IFileKeyClaimStore
         return Task.CompletedTask;
     }
 
-    private bool IsTracked(string fileKey)
-    {
-        foreach (var pending in _scopes.Values)
-        {
-            if (pending.ContainsKey(fileKey))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private void Track(Guid scopeId, string fileKey, Guid ownerId)
     {
         if (!_scopes.TryGetValue(scopeId, out var pending))
@@ -148,5 +135,5 @@ public sealed class InMemoryFileKeyClaimStore : IFileKeyClaimStore
         return found;
     }
 
-    private readonly record struct Claim(Guid OwnerId, Guid ScopeId, bool Committed);
+    private readonly record struct Claim(Guid OwnerId, Guid ScopeId, DateTime ClaimedUtc, bool Committed);
 }
