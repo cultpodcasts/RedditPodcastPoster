@@ -16,6 +16,7 @@ using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Text.Enrichers;
+using RedditPodcastPoster.Text.HashTags;
 using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
@@ -62,15 +63,14 @@ public class BlueskyEmbedCardPostFactory(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
-                // The text written after '#' must survive unchanged on both platforms.
-                // Q&A would become QA, and QA is a different tag.
-                var writtenTag = hashtag.MatchingText ?? hashtag.Tag;
-                if (!HashtagScanner.IsReproducedAsIs(writtenTag))
+                // Decide from the stored tag. MatchingText can already be a shortened
+                // form (Some-Tag → #SomeTag). The text written after '#' must be that stored body.
+                if (!HashtagText.IsReproducedAsIs(hashtag.Tag))
                 {
                     continue;
                 }
 
-                var tagText = HashtagScanner.ToTagText(writtenTag)!;
+                var tagText = HashtagText.ToTagText(hashtag.Tag)!;
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
@@ -78,7 +78,7 @@ public class BlueskyEmbedCardPostFactory(
                         tagText);
                 if (addedHashTag)
                 {
-                    hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
+                    hashtagsAdded.Add(hashtag.Tag);
                 }
             }
         }
@@ -128,8 +128,8 @@ public class BlueskyEmbedCardPostFactory(
                 .Select(x => x.Tag)
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
-                .Where(HashtagScanner.IsReproducedAsIs)
-                .Select(HashtagScanner.ToTagText)
+                .Where(HashtagText.IsReproducedAsIs)
+                .Select(HashtagText.ToTagText)
                 .OfType<string>()
                 .Where(linkedTags.Add)
                 .Select(x => $"#{x}"));

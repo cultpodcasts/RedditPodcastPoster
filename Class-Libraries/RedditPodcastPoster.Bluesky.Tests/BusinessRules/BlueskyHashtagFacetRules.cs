@@ -63,14 +63,13 @@ public class BlueskyHashtagFacetRules
     }
 
     [Fact(DisplayName =
-        "Real case (Let's Talk About Sects, 'Opus Dei, Tangara & Redfield'): a subject hashtag inserted at the start of the quoted title gets a tag facet, because the post is wrapped in a quote mark and Bluesky only links the facets we send.")]
+        "An explicit stored tag that both platforms can write unchanged, placed at the start of the quoted title, gets a tag facet, because the post is wrapped in a quote mark and Bluesky only links the facets we send.")]
     public async Task hashtag_inserted_after_opening_title_quote_is_linked()
     {
         // Arrange
-        const string title = "Opus Dei, Tangara & Redfield";
+        const string title = "OpusDei, Tangara & Redfield";
         var podcast = _fixture.CreatePodcast(p =>
         {
-            p.Name = "Let's Talk About Sects";
             p.HashTag = null;
             p.EnrichmentHashTags = null;
             p.BlueskyHandle = null;
@@ -86,7 +85,7 @@ public class BlueskyHashtagFacetRules
         });
         var factory = CreateFactory(podcast, title,
         [
-            new HashTag("Opus Dei", "#OpusDei"),
+            new HashTag("#OpusDei", null),
             new HashTag("#Catholicism", null),
             new HashTag("#HumanTrafficking", null),
             new HashTag("#Cult", null)
