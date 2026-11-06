@@ -61,8 +61,7 @@ the YouTube episode enricher. A token-free pattern can still be compiled with ot
 
 Every description regex is compiled with `DescriptionRegexTokens.MatchTimeout` (2 seconds). If a match times out
 (catastrophic backtracking) it is treated as no match and the description is left unchanged, instead of the
-exception failing indexing/publishing. This is the only behaviour change for token-free patterns and only affects
-pathological patterns that previously could hang.
+exception failing indexing/publishing.
 
 ## Validation
 
