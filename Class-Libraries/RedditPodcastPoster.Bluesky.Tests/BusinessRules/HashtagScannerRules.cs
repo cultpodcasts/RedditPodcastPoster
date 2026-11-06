@@ -3,7 +3,7 @@ using FluentAssertions;
 using RedditPodcastPoster.Bluesky.RichText;
 using Xunit;
 
-namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
+namespace RedditPodcastPoster.Bluesky.Tests.BusinessRules;
 
 public class HashtagScannerRules
 {

@@ -14,7 +14,7 @@ using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Text.Enrichers;
 using RedditPodcastPoster.Text.Sanitisers;
 
-namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
+namespace RedditPodcastPoster.Bluesky.Tests.BusinessRules;
 
 public class BlueskyEmbedCardPostFactorySymbolHashTagRules
 {

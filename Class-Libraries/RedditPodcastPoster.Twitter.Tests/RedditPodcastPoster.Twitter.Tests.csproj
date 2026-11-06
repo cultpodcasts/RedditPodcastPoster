@@ -14,6 +14,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="FluentAssertions" Version="8.11.0" />
@@ -31,6 +32,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.People\RedditPodcastPoster.People.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.SocialPosting\RedditPodcastPoster.SocialPosting.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Subjects\RedditPodcastPoster.Subjects.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.Text\RedditPodcastPoster.Text.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />
   </ItemGroup>
 

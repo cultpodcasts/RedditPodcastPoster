@@ -14,7 +14,7 @@ using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.Twitter.Builders;
 using RedditPodcastPoster.Twitter.Configuration;
 
-namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
+namespace RedditPodcastPoster.Twitter.Tests.BusinessRules;
 
 public class TweetBuilderSymbolHashTagRules
 {

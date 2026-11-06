@@ -19,7 +19,7 @@ using HashTag = RedditPodcastPoster.Subjects.HashTags.HashTag;
 using RedditPodcastPoster.Text.Enrichers;
 using RedditPodcastPoster.Text.Sanitisers;
 
-namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
+namespace RedditPodcastPoster.Bluesky.Tests.BusinessRules;
 
 public class BlueskyHashtagFacetRules
 {
