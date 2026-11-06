@@ -11,6 +11,7 @@ using RedditPodcastPoster.People.Resolvers;
 using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Subjects.Extensions;
+using RedditPodcastPoster.Bluesky.RichText;
 using RedditPodcastPoster.Text.Enrichers;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
@@ -58,11 +59,19 @@ public class TweetBuilder(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
+                // The text written after '#' must survive unchanged on both platforms.
+                var writtenTag = hashtag.MatchingText ?? hashtag.Tag;
+                if (!HashtagScanner.IsReproducedAsIs(writtenTag))
+                {
+                    continue;
+                }
+
+                var tagText = HashtagScanner.ToTagText(writtenTag)!;
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
                         hashtag.Tag.TrimStart('#'),
-                        hashtag.MatchingText?.TrimStart('#'));
+                        tagText);
                 if (addedHashTag)
                 {
                     hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
@@ -111,6 +120,7 @@ public class TweetBuilder(
                 .Select(x => x.Tag)
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
+                .Where(HashtagScanner.IsReproducedAsIs)
                 .Select(x => $"#{x.TrimStart('#')}"));
         if (!string.IsNullOrWhiteSpace(endHashTags))
         {

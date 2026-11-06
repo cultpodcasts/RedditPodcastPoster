@@ -43,11 +43,11 @@ public class BlueskyEmbedCardPostFactorySymbolHashTagRules
     }
 
     [Theory(DisplayName =
-        "BlueskyEmbedCardPostFactory: a stored tag that contains a regex symbol is linked from the title, because building the post must not treat the tag as a pattern.")]
-    [InlineData("Notes on C++ today", "C++", "Notes on #C today")]
-    [InlineData("Community LGBTQ+ meetup notes", "LGBTQ+", "Community #LGBTQ meetup notes")]
-    [InlineData("The Q&A hour starts now", "Q&A", "The #QA hour starts now")]
-    public async Task create_post_writes_symbol_tag_without_throwing(string title, string hashTag, string expectedTitle)
+        "BlueskyEmbedCardPostFactory: a stored tag that either platform would shorten is left out of the post, because the shortened tag is not the stored tag.")]
+    [InlineData("Notes on C++ today", "C++")]
+    [InlineData("Community LGBTQ+ meetup notes", "LGBTQ+")]
+    [InlineData("The Q&A hour starts now", "Q&A")]
+    public async Task create_post_leaves_out_a_tag_that_cannot_be_reproduced_as_is(string title, string hashTag)
     {
         // Arrange
         var podcast = _fixture.CreatePodcast(p =>
@@ -102,6 +102,7 @@ public class BlueskyEmbedCardPostFactorySymbolHashTagRules
         var post = await sut.Create(new PodcastEpisode(podcast, episode), null);
 
         // Assert
-        post.Text.Should().Contain($"\"{expectedTitle}\"");
+        post.Text.Should().Contain($"\"{title}\"");
+        post.Text.Should().NotContain("#");
     }
 }

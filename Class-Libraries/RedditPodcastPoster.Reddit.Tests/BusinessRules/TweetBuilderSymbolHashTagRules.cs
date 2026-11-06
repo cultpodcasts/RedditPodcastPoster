@@ -42,11 +42,11 @@ public class TweetBuilderSymbolHashTagRules
     }
 
     [Theory(DisplayName =
-        "TweetBuilder: a stored tag that contains a regex symbol is written into the title as that exact hashtag, because building the post must not treat the tag as a pattern.")]
-    [InlineData("Notes on C++ today", "C++", "Notes on #C++ today")]
-    [InlineData("Community LGBTQ+ meetup notes", "LGBTQ+", "Community #LGBTQ+ meetup notes")]
-    [InlineData("The Q&A hour starts now", "Q&A", "The #Q&A hour starts now")]
-    public async Task build_tweet_writes_symbol_tag_literally(string title, string hashTag, string expectedTitle)
+        "TweetBuilder: a stored tag that either platform would shorten is left out of the post, because the shortened tag is not the stored tag.")]
+    [InlineData("Notes on C++ today", "C++")]
+    [InlineData("Community LGBTQ+ meetup notes", "LGBTQ+")]
+    [InlineData("The Q&A hour starts now", "Q&A")]
+    public async Task build_tweet_leaves_out_a_tag_that_cannot_be_reproduced_as_is(string title, string hashTag)
     {
         // Arrange
         var podcast = _fixture.CreatePodcast(p =>
@@ -101,6 +101,7 @@ public class TweetBuilderSymbolHashTagRules
         var tweet = await sut.BuildTweet(new PodcastEpisode(podcast, episode), null);
 
         // Assert
-        tweet.Should().Contain($"\"{expectedTitle}\"");
+        tweet.Should().Contain($"\"{title}\"");
+        tweet.Should().NotContain("#");
     }
 }

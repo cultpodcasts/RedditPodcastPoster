@@ -169,6 +169,29 @@ public class HashtagScannerRules
     }
 
     [Theory(DisplayName =
+        "A stored hashtag is reproducible as-is only when writing it drops no character, so Q&A is not a hashtag and Cult is.")]
+    [InlineData("#Cult", true)]
+    [InlineData("Cult", true)]
+    [InlineData("#Señor", true)]
+    [InlineData("#Q&A", false)]
+    [InlineData("C++", false)]
+    [InlineData("#LGBTQ+", false)]
+    [InlineData("#Some-Tag", false)]
+    [InlineData("#Cult_Watch_", false)]
+    [InlineData("#🙏", false)]
+    public void stored_hashtag_is_reproduced_as_is_only_when_no_character_is_dropped(string stored, bool expected)
+    {
+        // Arrange
+        // (stored and expected come from the inline data)
+
+        // Act
+        var reproduced = HashtagScanner.IsReproducedAsIs(stored);
+
+        // Assert
+        reproduced.Should().Be(expected);
+    }
+
+    [Theory(DisplayName =
         "A stored hashtag with nothing linkable left (empty, digits or '_' only, or emoji or dashes only) has no tag text, so it is not written.")]
     [InlineData(null)]
     [InlineData("")]

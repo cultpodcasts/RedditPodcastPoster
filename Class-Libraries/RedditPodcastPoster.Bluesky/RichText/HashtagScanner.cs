@@ -16,9 +16,10 @@ public readonly record struct HashtagToken(string Tag, long ByteStart, long Byte
 /// other character. This deliberately differs from Bluesky's app rule, which only ends a tag at
 /// whitespace and trims trailing punctuation: that rule links <c>#Cult—and</c>, <c>#Cult's</c>
 /// and <c>#Cult🙏</c> whole. Our tags are inserted into titles as whole words, so the facet must
-/// cover only the inserted tag. The post factory writes every tag through <see cref="ToTagText"/>,
-/// so a stored tag such as <c>Some-Tag</c> or <c>Jehovah’s Witnesses</c> is written in a form this
-/// scanner links whole. A tag still needs one character that is not a digit or <c>_</c>, and at most 64
+/// cover only the inserted tag. <see cref="ToTagText"/> shows the characters a tag can hold.
+/// <see cref="IsReproducedAsIs"/> is false when that drops or changes a character, and the post
+/// factories then leave the stored tag out: <c>Q&amp;A</c> must not be written as <c>QA</c>.
+/// A tag still needs one character that is not a digit or <c>_</c>, and at most 64
 /// characters.
 /// </para>
 /// </summary>
@@ -98,6 +99,34 @@ public static class HashtagScanner
 
         var tag = builder.ToString().TrimEnd('_');
         return IsValidTag(tag) ? tag : null;
+    }
+
+    /// <summary>
+    /// True when the stored tag can be written after <c>#</c> with the same characters.
+    /// <c>Q&amp;A</c> is not: the characters a tag can hold leave <c>QA</c>, which is a different tag.
+    /// </summary>
+    public static bool IsReproducedAsIs(string? stored)
+    {
+        if (string.IsNullOrWhiteSpace(stored))
+        {
+            return false;
+        }
+
+        var body = stored.Trim();
+        var index = 0;
+        while (index < body.Length && IsHashMark(body[index]))
+        {
+            index++;
+        }
+
+        body = body[index..];
+        if (body.Length == 0)
+        {
+            return false;
+        }
+
+        var written = ToTagText(body);
+        return written != null && string.Equals(written, body, StringComparison.Ordinal);
     }
 
     private static bool IsHashMark(char c) => c is '#' or '＃';

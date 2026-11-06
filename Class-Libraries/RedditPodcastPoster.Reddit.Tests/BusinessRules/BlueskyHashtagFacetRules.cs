@@ -150,14 +150,14 @@ public class BlueskyHashtagFacetRules
     }
 
     [Theory(DisplayName =
-        "A stored hashtag containing a dash, apostrophe, '&' or '+' is written without those characters, in the title or the end-of-post line, so the tag facet covers the whole written tag instead of stopping part-way and linking a different tag.")]
-    [InlineData("Leaving the Jehovah’s Witnesses", "Jehovah’s Witnesses", "#Jehovah’sWitnesses", "JehovahsWitnesses")]
-    [InlineData("Inside Some-Tag Today", "#Some-Tag", null, "SomeTag")]
-    [InlineData("An Unrelated Title", "#Some-Tag", null, "SomeTag")]
-    [InlineData("An Unrelated Title", "#Q&A", null, "QA")]
-    [InlineData("An Unrelated Title", "#LGBTQ+", null, "LGBTQ")]
-    public async Task stored_hashtag_with_non_word_characters_is_written_and_linked_whole(
-        string title, string storedTag, string? matchingText, string expectedTag)
+        "A stored hashtag that cannot be written without dropping a character is left out of the title and the end-of-post line, because the shortened tag is not the stored tag.")]
+    [InlineData("Leaving the Jehovah’s Witnesses", "Jehovah’s Witnesses")]
+    [InlineData("Inside Some-Tag Today", "#Some-Tag")]
+    [InlineData("An Unrelated Title", "#Some-Tag")]
+    [InlineData("An Unrelated Title", "#Q&A")]
+    [InlineData("An Unrelated Title", "#LGBTQ+")]
+    public async Task stored_hashtag_that_cannot_be_reproduced_as_is_is_not_written(
+        string title, string storedTag)
     {
         // Arrange
         var podcast = _fixture.CreatePodcast(p =>
@@ -175,23 +175,14 @@ public class BlueskyHashtagFacetRules
             e.Guests = null;
             e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
         });
-        var factory = CreateFactory(podcast, title, [new HashTag(storedTag, matchingText)]);
-        var post = await factory.Create(new PodcastEpisode(podcast, episode), null);
-        var sut = new BlueskyFacetExtractor((_, _) => Task.FromResult<Did?>(null));
+        var factory = CreateFactory(podcast, title, [new HashTag(storedTag, null)]);
 
         // Act
-        var facets = await sut.ExtractFacets(post.Text);
+        var post = await factory.Create(new PodcastEpisode(podcast, episode), null);
 
         // Assert
-        var written = "#" + expectedTag;
-        post.Text.Should().Contain(written);
-        post.Text.Should().NotContain(storedTag.StartsWith('#') ? storedTag : "#" + matchingText!.TrimStart('#'));
-        var tagFacet = facets.Should().ContainSingle(f => f.Features.OfType<TagFacetFeature>().Any()).Which;
-        tagFacet.Features.OfType<TagFacetFeature>().Single().Tag.Should().Be(expectedTag);
-        var bytes = Encoding.UTF8.GetBytes(post.Text);
-        Encoding.UTF8.GetString(bytes, (int)tagFacet.Index.ByteStart,
-                (int)(tagFacet.Index.ByteEnd - tagFacet.Index.ByteStart))
-            .Should().Be(written);
+        post.Text.Should().Contain($"\"{title}\"");
+        post.Text.Should().NotContain("#");
     }
 
     [Fact(DisplayName =
@@ -225,8 +216,8 @@ public class BlueskyHashtagFacetRules
     }
 
     [Theory(DisplayName =
-        "Two stored hashtags that write the same tag (differing only in case or in characters a tag can't hold) are " +
-        "linked once, in the title or the end-of-post line, so the post never repeats a tag.")]
+        "Two stored hashtags that resolve to the same written tag are linked once: a tag that cannot be reproduced " +
+        "as-is is left out, and the remaining tag is written once in the title or the end-of-post line.")]
     [InlineData("Inside Some-Tag Today", "#Some-Tag", "#SomeTag", "SomeTag")]
     [InlineData("Inside Cult Today", "#Cult", "#cult", "Cult")]
     [InlineData("An Unrelated Title", "#Some-Tag", "#SomeTag", "SomeTag")]
