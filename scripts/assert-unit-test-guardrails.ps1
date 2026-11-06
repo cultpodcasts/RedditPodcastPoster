@@ -45,6 +45,7 @@ function Test-IsTestSourcePath([string] $filePath) {
     if ($n -match '/obj/|/bin/') { return $false }
     # Fixture / test-support libraries are not rule-test bodies
     if ($n -match 'TestSupport/') { return $false }
+    if ($n -match 'TestSupport\.cs$') { return $false }
     return (
         $n -match 'Tests?/' -or
         $n -match '\.Tests/' -or

@@ -5,10 +5,11 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 
-namespace RedditPodcastPoster.Persistence.Lookups;
+namespace RedditPodcastPoster.Persistence.FileKeys;
 
 /// <summary>
-/// LookUps claim per file key (id = <c>filekey:{lowercased key}</c>, partition = id).
+/// Temporary <c>FileKeyClaims</c> container claim per file key (id = <c>filekey:{lowercased key}</c>,
+/// partition = id). Kept out of LookUps so permanent lookup docs are not mixed with short-lived leases.
 /// <c>CreateItemAsync</c> fails with 409 when another owner holds it. The same owner may retry.
 /// Only the call that creates the document tracks it. A second process that sees the same owner's
 /// fresh uncommitted claim does not track it and does not replace <see cref="FileKeyClaim.ScopeId"/>,
@@ -18,7 +19,7 @@ namespace RedditPodcastPoster.Persistence.Lookups;
 /// matches. An unacknowledged claim expires after a day if the process dies first.
 /// </summary>
 public sealed class FileKeyClaimStore(
-    Container lookUpsContainer,
+    Container fileKeyClaimsContainer,
     ILogger<FileKeyClaimStore> logger) : IFileKeyClaimStore
 {
     private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<string, Guid>> _scopes = new();
@@ -65,7 +66,7 @@ public sealed class FileKeyClaimStore(
         var partition = new PartitionKey(id);
         try
         {
-            var read = await lookUpsContainer.ReadItemAsync<FileKeyClaim>(id, partition, cancellationToken: cancellationToken);
+            var read = await fileKeyClaimsContainer.ReadItemAsync<FileKeyClaim>(id, partition, cancellationToken: cancellationToken);
             var marker = read.Resource;
             if (marker.OwnerId != ownerId)
             {
@@ -74,7 +75,7 @@ public sealed class FileKeyClaimStore(
 
             marker.Committed = true;
             marker.TimeToLiveSeconds = -1;
-            await lookUpsContainer.ReplaceItemAsync(marker, id, partition, cancellationToken: cancellationToken);
+            await fileKeyClaimsContainer.ReplaceItemAsync(marker, id, partition, cancellationToken: cancellationToken);
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
@@ -128,7 +129,7 @@ public sealed class FileKeyClaimStore(
 
         try
         {
-            await lookUpsContainer.ReplaceItemAsync(
+            await fileKeyClaimsContainer.ReplaceItemAsync(
                 marker,
                 id,
                 partition,
@@ -170,7 +171,7 @@ public sealed class FileKeyClaimStore(
         var partition = new PartitionKey(id);
         try
         {
-            var read = await lookUpsContainer.ReadItemAsync<FileKeyClaim>(id, partition, cancellationToken: cancellationToken);
+            var read = await fileKeyClaimsContainer.ReadItemAsync<FileKeyClaim>(id, partition, cancellationToken: cancellationToken);
             var marker = read.Resource;
             if (marker.OwnerId != ownerId)
             {
@@ -194,7 +195,7 @@ public sealed class FileKeyClaimStore(
                 }
             }
 
-            await lookUpsContainer.DeleteItemAsync<FileKeyClaim>(
+            await fileKeyClaimsContainer.DeleteItemAsync<FileKeyClaim>(
                 id,
                 partition,
                 new ItemRequestOptions { IfMatchEtag = read.ETag },
@@ -224,7 +225,7 @@ public sealed class FileKeyClaimStore(
     {
         try
         {
-            await lookUpsContainer.CreateItemAsync(marker, partition, cancellationToken: cancellationToken);
+            await fileKeyClaimsContainer.CreateItemAsync(marker, partition, cancellationToken: cancellationToken);
             return true;
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
@@ -240,7 +241,7 @@ public sealed class FileKeyClaimStore(
     {
         try
         {
-            return await lookUpsContainer.ReadItemAsync<FileKeyClaim>(id, partition, cancellationToken: cancellationToken);
+            return await fileKeyClaimsContainer.ReadItemAsync<FileKeyClaim>(id, partition, cancellationToken: cancellationToken);
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {

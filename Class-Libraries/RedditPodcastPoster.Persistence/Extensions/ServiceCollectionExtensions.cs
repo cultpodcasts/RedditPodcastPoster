@@ -115,7 +115,7 @@ public static class ServiceCollectionExtensions
                 })
                 .AddSingleton<IFileKeyClaimStore>(s =>
                     new FileKeyClaimStore(
-                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateFileKeyClaimsContainer(),
                         s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FileKeyClaimStore>>()))
                 .AddScoped<IFileKeyAllocator, FileKeyAllocator>()
                 .AddSingleton<IActivityRepository>(s =>

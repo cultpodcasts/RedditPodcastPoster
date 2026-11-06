@@ -7,7 +7,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
-using RedditPodcastPoster.Persistence.Lookups;
+using RedditPodcastPoster.Persistence.FileKeys;
 
 namespace RedditPodcastPoster.Persistence.Tests.BusinessRules;
 

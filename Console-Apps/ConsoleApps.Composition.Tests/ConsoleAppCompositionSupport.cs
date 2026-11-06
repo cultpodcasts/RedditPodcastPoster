@@ -69,6 +69,7 @@ internal static class ConsoleAppCompositionSupport
             ["cosmosdb:DiscoveryContainer"] = "Discovery",
             ["cosmosdb:DiscoverySubmissionsContainer"] = "DiscoverySubmissions",
             ["cosmosdb:LookUpsContainer"] = "LookUps",
+            ["cosmosdb:FileKeyClaimsContainer"] = "FileKeyClaims",
             ["cosmosdb:TitleCasingRulesContainer"] = "TitleCasingRules",
             ["cosmosdb:PushSubscriptionsContainer"] = "PushSubscriptions",
             ["youtube:Applications:0:ApiKey"] = "test-youtube-cli-key",
@@ -154,6 +155,7 @@ internal static class ConsoleAppCompositionSupport
         containerFactory.Setup(x => x.CreateDiscoveryContainer()).Returns(container);
         containerFactory.Setup(x => x.CreateDiscoverySubmissionsContainer()).Returns(container);
         containerFactory.Setup(x => x.CreateLookUpsContainer()).Returns(container);
+        containerFactory.Setup(x => x.CreateFileKeyClaimsContainer()).Returns(container);
         containerFactory.Setup(x => x.CreateTitleCasingRulesContainer()).Returns(container);
         containerFactory.Setup(x => x.CreatePushSubscriptionsContainer()).Returns(container);
 

@@ -4,11 +4,12 @@ using RedditPodcastPoster.Models.Serialization;
 namespace RedditPodcastPoster.Models.Cosmos;
 
 /// <summary>
-/// LookUps marker that a file key is taken. Id is <c>filekey:{lowercased key}</c>, partitioned by that id.
-/// Created with <c>CreateItemAsync</c>; a 409 means another owner holds it. <see cref="ScopeId"/> is the
-/// allocator scope that may release an uncommitted marker. A save of the podcast, TV show, news organisation
-/// or film keeps the marker. A create that is never saved releases it when that scope still holds the lease.
-/// An abandoned marker (process killed before release or save) expires after <see cref="UncommittedLifetimeSeconds"/>.
+/// Short-lived lease that a file key is taken, stored in the <c>FileKeyClaims</c> container (not LookUps).
+/// Id is <c>filekey:{lowercased key}</c>, partitioned by that id. Created with <c>CreateItemAsync</c>; a 409
+/// means another owner holds it. <see cref="ScopeId"/> is the allocator scope that may release an uncommitted
+/// marker. A save of the podcast, TV show, news organisation or film keeps the marker. A create that is never
+/// saved releases it when that scope still holds the lease. An abandoned marker (process killed before release
+/// or save) expires after <see cref="UncommittedLifetimeSeconds"/>.
 /// </summary>
 public sealed class FileKeyClaim : IFileKeyed
 {
