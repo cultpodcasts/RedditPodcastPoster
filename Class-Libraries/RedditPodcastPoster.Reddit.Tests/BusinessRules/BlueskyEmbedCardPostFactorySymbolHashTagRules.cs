@@ -1,0 +1,107 @@
+using FluentAssertions;
+using Microsoft.Extensions.Options;
+using Moq;
+using Moq.AutoMock;
+using RedditPodcastPoster.Bluesky.Configuration;
+using RedditPodcastPoster.Bluesky.Factories;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Posting;
+using RedditPodcastPoster.People.Resolvers;
+using RedditPodcastPoster.SocialPosting.Factories;
+using RedditPodcastPoster.Subjects.HashTags;
+using RedditPodcastPoster.Text.Enrichers;
+using RedditPodcastPoster.Text.Sanitisers;
+
+namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
+
+public class BlueskyEmbedCardPostFactorySymbolHashTagRules
+{
+    private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+
+    public BlueskyEmbedCardPostFactorySymbolHashTagRules()
+    {
+        _mocker.Use<IHashTagEnricher>(new HashTagEnricher());
+        _mocker.Use(Options.Create(new BlueskyOptions
+        {
+            Identifier = "id",
+            Password = "pw",
+            HashTag = null,
+            WithEpisodeUrl = false,
+            ReuseSession = false,
+            MaxFailures = 1,
+            MaxPosts = 1
+        }));
+        _mocker.GetMock<IHashTagProvider>()
+            .Setup(x => x.GetHashTags(It.IsAny<List<string>>()))
+            .ReturnsAsync(new List<HashTag>());
+        _mocker.GetMock<IPersonGuestHandleResolver>()
+            .Setup(x => x.Resolve(It.IsAny<Episode>()))
+            .ReturnsAsync((Array.Empty<string>(), Array.Empty<string>()));
+    }
+
+    [Theory(DisplayName =
+        "BlueskyEmbedCardPostFactory: a stored tag that contains a regex symbol is linked from the title, because building the post must not treat the tag as a pattern.")]
+    [InlineData("Notes on C++ today", "C++", "Notes on #C today")]
+    [InlineData("Community LGBTQ+ meetup notes", "LGBTQ+", "Community #LGBTQ meetup notes")]
+    [InlineData("The Q&A hour starts now", "Q&A", "The #QA hour starts now")]
+    public async Task create_post_writes_symbol_tag_without_throwing(string title, string hashTag, string expectedTitle)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = null;
+            p.BlueskyHandle = null;
+        });
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Subjects = [];
+            e.HashTag = hashTag;
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        _mocker.GetMock<ITextSanitiser>()
+            .Setup(x => x.SanitiseTitle(It.IsAny<PostModel>()))
+            .ReturnsAsync(title);
+        _mocker.GetMock<ITextSanitiser>()
+            .Setup(x => x.SanitisePodcastName(It.IsAny<PostModel>()))
+            .Returns(podcast.Name);
+        _mocker.GetMock<IPostModelFactory>()
+            .Setup(x => x.ToPostModel(It.IsAny<(Podcast, IEnumerable<Episode>)>(), It.IsAny<bool>()))
+            .Returns((ValueTuple<Podcast, IEnumerable<Episode>> pe, bool _) =>
+                new PostModel(
+                    pe.Item1.Name,
+                    string.Empty,
+                    string.Empty,
+                    [
+                        new EpisodePost(
+                            pe.Item2.First().Title,
+                            pe.Item2.First().Urls.YouTube,
+                            pe.Item2.First().Urls.Spotify,
+                            pe.Item2.First().Urls.Apple,
+                            pe.Item2.First().ReleaseUtc.ToString("o"),
+                            pe.Item2.First().Length.ToString(),
+                            pe.Item2.First().Description,
+                            pe.Item2.First().Id.ToString(),
+                            pe.Item2.First().ReleaseUtc,
+                            pe.Item2.First().Subjects.ToArray(),
+                            pe.Item2.First().Urls.BBC,
+                            pe.Item2.First().Urls.InternetArchive)
+                    ],
+                    null,
+                    [],
+                    []));
+        var sut = _mocker.CreateInstance<BlueskyEmbedCardPostFactory>();
+
+        // Act
+        var post = await sut.Create(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        post.Text.Should().Contain($"\"{expectedTitle}\"");
+    }
+}
