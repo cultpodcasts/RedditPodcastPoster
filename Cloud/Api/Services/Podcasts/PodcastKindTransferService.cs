@@ -671,8 +671,11 @@ public class PodcastKindTransferService(
 
         try
         {
-            await CatalogueBulkWrite.RetryThrottled(() => target.DeleteParent(parentId));
-            await fileKeyAllocator.Release(parentFileKey, parentId);
+            await CatalogueBulkWrite.RetryThrottled(async () =>
+            {
+                await target.DeleteParent(parentId);
+                await fileKeyAllocator.Release(parentFileKey, parentId);
+            });
         }
         catch (Exception ex)
         {

@@ -10,8 +10,9 @@ namespace RedditPodcastPoster.Persistence.FileKeys;
 /// <remarks>
 /// Taken keys are read per allocation from the kind's own container, then claimed in LookUps
 /// (<see cref="IFileKeyClaimStore"/>). A 409 from another owner moves on to the next <c>_N</c> suffix.
-/// The same owner's retry keeps the key. Saving the item acknowledges the claim. Disposing this allocator
-/// releases claims it created that were never saved. Keys this allocator generates for different kinds cannot
+/// The same owner's retry keeps the key. A second scope that only sees that uncommitted claim does not release
+/// it. Saving the item acknowledges the claim. Disposing this allocator releases claims it created that were
+/// never saved, when it still holds the lease. Keys this allocator generates for different kinds cannot
 /// clash (TV, news and film keys carry reserved prefixes and a generated podcast slug cannot contain a hyphen),
 /// but a key set by other means (hand-edited, or older data) can. The public-database publisher's
 /// <c>PublicFileKeyGuard</c> remains the backstop for those.

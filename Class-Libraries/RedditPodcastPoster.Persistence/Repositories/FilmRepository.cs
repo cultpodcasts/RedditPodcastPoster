@@ -64,6 +64,7 @@ public class FilmRepository(
                 film.Id.ToString(),
                 new PartitionKey(film.Id.ToString()),
                 new ItemRequestOptions { IfMatchEtag = etag });
+            await fileKeyClaims.Acknowledge(film.FileKey);
             return true;
         }
         catch (CosmosException ex) when (ex.StatusCode is System.Net.HttpStatusCode.PreconditionFailed

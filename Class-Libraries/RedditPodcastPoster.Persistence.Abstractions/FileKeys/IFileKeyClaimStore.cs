@@ -26,7 +26,10 @@ public interface IFileKeyClaimStore
     /// </summary>
     Task Acknowledge(string? fileKey, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes claims this scope created and has not acknowledged.</summary>
+    /// <summary>
+    /// Deletes claims this scope created and has not acknowledged, when the stored scope id still matches.
+    /// A claim whose lease moved to another scope is left alone.
+    /// </summary>
     Task ReleaseUnacknowledged(Guid scopeId, CancellationToken cancellationToken = default);
 
     /// <summary>Deletes the claim even after it was kept. Used when the saved item is removed.</summary>

@@ -10,8 +10,12 @@ namespace RedditPodcastPoster.Persistence.Lookups;
 /// <summary>
 /// LookUps claim per file key (id = <c>filekey:{lowercased key}</c>, partition = id).
 /// <c>CreateItemAsync</c> fails with 409 when another owner holds it. The same owner may retry.
-/// A save acknowledges the claim so it is kept. The scope releases any claim it created and did not
-/// acknowledge. An unacknowledged claim expires after a day if the process dies first.
+/// Only the call that creates the document tracks it. A second scope that sees the same owner's
+/// uncommitted claim does not, so ending that scope cannot delete the creator's key. A retry whose
+/// creating scope is no longer tracked in this process replaces <see cref="FileKeyClaim.ScopeId"/>
+/// with If-Match and then tracks the lease. A save acknowledges the claim so it is kept.
+/// <see cref="ReleaseUnacknowledged"/> deletes only when the stored scope id still matches.
+/// An unacknowledged claim expires after a day if the process dies first.
 /// </summary>
 public sealed class FileKeyClaimStore(
     Container lookUpsContainer,
@@ -26,62 +30,28 @@ public sealed class FileKeyClaimStore(
         CancellationToken cancellationToken = default)
     {
         var id = FileKeyClaim.DocumentIdFor(fileKey);
-        var marker = new FileKeyClaim
-        {
-            Id = id,
-            OwnerId = ownerId,
-            Committed = false,
-            TimeToLiveSeconds = FileKeyClaim.UncommittedLifetimeSeconds
-        };
+        var marker = UncommittedMarker(id, ownerId, scopeId);
         var partition = new PartitionKey(id);
 
-        try
+        if (await TryCreate(marker, partition, cancellationToken))
         {
-            await lookUpsContainer.CreateItemAsync(marker, partition, cancellationToken: cancellationToken);
             Track(scopeId, fileKey, ownerId);
             return FileKeyClaimResult.Created;
         }
-        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
-        {
-            // Held by someone; the same owner is a retry.
-        }
 
-        FileKeyClaim? existing;
-        try
+        var read = await ReadClaim(id, partition, cancellationToken);
+        if (read == null)
         {
-            var read = await lookUpsContainer.ReadItemAsync<FileKeyClaim>(id, partition, cancellationToken: cancellationToken);
-            existing = read.Resource;
-        }
-        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-        {
-            existing = null;
-        }
-
-        if (existing == null)
-        {
-            try
+            if (await TryCreate(marker, partition, cancellationToken))
             {
-                await lookUpsContainer.CreateItemAsync(marker, partition, cancellationToken: cancellationToken);
                 Track(scopeId, fileKey, ownerId);
                 return FileKeyClaimResult.Created;
             }
-            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
-            {
-                return FileKeyClaimResult.HeldByOther;
-            }
-        }
 
-        if (existing.OwnerId != ownerId)
-        {
             return FileKeyClaimResult.HeldByOther;
         }
 
-        if (!existing.Committed)
-        {
-            Track(scopeId, fileKey, ownerId);
-        }
-
-        return FileKeyClaimResult.AlreadyOurs;
+        return await ResolveHeldClaim(read, marker, id, partition, fileKey, ownerId, scopeId, cancellationToken);
     }
 
     public async Task Acknowledge(string? fileKey, CancellationToken cancellationToken = default)
@@ -121,25 +91,77 @@ public sealed class FileKeyClaimStore(
 
         foreach (var (fileKey, ownerId) in pending)
         {
-            await DeleteIfUncommitted(fileKey, ownerId, cancellationToken);
+            await DeleteIfOwner(fileKey, ownerId, releasingScopeId: scopeId, cancellationToken);
         }
     }
 
     public Task Delete(string fileKey, Guid ownerId, CancellationToken cancellationToken = default)
     {
         Untrack(fileKey, out _);
-        return DeleteIfOwner(fileKey, ownerId, onlyIfUncommitted: false, cancellationToken);
+        return DeleteIfOwner(fileKey, ownerId, releasingScopeId: null, cancellationToken);
     }
 
-    private async Task DeleteIfUncommitted(string fileKey, Guid ownerId, CancellationToken cancellationToken)
+    private async Task<FileKeyClaimResult> ResolveHeldClaim(
+        ItemResponse<FileKeyClaim> read,
+        FileKeyClaim marker,
+        string id,
+        PartitionKey partition,
+        string fileKey,
+        Guid ownerId,
+        Guid scopeId,
+        CancellationToken cancellationToken)
     {
-        await DeleteIfOwner(fileKey, ownerId, onlyIfUncommitted: true, cancellationToken);
+        var existing = read.Resource;
+        if (existing.OwnerId != ownerId)
+        {
+            return FileKeyClaimResult.HeldByOther;
+        }
+
+        // The creating scope in this process still holds the lease. Observing it must not track it:
+        // disposing the observer would otherwise delete the key before that scope saves.
+        if (existing.Committed || IsTracked(fileKey))
+        {
+            return FileKeyClaimResult.AlreadyOurs;
+        }
+
+        try
+        {
+            await lookUpsContainer.ReplaceItemAsync(
+                marker,
+                id,
+                partition,
+                new ItemRequestOptions { IfMatchEtag = read.ETag },
+                cancellationToken);
+            Track(scopeId, fileKey, ownerId);
+            return FileKeyClaimResult.AlreadyOurs;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
+        {
+            var again = await ReadClaim(id, partition, cancellationToken);
+            if (again == null || again.Resource.OwnerId != ownerId)
+            {
+                return FileKeyClaimResult.HeldByOther;
+            }
+
+            // Lost the etag race. Do not track: the scope that won the lease releases or acknowledges.
+            return FileKeyClaimResult.AlreadyOurs;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            if (await TryCreate(marker, partition, cancellationToken))
+            {
+                Track(scopeId, fileKey, ownerId);
+                return FileKeyClaimResult.Created;
+            }
+
+            return FileKeyClaimResult.HeldByOther;
+        }
     }
 
     private async Task DeleteIfOwner(
         string fileKey,
         Guid ownerId,
-        bool onlyIfUncommitted,
+        Guid? releasingScopeId,
         CancellationToken cancellationToken)
     {
         var id = FileKeyClaim.DocumentIdFor(fileKey);
@@ -148,9 +170,26 @@ public sealed class FileKeyClaimStore(
         {
             var read = await lookUpsContainer.ReadItemAsync<FileKeyClaim>(id, partition, cancellationToken: cancellationToken);
             var marker = read.Resource;
-            if (marker.OwnerId != ownerId || (onlyIfUncommitted && marker.Committed))
+            if (marker.OwnerId != ownerId)
             {
                 return;
+            }
+
+            if (releasingScopeId is Guid scopeId)
+            {
+                if (marker.Committed)
+                {
+                    return;
+                }
+
+                if (marker.ScopeId != scopeId)
+                {
+                    logger.LogInformation(
+                        "{method}: File-key claim '{fileKey}' is leased to another scope; leaving it.",
+                        nameof(ReleaseUnacknowledged),
+                        fileKey);
+                    return;
+                }
             }
 
             await lookUpsContainer.DeleteItemAsync<FileKeyClaim>(
@@ -167,10 +206,67 @@ public sealed class FileKeyClaimStore(
                 fileKey,
                 ex.StatusCode);
         }
+        catch (CosmosException)
+        {
+            // 429 and other Cosmos failures must reach the caller. A committed claim has ttl -1, so swallowing
+            // a throttled compensation delete would leave the key reserved with no parent. RetryThrottled retries 429.
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "{method}: Failed to release file-key claim '{fileKey}'.", nameof(Delete), fileKey);
         }
+    }
+
+    private async Task<bool> TryCreate(FileKeyClaim marker, PartitionKey partition, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await lookUpsContainer.CreateItemAsync(marker, partition, cancellationToken: cancellationToken);
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
+        {
+            return false;
+        }
+    }
+
+    private async Task<ItemResponse<FileKeyClaim>?> ReadClaim(
+        string id,
+        PartitionKey partition,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await lookUpsContainer.ReadItemAsync<FileKeyClaim>(id, partition, cancellationToken: cancellationToken);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    private static FileKeyClaim UncommittedMarker(string id, Guid ownerId, Guid scopeId) =>
+        new()
+        {
+            Id = id,
+            OwnerId = ownerId,
+            ScopeId = scopeId,
+            Committed = false,
+            TimeToLiveSeconds = FileKeyClaim.UncommittedLifetimeSeconds
+        };
+
+    private bool IsTracked(string fileKey)
+    {
+        foreach (var pending in _scopes.Values)
+        {
+            if (pending.ContainsKey(fileKey))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void Track(Guid scopeId, string fileKey, Guid ownerId)
