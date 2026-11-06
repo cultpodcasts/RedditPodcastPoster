@@ -17,14 +17,17 @@ public static class CataloguePlayableFieldPatchOperations
         var operations = new List<PatchOperation>(2);
         if (patch.SetServices)
         {
+            // A full save omits a null services object. An explicit JSON null is a different document shape.
             operations.Add(patch.Services is null
-                ? PatchOperation.Set<object?>("/services", null)
+                ? PatchOperation.Remove("/services")
                 : PatchOperation.Set("/services", patch.Services));
         }
 
         if (patch.SetYouTubeId)
         {
-            operations.Add(PatchOperation.Set<string?>("/youTubeId", patch.YouTubeId));
+            operations.Add(patch.YouTubeId is null
+                ? PatchOperation.Remove("/youTubeId")
+                : PatchOperation.Set("/youTubeId", patch.YouTubeId));
         }
 
         return operations;
