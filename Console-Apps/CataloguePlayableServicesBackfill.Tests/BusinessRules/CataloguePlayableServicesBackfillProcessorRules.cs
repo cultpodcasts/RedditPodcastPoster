@@ -741,7 +741,7 @@ public class CataloguePlayableServicesBackfillProcessorRules : IDisposable
         _mocker.GetMock<INewsReportRepository>().Setup(r => r.GetAll()).Returns(ToAsync(scanned));
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.GetNewsReportWithETag(scanned.NewsOrganisationId, scanned.Id))
-            .ReturnsAsync(new ETagged<NewsReport>(fresh, "etag-fresh"));
+            .ReturnsAsync(new ETagged<NewsReport>(fresh, "etag-fresh", ServicesDefined: true, YouTubeIdDefined: true));
         CataloguePlayableFieldPatch? patch = null;
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.PatchFields(scanned.NewsOrganisationId, scanned.Id, "etag-fresh",
@@ -761,7 +761,13 @@ public class CataloguePlayableServicesBackfillProcessorRules : IDisposable
         // Assert
         result.Applied.Should().Be(1);
         result.SkippedConflict.Should().Be(0);
-        patch.Should().Be(new CataloguePlayableFieldPatch { SetYouTubeId = true, YouTubeId = videoId });
+        patch.Should().Be(new CataloguePlayableFieldPatch
+        {
+            SetYouTubeId = true,
+            YouTubeId = videoId,
+            ServicesDefined = true,
+            YouTubeIdDefined = true
+        });
         uploaded.Should().ContainSingle().Which.Title.Should().Be(fresh.Title);
         _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
     }
