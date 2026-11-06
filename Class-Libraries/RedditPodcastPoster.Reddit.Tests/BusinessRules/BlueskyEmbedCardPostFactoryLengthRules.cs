@@ -5,12 +5,14 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
+using RedditPodcastPoster.Bluesky.RichText;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.People.Resolvers;
 using RedditPodcastPoster.Subjects.HashTags;
+using RedditPodcastPoster.Text.Enrichers;
 using RedditPodcastPoster.Text.Sanitisers;
 using static RedditPodcastPoster.Episodes.TestSupport.Fixtures.DomainTestFixture;
 using Xunit;
@@ -21,6 +23,7 @@ namespace RedditPodcastPoster.Reddit.Tests.BusinessRules;
 public class BlueskyEmbedCardPostFactoryLengthRules
 {
     private const int BlueskyGraphemeLimit = 300;
+    private const int MinTitleLength = 10;
 
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
@@ -154,6 +157,63 @@ public class BlueskyEmbedCardPostFactoryLengthRules
         // Assert
         await create.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*calculated title-length: 3 which is less than 10*");
+    }
+
+    [Fact(DisplayName =
+        "When truncation cuts a hashtag that was inserted into the title, that tag is written on the end line and the post stays within 300 graphemes, because a tag the posted title no longer contains would otherwise be linked nowhere.")]
+    public async Task truncated_title_keeps_a_cut_hashtag_on_the_end_line()
+    {
+        // Arrange
+        var (podcast, episode) = CreatePodcastEpisode();
+        const string tag = "Orchid";
+        episode.HashTag = $"#{tag} #{tag.ToLowerInvariant()}";
+        _title = new string('x', 400) + " " + tag;
+        _mocker.Use<IHashTagEnricher>(new HashTagEnricher());
+        var sut = _mocker.CreateInstance<BlueskyEmbedCardPostFactory>();
+
+        // Act
+        var post = await sut.Create(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        QuotedTitle(post.Text).Should().NotContain("#" + tag);
+        post.Text.Should().Contain("#" + tag);
+        GraphemeCount(post.Text).Should().BeLessThanOrEqualTo(BlueskyGraphemeLimit);
+    }
+
+    [Fact(DisplayName =
+        "When a cut lands inside a longer in-title hashtag and the kept prefix matches a shorter end-line tag, the short tag stays linked and the uncut title is not published with that tag missing, because the end line is chosen from the exact title that is posted.")]
+    public async Task cut_inside_a_longer_in_title_tag_does_not_drop_the_shorter_end_tag()
+    {
+        // Arrange
+        var (podcast, episode) = CreatePodcastEpisode();
+        var overhead = await PostOverhead(podcast, episode);
+        // The assertion depends on these exact tags: the longer one sits in the title (enrichment,
+        // so it is not an end-line candidate) and the shorter one is the only end-line tag.
+        const string shortTag = "Cult";
+        const string longerTag = "Cultology";
+        podcast.EnrichmentHashTags = [longerTag];
+        episode.HashTag = "#" + shortTag;
+        var endLineLength = ("#" + shortTag).Length;
+        // Budget for the quoted title when the end line is present. Overhead already includes the
+        // quote marks, the title's line break and the preamble, measured on this host.
+        var permittedWithEndLine = BlueskyGraphemeLimit - overhead - endLineLength - Environment.NewLine.Length;
+        var cutLength = permittedWithEndLine - 1;
+        var prefixLength = cutLength - (" #" + shortTag).Length;
+        prefixLength.Should().BeGreaterThan(MinTitleLength);
+        _title = new string('x', prefixLength) + " #" + longerTag;
+        _title[..cutLength].Should().EndWith("#" + shortTag);
+        _title[cutLength].Should().Be('o');
+        _mocker.Use<IHashTagEnricher>(new HashTagEnricher());
+        var sut = _mocker.CreateInstance<BlueskyEmbedCardPostFactory>();
+
+        // Act
+        var post = await sut.Create(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        var linkedTags = HashtagScanner.Find(post.Text).Select(token => token.Tag).ToList();
+        linkedTags.Should().Contain(shortTag);
+        QuotedTitle(post.Text).Should().NotBe(_title);
+        GraphemeCount(post.Text).Should().BeLessThanOrEqualTo(BlueskyGraphemeLimit);
     }
 
     private (RedditPodcastPoster.Models.Podcasts.Podcast Podcast, Episode Episode) CreatePodcastEpisode()
