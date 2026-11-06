@@ -41,58 +41,33 @@ public class NewsReportRepository(
 
     public IAsyncEnumerable<NewsReport> GetAll() => GetAllBy(_ => true);
 
-    public async Task<int> Count()
+    public Task<int> Count()
     {
         var iterator = container.GetItemQueryIterator<int>(
             new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
 
-        while (iterator.HasMoreResults)
-        {
-            try
-            {
-                foreach (var count in await iterator.ReadNextAsync())
-                {
-                    return count;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error counting news reports.", nameof(Count));
-                throw;
-            }
-        }
-
-        return 0;
+        return CatalogueFeed.Count(
+            iterator,
+            ex => logger.LogError(ex, "{method}: error counting news reports.", nameof(Count)));
     }
 
-    public async Task<int> Count(Guid newsOrganisationId)
+    public Task<int> Count(Guid newsOrganisationId)
     {
         var iterator = container.GetItemQueryIterator<int>(
             new QueryDefinition("SELECT VALUE COUNT(1) FROM c WHERE c.newsOrganisationId = @orgId")
                 .WithParameter("@orgId", newsOrganisationId.ToString()),
             requestOptions: new QueryRequestOptions { PartitionKey = ToPartitionKey(newsOrganisationId) });
 
-        while (iterator.HasMoreResults)
-        {
-            try
-            {
-                foreach (var count in await iterator.ReadNextAsync())
-                {
-                    return count;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error counting news reports by org-id '{OrgId}'.",
-                    nameof(Count), newsOrganisationId);
-                throw;
-            }
-        }
-
-        return 0;
+        return CatalogueFeed.Count(
+            iterator,
+            ex => logger.LogError(
+                ex,
+                "{method}: error counting news reports by org-id '{OrgId}'.",
+                nameof(Count),
+                newsOrganisationId));
     }
 
-    public async IAsyncEnumerable<NewsReport> GetByNewsOrganisationId(Guid newsOrganisationId)
+    public IAsyncEnumerable<NewsReport> GetByNewsOrganisationId(Guid newsOrganisationId)
     {
         var query = container
             .GetItemLinqQueryable<NewsReport>(requestOptions: new QueryRequestOptions
@@ -101,28 +76,12 @@ public class NewsReportRepository(
             })
             .Where(x => x.NewsOrganisationId == newsOrganisationId);
 
-        var items = query.ToFeedIterator();
-        while (items.HasMoreResults)
-        {
-            FeedResponse<NewsReport> response;
-            try
-            {
-                response = await items.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving news reports.", nameof(GetByNewsOrganisationId));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving news reports.", nameof(GetByNewsOrganisationId)));
     }
 
-    public async IAsyncEnumerable<NewsReport> GetByNewsOrganisationId(
+    public IAsyncEnumerable<NewsReport> GetByNewsOrganisationId(
         Guid newsOrganisationId,
         Expression<Func<NewsReport, bool>> selector)
     {
@@ -134,26 +93,12 @@ public class NewsReportRepository(
             .Where(x => x.NewsOrganisationId == newsOrganisationId)
             .Where(selector);
 
-        var items = query.ToFeedIterator();
-        while (items.HasMoreResults)
-        {
-            FeedResponse<NewsReport> response;
-            try
-            {
-                response = await items.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving filtered news reports.",
-                    nameof(GetByNewsOrganisationId));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(
+                ex,
+                "{method}: error retrieving filtered news reports.",
+                nameof(GetByNewsOrganisationId)));
     }
 
     public async Task Save(NewsReport report)
@@ -197,34 +142,18 @@ public class NewsReportRepository(
         return null;
     }
 
-    public async IAsyncEnumerable<NewsReport> GetAllBy(Expression<Func<NewsReport, bool>> selector)
+    public IAsyncEnumerable<NewsReport> GetAllBy(Expression<Func<NewsReport, bool>> selector)
     {
         var query = container
             .GetItemLinqQueryable<NewsReport>(requestOptions: new QueryRequestOptions())
             .Where(selector);
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<NewsReport> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving news reports with selector.", nameof(GetAllBy));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving news reports with selector.", nameof(GetAllBy)));
     }
 
-    public async IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
+    public IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
         Expression<Func<NewsReport, bool>> selector,
         Expression<Func<NewsReport, TProjection>> projection)
     {
@@ -233,24 +162,8 @@ public class NewsReportRepository(
             .Where(selector)
             .Select(projection);
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<TProjection> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving projected news reports.", nameof(GetAllBy));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving projected news reports.", nameof(GetAllBy)));
     }
 }
