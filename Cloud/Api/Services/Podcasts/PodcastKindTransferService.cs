@@ -481,7 +481,8 @@ public class PodcastKindTransferService(
                 nameof(MovePass),
                 podcast.Id,
                 target.Kind);
-            await CompensateDest(podcast.Id, compensateParent, writtenPlayableIds.ToList(), target);
+            await CompensateDest(
+                podcast.Id, compensateParent, writtenPlayableIds.ToList(), target, parent.FileKey);
             throw;
         }
 
@@ -632,7 +633,8 @@ public class PodcastKindTransferService(
         Guid parentId,
         bool compensateParent,
         IReadOnlyList<Guid> writtenPlayableIds,
-        TransferTarget<TParent, TPlayable> target)
+        TransferTarget<TParent, TPlayable> target,
+        string parentFileKey)
         where TParent : Publisher
         where TPlayable : Playable
     {
@@ -670,6 +672,7 @@ public class PodcastKindTransferService(
         try
         {
             await CatalogueBulkWrite.RetryThrottled(() => target.DeleteParent(parentId));
+            await fileKeyAllocator.Release(parentFileKey, parentId);
         }
         catch (Exception ex)
         {

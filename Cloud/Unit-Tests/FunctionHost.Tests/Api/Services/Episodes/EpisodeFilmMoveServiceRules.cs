@@ -51,6 +51,7 @@ public class EpisodeFilmMoveServiceRules
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .Returns((Expression<Func<Film, bool>> selector) => _films.Where(selector.Compile()).ToAsyncEnumerable());
         TakenFileKeys<IFilmRepository, Film>(() => _films);
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
         films
             .Setup(r => r.Save(It.IsAny<Film>()))

@@ -3,13 +3,15 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Repositories;
 
 public class TvShowRepository(
     Container tvShowsContainer,
-    ILogger<TvShowRepository> logger)
+    ILogger<TvShowRepository> logger,
+    IFileKeyClaimStore fileKeyClaims)
     : ITvShowRepository
 {
     public async Task<TvShow?> GetTvShow(Guid tvShowId)
@@ -29,6 +31,7 @@ public class TvShowRepository(
     public async Task Save(TvShow tvShow)
     {
         await tvShowsContainer.UpsertItemAsync(tvShow, new PartitionKey(tvShow.Id.ToString()));
+        await fileKeyClaims.Acknowledge(tvShow.FileKey);
     }
 
     public Task<bool> PatchIndexerState(Guid tvShowId, CatalogueParentIndexerPatch patch) =>

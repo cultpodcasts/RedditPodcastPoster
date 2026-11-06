@@ -11,6 +11,7 @@ using Api.Services.Catalogue;
 using RedditPodcastPoster.CloudflareRedirect.Models;
 using RedditPodcastPoster.CloudflareRedirect.Services;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
@@ -84,6 +85,7 @@ public class CatalogueRenameRules
         Filterable<INewsOrganisationRepository, NewsOrganisation>(_organisations);
         Filterable<ITvShowRepository, TvShow>(_shows);
         Filterable<IFilmRepository, Film>(_films);
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
 
         var organisations = _mocker.GetMock<INewsOrganisationRepository>();

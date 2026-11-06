@@ -3,13 +3,15 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Repositories;
 
 public class FilmRepository(
     Container filmsContainer,
-    ILogger<FilmRepository> logger)
+    ILogger<FilmRepository> logger,
+    IFileKeyClaimStore fileKeyClaims)
     : IFilmRepository
 {
     public async Task<Film?> GetFilm(Guid filmId)
@@ -31,6 +33,7 @@ public class FilmRepository(
         // Create, or a full document that was not read-modify-written here. An existing film a caller has read
         // and changed goes through Update, so this upsert cannot drop a trailer attached since that read.
         await filmsContainer.UpsertItemAsync(film, new PartitionKey(film.Id.ToString()));
+        await fileKeyClaims.Acknowledge(film.FileKey);
     }
 
     public Task<Film?> Update(Guid id, Func<Film, bool> mutate) =>

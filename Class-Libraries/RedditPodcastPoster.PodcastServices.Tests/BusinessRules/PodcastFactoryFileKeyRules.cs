@@ -25,6 +25,7 @@ public class PodcastFactoryFileKeyRules
     public PodcastFactoryFileKeyRules()
     {
         _mocker.Use<IPodcastRepository>(_podcasts);
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
     }
 
@@ -57,8 +58,8 @@ public class PodcastFactoryFileKeyRules
     }
 
     [Fact(DisplayName =
-        "A create that is never saved reserves nothing: the next create of the same name gets the same key, not _2.")]
-    public async Task unsaved_create_does_not_reserve_its_key()
+        "A create that has not been saved still holds its file-key claim, so a second create of the same name gets the _2 suffix.")]
+    public async Task unsaved_create_holds_its_claim()
     {
         // Arrange
         var sut = _mocker.CreateInstance<PodcastFactory>();
@@ -69,7 +70,43 @@ public class PodcastFactoryFileKeyRules
 
         // Assert
         abandoned.FileKey.Should().Be(LatinKey);
+        next.FileKey.Should().Be(LatinKey + "_2");
+    }
+
+    [Fact(DisplayName =
+        "A create that is never saved releases its file-key claim, so the next create of the same name can take that key.")]
+    public async Task unsaved_create_releases_its_claim()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PodcastFactory>();
+        var abandoned = await sut.Create(LatinName);
+        var allocator = _mocker.Get<IFileKeyAllocator>();
+
+        // Act
+        await allocator.DisposeAsync();
+        var next = await sut.Create(LatinName);
+
+        // Assert
+        abandoned.FileKey.Should().Be(LatinKey);
         next.FileKey.Should().Be(LatinKey);
+    }
+
+    [Fact(DisplayName =
+        "Once the create is saved, disposing the allocator keeps the file-key claim, so the next create of the same name still gets the _2 suffix.")]
+    public async Task saved_claim_is_kept_when_the_allocator_is_disposed()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<PodcastFactory>();
+        var saved = await sut.Create(LatinName);
+        await _mocker.Get<IFileKeyClaimStore>().Acknowledge(saved.FileKey);
+
+        // Act
+        await _mocker.Get<IFileKeyAllocator>().DisposeAsync();
+        var next = await sut.Create(LatinName);
+
+        // Assert
+        saved.FileKey.Should().Be(LatinKey);
+        next.FileKey.Should().Be(LatinKey + "_2");
     }
 
     [Fact(DisplayName =

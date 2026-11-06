@@ -43,7 +43,10 @@ public static class ServiceCollectionExtensions
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PodcastRepository>>();
-                    return new PodcastRepository(containerFactory.CreatePodcastsContainer(), logger);
+                    return new PodcastRepository(
+                        containerFactory.CreatePodcastsContainer(),
+                        logger,
+                        s.GetRequiredService<IFileKeyClaimStore>());
                 })
                 .AddSingleton<ILookupRepository>(s =>
                 {
@@ -75,7 +78,10 @@ public static class ServiceCollectionExtensions
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TvShowRepository>>();
-                    return new TvShowRepository(containerFactory.CreateTvShowsContainer(), logger);
+                    return new TvShowRepository(
+                        containerFactory.CreateTvShowsContainer(),
+                        logger,
+                        s.GetRequiredService<IFileKeyClaimStore>());
                 })
                 .AddSingleton<ITvShowEpisodeRepository>(s =>
                 {
@@ -87,13 +93,19 @@ public static class ServiceCollectionExtensions
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FilmRepository>>();
-                    return new FilmRepository(containerFactory.CreateFilmsContainer(), logger);
+                    return new FilmRepository(
+                        containerFactory.CreateFilmsContainer(),
+                        logger,
+                        s.GetRequiredService<IFileKeyClaimStore>());
                 })
                 .AddSingleton<INewsOrganisationRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<NewsOrganisationRepository>>();
-                    return new NewsOrganisationRepository(containerFactory.CreateNewsOrganisationsContainer(), logger);
+                    return new NewsOrganisationRepository(
+                        containerFactory.CreateNewsOrganisationsContainer(),
+                        logger,
+                        s.GetRequiredService<IFileKeyClaimStore>());
                 })
                 .AddSingleton<INewsReportRepository>(s =>
                 {
@@ -101,7 +113,11 @@ public static class ServiceCollectionExtensions
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<NewsReportRepository>>();
                     return new NewsReportRepository(containerFactory.CreateNewsReportsContainer(), logger);
                 })
-                .AddSingleton<IFileKeyAllocator, FileKeyAllocator>()
+                .AddSingleton<IFileKeyClaimStore>(s =>
+                    new FileKeyClaimStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FileKeyClaimStore>>()))
+                .AddScoped<IFileKeyAllocator, FileKeyAllocator>()
                 .AddSingleton<IActivityRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();

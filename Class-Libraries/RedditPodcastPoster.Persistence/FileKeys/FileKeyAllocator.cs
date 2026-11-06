@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -7,18 +8,24 @@ namespace RedditPodcastPoster.Persistence.FileKeys;
 
 /// <inheritdoc cref="IFileKeyAllocator"/>
 /// <remarks>
-/// Taken keys are read per allocation from the kind's own container only. Keys this allocator generates for different
-/// kinds cannot clash (TV, news and film keys carry reserved prefixes and a generated podcast slug cannot contain a
-/// hyphen), but a key set by other means (hand-edited, or older data) can; nothing is claimed between allocation and
-/// save, so two concurrent creates with the same name can also get the same key. The public-database publisher's
-/// <c>PublicFileKeyGuard</c> is the backstop for both (cross-process claim: issue #1165).
+/// Taken keys are read per allocation from the kind's own container, then claimed in LookUps
+/// (<see cref="IFileKeyClaimStore"/>). A 409 from another owner moves on to the next <c>_N</c> suffix.
+/// The same owner's retry keeps the key. Saving the item acknowledges the claim. Disposing this allocator
+/// releases claims it created that were never saved. Keys this allocator generates for different kinds cannot
+/// clash (TV, news and film keys carry reserved prefixes and a generated podcast slug cannot contain a hyphen),
+/// but a key set by other means (hand-edited, or older data) can. The public-database publisher's
+/// <c>PublicFileKeyGuard</c> remains the backstop for those.
 /// </remarks>
 public sealed class FileKeyAllocator(
     IPodcastRepository podcastRepository,
     ITvShowRepository tvShowRepository,
     INewsOrganisationRepository newsOrganisationRepository,
-    IFilmRepository filmRepository) : IFileKeyAllocator
+    IFilmRepository filmRepository,
+    IFileKeyClaimStore fileKeyClaims,
+    ILogger<FileKeyAllocator> logger) : IFileKeyAllocator
 {
+    private const int MaxSuffixes = 1000;
+    private readonly Guid _scopeId = Guid.NewGuid();
     public async Task<string> Allocate(
         FileKeyKind kind,
         string name,
@@ -55,10 +62,36 @@ public sealed class FileKeyAllocator(
             ? currentKey!
             : await Allocate(kind, name, id);
 
+    public Task Release(string fileKey, Guid ownerId) => fileKeyClaims.Delete(fileKey, ownerId);
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await fileKeyClaims.ReleaseUnacknowledged(_scopeId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "{method}: Failed to release unacknowledged file-key claims.", nameof(DisposeAsync));
+        }
+    }
+
     private async Task<string> MakeUnique(FileKeyKind kind, string candidate, Guid id)
     {
         var taken = await TakenKeysStartingWith(kind, candidate, id);
-        return FileKeyFactory.MakeUnique(candidate, taken.Contains);
+        for (var attempt = 0; attempt < MaxSuffixes; attempt++)
+        {
+            var next = FileKeyFactory.MakeUnique(candidate, taken.Contains);
+            var claim = await fileKeyClaims.TryClaim(next, id, _scopeId);
+            if (claim != FileKeyClaimResult.HeldByOther)
+            {
+                return next;
+            }
+
+            taken.Add(next);
+        }
+
+        throw new InvalidOperationException($"Could not claim a file key starting '{candidate}'.");
     }
 
     private Task<HashSet<string>> TakenKeysStartingWith(FileKeyKind kind, string candidate, Guid id) =>

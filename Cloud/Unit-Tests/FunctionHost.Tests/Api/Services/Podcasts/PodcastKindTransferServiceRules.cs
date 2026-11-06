@@ -140,6 +140,7 @@ public class PodcastKindTransferServiceRules
             .ReturnsAsync((YouTubePlaylistValidation?)null);
         TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(() => _existingOrganisations);
         TakenFileKeys<ITvShowRepository, TvShow>(() => []);
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
     }
 
@@ -1817,6 +1818,7 @@ public class PodcastKindTransferServiceRules
                 .ReturnsAsync(show);
         }
 
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
         _locks.SeedMarker(podcast.Id, _now - PodcastKindTransferService.LockStaleAfter - TimeSpan.FromMinutes(1), kind);
 
