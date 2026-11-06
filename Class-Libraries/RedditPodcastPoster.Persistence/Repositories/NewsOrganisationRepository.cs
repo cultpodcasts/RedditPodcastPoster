@@ -53,55 +53,25 @@ public class NewsOrganisationRepository(
         }
     }
 
-    public async Task<int> Count()
+    public Task<int> Count()
     {
         var iterator = newsOrganisationsContainer.GetItemQueryIterator<int>(
             new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
 
-        while (iterator.HasMoreResults)
-        {
-            try
-            {
-                foreach (var count in await iterator.ReadNextAsync())
-                {
-                    return count;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error counting news organisations.", nameof(Count));
-                throw;
-            }
-        }
-
-        return 0;
+        return CatalogueFeed.Count(
+            iterator,
+            ex => logger.LogError(ex, "{method}: error counting news organisations.", nameof(Count)));
     }
 
-    public async IAsyncEnumerable<NewsOrganisation> GetAll()
+    public IAsyncEnumerable<NewsOrganisation> GetAll()
     {
         var query = newsOrganisationsContainer
             .GetItemLinqQueryable<NewsOrganisation>(requestOptions: new QueryRequestOptions())
             .AsQueryable();
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<NewsOrganisation> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving news organisations.", nameof(GetAll));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving news organisations.", nameof(GetAll)));
     }
 
     public async Task<NewsOrganisation?> GetBy(Expression<Func<NewsOrganisation, bool>> selector)
@@ -122,34 +92,18 @@ public class NewsOrganisationRepository(
         return null;
     }
 
-    public async IAsyncEnumerable<NewsOrganisation> GetAllBy(Expression<Func<NewsOrganisation, bool>> selector)
+    public IAsyncEnumerable<NewsOrganisation> GetAllBy(Expression<Func<NewsOrganisation, bool>> selector)
     {
         var query = newsOrganisationsContainer
             .GetItemLinqQueryable<NewsOrganisation>(requestOptions: new QueryRequestOptions())
             .Where(selector);
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<NewsOrganisation> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving news organisations with selector.", nameof(GetAllBy));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving news organisations with selector.", nameof(GetAllBy)));
     }
 
-    public async IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
+    public IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
         Expression<Func<NewsOrganisation, bool>> selector,
         Expression<Func<NewsOrganisation, TProjection>> projection)
     {
@@ -158,24 +112,8 @@ public class NewsOrganisationRepository(
             .Where(selector)
             .Select(projection);
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<TProjection> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving projected news organisations.", nameof(GetAllBy));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving projected news organisations.", nameof(GetAllBy)));
     }
 }

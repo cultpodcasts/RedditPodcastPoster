@@ -51,55 +51,25 @@ public class TvShowRepository(
         }
     }
 
-    public async Task<int> Count()
+    public Task<int> Count()
     {
         var iterator = tvShowsContainer.GetItemQueryIterator<int>(
             new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
 
-        while (iterator.HasMoreResults)
-        {
-            try
-            {
-                foreach (var count in await iterator.ReadNextAsync())
-                {
-                    return count;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error counting tv-shows.", nameof(Count));
-                throw;
-            }
-        }
-
-        return 0;
+        return CatalogueFeed.Count(
+            iterator,
+            ex => logger.LogError(ex, "{method}: error counting tv-shows.", nameof(Count)));
     }
 
-    public async IAsyncEnumerable<TvShow> GetAll()
+    public IAsyncEnumerable<TvShow> GetAll()
     {
         var query = tvShowsContainer
             .GetItemLinqQueryable<TvShow>(requestOptions: new QueryRequestOptions())
             .AsQueryable();
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<TvShow> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving tv-shows.", nameof(GetAll));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving tv-shows.", nameof(GetAll)));
     }
 
     public async Task<TvShow?> GetBy(Expression<Func<TvShow, bool>> selector)
@@ -120,34 +90,18 @@ public class TvShowRepository(
         return null;
     }
 
-    public async IAsyncEnumerable<TvShow> GetAllBy(Expression<Func<TvShow, bool>> selector)
+    public IAsyncEnumerable<TvShow> GetAllBy(Expression<Func<TvShow, bool>> selector)
     {
         var query = tvShowsContainer
             .GetItemLinqQueryable<TvShow>(requestOptions: new QueryRequestOptions())
             .Where(selector);
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<TvShow> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving tv-shows with selector.", nameof(GetAllBy));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving tv-shows with selector.", nameof(GetAllBy)));
     }
 
-    public async IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
+    public IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
         Expression<Func<TvShow, bool>> selector,
         Expression<Func<TvShow, TProjection>> projection)
     {
@@ -156,24 +110,8 @@ public class TvShowRepository(
             .Where(selector)
             .Select(projection);
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<TProjection> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving projected tv-shows.", nameof(GetAllBy));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving projected tv-shows.", nameof(GetAllBy)));
     }
 }

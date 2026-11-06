@@ -85,27 +85,17 @@ public class FilmRepository(
             requestOptions: new QueryRequestOptions());
 
         var ids = new List<Guid>();
-        while (iterator.HasMoreResults)
+        await foreach (var id in CatalogueFeed.Read(
+                           iterator,
+                           ex => logger.LogError(
+                               ex,
+                               "{method}: error finding films holding trailer '{trailerId}'.",
+                               nameof(GetFilmIdsByTrailerId),
+                               trailerId)))
         {
-            FeedResponse<string> response;
-            try
+            if (Guid.TryParse(id, out var filmId))
             {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex,
-                    "{method}: error finding films holding trailer '{trailerId}'.",
-                    nameof(GetFilmIdsByTrailerId), trailerId);
-                throw;
-            }
-
-            foreach (var id in response)
-            {
-                if (Guid.TryParse(id, out var filmId))
-                {
-                    ids.Add(filmId);
-                }
+                ids.Add(filmId);
             }
         }
 
@@ -126,55 +116,25 @@ public class FilmRepository(
         }
     }
 
-    public async Task<int> Count()
+    public Task<int> Count()
     {
         var iterator = filmsContainer.GetItemQueryIterator<int>(
             new QueryDefinition("SELECT VALUE COUNT(1) FROM c"));
 
-        while (iterator.HasMoreResults)
-        {
-            try
-            {
-                foreach (var count in await iterator.ReadNextAsync())
-                {
-                    return count;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error counting films.", nameof(Count));
-                throw;
-            }
-        }
-
-        return 0;
+        return CatalogueFeed.Count(
+            iterator,
+            ex => logger.LogError(ex, "{method}: error counting films.", nameof(Count)));
     }
 
-    public async IAsyncEnumerable<Film> GetAll()
+    public IAsyncEnumerable<Film> GetAll()
     {
         var query = filmsContainer
             .GetItemLinqQueryable<Film>(requestOptions: new QueryRequestOptions())
             .AsQueryable();
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<Film> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving films.", nameof(GetAll));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving films.", nameof(GetAll)));
     }
 
     public async Task<Film?> GetBy(Expression<Func<Film, bool>> selector)
@@ -195,34 +155,18 @@ public class FilmRepository(
         return null;
     }
 
-    public async IAsyncEnumerable<Film> GetAllBy(Expression<Func<Film, bool>> selector)
+    public IAsyncEnumerable<Film> GetAllBy(Expression<Func<Film, bool>> selector)
     {
         var query = filmsContainer
             .GetItemLinqQueryable<Film>(requestOptions: new QueryRequestOptions())
             .Where(selector);
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<Film> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving films with selector.", nameof(GetAllBy));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving films with selector.", nameof(GetAllBy)));
     }
 
-    public async IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
+    public IAsyncEnumerable<TProjection> GetAllBy<TProjection>(
         Expression<Func<Film, bool>> selector,
         Expression<Func<Film, TProjection>> projection)
     {
@@ -231,24 +175,8 @@ public class FilmRepository(
             .Where(selector)
             .Select(projection);
 
-        var iterator = query.ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            FeedResponse<TProjection> response;
-            try
-            {
-                response = await iterator.ReadNextAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{method}: error retrieving projected films.", nameof(GetAllBy));
-                throw;
-            }
-
-            foreach (var item in response)
-            {
-                yield return item;
-            }
-        }
+        return CatalogueFeed.Read(
+            query.ToFeedIterator(),
+            ex => logger.LogError(ex, "{method}: error retrieving projected films.", nameof(GetAllBy)));
     }
 }
