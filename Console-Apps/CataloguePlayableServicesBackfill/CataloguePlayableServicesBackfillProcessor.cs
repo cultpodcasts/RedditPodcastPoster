@@ -249,7 +249,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                 }
 
                 var outcome = await tvShowEpisodeRepository.PatchFields(
-                    episode.TvShowId, episode.Id, fresh.ETag, plan.ToPatch());
+                    episode.TvShowId, episode.Id, fresh.ETag, plan.ToPatch(fresh));
                 if (outcome != CataloguePlayablePatchOutcome.Patched)
                 {
                     return WriteResult.From(outcome);
@@ -284,7 +284,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                 }
 
                 var outcome = await newsReportRepository.PatchFields(
-                    report.NewsOrganisationId, report.Id, fresh.ETag, plan.ToPatch());
+                    report.NewsOrganisationId, report.Id, fresh.ETag, plan.ToPatch(fresh));
                 if (outcome != CataloguePlayablePatchOutcome.Patched)
                 {
                     return WriteResult.From(outcome);
@@ -668,12 +668,14 @@ public class CataloguePlayableServicesBackfillProcessor(
         Dictionary<string, ServiceLink>? Services,
         CatalogueYouTubeIdSyncResult YouTube)
     {
-        public CataloguePlayableFieldPatch ToPatch() => new()
+        public CataloguePlayableFieldPatch ToPatch<T>(ETagged<T> fresh) => new()
         {
             SetServices = ServicesChanged,
             Services = ServicesChanged ? Services : null,
+            ServicesDefined = fresh.ServicesDefined,
             SetYouTubeId = YouTube.Changed,
-            YouTubeId = YouTube.Changed ? YouTube.After : null
+            YouTubeId = YouTube.Changed ? YouTube.After : null,
+            YouTubeIdDefined = fresh.YouTubeIdDefined
         };
 
         public void ApplyTo(ICatalogueYouTubeItem item)
