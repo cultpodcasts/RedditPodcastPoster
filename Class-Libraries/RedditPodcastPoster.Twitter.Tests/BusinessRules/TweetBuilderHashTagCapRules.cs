@@ -43,7 +43,7 @@ public class TweetBuilderHashTagCapRules
     }
 
     [Fact(DisplayName =
-        "TweetBuilder: when more than two end-line hashtags are available, then BuildTweet keeps at most two, because X automation rules discourage a long hashtag list.")]
+        "TweetBuilder: when more than two end-line hashtags are available, then BuildTweet keeps at most two, because X Help recommends at most two hashtags per post.")]
     public async Task build_tweet_keeps_at_most_two_end_hashtags()
     {
         // Arrange
@@ -75,6 +75,52 @@ public class TweetBuilderHashTagCapRules
         tweet.Should().Contain("#Alpha");
         tweet.Should().Contain("#Bravo");
         tweet.Should().NotContain("#Charlie");
+    }
+
+    [Fact(DisplayName =
+        "TweetBuilder: when TwitterOptions.HashTag is set and surplus episode end-line tags exist, then BuildTweet keeps at most two end-line tags and earlier episode tags win over the global option tag, because the option tag is appended last into the shared MaxHashTags budget.")]
+    public async Task build_tweet_global_option_hashtag_shares_max_budget()
+    {
+        // Arrange — HashTag literal is the production option under test (#Cult / #1207).
+        const string globalOptionHashTag = "Cult";
+        const string episodeHashTag = "#Alpha #Bravo #Charlie";
+        _mocker.Use(Options.Create(new TwitterOptions
+        {
+            ConsumerKey = "k",
+            ConsumerSecret = "s",
+            AccessToken = "t",
+            AccessTokenSecret = "ts",
+            HashTag = globalOptionHashTag,
+            WithEpisodeUrl = false
+        }));
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = null;
+            p.TwitterHandle = string.Empty;
+        });
+        var title = _fixture.CreateTitle();
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Subjects = [];
+            e.HashTag = episodeHashTag;
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        ArrangeSanitiserAndPostModel(podcast, title);
+        var sut = _mocker.CreateInstance<TweetBuilder>();
+
+        // Act
+        var tweet = await sut.BuildTweet(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        CountHashTags(tweet).Should().Be(2);
+        tweet.Should().Contain("#Alpha");
+        tweet.Should().Contain("#Bravo");
+        tweet.Should().NotContain("#Charlie");
+        tweet.Should().NotContain($"#{globalOptionHashTag}");
     }
 
     [Fact(DisplayName =

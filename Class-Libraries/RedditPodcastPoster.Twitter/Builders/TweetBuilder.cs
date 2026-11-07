@@ -34,7 +34,7 @@ public class TweetBuilder(
     : ITweetBuilder
 {
     private const int MinTitleLength = 10;
-    /// <summary>X automation rules discourage a long hashtag list; keep title + end tags to this many.</summary>
+    /// <summary>X Help recommends at most two hashtags per post; keep title + end tags to this many.</summary>
     private const int MaxHashTags = 2;
     public const string LengthFormat = @"\[h\:mm\:ss\]";
     public const string? ReleaseFormat = "d MMM yyyy";
