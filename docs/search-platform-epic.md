@@ -255,6 +255,53 @@ and authorises on the `permissions[]` claim (`REQUIRED_PERMISSIONS` var, default
 from outside the dev box via a `cloudflared` quick tunnel (the per-run tunnel URL
 must be added to the Auth0 SPA app's allowed callback/web-origin lists).
 
+## 4C. Query-contract parity — executed 2026-11-07
+
+The demo Worker (Api `search-demo/`, deployed on D1 `search-demo-db`, WEUR) now exposes an
+**Azure-shaped `POST …/docs/search` endpoint**: same request body the api Worker forwards
+today (`search`, `filter`, `facets`, `top`/`skip`/`count`/`orderby`, `queryType: simple`,
+`searchMode: any`), same `api-key` header auth, same response envelope
+(`@odata.count`, `@search.facets`, `value[]` with the production index field names).
+Swapping `env.apihost` on the api Worker at the D1 engine is a config change, not a code change.
+
+Two translators make that work:
+
+- **Simple-syntax → FTS5 MATCH** (`search-demo/src/query.ts`): phrases (`"hannah w."`),
+  `+` AND, `|` OR, `-`/`NOT` negation, trailing `*` prefix, bare terms OR'd under
+  `searchMode=any` (AND under `all`). Atoms are emitted as quoted FTS5 strings, so user
+  text cannot inject FTS5 syntax.
+- **OData filter subset → SQL** (`search-demo/src/odata.ts`): exactly the grammar the
+  Angular app sends — `subjects/any(s: s eq '…')`, `subjects/any(s: search.in(s, '…', '£'))`, <!-- pragma: allowlist secret -->
+  `seriesName`/`podcastName`/`contentKind`/`lang`/`id` with `eq` and `search.in`,
+  `lang eq null` (null = English), `and`/`or`, parentheses, `''` quote-doubling.
+  Unsupported syntax → 400 with an Azure-style error envelope.
+
+Measured against the **production Azure index** (read-only, same POST body to both):
+
+| Query / filter | Azure | D1 | Verdict |
+|---|---|---|---|
+| `subjects/any(s: s eq 'Scientology')` + facets | 6,003 | 6,002 | Filter parity (1 doc newer than the backup); facet keys and top bucket identical (`XENU TV`, 644 = 644) | <!-- pragma: allowlist secret -->
+| subject + `search.in(seriesName…)` + `search.in(contentKind…)` | 549 | 549 | Exact |
+| `scientology+"paulette cooper"` | 35 | 74 | D1 ⊇ Azure (containment verified: 0 Azure hits missing); extras from full descriptions |
+| `"Hannah W."` | 0 | 26 | Guests are not in the Azure index at all; D1 indexes them |
+| `nxivm` / `"twin flames"` | 1,050 / 281 | 1,145 / 311 | D1 ⊇ Azure (0 missing on both) |
+| `cult* -scientology` | 84,458 | 37,447 | **Known divergence**: with `searchMode=any` Azure treats `-` as *OR NOT* (docs matching `cult*` **or** simply lacking `scientology`); D1 does the intuitive *AND NOT*. Azure's behaviour is a documented footgun — keep D1 semantics, note in release comms |
+
+Containment checks (full id-set, not top-10): every Azure hit was present in the D1 result
+set for all sampled queries. The D1 engine is a strict superset wherever full descriptions
+and guests add matches — which is the point of the epic.
+
+Ranking is **not** yet parity-tuned: top-10 overlap is 1–6/10 because FTS5 `bm25()`
+currently weights all columns equally while Azure weights fields. FTS5 accepts per-column
+weights (`bm25(search_fts, w_title, w_series, w_desc, …)`) — tune during the dual-run
+phase against real search-log click data.
+
+Operational finding: the zone's bot challenge (`cf-mitigated: challenge`) blocks
+server-to-server POSTs to `search-demo.cultpodcasts.com`. For the real swap the api
+Worker should reach the D1 search Worker over a **service binding** (direct
+Worker-to-Worker, no public edge, no WAF, lower latency), not a public hostname. The
+demo keeps `workers.dev` enabled for harness access.
+
 ## 5. Target sync architecture (backend-agnostic)
 
 Today there are two write paths into Azure Search:
@@ -285,13 +332,42 @@ Target model (user requirement: in-week amends + weekly reconcile, no index down
 4. **Hourly indexer retired** once push + reconcile run in parallel with Azure Search and <!-- pragma: allowlist secret -->
    show no drift over a soak period.
 
+### 5A. Does the write path need a Durable Object?
+
+Short answer: **no — start without one.** The question is whether azure-api → D1 pushes
+need a single-writer coordinator. What D1 already gives:
+
+- D1 is a single SQLite primary; **writes are serialized by the platform**. There is no
+  multi-writer race for a DO to referee.
+- Upserts are idempotent (`INSERT … ON CONFLICT DO UPDATE`), deletes are by id, and the
+  FTS index follows via the existing AI/AD/AU triggers — replaying or reordering a
+  same-document pair is resolved by a `modified_at` guard column (ignore stale writes),
+  which is cheaper than an ordering service.
+- Expected write volume is tiny (tens of mutations/hour from the Functions apps), far
+  below any batching threshold a DO would earn its keep at.
+
+When a coordinator *would* pay rent, prefer **Cloudflare Queues** over a DO: azure-api
+posts mutation events to a queue producer endpoint, a consumer Worker batches them into
+`db.batch()` writes with built-in retries/DLQ and at-least-once delivery. That covers
+burst absorption (weekly reconcile emitting thousands of upserts) without hand-rolled DO
+alarm/buffer code. A DO adds value only if we later need per-document fencing tokens or
+read-your-write coordination across colos — neither applies to a search index that
+tolerates seconds of staleness.
+
+Transport for pushes: authenticated HTTPS from azure-api to the search Worker
+(shared-secret header like today's `api-key`, or Auth0 M2M). Note the §4C finding: the
+endpoint must be reachable without the zone's bot challenge — either a dedicated
+unproxied hostname/route exempted from Bot Fight Mode, or (preferred once the engine
+lives behind the api Worker) pushes land on the api Worker and reach the search engine
+over a **service binding**.
+
 ## 6. Phase sketch (D1 path)
 
 | Phase | Work | Gate |
 |-------|------|------|
 | P0 | ~~Benchmark~~ **Done 2026-11-07 (§4A synthetic + §4B real data)** — real corpus (89,245 docs, full descriptions) is **239 MB = 2.3 % of the D1 limit**, 3–32 ms query envelope, 8/5.5 ms sync writes, demo Worker running (Api `search-demo/`); remaining P0 work: validate the filter-grammar inventory against real search logs, and a small real-D1 (preview) spot check to confirm production network overhead | Size & latency sign-off |
 | P1 | Schema + bulk loader (Cosmos → D1), FTS5 external-content table + triggers | — | <!-- pragma: allowlist secret -->
-| P2 | Worker query layer behind `POST /search`: OData-subset parser → SQL; response shaped as `value` / `@odata.count` / `@search.facets`; KV-cached facet snapshots | Angular runs unchanged against it |
+| P2 | ~~Worker query layer~~ **Prototyped 2026-11-07 (§4C)** — Azure-shaped `POST …/docs/search` with simple-syntax + OData-subset translators live in the demo Worker; filter/facet parity measured exact against production Azure. Remaining: ranking weights (bm25 per-column), KV-cached facet snapshots if latency wants them, service-binding wiring | Angular runs unchanged against it |
 | P3 | Write path: Worker admin upsert/delete route + retarget `SearchIndexerService`; weekly reconcile timer | Parity harness green | <!-- pragma: allowlist secret -->
 | P4 | Dual-run against Azure Search (shadow queries, diff results); cutover `apihost`-equivalent internal routing; soak | Drift-free soak |
 | P5 | Retire Azure Search index + hourly indexer; raise `DescriptionSize`; index guests; remove cap-driven slimming constraints that no longer pay rent | — | <!-- pragma: allowlist secret -->
