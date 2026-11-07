@@ -7,6 +7,9 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
+using EpisodeFilmMoveRequest = Api.Models.EpisodeFilmMoveRequest;
+using EpisodeTrailerAttachRequest = Api.Models.EpisodeTrailerAttachRequest;
+using EpisodeTvShowMoveRequest = Api.Models.EpisodeTvShowMoveRequest;
 
 namespace FunctionHost.Tests.Api.Handlers;
 
