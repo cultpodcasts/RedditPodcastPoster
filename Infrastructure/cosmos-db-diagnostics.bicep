@@ -2,12 +2,13 @@
 // After RU tuning is complete, disable via:
 //   scripts/disable-cosmos-diagnostics.ps1
 // or redeploy with enableDiagnostics=false.
+//
+// Deploy this file at the Cosmos account resource-group scope (AutomatedData).
+// Do not set an explicit resourceGroup() scope on the Cosmos existing resource —
+// diagnosticSettings scoped to a cross-RG existing parent fail BCP139 (Bicep 0.48+).
 
 @description('Cosmos DB account name')
 param cosmosAccountName string
-
-@description('Resource group containing the Cosmos DB account')
-param cosmosDatabaseResourceGroupName string = 'AutomatedData'
 
 @description('Log Analytics workspace resource group')
 param logAnalyticsResourceGroupName string = 'AutomatedInfra'
@@ -18,9 +19,9 @@ param logAnalyticsWorkspaceName string = 'loganalytics-infra'
 @description('TEMPORARY: export Cosmos DB data-plane and query-runtime logs to Log Analytics for RU attribution. Set false after investigation.')
 param enableDiagnostics bool = true
 
+// Same RG as this deployment (DATABASE_RESOURCEGROUP_NAME / AutomatedData).
 resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2023-04-15' existing = {
   name: cosmosAccountName
-  scope: resourceGroup(cosmosDatabaseResourceGroupName)
 }
 
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' existing = {
