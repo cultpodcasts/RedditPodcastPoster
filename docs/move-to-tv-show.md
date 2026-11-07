@@ -36,8 +36,9 @@ claims no YouTube channel. The BBC / BBC Three podcasts keep their channel ids a
    Bluesky state). A created show is saved first, with `latestReleased` = the episode release.
 2. Swap the search document under the same id to ContentKind `TvShowEpisode`
    (`CataloguePlayableSearchDocument.For(TvShowEpisode)`, the shape the TV episode edit and pull indexer write).
-   Failure: 500, episode kept.
-3. Re-read the show and the TV episode. If either was deleted concurrently: 500, episode kept.
+   Failure: 500 with `failureIndexing`, episode kept.
+3. Re-read the show and the TV episode. If either was deleted concurrently: 500 with `failureIndexing`,
+   episode kept.
 4. Delete the episode row. The source podcast is never changed, even when it is left empty.
 5. Raise the show's `latestReleased` with a conditional field patch (`ITvShowRepository.RaiseLatestReleased`: only
    `/latestReleased`, filter `NOT IS_DEFINED OR IS_NULL OR c.latestReleased < new`), so a concurrent curator edit of
