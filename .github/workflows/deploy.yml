@@ -46,8 +46,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      infrastructure_changed: ${{ steps.changes.outputs.infrastructure }}
       # Paths-filter hit, or manual "Run workflow" on main with run_provision=true.
+      # Authoritative gate for provision steps / archive-infrastructure (do not re-export the raw filter).
       run_provision: ${{ steps.changes.outputs.infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_provision == 'true') }}
     strategy:
       matrix:
@@ -118,6 +118,9 @@ jobs:
         path: Infrastructure
         include-hidden-files: true
 
+  # Intentionally no job-level `if: run_provision`. When run_provision is false, steps
+  # skip and this job still succeeds (empty no-op). *-deploy requires
+  # needs.provision.result == 'success'; a job-level skip would block package-only deploys.
   provision:
     runs-on: ubuntu-latest
     needs: [build, test, archive-infrastructure]
