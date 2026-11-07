@@ -1,7 +1,7 @@
 # Search platform alternatives (strategic)
 
 **Status:** Proposal only — no production or code changes.  
-**Date:** 2026-07-17  
+**Date:** 2026-07-17 — **superseded for decision purposes by [search-platform-epic.md](./search-platform-epic.md) (2026-11-07)**, which re-verifies pricing/limits and adds the Guests + weekly-reconcile requirements. This document remains the wide-net survey reference.  
 **Related:** [search-index-slimming-plan.md](./search-index-slimming-plan.md) (tactical stay-on-Azure-Free), [migration/README.md](./migration/README.md) (Cosmos split; assumes Azure AI Search).
 
 ---
