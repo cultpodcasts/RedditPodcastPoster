@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      run_provision:
+        description: 'Run bicep provision (Cosmos, functions, budget, …) even if Infrastructure/** did not change'
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -41,6 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       infrastructure_changed: ${{ steps.changes.outputs.infrastructure }}
+      # Paths-filter hit, or manual "Run workflow" on main with run_provision=true.
+      run_provision: ${{ steps.changes.outputs.infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_provision == 'true') }}
     strategy:
       matrix:
         project:
@@ -101,14 +109,9 @@ jobs:
     needs: build
     steps:
     - uses: actions/checkout@v7
-    - uses: dorny/paths-filter@v4
-      id: changes
-      with:
-        filters: |
-          infrastructure:
-          - ./Infrastructure/**
+      if: needs.build.outputs.run_provision == 'true'
     - name: Archive bicep artifacts
-      if: steps.changes.outputs.infrastructure == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       uses: actions/upload-artifact@v7
       with:
         name: ${{ env.artifactInfrastructure }}
@@ -123,40 +126,28 @@ jobs:
     steps:
     - name: Download bicep artifact
       uses: actions/download-artifact@v8
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
           name: ${{ env.artifactInfrastructure }}
           path: Infrastructure
     - name: Display structure of downloaded files
       run: ls -R -a .
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
     
     - name: Azure Login
       uses: Azure/login@v3.1.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
 
-    - name: Functions Budget (Deploy Bicep)
-      id: bicepfunctionsbudgetdeploy
-      uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
-      with:
-        type: deployment
-        operation: create
-        name: bicep-functions-budget-${{ github.run_number }}
-        location: ${{ env.location }}
-        scope: subscription
-        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-        template-file: ./Infrastructure/functions-budget-subscription.bicep
-        parameters: '{"enableAlerts":true, "suffix":"${{ env.suffix }}", "deploymentResourceGroupName":"${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}", "monthlyFunctionsBudgetAmount":${{ env.MONTHLY_FUNCTIONS_BUDGET_AMOUNT }}, "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
-
+    # Critical resources first. Budget is last: a budget-only failure must not
+    # skip Cosmos/functions, but still fails this job so *-deploy does not run.
     - name: Cosmos DB (Deploy Bicep)
       id: bicepcosmosdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -169,7 +160,7 @@ jobs:
     - name: Cosmos DB diagnostics (Deploy Bicep)
       id: bicepcosmosdiagnosticsdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -182,7 +173,7 @@ jobs:
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -195,7 +186,7 @@ jobs:
     - name: Application-Insights (Deploy Bicep)
       id: bicepappinsightsdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -208,7 +199,7 @@ jobs:
     - name: Functions (Deploy Bicep)
       id: bicepfunctionsdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -221,7 +212,7 @@ jobs:
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
 
     - name: Set Function State
-      if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.infrastructure_changed == 'true' }}
+      if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.run_provision == 'true' }}
       uses: Azure/cli@v3.0.0
       with:
         azcliversion: latest
@@ -230,10 +221,25 @@ jobs:
           az functionapp ${{ env.functionState }} --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
           az functionapp ${{ env.functionState }} --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
 
+    # After Cosmos/functions. Must succeed for provision to pass (no continue-on-error).
+    - name: Functions Budget (Deploy Bicep)
+      id: bicepfunctionsbudgetdeploy
+      uses: azure/bicep-deploy@v2.5.0
+      if: needs.build.outputs.run_provision == 'true'
+      with:
+        type: deployment
+        operation: create
+        name: bicep-functions-budget-${{ github.run_number }}
+        location: ${{ env.location }}
+        scope: subscription
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        template-file: ./Infrastructure/functions-budget-subscription.bicep
+        parameters: '{"enableAlerts":true, "suffix":"${{ env.suffix }}", "deploymentResourceGroupName":"${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}", "monthlyFunctionsBudgetAmount":${{ env.MONTHLY_FUNCTIONS_BUDGET_AMOUNT }}, "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
+
   api-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
+    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -264,7 +270,7 @@ jobs:
   discover-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
+    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -295,7 +301,7 @@ jobs:
   indexer-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
+    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
