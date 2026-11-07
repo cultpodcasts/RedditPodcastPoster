@@ -9,7 +9,9 @@ alwaysApply: true
 
 **Fallback path:** local `scripts/deploy-*.ps1` (blob upload + restart) when Actions is unavailable, or when the user says **deploy functions & clis** / an explicit named script deploy. See [interim-deployment.md](../../docs/interim-deployment.md).
 
-**Manual provision retry (Actions):** on `main`, Actions → **Provision and Deploy** → **Run workflow** with `run_provision=true` re-runs Bicep (Cosmos/functions/budget) even when the commit did not touch `Infrastructure/**` — e.g. after a failed provision that blocked FileKeyClaims. Detail: [docs/deployment.md](../../docs/deployment.md). `*-deploy` jobs require `needs.provision.result == 'success'` (package deploy does not run on provision failure).
+**Manual provision retry (Actions):** on `main`, Actions → **Provision and Deploy** → **Run workflow** with `run_provision=true` re-runs Bicep (Cosmos/functions/budget) even when the commit did not touch `Infrastructure/**` — e.g. after a failed provision that blocked FileKeyClaims. Detail: [docs/deployment.md](../../docs/deployment.md). `*-deploy` jobs require `needs.provision.result == 'success'` **and** `needs.provision.outputs.deploy_allowed == 'true'` (package deploy does not run on provision failure).
+
+**Provision latch (`PROVISION_LATCH`) — HARD:** A failed `run_provision` sets the repo Actions variable `PROVISION_LATCH`. While it is set, **package-only** deploys are blocked so dependent code cannot ship without applied bicep (incident: #1295 fail → #1299 packages). Cleared only by a **successful** `run_provision`. Break-glass: `bypass_provision_latch` on workflow_dispatch (this run only; latch stays) or `gh variable delete PROVISION_LATCH`. **Agents must never bypass or delete the latch unless the user explicitly asks in the current conversation.** Full table: [docs/deployment.md](../../docs/deployment.md) § Provision latch.
 
 ## After a PR merges to `main`
 

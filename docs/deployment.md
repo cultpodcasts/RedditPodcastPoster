@@ -29,6 +29,31 @@ Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-di
 
 **Manual run (main):** Actions → **Provision and Deploy** → **Run workflow** → branch `main`. Set **run_provision** to create/update Cosmos containers and function app settings even when this commit did not touch `Infrastructure/**` (e.g. retry after a failed provision). Leave it off to redeploy packages only. Provision failure still blocks `*-deploy`.
 
+### Provision latch (`PROVISION_LATCH`) — HARD for agents
+
+**Why:** If a `run_provision` attempt fails (e.g. #1295 budget before Cosmos/settings), later merges with **no** `Infrastructure/**` change still used to ship packages from `main` (including the dependent code) while bicep never applied — host crash / missing containers. The latch stops that.
+
+| Event | Effect |
+|-------|--------|
+| `run_provision=true` and provision **fails** | Sets repo Actions variable `PROVISION_LATCH` to `blocked\|<sha>\|<run_id>\|<run_url>` |
+| `run_provision=true` and provision **succeeds** | **Deletes** `PROVISION_LATCH` |
+| Package-only run (`run_provision` false) while latch is set | **Blocks** `*-deploy` (provision job fails on the latch step) |
+| Latch unset | Package-only deploys allowed as before |
+
+**Clear the latch (preferred):** Actions → Run workflow → `run_provision=true` → succeed end-to-end (Cosmos → functions → budget).
+
+**Bypass (break-glass only — does not clear the latch):**
+
+1. Actions → Run workflow → enable **`bypass_provision_latch`** (allows `*-deploy` **this run only**; next package-only run is still blocked until provision succeeds or the variable is deleted).
+2. Or delete the variable: `gh variable delete PROVISION_LATCH --repo cultpodcasts/RedditPodcastPoster`
+
+**Agents (HARD):**
+
+- Never set `bypass_provision_latch` or delete `PROVISION_LATCH` unless the user **explicitly** asks for that break-glass in the **current** conversation.
+- Prefer fixing / re-running provision over bypass.
+- Do not treat a green package-only deploy as “infra is healthy” while the latch is set.
+- Authoritative: this section + [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc).
+
 **Budget start date:** Azure rejects updates that change a Consumption budget’s `timePeriod.startDate`. `functions-budget-subscription.bicep` keeps a fixed `budgetStartDate` (must match the live `functions-cost-budget-infra` create date). Do not use `utcNow()` — that failed provision on #1295 and skipped Cosmos before FileKeyClaims could be created.
 
 Target apps (resource group `AutomatedInfra`):
