@@ -296,6 +296,38 @@ currently weights all columns equally while Azure weights fields. FTS5 accepts p
 weights (`bm25(search_fts, w_title, w_series, w_desc, …)`) — tune during the dual-run
 phase against real search-log click data.
 
+### 4C.1 Analyzer parity — porter tokenizer + query-side en.lucene mirroring (2026-11-07)
+
+A committed harness (Api `search-demo/harness/`) now replays every website OData
+use-case plus a 42-query free-text corpus against both engines and classifies every
+id-level difference. First run exposed the real gap: the production Azure index runs the
+**`en.lucene` analyzer** on every searchable field — Porter stemming, possessive
+stripping, English stopwords, hyphen splitting — while the D1 FTS5 index used the plain
+`unicode61` tokenizer. Confirmed via the Azure highlights API (`universe` →
+`<em>Universal</em>`, `jeffs` → `<em>Jeff</em>`, `dei` → `<em>dey</em>`).
+
+Fix, measured A/B on the full 89,245-doc corpus (free-text query set, Azure hits missing
+from D1):
+
+| Configuration | Azure hits missed by D1 |
+|---|---|
+| `unicode61` FTS + literal query terms | 15,738 / 88,080 (17.87%) |
+| `porter unicode61` FTS, same queries | 10,508 / 88,080 (11.93%) |
+| porter FTS **+ query-side en.lucene mirroring** | **8 / 88,080 (0.01%)** |
+
+Query-side mirroring (in the simple-syntax translator): drop Lucene English stopwords
+from bare terms (kept inside phrases), split bare terms on hyphens/slashes into
+mode-joined atoms (`ex-mormon` → `ex OR mormon`), expand possessives
+(`heaven's` → `("heaven's" OR "heaven")`). The remote FTS table was rebuilt with
+`tokenize='porter unicode61'` (10.5 s for the full corpus, online).
+
+The one case still flagged (`l. ron hubbard`) is an **Azure artefact, not a D1 miss**:
+Azure's ~100-char description truncation cuts words mid-URL and mints spurious
+single-letter `l` tokens (`vicnews.com/l…` from `local-news`), which Azure then matches.
+D1 indexes the full description where the word is whole. Remaining divergences to accept
+or tune later: stopwords inside phrases (D1 keeps them, Azure drops them) and the OR-NOT
+footgun already noted.
+
 Operational finding: the zone's bot challenge (`cf-mitigated: challenge`) blocks
 server-to-server POSTs to `search-demo.cultpodcasts.com`. For the real swap the api
 Worker should reach the D1 search Worker over a **service binding** (direct
@@ -367,7 +399,7 @@ over a **service binding**.
 |-------|------|------|
 | P0 | ~~Benchmark~~ **Done 2026-11-07 (§4A synthetic + §4B real data)** — real corpus (89,245 docs, full descriptions) is **239 MB = 2.3 % of the D1 limit**, 3–32 ms query envelope, 8/5.5 ms sync writes, demo Worker running (Api `search-demo/`); remaining P0 work: validate the filter-grammar inventory against real search logs, and a small real-D1 (preview) spot check to confirm production network overhead | Size & latency sign-off |
 | P1 | Schema + bulk loader (Cosmos → D1), FTS5 external-content table + triggers | — | <!-- pragma: allowlist secret -->
-| P2 | ~~Worker query layer~~ **Prototyped 2026-11-07 (§4C)** — Azure-shaped `POST …/docs/search` with simple-syntax + OData-subset translators live in the demo Worker; filter/facet parity measured exact against production Azure. Remaining: ranking weights (bm25 per-column), KV-cached facet snapshots if latency wants them, service-binding wiring | Angular runs unchanged against it |
+| P2 | ~~Worker query layer~~ **Prototyped 2026-11-07 (§4C)** — Azure-shaped `POST …/docs/search` with simple-syntax + OData-subset translators live in the demo Worker; filter/facet parity measured exact against production Azure; analyzer parity (§4C.1) at 99.99% Azure⊆D1 via porter FTS + en.lucene query mirroring, verified by the committed harness. Remaining: ranking weights (bm25 per-column), KV-cached facet snapshots if latency wants them, service-binding wiring | Angular runs unchanged against it |
 | P3 | Write path: Worker admin upsert/delete route + retarget `SearchIndexerService`; weekly reconcile timer | Parity harness green | <!-- pragma: allowlist secret -->
 | P4 | Dual-run against Azure Search (shadow queries, diff results); cutover `apihost`-equivalent internal routing; soak | Drift-free soak |
 | P5 | Retire Azure Search index + hourly indexer; raise `DescriptionSize`; index guests; remove cap-driven slimming constraints that no longer pay rent | — | <!-- pragma: allowlist secret -->
