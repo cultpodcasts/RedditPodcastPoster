@@ -98,9 +98,41 @@ node: that node costs ~£25–35/month on Azure but **~£4/month off Azure** (He
 €3.99). "On Azure" buys nothing here — the sync path is HTTPS push either way (§5), and
 the query path originates at the Cloudflare Worker, not inside Azure.
 
+## 3A. Prior art: the 2023 D1 FTS5 experiment ("queries took ~30 s")
+
+D1 FTS5 **was tried before** — it is the Api Worker's origin story. Commit `db4d221`
+(2023-09-17) created `migrations/0000_full-text-search.sql` plus an `/api/episode_search`
+route; a .NET-side process populated the database from a local SQLite dump
+(`create-sql-dump.cmd`). It was removed in PR #7 (2024-02-17) after queries took ~30
+seconds versus milliseconds on Azure Search. That experience does **not** transfer to the
+design in this epic, for three compounding reasons:
+
+1. **It ran on D1 alpha.** September 2023 predates D1's ground-up storage-backend rewrite
+   and its April 2024 GA. Cloudflare replaced the alpha architecture precisely because of
+   its per-query latency. 30 s is also exactly D1's max-query-duration ceiling — the
+   queries were timing out, not merely slow.
+2. **The FTS table was joined on an unindexed TEXT GUID.** The schema was a contentless
+   `fts5(Guid, Title, Description, YouTube, Spotify, Apple, …)` joined
+   `ON t.Guid = e.Guid` to a base table from a raw `sqlite3 .dump` with **no index on
+   `Guid`** (and GUIDs + full URLs were tokenised into the FTS index as searchable text).
+3. **The query had no `LIMIT`.** A common term matched tens of thousands of documents — <!-- pragma: allowlist secret -->
+   every one joined twice and serialised into a single JSON response.
+
+**Measured (2026-11-07):** rebuilding that exact schema + query on today's engine next to
+the proposed design, same 90,000-document corpus (see §4A): the 2023 shape takes
+**121 ms / 346 ms / 1,531 ms** (rare / medium / common term) where the proposed shape
+takes **6.5 / 16.6 / 57.8 ms** — and today's SQLite is actively rescuing the 2023 schema
+by building an automatic covering index for the missing `Guid` index on every query
+(`EXPLAIN QUERY PLAN: SEARCH e USING AUTOMATIC COVERING INDEX (Guid=?)`), which is why
+even a single-match query reads all 90k rows. On the 2023 alpha backend, without that
+mitigation, returning ~60k-row JSON bodies per query, 30 s is the expected outcome.
+
 ## 4. Recommendation
 
-**Primary: Worker + D1 FTS5** — unchanged from the 2026-07 survey, now stronger:
+**Primary: Worker + D1 FTS5** — unchanged from the 2026-07 survey, now stronger. The
+2023 attempt's ~30 s queries (§3A) were an artefact of D1 alpha plus an unindexed-join,
+no-LIMIT schema; the executed benchmark (§4A) shows the proposed design answers in
+**5–60 ms** on the same corpus size at full fidelity:
 
 - **£0 marginal cost, forever.** The account is already on Workers Paid for the Api
   Worker (Browser Rendering, Durable Objects, Analytics Engine, a production D1 database).
@@ -126,6 +158,45 @@ self-hosted **Elasticsearch — off Azure** on a ~£4/month Hetzner-class VPS, o
 
 **Rejected:** Cloudflare AI Search (product shape), all managed Elastic (cost), ES
 self-host on Azure VMs (cost ≈ the refused Azure Basic, plus ops).
+
+## 4A. Phase 0 benchmark — executed 2026-11-07
+
+Method: 90,000 full-fidelity documents (**500-char** descriptions, guests, hidden search
+terms, subjects junction table, zipf-distributed vocabulary) loaded into a **local D1** <!-- pragma: allowlist secret -->
+via `wrangler getPlatformProxy` — the same SQLite engine and D1 API as production
+(production adds network RTT of a few ms per query; the Worker's 600 s edge cache sits on
+top). Schema: `search_docs` base table (integer rowid, indexed `release`,
+`series_name`, `lang`), `doc_subjects` junction, **external-content FTS5** over <!-- pragma: allowlist secret -->
+title/series/description/guests/search-terms, kept in step by triggers. Medians of 5 runs:
+
+| Query (proposed design) | Median | rows_read |
+|---|---|---|
+| Relevance search, worst-case term (**matches 75,139 docs = 83% of corpus**), `ORDER BY rank LIMIT 20` | **57.8 ms** | 39 |
+| Total count for that term (`@odata.count`) | 9.7 ms | 75,139 |
+| That term, `ORDER BY release DESC LIMIT 20` | 32.8 ms | 225,417 |
+| Podcast facet over those matches (`GROUP BY`, 1000 buckets) | 46.9 ms | 225,646 |
+| Subject facet over those matches (junction join) | 56.9 ms | 419,840 |
+| Relevance search, medium term (13,221 matches) | 16.6 ms | 39 |
+| Relevance search, rare term | 6.5 ms | 2 |
+| Multi-term AND | 7.8 ms | 4 |
+| Guest-name search | 6.8 ms | 0 |
+| Podcast page (series filter, no FTS) | 6.0 ms | 2 |
+| Subject page (junction + `lang IS NULL`) | 8.7 ms | 4,947 |
+| Full-corpus podcast facet (browse) | 9.3 ms | 90,255 |
+| Deep page (`LIMIT 20 OFFSET 980`) | 40.1 ms | 225,417 |
+| **Sync:** single-doc upsert (FTS triggers fire) | 5.8 ms | 1 |
+| **Sync:** single-doc delete | 11.0 ms | 2 |
+
+Read-quota economics: the most expensive query (subject facet over a worst-case term)
+reads ~420k rows; Workers Paid includes 25 **billion** row-reads/month ≈ 59,000 such
+worst-case queries **per day** before any charge — and the edge cache absorbs most of
+them. Bulk load ran at ~210 docs/s through the proxy including FTS triggers (a one-shot
+full rebuild of the corpus is minutes, and the production path would use batched D1
+writes from the reconcile job).
+
+Real searches are nothing like the worst-case term: user queries are selective by nature.
+The practical envelope is **5–20 ms** per query with facet sets at **40–60 ms**, versus
+~30 s in the 2023 experiment (§3A) — the difference is GA D1 plus schema, not luck.
 
 ## 5. Target sync architecture (backend-agnostic)
 
@@ -161,7 +232,7 @@ Target model (user requirement: in-week amends + weekly reconcile, no index down
 
 | Phase | Work | Gate |
 |-------|------|------|
-| P0 | Benchmark: bulk-load current corpus **at full fidelity** (500-char descriptions, guests, contentKind) into a D1 preview DB; measure size, query + facet latency under the Worker; validate the filter-grammar inventory against real search logs | Size & latency sign-off |
+| P0 | ~~Benchmark~~ **Done 2026-11-07 (§4A)** — 90k full-fidelity docs, 5–60 ms query envelope, 6–11 ms sync writes; remaining P0 work: validate the filter-grammar inventory against real search logs, and a small real-D1 (preview) spot check to confirm production network overhead | Size & latency sign-off |
 | P1 | Schema + bulk loader (Cosmos → D1), FTS5 external-content table + triggers | — |
 | P2 | Worker query layer behind `POST /search`: OData-subset parser → SQL; response shaped as `value` / `@odata.count` / `@search.facets`; KV-cached facet snapshots | Angular runs unchanged against it |
 | P3 | Write path: Worker admin upsert/delete route + retarget `SearchIndexerService`; weekly reconcile timer | Parity harness green |
