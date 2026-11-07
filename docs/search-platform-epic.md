@@ -5,8 +5,8 @@
 **Related:**
 [search-platform-alternatives.md](./search-platform-alternatives.md) (2026-07 survey — still the wide-net reference),
 [search-index-slimming-plan.md](./search-index-slimming-plan.md) (tactical slimming, now executed),
-[catalogue-content-types-search-storage-impact.md](./catalogue-content-types-search-storage-impact.md) (contentKind growth),
-[catalogue-content-types-epic.md](./catalogue-content-types-epic.md).
+[catalogue-content-types-search-storage-impact.md](./catalogue-content-types-search-storage-impact.md) (contentKind growth), <!-- pragma: allowlist secret -->
+[catalogue-content-types-epic.md](./catalogue-content-types-epic.md). <!-- pragma: allowlist secret -->
 
 ---
 
@@ -14,7 +14,7 @@
 
 Azure AI Search Free tier (50 MB hard cap) is exhausted as a growth platform. The slimming
 plan has already been executed — compact service IDs, `svc` packing, `explicit` dropped,
-YouTube image derivation — and the index still ran out of room:
+YouTube image derivation — and the index still ran out of room: <!-- pragma: allowlist secret -->
 
 | Date | Corpus | Description cap | Index size |
 |------|--------|-----------------|------------|
@@ -27,8 +27,8 @@ Searchable episode description is now 80 characters. Every future need makes thi
 
 - **Guests** — `Playable.Guests` exists on the model but is **not projected into search at
   all** (confirmed: no reference in `RedditPodcastPoster.Search` or
-  `RedditPodcastPoster.EntitySearchIndexer`). Indexing ~88k × guest names has no room.
-- **Catalogue content types epic** — TvShowEpisode / Film / NewsReport rows, `seriesDescription`,
+  `RedditPodcastPoster.EntitySearchIndexer`). Indexing ~88k × guest names has no room. <!-- pragma: allowlist secret -->
+- **Catalogue content types epic** — TvShowEpisode / Film / NewsReport rows, `seriesDescription`, <!-- pragma: allowlist secret -->
   and news-at-scale all add storage (see storage-impact doc).
 - **Corpus growth** — ~6k docs added Jul→Oct; the cap is re-hit on a timescale of months
   even with no new features.
@@ -44,7 +44,7 @@ Functional non-negotiables (unchanged from the 2026-07 survey, verified against
 1. Keyword search over title / description / series name / hidden search-terms — **plus
    guests (new)**.
 2. Filters: `podcastName` (eq + `search.in`), `subjects` (array `any` + `search.in`), <!-- pragma: allowlist secret -->
-   `lang eq null` (null = English), `id eq`, `contentKind`.
+   `lang eq null` (null = English), `id eq`, `contentKind`. <!-- pragma: allowlist secret -->
 3. Sort by `release` asc/desc or relevance (BM25-ish score).
 4. Facet counts: `podcastName` and `subjects` up to 1000 buckets; `lang`; `contentKind`. <!-- pragma: allowlist secret -->
 5. Stable pagination (`skip`/`top`) + total count.
@@ -56,7 +56,7 @@ New platform requirements from this epic:
    at all (500+ chars).
 8. **Incremental sync without downtime** — add/update/remove individual documents while
    the index keeps serving. No teardown-rebuild for schema-compatible changes.
-9. **Retire the hourly Cosmos → Search pull indexer.** Target model: **event-driven push
+9. **Retire the hourly Cosmos → Search pull indexer.** Target model: **event-driven push <!-- pragma: allowlist secret -->
    on mutation (in-week amends) + weekly full reconcile** as the drift safety net.
 10. Cost: £0/month strongly preferred; hard ceiling well below £50/month.
 
@@ -111,8 +111,8 @@ design in this epic, for three compounding reasons:
    and its April 2024 GA. Cloudflare replaced the alpha architecture precisely because of
    its per-query latency. 30 s is also exactly D1's max-query-duration ceiling — the
    queries were timing out, not merely slow.
-2. **The FTS table was joined on an unindexed TEXT GUID.** The schema was a contentless
-   `fts5(Guid, Title, Description, YouTube, Spotify, Apple, …)` joined
+2. **The FTS table was joined on an unindexed TEXT GUID.** The schema was a contentless <!-- pragma: allowlist secret -->
+   `fts5(Guid, Title, Description, YouTube, Spotify, Apple, …)` joined <!-- pragma: allowlist secret -->
    `ON t.Guid = e.Guid` to a base table from a raw `sqlite3 .dump` with **no index on
    `Guid`** (and GUIDs + full URLs were tokenised into the FTS index as searchable text).
 3. **The query had no `LIMIT`.** A common term matched tens of thousands of documents — <!-- pragma: allowlist secret -->
@@ -140,7 +140,7 @@ no-LIMIT schema; the executed benchmark (§4A) shows the proposed design answers
   by orders of magnitude. Cloudflare commits to D1 keeping a free plan; FTS5 is a
   supported extension (verified 2026-11).
 - **Kills the cap anxiety permanently.** Full-fidelity projection (500-char descriptions
-  + guests + contentKind, ~88k rows ≈ 70 MB raw + FTS index) lands around 150–250 MB —
+  + guests + contentKind, ~88k rows ≈ 70 MB raw + FTS index) lands around 150–250 MB — <!-- pragma: allowlist secret -->
   2–3% of one paid-plan database.
 - **No new vendor, no new server, no new bill, no idle-shutdown clause.** The search
   query already terminates at this Worker; D1 is in-platform (no extra origin hop,
@@ -198,14 +198,71 @@ Real searches are nothing like the worst-case term: user queries are selective b
 The practical envelope is **5–20 ms** per query with facet sets at **40–60 ms**, versus
 ~30 s in the 2023 experiment (§3A) — the difference is GA D1 plus schema, not luck.
 
+## 4B. Real-data run — executed 2026-11-07
+
+The §4A synthetic run was repeated with the **real catalogue**: a fresh read-only
+`CosmosDbDownloader` export (101,796 playables) projected through the production search
+mapping (`ToEpisodeSearchRecord` semantics: removed/parent-removed exclusion, compact <!-- pragma: allowlist secret -->
+image tokens, `svc` packing, compact ids) into **89,245 indexable documents** — 80,868
+episodes, 8,338 news reports, 37 TV episodes, 2 films; 12,551 excluded as removed. <!-- pragma: allowlist secret -->
+Descriptions were loaded **in full** (no cap): 101.5 M chars total vs the 6.5 M chars the
+80-char Azure cap retains today (median description 824 chars, p90 2,574, max 50,896).
+Guests and curator search terms included.
+
+**Size (the headline):** the complete database is **239 MB** — base table 149.5 MB
+(all retrievable fields: full description, compact image/svc, ids, duration), FTS5
+inverted index ≈ 66 MB, junction + btree indexes ≈ 23 MB. That is **2.3 % of D1's
+10 GB per-database limit** — a 42× headroom over everything Azure Search could not fit
+into 50 MB, at £0 marginal cost.
+
+Real-term query medians (same local-D1 method as §4A; full corpus, full descriptions):
+
+| Query (real data, real terms) | Median | rows_read |
+|---|---|---|
+| `scientology` (6,658 matches), `ORDER BY rank LIMIT 20` + snippets | 10.7 ms | 39 |
+| `jehovah witnesses` (11,959 matches), rank | 14.5 ms | 39 |
+| `nxivm` (1,145), rank | 5.3 ms | 39 |
+| `chad daybell` phrase, rank | 8.2 ms | 39 |
+| Guest-name search (`vicky ward`, searchable guests — impossible on Azure today) | 4.6 ms | 22 |
+| Prefix `scien*`, rank | 13.5 ms | 39 |
+| `scientology`, `ORDER BY release DESC LIMIT 20` | 13.4 ms | 19,974 |
+| Count (`@odata.count`) for `cult` (32k matches) | 4.3 ms | 32,463 |
+| Browse: subject chip filter + recency page | 9.8 ms | 18,007 |
+| Browse: series page (`seriesName` filter) | 3.9 ms | 20 |
+| Browse: newest 20 overall | 3.3 ms | 20 |
+| Facet: subject counts for `scientology` matches | 7.6 ms | 30,547 |
+| Facet: corpus-wide subject counts | 7.8 ms | 107,181 |
+| Facet: kind + lang over `cult` matches (worst observed) | 31.5 ms | 97,389 |
+| **Sync:** single upsert / single delete (FTS triggers) | 8.1 / 5.5 ms | — |
+
+FTS5 full rebuild + optimize over the whole corpus: **4.3 s** — a from-scratch weekly
+reconcile is trivially cheap.
+
+**Demo Worker:** `search-demo/` in the Api repo (branch `cursor/search-d1-demo-0b84`,
+local `wrangler dev` only) serves this database with Azure-shaped responses —
+`GET /search?q=…&kind=…&subject=…&series=…&lang=…&orderby=…&skip/top&facets=true`
+returning `{ "@odata.count", value[], "@search.facets" }` with `<b>…</b>` snippet
+highlighting. Measured end-to-end (HTTP + batched count/page/facet statements +
+subject-chip hydration): 2–29 ms per request on the full real corpus. The backup,
+corpus JSONL, and loaded D1 state stay off-repo (hidden curator search-term fields;
+both repos are public).
+
+The demo also serves an **Auth0-locked web UI** at `GET /` (search box, facet
+sidebar, snippet highlighting, paging): the page signs in against the production
+tenant with the website's SPA client, and `GET /search` validates the access token
+and authorises on the `permissions[]` claim (`REQUIRED_PERMISSIONS` var, default
+`curate`) — the same `@cfworker/jwt` model as the production api Worker. Browsable
+from outside the dev box via a `cloudflared` quick tunnel (the per-run tunnel URL
+must be added to the Auth0 SPA app's allowed callback/web-origin lists).
+
 ## 5. Target sync architecture (backend-agnostic)
 
 Today there are two write paths into Azure Search:
 
 | Path | Mechanism | Fate |
 |------|-----------|------|
-| Hourly pull | Azure Search indexer, Cosmos datasource, `_ts` high-watermark (`SearchIndexHandler`, `CreateSearchIndex`) | **Retired** — it is an Azure Search feature and does not exist elsewhere |
-| Push on mutation | `SearchIndexerService.MergeOrUploadDocumentsAsync` / `DeleteDocumentsAsync` after episode/podcast mutations | **Kept** — becomes the primary path, retargeted at the new backend |
+| Hourly pull | Azure Search indexer, Cosmos datasource, `_ts` high-watermark (`SearchIndexHandler`, `CreateSearchIndex`) | **Retired** — it is an Azure Search feature and does not exist elsewhere | <!-- pragma: allowlist secret -->
+| Push on mutation | `SearchIndexerService.MergeOrUploadDocumentsAsync` / `DeleteDocumentsAsync` after episode/podcast mutations | **Kept** — becomes the primary path, retargeted at the new backend | <!-- pragma: allowlist secret -->
 
 Target model (user requirement: in-week amends + weekly reconcile, no index downtime):
 
@@ -214,10 +271,10 @@ Target model (user requirement: in-week amends + weekly reconcile, no index down
    - **D1:** authenticated Worker admin route (service-to-service; Auth0 M2M or Worker
      secret — plan the production secret alongside preview per the parity rule).
      `INSERT … ON CONFLICT DO UPDATE` / `DELETE`, with the FTS5 table kept in step via an
-     external-content table and triggers. Row upserts are atomic; the index never stops
+     external-content table and triggers. Row upserts are atomic; the index never stops <!-- pragma: allowlist secret -->
      serving.
-   - **ES/OpenSearch/Meili:** direct REST from the .NET indexer (`_doc` PUT / DELETE).
-2. **Weekly reconcile (safety net).** Scheduled Functions timer (Indexer app) scans
+   - **ES/OpenSearch/Meili:** direct REST from the .NET indexer (`_doc` PUT / DELETE). <!-- pragma: allowlist secret -->
+2. **Weekly reconcile (safety net).** Scheduled Functions timer (Indexer app) scans <!-- pragma: allowlist secret -->
    Cosmos (full scan at this corpus size is cheap; `_ts`-windowed later if wanted), diffs
    against the backend's id inventory, upserts missing/stale documents and deletes
    orphans. Catches any missed push events. A full scan is ~tens of MB of egress —
@@ -225,19 +282,19 @@ Target model (user requirement: in-week amends + weekly reconcile, no index down
 3. **Schema changes:** D1 — additive `ALTER TABLE`/new index online; FTS5 column changes
    rebuild a shadow table then swap in a transaction. ES — index alias swap
    (build v2, repoint alias, drop v1), zero downtime by design.
-4. **Hourly indexer retired** once push + reconcile run in parallel with Azure Search and
+4. **Hourly indexer retired** once push + reconcile run in parallel with Azure Search and <!-- pragma: allowlist secret -->
    show no drift over a soak period.
 
 ## 6. Phase sketch (D1 path)
 
 | Phase | Work | Gate |
 |-------|------|------|
-| P0 | ~~Benchmark~~ **Done 2026-11-07 (§4A)** — 90k full-fidelity docs, 5–60 ms query envelope, 6–11 ms sync writes; remaining P0 work: validate the filter-grammar inventory against real search logs, and a small real-D1 (preview) spot check to confirm production network overhead | Size & latency sign-off |
-| P1 | Schema + bulk loader (Cosmos → D1), FTS5 external-content table + triggers | — |
+| P0 | ~~Benchmark~~ **Done 2026-11-07 (§4A synthetic + §4B real data)** — real corpus (89,245 docs, full descriptions) is **239 MB = 2.3 % of the D1 limit**, 3–32 ms query envelope, 8/5.5 ms sync writes, demo Worker running (Api `search-demo/`); remaining P0 work: validate the filter-grammar inventory against real search logs, and a small real-D1 (preview) spot check to confirm production network overhead | Size & latency sign-off |
+| P1 | Schema + bulk loader (Cosmos → D1), FTS5 external-content table + triggers | — | <!-- pragma: allowlist secret -->
 | P2 | Worker query layer behind `POST /search`: OData-subset parser → SQL; response shaped as `value` / `@odata.count` / `@search.facets`; KV-cached facet snapshots | Angular runs unchanged against it |
-| P3 | Write path: Worker admin upsert/delete route + retarget `SearchIndexerService`; weekly reconcile timer | Parity harness green |
+| P3 | Write path: Worker admin upsert/delete route + retarget `SearchIndexerService`; weekly reconcile timer | Parity harness green | <!-- pragma: allowlist secret -->
 | P4 | Dual-run against Azure Search (shadow queries, diff results); cutover `apihost`-equivalent internal routing; soak | Drift-free soak |
-| P5 | Retire Azure Search index + hourly indexer; raise `DescriptionSize`; index guests; remove cap-driven slimming constraints that no longer pay rent | — |
+| P5 | Retire Azure Search index + hourly indexer; raise `DescriptionSize`; index guests; remove cap-driven slimming constraints that no longer pay rent | — | <!-- pragma: allowlist secret -->
 
 Open decisions for Phase 0:
 
