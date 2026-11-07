@@ -334,6 +334,37 @@ Worker should reach the D1 search Worker over a **service binding** (direct
 Worker-to-Worker, no public edge, no WAF, lower latency), not a public hostname. The
 demo keeps `workers.dev` enabled for harness access.
 
+### 4C.2 Production log replay — real traffic, day then week (2026-11-07)
+
+The api Worker's structured search logs (Workers Logs observability API, exact
+day-by-day distinct counts) were replayed with identical POST bodies against both
+engines: one day (4,027 distinct request shapes) then a full week, 2026-10-31 →
+2026-11-07 (13,070 shapes from 24,680 requests).
+
+Traffic mix for the week: subject-filter queries 23,140 (93.7%), shortener fallback
+1,170 (4.7%), free text 370 (1.5%) — filters, not syntax, are the parity-critical path.
+
+Week result: **zero in-corpus misses in any family.** All 3,442 cases where Azure
+counted higher differ by exactly +1 (2,953) or +2 (489); all 97 Azure-only ids behind
+them are absent from the D1 corpus snapshot (indexed after export — the match-all query
+measures the drift: 89,255 vs 89,245). Podcast browse, episode pages, kind browse and
+shortener fallback agree exactly. Free text is a D1 superset with one Azure hit missing
+across the whole week, itself not in the corpus.
+
+Findings from real traffic:
+
+1. **Live website bug:** the website sends
+   `(contentKind eq 'NewsReport') and (podcastName eq 'Associated Press')`; production
+   Azure 400s it (no `podcastName` field). The only error in 13,070 cases. The D1
+   translator tolerates it (`podcastName` → `seriesName`).
+2. **`AND` is not an operator in Azure simple syntax** — a real user's
+   `scientology AND "paulette cooper"` returns the OR result on Azure (keywords are
+   plain terms, then stopword-dropped). The D1 translator was corrected to match.
+3. **Lone-NOT divergence seen in the wild:** `-"Davi Vieira"` → Azure 88,628
+   (everything-except), D1 0. Kept as the documented intentional divergence.
+4. Replay concurrency hit `D1 DB is overloaded`; the demo Worker now returns 503 for D1
+   runtime errors (retryable) and reserves 400 for filter/body syntax, mirroring Azure.
+
 ## 5. Target sync architecture (backend-agnostic)
 
 Today there are two write paths into Azure Search:
@@ -399,7 +430,7 @@ over a **service binding**.
 |-------|------|------|
 | P0 | ~~Benchmark~~ **Done 2026-11-07 (§4A synthetic + §4B real data)** — real corpus (89,245 docs, full descriptions) is **239 MB = 2.3 % of the D1 limit**, 3–32 ms query envelope, 8/5.5 ms sync writes, demo Worker running (Api `search-demo/`); remaining P0 work: validate the filter-grammar inventory against real search logs, and a small real-D1 (preview) spot check to confirm production network overhead | Size & latency sign-off |
 | P1 | Schema + bulk loader (Cosmos → D1), FTS5 external-content table + triggers | — | <!-- pragma: allowlist secret -->
-| P2 | ~~Worker query layer~~ **Prototyped 2026-11-07 (§4C)** — Azure-shaped `POST …/docs/search` with simple-syntax + OData-subset translators live in the demo Worker; filter/facet parity measured exact against production Azure; analyzer parity (§4C.1) at 99.99% Azure⊆D1 via porter FTS + en.lucene query mirroring, verified by the committed harness. Remaining: ranking weights (bm25 per-column), KV-cached facet snapshots if latency wants them, service-binding wiring | Angular runs unchanged against it |
+| P2 | ~~Worker query layer~~ **Prototyped 2026-11-07 (§4C)** — Azure-shaped `POST …/docs/search` with simple-syntax + OData-subset translators live in the demo Worker; filter/facet parity measured exact against production Azure; analyzer parity (§4C.1) at 99.99% Azure⊆D1 via porter FTS + en.lucene query mirroring, verified by the committed harness; a week of real production traffic replayed with zero in-corpus misses (§4C.2). Remaining: ranking weights (bm25 per-column), KV-cached facet snapshots if latency wants them, service-binding wiring | Angular runs unchanged against it |
 | P3 | Write path: Worker admin upsert/delete route + retarget `SearchIndexerService`; weekly reconcile timer | Parity harness green | <!-- pragma: allowlist secret -->
 | P4 | Dual-run against Azure Search (shadow queries, diff results); cutover `apihost`-equivalent internal routing; soak | Drift-free soak |
 | P5 | Retire Azure Search index + hourly indexer; raise `DescriptionSize`; index guests; remove cap-driven slimming constraints that no longer pay rent | — | <!-- pragma: allowlist secret -->
