@@ -25,9 +25,37 @@ Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-di
 | Package | Folder artifact (Linux paths; `include-hidden-files: true` for `.azurefunctions/`) | `New-LinuxFunctionAppZip` — forward-slash zip (Windows and Linux) |
 | Deploy | `Azure/functions-action@v1` → `package: output/<name>` → `*-infra` | Upload `released-package.zip` to bicep deployment container → `az functionapp restart` |
 | App settings | Bicep only | **Never changed** by deploy scripts |
-| Provision | Bicep when `Infrastructure/**` changes **or** manual `workflow_dispatch` with `run_provision=true`; Cosmos/functions before subscription budget; `*-deploy` requires `needs.provision.result == 'success'` (no package deploy on provision failure) | Not run locally |
+| Provision | Bicep when `Infrastructure/**` changes **or** manual `workflow_dispatch` with `run_provision=true`; Cosmos/functions before subscription budget; `*-deploy` requires `needs.provision.result == 'success'` **and** `needs.provision.outputs.deploy_allowed == 'true'` (latch + same-run gate; no package deploy on provision failure) | Not run locally — and local package upload **does not** honour `PROVISION_LATCH` (see § Provision latch) |
 
 **Manual run (main):** Actions → **Provision and Deploy** → **Run workflow** → branch `main`. Set **run_provision** to create/update Cosmos containers and function app settings even when this commit did not touch `Infrastructure/**` (e.g. retry after a failed provision). Leave it off to redeploy packages only. Provision failure still blocks `*-deploy`.
+
+### Provision latch (`PROVISION_LATCH`) — HARD for agents
+
+**Why:** If a `run_provision` attempt fails (e.g. #1295 budget before Cosmos/settings), later merges with **no** `Infrastructure/**` change still used to ship packages from `main` (including the dependent code) while bicep never applied — host crash / missing containers. The latch stops that.
+
+| Event | Effect |
+|-------|--------|
+| `run_provision=true` and provision **fails** | Sets repo Actions variable `PROVISION_LATCH` to `blocked\|<sha>\|<run_id>\|<run_url>` |
+| `run_provision=true` and provision **succeeds** | **Deletes** `PROVISION_LATCH`; sets job output `deploy_allowed=true` for this run |
+| Package-only run (`run_provision` false) while latch is set | **Blocks** `*-deploy` (provision job fails on the latch step; `deploy_allowed=false`) |
+| Latch unset | Package-only deploys allowed as before |
+
+**Same-run gate (`deploy_allowed`) vs cross-run latch (`vars.PROVISION_LATCH`):** `*-deploy` jobs must use `needs.provision.outputs.deploy_allowed == 'true'`, **not** a re-read of `vars.PROVISION_LATCH`. After a successful clear in the same workflow, the `vars` context can still be stale; the job output is the authoritative same-run signal. Keep `PROVISION_LATCH` as the **cross-run** latch only (blocks later package-only runs until provision succeeds). Do not “simplify” `*-deploy` back to `vars.PROVISION_LATCH` — that re-breaks post-clear deploys.
+
+**Clear the latch (preferred):** Actions → Run workflow → `run_provision=true` → succeed end-to-end (Cosmos → functions → budget).
+
+**Bypass (break-glass only — does not clear the latch):**
+
+1. Actions → Run workflow → enable **`bypass_provision_latch`** (allows `*-deploy` **this run only**; next package-only run is still blocked until provision succeeds or the variable is deleted).
+2. Or delete the variable: `gh variable delete PROVISION_LATCH --repo cultpodcasts/RedditPodcastPoster`
+
+**Agents (HARD):**
+
+- Never set `bypass_provision_latch` or delete `PROVISION_LATCH` unless the user **explicitly** asks for that break-glass in the **current** conversation.
+- Prefer fixing / re-running provision (`run_provision=true`) over bypass.
+- Do not treat a green package-only deploy as “infra is healthy” while the latch is set.
+- Never use local `scripts/deploy-*.ps1` or **deploy functions & clis** as a workaround for a latch-blocked / failed Actions package-only run unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete (unapplied bicep). Local scripts do not read `PROVISION_LATCH` and can recreate the #1295→#1299 incident.
+- Authoritative: this section + [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc).
 
 **Budget start date:** Azure rejects updates that change a Consumption budget’s `timePeriod.startDate`. `functions-budget-subscription.bicep` keeps a fixed `budgetStartDate` (must match the live `functions-cost-budget-infra` create date). Do not use `utcNow()` — that failed provision on #1295 and skipped Cosmos before FileKeyClaims could be created.
 
@@ -47,7 +75,7 @@ Merge to `main` → **Provision and Deploy** (`deploy.yml`) auto-deploys `api-in
 
 ## Fallback — local single commands
 
-Use only when Actions is unavailable, or the user explicitly asks for script deploy / **deploy functions & clis**:
+Use only when Actions is unavailable, or the user explicitly asks for script deploy / **deploy functions & clis**. Local scripts **do not** honour `PROVISION_LATCH` — do **not** use them to work around a latch-blocked Actions run unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete. Prefer `run_provision=true` (see § Provision latch).
 
 ```powershell
 az login
@@ -261,11 +289,11 @@ gh run list --repo cultpodcasts/RedditPodcastPoster --workflow=deploy.yml --bran
 gh run view <run-id> --repo cultpodcasts/RedditPodcastPoster --json conclusion,status,jobs,headSha,url
 ```
 
-Merge alone = deploy **triggered**, not yet proof of live code. In-progress run → say unconfirmed; failed job → not live (fallback scripts only if requested).
+Merge alone = deploy **triggered**, not yet proof of live code. In-progress run → say unconfirmed; failed job → not live. Latch / `deploy_allowed` failure → prefer `run_provision=true` (see § Provision latch); other failures → fallback scripts only if requested.
 
 ### Fallback path (local scripts)
 
-When Actions is unavailable, or the user explicitly asks for script deploy / **deploy functions & clis**, `deploy-*.ps1` uploads `released-package.zip` to `cultpodcastsstg` and restarts the app. See [interim-deployment.md](interim-deployment.md).
+When Actions is unavailable, or the user explicitly asks for script deploy / **deploy functions & clis**, `deploy-*.ps1` uploads `released-package.zip` to `cultpodcastsstg` and restarts the app. See [interim-deployment.md](interim-deployment.md). Do **not** use this path to circumvent `PROVISION_LATCH` unless the user explicitly asks for that break-glass **and** acknowledges incomplete infra (§ Provision latch).
 
 **Authoritative for script releases:** blob `lastModified` + matching restart within ~60s.
 
