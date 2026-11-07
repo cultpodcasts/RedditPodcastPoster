@@ -16,8 +16,13 @@ param monthlyFunctionsBudgetAmount int
 @description('Optional email address for budget notifications.')
 param alertEmailAddress string = ''
 
-@description('Budget start date. Defaults to the first day of the current UTC month.')
-param budgetStartDate string = utcNow('yyyy-MM-01T00:00:00Z')
+// Azure Consumption budgets reject updates that change timePeriod.startDate
+// ("Start date of budgets cannot be updated"). Do not use utcNow() here —
+// a rolling month default fails every redeploy after the budget's create month.
+// Keep this aligned with the live budget (functions-cost-budget-infra was created
+// 2026-04-01). Changing it requires deleting and recreating the budget.
+@description('Immutable budget start date (must match the existing budget once created).')
+param budgetStartDate string = '2026-04-01T00:00:00Z'
 
 resource functionsCostBudget 'Microsoft.Consumption/budgets@2023-11-01' = if (enableAlerts) {
   name: 'functions-cost-budget-${suffix}'

@@ -25,7 +25,11 @@ Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-di
 | Package | Folder artifact (Linux paths; `include-hidden-files: true` for `.azurefunctions/`) | `New-LinuxFunctionAppZip` — forward-slash zip (Windows and Linux) |
 | Deploy | `Azure/functions-action@v1` → `package: output/<name>` → `*-infra` | Upload `released-package.zip` to bicep deployment container → `az functionapp restart` |
 | App settings | Bicep only | **Never changed** by deploy scripts |
-| Provision | Bicep when `Infrastructure/**` changes | Not run locally |
+| Provision | Bicep when `Infrastructure/**` changes **or** manual `workflow_dispatch` with `run_provision=true`; Cosmos/functions before subscription budget; `*-deploy` requires `needs.provision.result == 'success'` (no package deploy on provision failure) | Not run locally |
+
+**Manual run (main):** Actions → **Provision and Deploy** → **Run workflow** → branch `main`. Set **run_provision** to create/update Cosmos containers and function app settings even when this commit did not touch `Infrastructure/**` (e.g. retry after a failed provision). Leave it off to redeploy packages only. Provision failure still blocks `*-deploy`.
+
+**Budget start date:** Azure rejects updates that change a Consumption budget’s `timePeriod.startDate`. `functions-budget-subscription.bicep` keeps a fixed `budgetStartDate` (must match the live `functions-cost-budget-infra` create date). Do not use `utcNow()` — that failed provision on #1295 and skipped Cosmos before FileKeyClaims could be created.
 
 Target apps (resource group `AutomatedInfra`):
 

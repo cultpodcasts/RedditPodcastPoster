@@ -9,6 +9,8 @@ alwaysApply: true
 
 **Fallback path:** local `scripts/deploy-*.ps1` (blob upload + restart) when Actions is unavailable, or when the user says **deploy functions & clis** / an explicit named script deploy. See [interim-deployment.md](../../docs/interim-deployment.md).
 
+**Manual provision retry (Actions):** on `main`, Actions → **Provision and Deploy** → **Run workflow** with `run_provision=true` re-runs Bicep (Cosmos/functions/budget) even when the commit did not touch `Infrastructure/**` — e.g. after a failed provision that blocked FileKeyClaims. Detail: [docs/deployment.md](../../docs/deployment.md). `*-deploy` jobs require `needs.provision.result == 'success'` (package deploy does not run on provision failure).
+
 ## After a PR merges to `main`
 
 1. Treat the merge as **deploy triggered**, not as proof the new code is live.
