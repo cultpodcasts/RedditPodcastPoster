@@ -12,6 +12,8 @@ Azure `HandleRequest` checks JWT **`permissions`** / OAuth **`scope`** via `Clie
 
 After a failed Actions **provision** (`run_provision` / `Infrastructure/**` apply), repo variable `PROVISION_LATCH` blocks later **package-only** deploys until provision succeeds. Do **not** `bypass_provision_latch` or `gh variable delete PROVISION_LATCH` unless the user explicitly requests that break-glass in the current conversation. Prefer Run workflow with `run_provision=true`.
 
+**Local Function deploys also circumvent the latch.** Do **not** run `scripts/deploy-*.ps1` or honour **deploy functions & clis** as a workaround for a latch-blocked / failed Actions package-only run unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete (unapplied bicep). Prefer `run_provision=true` to clear the latch. Detail: [`docs/deployment.md`](docs/deployment.md) § Provision latch.
+
 Authoritative: [`docs/deployment.md`](docs/deployment.md) § Provision latch · [`.cursor/rules/production-deploy-truth.mdc`](.cursor/rules/production-deploy-truth.mdc).
 
 ## Catalogue migrate / playable-services CLIs (HARD)
