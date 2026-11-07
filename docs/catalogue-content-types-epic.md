@@ -22,7 +22,7 @@
 | **TvShow** | Traditional multi-episode **series** (BBC iPlayer, Netflix series, etc.). **Not** YouTube entertainment “shows”. |
 | **TvShowEpisode** | One episode of a TvShow. Own Cosmos container. |
 | **Film** | Standalone work **made as a film** (one-off). Premiere venue irrelevant — cinema or one-off TV. Examples: *Going Clear*, *My Scientology Movie*, *A Very British Cult*. Standalone playable — **no parent**. Product name is **Film**, not Movie. |
-| **NewsOrganisation** | News outlet (e.g. BBC News, Sky News, 4-letter TV news stations). |
+| **NewsOrganisation** | News outlet (e.g. BBC News, Sky News, 4-letter TV news stations). Extra YouTube channels of the same outlet: [channel aliases](./catalogue-news-organisation-channel-aliases.md). |
 | **NewsReport** | One report belonging to a NewsOrganisation. Own Cosmos container. |
 | **`contentKind`** | Search/API facet on the **playable instance**: `Episode \| TvShowEpisode \| Film \| NewsReport`. |
 | **`shortId`** | URL-safe base64url payload: Podcast = 16-byte GUID; Film/TV/News = ASCII `f`\|`t`\|`n` + 16-byte GUID (same encoding on **routes and shortener**). See OPEN-003. |

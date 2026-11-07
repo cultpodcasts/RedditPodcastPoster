@@ -10,7 +10,7 @@
 |------|-----|
 | Order News → Film → TV (S-007) | One `--kind` per run, run in that order. Identify gives each podcast exactly one kind. |
 | Keep ids (S-006) | NewsOrganisation/TvShow id = podcast id. Every playable keeps its episode id. Film id = episode id. |
-| Search swap | `MergeOrUpload` of same-id documents with `contentKind` (active episodes only). An extra news channel uses the canonical organisation name. |
+| Search swap | `MergeOrUpload` of same-id documents with `contentKind` (active episodes only). An extra news channel uses the canonical organisation name ([channel aliases](../catalogue-news-organisation-channel-aliases.md)). |
 | Move, don't copy | Destination upsert → verify count → search swap → delete episodes → delete podcast. Removed episodes move too and stay removed. |
 | S-008 | News apply only for `CatalogueNewsOrganisationAllowlist` publishers, and only when every active episode is news. |
 | Auto-indexed podcasts | Blocked (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`), because Film/TV/News parents are not indexed. |
