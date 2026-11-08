@@ -10,8 +10,11 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 /// by the delay, which can land on the previous calendar day (Oct 2026: video at 04:00 UTC − 7h = 21:00 the day
 /// before, audio at 09:00–13:00 UTC on the video's day). Audio that shares a calendar day with the unshifted
 /// YouTube publish, and that the delay-adjusted one-day window already admits, counts as same-day — but only with
-/// near-exact lengths and a positive delay that crossed midnight backwards. Negative cases sit in the risky
-/// 00:00–07:00 UTC window on the audio's day, where the raw publish and the shifted probe fall on different days.
+/// near-exact lengths and a positive delay that crossed midnight backwards. When the raw YouTube day is after the
+/// probe day, same-day credit is only via that raw-publish-day qualification — probe-day-alone matching is
+/// withheld (#1144), so a next-day early-UTC video does not take the previous day's audio. Negative cases also sit
+/// in the risky 00:00–07:00 UTC window on the audio's day, where the raw publish and the shifted probe fall on
+/// different days.
 /// </summary>
 public class CatalogueMatchScorerYouTubePublishDayRules
 {

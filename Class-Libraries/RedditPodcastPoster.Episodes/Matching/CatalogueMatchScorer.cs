@@ -344,21 +344,20 @@ public static class CatalogueMatchScorer
             {
                 var probeDate = DateOnly.FromDateTime(probeRelease);
                 var catalogueDate = DateOnly.FromDateTime(catalogueItem.ReleaseUtc);
-                // Positive delay crossed midnight backwards: do not treat probe-day audio as same-day
-                // (that would attach a next-day YouTube-only video to the previous day's episode — #1144).
-                var rawPublishDayAfterProbe = youTubePublished is { } published &&
-                    published != DateTime.MinValue &&
-                    DateOnly.FromDateTime(published) > probeDate;
-                if (rawPublishDayAfterProbe)
+                if (QualifiesForRawPublishDayCredit(
+                        probeRelease, catalogueItem, youTubePublished, durationNearExact))
                 {
-                    return QualifiesForRawPublishDayCredit(
-                        probeRelease, catalogueItem, youTubePublished, durationNearExact)
-                        ? SameCalendarDayReleasePoints
-                        : WeakInWindowReleasePoints;
+                    return SameCalendarDayReleasePoints;
                 }
 
-                return probeDate == catalogueDate ||
-                       QualifiesForRawPublishDayCredit(probeRelease, catalogueItem, youTubePublished, durationNearExact)
+                // Positive delay crossed midnight backwards: do not treat probe-day audio as same-day
+                // (that would attach a next-day YouTube-only video to the previous day's episode — #1144).
+                var withholdProbeDaySameDay =
+                    youTubePublished is { } published &&
+                    published != DateTime.MinValue &&
+                    DateOnly.FromDateTime(published) > probeDate;
+
+                return probeDate == catalogueDate && !withholdProbeDaySameDay
                     ? SameCalendarDayReleasePoints
                     : WeakInWindowReleasePoints;
             }
