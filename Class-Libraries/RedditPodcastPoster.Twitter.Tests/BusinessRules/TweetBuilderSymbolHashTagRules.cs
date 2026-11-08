@@ -166,4 +166,67 @@ public class TweetBuilderSymbolHashTagRules
         tweet.Should().Contain($"\"{title}\"");
         tweet.Should().NotContain("#SomeTag");
     }
+
+    [Fact(DisplayName =
+        "TweetBuilder: when a title contains a multi-word enrichment phrase, then the posted title uses the compacted MatchingText hashtag, because enrichment tags with spaces gate on MatchingText not the spaced Tag.")]
+    public async Task multi_word_enrichment_tag_is_applied_in_title()
+    {
+        // Arrange
+        const string enrichmentPhrase = "Alpha Beta";
+        const string title = "Alpha Beta In Focus : How The Pattern Feels";
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = [enrichmentPhrase];
+            p.TwitterHandle = string.Empty;
+        });
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Subjects = [];
+            e.HashTag = null;
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        _mocker.GetMock<ITextSanitiser>()
+            .Setup(x => x.SanitiseTitle(It.IsAny<PostModel>()))
+            .ReturnsAsync(title);
+        _mocker.GetMock<ITextSanitiser>()
+            .Setup(x => x.SanitisePodcastName(It.IsAny<PostModel>()))
+            .Returns(podcast.Name);
+        _mocker.GetMock<IPostModelFactory>()
+            .Setup(x => x.ToPostModel(It.IsAny<(Podcast, IEnumerable<Episode>)>(), It.IsAny<bool>()))
+            .Returns((ValueTuple<Podcast, IEnumerable<Episode>> pe, bool _) =>
+                new PostModel(
+                    pe.Item1.Name,
+                    string.Empty,
+                    string.Empty,
+                    [
+                        new EpisodePost(
+                            pe.Item2.First().Title,
+                            pe.Item2.First().Urls.YouTube,
+                            pe.Item2.First().Urls.Spotify,
+                            pe.Item2.First().Urls.Apple,
+                            pe.Item2.First().ReleaseUtc.ToString("o"),
+                            pe.Item2.First().Length.ToString(),
+                            pe.Item2.First().Description,
+                            pe.Item2.First().Id.ToString(),
+                            pe.Item2.First().ReleaseUtc,
+                            pe.Item2.First().Subjects.ToArray(),
+                            pe.Item2.First().Urls.BBC,
+                            pe.Item2.First().Urls.InternetArchive)
+                    ],
+                    null,
+                    [],
+                    []));
+        var sut = _mocker.CreateInstance<TweetBuilder>();
+
+        // Act
+        var tweet = await sut.BuildTweet(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        tweet.Should().Contain("\"#AlphaBeta In Focus : How The Pattern Feels\"");
+        tweet.Should().NotContain("Alpha Beta In Focus");
+    }
 }

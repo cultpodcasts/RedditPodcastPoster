@@ -79,6 +79,23 @@ public static class HashtagText
         return written != null && string.Equals(written, body, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Text written after <c>#</c> when enriching a title with this hashtag, or <c>null</c> when
+    /// enrichment must be skipped.
+    /// Enrichment multi-word tags keep the phrase on <paramref name="tag"/> and the compacted
+    /// hashtag on <paramref name="matchingText"/> (e.g. <c>Alpha Beta</c> / <c>#AlphaBeta</c>).
+    /// Gate those on <paramref name="matchingText"/> so spaces do not block enrichment.
+    /// Tags without whitespace still gate on the stored <paramref name="tag"/> so
+    /// <c>Some-Tag</c> is not rewritten as <c>#SomeTag</c>.
+    /// </summary>
+    public static string? GetTitleEnrichmentTagText(string tag, string? matchingText)
+    {
+        var writtenForm = matchingText != null && tag.Any(char.IsWhiteSpace)
+            ? matchingText
+            : tag;
+        return IsReproducedAsIs(writtenForm) ? ToTagText(writtenForm) : null;
+    }
+
     internal static bool IsHashMark(char c) => c is '#' or '＃';
 
     // A tag continues through letters, digits, '_' and combining marks (accents, Indic vowel signs),

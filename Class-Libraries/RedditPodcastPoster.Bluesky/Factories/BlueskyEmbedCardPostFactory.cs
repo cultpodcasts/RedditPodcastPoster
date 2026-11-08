@@ -63,14 +63,15 @@ public class BlueskyEmbedCardPostFactory(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
-                // Decide from the stored tag. MatchingText can already be a shortened
-                // form (Some-Tag → #SomeTag). The text written after '#' must be that stored body.
-                if (!HashtagText.IsReproducedAsIs(hashtag.Tag))
+                // Multi-word enrichment tags: MatchingText holds the compacted form
+                // ("Alpha Beta" → "#AlphaBeta"). Non-whitespace stored tags still gate on Tag
+                // so Some-Tag is not rewritten as #SomeTag.
+                var tagText = HashtagText.GetTitleEnrichmentTagText(hashtag.Tag, hashtag.MatchingText);
+                if (tagText is null)
                 {
                     continue;
                 }
 
-                var tagText = HashtagText.ToTagText(hashtag.Tag)!;
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
