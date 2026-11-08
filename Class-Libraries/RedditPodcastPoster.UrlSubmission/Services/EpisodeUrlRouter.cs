@@ -109,7 +109,7 @@ public class EpisodeUrlRouter(
             return (podcast, null);
         }
 
-        var channelOwner = await catalogueParentLookup.FindByOwner(ids);
+        var channelOwner = await catalogueParentLookup.FindByOwner(ids, url, indexingContext);
         if (channelOwner == null)
         {
             return (podcast, null);
@@ -150,7 +150,7 @@ public class EpisodeUrlRouter(
             return owner.Parent;
         }
 
-        var parent = await catalogueParentLookup.FindByOwner(owner.Ids);
+        var parent = await catalogueParentLookup.FindByOwner(owner.Ids, url, indexingContext);
         if (parent != null || string.IsNullOrWhiteSpace(owner.Ids.YouTubeChannelId) ||
             string.IsNullOrWhiteSpace(owner.Ids.YouTubeChannelTitle))
         {

@@ -7,6 +7,8 @@ using Moq;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Extensions;
 using RedditPodcastPoster.UrlSubmission.Processors;
@@ -44,6 +46,9 @@ public class UrlSubmitterRegistrationRules
         services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
         // Hosts get this from AddPodcastServices (Null) or AddEdgeApiClient; the podcast and parent submitters both take it.
         services.AddSingleton(Mock.Of<IHeroEpisodePromoter>());
+        // Hosts get these from AddYouTubeServices; CatalogueParentLookup uses them for playlist membership (#1182).
+        services.AddSingleton(Mock.Of<IYouTubeServiceWrapper>());
+        services.AddSingleton(Mock.Of<IYouTubePlaylistMembership>());
         return services;
     }
 
