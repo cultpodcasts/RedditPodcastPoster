@@ -1,4 +1,5 @@
 using Api.Models;
+using Api.Services;
 using Api.Services.Podcasts;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
@@ -43,8 +44,8 @@ public class PodcastIndexServiceBacklogRules
     }
 
     [Fact(DisplayName =
-        "IndexBacklogAsync clears ReleasedSince so the walk is not capped at the two-day hub Index window.")]
-    public async Task backlog_index_clears_released_since()
+        "IndexBacklogAsync sets ReleasedSince to UnixEpoch so PodcastUpdater accepts the context while the walk is not capped at the two-day hub Index window.")]
+    public async Task backlog_index_uses_unix_epoch_released_since()
     {
         // Arrange
         var sut = _mocker.CreateInstance<PodcastIndexService>();
@@ -55,6 +56,6 @@ public class PodcastIndexServiceBacklogRules
         // Assert
         result.Status.Should().Be(PodcastIndexStatus.Ok);
         _context.Should().NotBeNull();
-        _context!.ReleasedSince.Should().BeNull();
+        _context!.ReleasedSince.Should().Be(CuratorIndexingContext.BacklogReleasedSince);
     }
 }
