@@ -3,6 +3,7 @@ using RedditPodcastPoster.Episodes.Matching.Candidates;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Catalogue.Episodes;
@@ -37,11 +38,14 @@ internal sealed class PodcastUpdaterTestHarness
 
     public PodcastUpdaterTestHarness(
         SaveCallRecorder? saveCallRecorder = null,
-        ILogger<PodcastUpdater>? logger = null)
+        ILogger<PodcastUpdater>? logger = null,
+        TimeProvider? timeProvider = null)
     {
         SaveCallRecorder = saveCallRecorder ?? new SaveCallRecorder();
         EpisodeRepository = new InMemoryEpisodeRepository(SaveCallRecorder);
         PodcastRepository = new InMemoryPodcastRepository();
+        Time = timeProvider ?? new FakeTimeProvider(
+            new DateTimeOffset(DomainTestFixture.UtcToday.AddHours(12), TimeSpan.Zero));
 
         EliminationTermsProvider.Setup(x => x.GetEliminationTerms()).Returns(new EliminationTerms());
         _mocker.GetMock<IAsyncInstance<IEliminationTermsProvider>>()
@@ -73,6 +77,7 @@ internal sealed class PodcastUpdaterTestHarness
             UrlMembershipLookup.Object,
             TvShows.Object,
             NewsOrganisations.Object,
+            Time,
             logger ?? NullLogger<PodcastUpdater>.Instance);
 
         EpisodeEnricher
@@ -129,6 +134,8 @@ internal sealed class PodcastUpdaterTestHarness
         _mocker.GetMock<IEliminationTermsProvider>();
 
     public Mock<IUrlMembershipLookup> UrlMembershipLookup => _mocker.GetMock<IUrlMembershipLookup>();
+
+    public TimeProvider Time { get; }
 
     public PodcastUpdater Updater { get; }
 
