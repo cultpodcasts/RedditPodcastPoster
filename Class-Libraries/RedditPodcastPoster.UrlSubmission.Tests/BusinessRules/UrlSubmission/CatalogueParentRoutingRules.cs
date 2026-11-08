@@ -594,6 +594,42 @@ public class CatalogueParentRoutingRules
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Could not check*");
     }
 
+    [Fact(DisplayName =
+        "With a video URL, when every parent on the channel is playlist-scoped and none of their playlists contain the video, owner lookup returns null so a playlist-miss parent is never chosen.")]
+    public async Task owner_lookup_with_url_all_playlist_misses_and_no_channel_wide_returns_null()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var firstPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var secondPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var videoId = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = channelId;
+            i.YouTubePlaylistId = firstPlaylistId;
+            i.IndexAllEpisodes = true;
+        });
+        AddShow(i =>
+        {
+            i.YouTubeChannelId = channelId;
+            i.YouTubePlaylistId = secondPlaylistId;
+        });
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), videoId))
+            .ReturnsAsync(false);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var match = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId),
+            url,
+            new IndexingContext());
+
+        // Assert
+        match.Should().BeNull();
+    }
+
     /// <summary>
     /// Modelled on a news outlet's channel that also hosts one playlist-scoped podcast (a show of the outlet,
     /// not auto-indexed). Synthetic ids only.

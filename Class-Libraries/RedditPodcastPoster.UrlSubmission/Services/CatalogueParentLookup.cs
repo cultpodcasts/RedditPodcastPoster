@@ -203,6 +203,10 @@ public class CatalogueParentLookup(
                 logger.LogError(message);
                 throw new InvalidOperationException(message);
             }
+
+            // Every playlist-scoped candidate is a confirmed miss — never return them (auto-index must not
+            // pick a playlist that does not contain the video). Channel-wide peers only; empty → null.
+            return ApplyAutoIndexTieBreak(channelWide);
         }
 
         if (channelWide.Count > 0)
