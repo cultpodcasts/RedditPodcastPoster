@@ -86,16 +86,18 @@ public class PodcastService(
     /// <item>No podcast on the channel: undecided, the router looks for an owning parent (existing behaviour).</item>
     /// <item>Removed podcasts never compete with live ones; a channel with only removed podcasts returns one, so the
     /// submit is refused as removed rather than re-creating the podcast.</item>
-    /// <item>One live podcast and no parent on the channel: it owns the video, with no membership call (whatever
-    /// YouTube said, the outcome would be the same).</item>
+    /// <item>One live podcast and no resolvable parent on the channel: it owns the video, with no membership call
+    /// (whatever YouTube said, the outcome would be the same). Ambiguous parents still keep that lone podcast
+    /// (main-compatible; #1184).</item>
     /// <item>A podcast whose playlist contains the video wins (null and empty playlist ids are both channel-wide;
-    /// malformed or deleted playlists count as not containing it).</item>
+    /// malformed, deleted, or private/inaccessible playlists count as not containing it).</item>
     /// <item>Otherwise a news organisation or TV show that claims the channel (channel-wide, or its playlist contains
     /// the video) wins over a channel-wide podcast.</item>
     /// <item>A playlist-scoped parent whose playlist does not contain the video never takes it.</item>
     /// <item>Otherwise the channel-wide podcast (indexAll / title-regex / channel-title tie-breaks); else the only
     /// playlist podcast keeps it (legacy, even when a playlist-scoped parent shares the channel); else several
-    /// playlist podcasts that all miss are ambiguous.</item>
+    /// playlist podcasts that all miss are ambiguous. When parents are ambiguous and there is exactly one
+    /// channel-wide podcast, that podcast keeps the URL; with none, ambiguous parents fail closed (#1184).</item>
     /// <item>Membership that could not be checked (quota, outage) fails closed.</item>
     /// </list>
     /// </summary>
@@ -117,9 +119,29 @@ public class PodcastService(
             return Podcast(all.OrderBy(x => x.Id).First());
         }
 
-        var parent = await catalogueParentLookup.FindByOwner(ids);
+        CatalogueParentMatch? parent = null;
+        AmbiguousParentNameException? ambiguousParents = null;
+        try
+        {
+            parent = await catalogueParentLookup.FindByOwner(ids);
+        }
+        catch (AmbiguousParentNameException ex)
+        {
+            // Decision (#1184): do not fail the URL before podcast membership. A lone podcast still keeps it
+            // (main-compatible). With several podcasts, membership / the single channel-wide podcast may still
+            // decide; only when nothing channel-wide remains do we rethrow.
+            ambiguousParents = ex;
+        }
+
         if (live.Length == 1 && parent == null)
         {
+            if (ambiguousParents != null)
+            {
+                logger.LogWarning(ambiguousParents,
+                    "Multiple parents claim youtube-channel-id '{ChannelId}' with no tie-break, but the only live podcast on it keeps '{Url}' (main-compatible).",
+                    channelId, url);
+            }
+
             return Podcast(live[0]);
         }
 
@@ -181,7 +203,19 @@ public class PodcastService(
 
         if (channelWide.Length > 0)
         {
+            if (ambiguousParents != null && channelWide.Length == 1)
+            {
+                logger.LogWarning(ambiguousParents,
+                    "Multiple parents claim youtube-channel-id '{ChannelId}' with no tie-break; keeping the single channel-wide podcast for '{Url}' (main-compatible).",
+                    channelId, url);
+            }
+
             return Podcast(BreakChannelTie(channelWide, ids, channelId));
+        }
+
+        if (ambiguousParents != null)
+        {
+            throw ambiguousParents;
         }
 
         if (playlistPodcasts.Length == 1)

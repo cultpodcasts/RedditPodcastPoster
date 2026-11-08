@@ -356,6 +356,74 @@ public class PodcastServiceYouTubeChannelRoutingRules
     }
 
     [Fact(DisplayName =
+        "Decision (#1184): when several parents claim the channel with no tie-break, a lone channel-wide podcast still keeps the URL (main-compatible), instead of AmbiguousParentNameException failing closed.")]
+    public async Task ambiguous_parents_with_lone_channel_wide_podcast_keeps_podcast()
+    {
+        // Arrange
+        var only = await AddPodcast(string.Empty);
+        _mocker.GetMock<ICatalogueParentLookup>()
+            .Setup(x => x.FindByOwner(It.IsAny<EpisodeUrlOwnerIds>()))
+            .ThrowsAsync(new AmbiguousParentNameException(
+                "CatalogueParent", _channelId, [_fixture.CreateGuid(), _fixture.CreateGuid()]));
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var result = await sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        result.Podcast!.Id.Should().Be(only.Id);
+        result.Parent.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Decision (#1184): when several parents claim the channel with no tie-break and there is exactly one channel-wide podcast among playlist siblings that miss, that channel-wide podcast keeps the URL.")]
+    public async Task ambiguous_parents_with_single_channel_wide_among_misses_keeps_podcast()
+    {
+        // Arrange
+        var channelWide = await AddPodcast(string.Empty);
+        var playlist = _fixture.CreateYouTubePlaylistId();
+        await AddPodcast(playlist);
+        InPlaylist(playlist, false);
+        _mocker.GetMock<ICatalogueParentLookup>()
+            .Setup(x => x.FindByOwner(It.IsAny<EpisodeUrlOwnerIds>()))
+            .ThrowsAsync(new AmbiguousParentNameException(
+                "CatalogueParent", _channelId, [_fixture.CreateGuid(), _fixture.CreateGuid()]));
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var result = await sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        result.Podcast!.Id.Should().Be(channelWide.Id);
+        result.Parent.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Decision (#1184): when several parents claim the channel with no tie-break and no channel-wide podcast remains after playlist misses, AmbiguousParentNameException fails closed.")]
+    public async Task ambiguous_parents_without_channel_wide_podcast_fails_closed()
+    {
+        // Arrange
+        var playlistA = _fixture.CreateYouTubePlaylistId();
+        var playlistB = _fixture.CreateYouTubePlaylistId();
+        await AddPodcast(playlistA);
+        await AddPodcast(playlistB);
+        InPlaylist(playlistA, false);
+        InPlaylist(playlistB, false);
+        var parentIds = new[] { _fixture.CreateGuid(), _fixture.CreateGuid() };
+        _mocker.GetMock<ICatalogueParentLookup>()
+            .Setup(x => x.FindByOwner(It.IsAny<EpisodeUrlOwnerIds>()))
+            .ThrowsAsync(new AmbiguousParentNameException("CatalogueParent", _channelId, parentIds));
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var act = () => sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        var ex = await act.Should().ThrowAsync<AmbiguousParentNameException>();
+        ex.Which.ParentIds.Should().BeEquivalentTo(parentIds);
+    }
+
+    [Fact(DisplayName =
         "Not shared: a channel's only podcast (playlist-scoped) with no parent keeps the video with no membership call, because the answer could not change the owner.")]
     public async Task single_playlist_podcast_needs_no_membership_call()
     {
