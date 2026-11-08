@@ -21,6 +21,7 @@ public class FilmChangeRequest : PublisherFieldsChange
     public bool? Ignored { get; set; }
     public bool? Posted { get; set; }
     public bool? Tweeted { get; set; }
+    public bool? BlueskyPosted { get; set; }
     public bool? UnBluesky { get; set; }
     public string[]? Subjects { get; set; }
     public string[]? Guests { get; set; }

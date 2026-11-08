@@ -19,6 +19,7 @@ public static class RequestModelExtensions
         Description = request.Description,
         Posted = request.Posted,
         Tweeted = request.Tweeted,
+        BlueskyPosted = request.BlueskyPosted,
         UnBluesky = request.UnBluesky,
         Ignored = request.Ignored,
         Removed = request.Removed,
@@ -112,6 +113,7 @@ public static class RequestModelExtensions
             Ignored = request.Ignored,
             Posted = request.Posted,
             Tweeted = request.Tweeted,
+            BlueskyPosted = request.BlueskyPosted,
             UnBluesky = request.UnBluesky,
             Subjects = request.Subjects,
             Guests = request.Guests
@@ -192,6 +194,7 @@ public static class RequestModelExtensions
         model.Duration = request.Duration;
         model.Posted = request.Posted;
         model.Tweeted = request.Tweeted;
+        model.BlueskyPosted = request.BlueskyPosted;
         model.UnBluesky = request.UnBluesky;
         model.Explicit = request.Explicit;
         model.Ignored = request.Ignored;

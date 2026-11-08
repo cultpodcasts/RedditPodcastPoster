@@ -26,7 +26,8 @@ public static class PlayableChangeApplier
             return false;
         }
 
-        postStatus = PostStatusApplier.Apply(playable, change.Posted, change.Tweeted, change.UnBluesky);
+        postStatus = PostStatusApplier.Apply(
+            playable, change.Posted, change.Tweeted, change.BlueskyPosted, change.UnBluesky);
 
         if (!string.IsNullOrWhiteSpace(change.Title))
         {

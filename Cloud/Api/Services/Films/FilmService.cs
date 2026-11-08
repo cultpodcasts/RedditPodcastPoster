@@ -78,7 +78,7 @@ public class FilmService(
             // The replace below applies the request onto the film that wins the ETag race.
             var postStatus = new PostStatusChange(
                 request.Change.Tweeted == false && film.Tweeted,
-                request.Change.UnBluesky == true && film.BlueskyPosted);
+                PostStatusApplier.RequestsUnBluesky(film, request.Change.BlueskyPosted, request.Change.UnBluesky));
 
             // A keep-list is rejected before any write when the stored film already has a trailer this client did
             // not list. The save loop checks again, for a trailer attached in the gap after this read.
@@ -276,7 +276,8 @@ public class FilmService(
 
         // Publisher fields include publisher, description and removed.
         PublisherChangeApplier.Apply(film, change);
-        postStatus = PostStatusApplier.Apply(film, change.Posted, change.Tweeted, change.UnBluesky);
+        postStatus = PostStatusApplier.Apply(
+            film, change.Posted, change.Tweeted, change.BlueskyPosted, change.UnBluesky);
 
         if (release is not null)
         {

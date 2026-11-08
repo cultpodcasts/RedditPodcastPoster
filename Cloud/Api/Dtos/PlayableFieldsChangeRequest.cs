@@ -33,8 +33,15 @@ public abstract class PlayableFieldsChangeRequest
     public bool? Tweeted { get; set; }
 
     /// <summary>
-    /// Same as the episode edit API: true deletes the Bluesky post, and clears the Bluesky state only when the post is
-    /// gone. Bluesky posted cannot be set to true here.
+    /// Same as the episode edit API: true sets the legacy Bluesky posted flag (curator/manual mark); true → false
+    /// deletes the Bluesky post and clears state only when the post is gone.
+    /// </summary>
+    [JsonPropertyName("blueskyPosted")]
+    public bool? BlueskyPosted { get; set; }
+
+    /// <summary>
+    /// Backward-compat alias for <c>blueskyPosted: false</c>: true deletes the Bluesky post and clears state only
+    /// when the post is gone.
     /// </summary>
     [JsonPropertyName("unBluesky")]
     public bool? UnBluesky { get; set; }

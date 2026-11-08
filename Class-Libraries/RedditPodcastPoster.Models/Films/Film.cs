@@ -104,6 +104,10 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
         OldTweeted == true || !string.IsNullOrWhiteSpace(TweetPost) ||
         !string.IsNullOrWhiteSpace(TweetSkipReason);
 
+    /// <summary>
+    /// Legacy Cosmos flag (<c>bluesky</c>). Curator/manual mark via the change API may set this true;
+    /// a real network post should store <see cref="BlueskyPost"/> instead.
+    /// </summary>
     [JsonPropertyName("bluesky")]
     [JsonPropertyOrder(42)]
     public bool? OldBlueskyPosted { get; set; }
