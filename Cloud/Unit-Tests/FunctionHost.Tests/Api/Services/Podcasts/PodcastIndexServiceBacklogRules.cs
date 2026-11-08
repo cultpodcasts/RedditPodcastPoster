@@ -27,7 +27,7 @@ public class PodcastIndexServiceBacklogRules
     }
 
     [Fact(DisplayName =
-        "Default IndexAsync keeps ReleasedSince from ReleasedDaysAgo so hourly-style curator lookback is unchanged.")]
+        "IndexAsync keeps ReleasedSince from ReleasedDaysAgo so hourly-style curator lookback is unchanged.")]
     public async Task default_index_keeps_released_since()
     {
         // Arrange
@@ -43,14 +43,14 @@ public class PodcastIndexServiceBacklogRules
     }
 
     [Fact(DisplayName =
-        "IndexAsync with backlog=true clears ReleasedSince so the walk is not capped at the two-day hub Index window.")]
+        "IndexBacklogAsync clears ReleasedSince so the walk is not capped at the two-day hub Index window.")]
     public async Task backlog_index_clears_released_since()
     {
         // Arrange
         var sut = _mocker.CreateInstance<PodcastIndexService>();
 
         // Act
-        var result = await sut.IndexAsync("synthetic-podcast", CancellationToken.None, backlog: true);
+        var result = await sut.IndexBacklogAsync("synthetic-podcast", CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(PodcastIndexStatus.Ok);

@@ -4,12 +4,11 @@ namespace Api.Services.Podcasts;
 
 public interface IPodcastIndexService
 {
-    /// <param name="backlog">
-    /// When true, walk the full catalogue (<c>ReleasedSince</c> unset). Default false keeps the curator lookback
-    /// (<c>indexer__ReleasedDaysAgo</c>).
-    /// </param>
-    Task<PodcastIndexResult> IndexAsync(
-        string podcastName,
-        CancellationToken cancellationToken,
-        bool backlog = false);
+    /// <summary>Curator hub Index: keep <c>ReleasedSince</c> from <c>indexer__ReleasedDaysAgo</c>.</summary>
+    Task<PodcastIndexResult> IndexAsync(string podcastName, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Curator cold-start / backlog Index: clear <c>ReleasedSince</c> so providers walk the full catalogue.
+    /// </summary>
+    Task<PodcastIndexResult> IndexBacklogAsync(string podcastName, CancellationToken cancellationToken);
 }

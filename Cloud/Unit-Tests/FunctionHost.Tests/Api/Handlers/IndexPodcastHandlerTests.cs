@@ -22,10 +22,10 @@ public class IndexPodcastHandlerTests
     public IndexPodcastHandlerTests()
     {
         _mocker.GetMock<IPodcastIndexService>()
-            .Setup(s => s.IndexAsync(
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>(),
-                It.IsAny<bool>()))
+            .Setup(s => s.IndexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _result);
+        _mocker.GetMock<IPodcastIndexService>()
+            .Setup(s => s.IndexBacklogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _result);
         _ctx = _mocker.GetMock<IHandlerContext>();
     }
@@ -40,7 +40,7 @@ public class IndexPodcastHandlerTests
 
         // Act
         var sut = _mocker.CreateInstance<IndexPodcastHandler>();
-        await sut.Handle(_ctx.Object, _fixture.CreateTitle(), backlog: false, CancellationToken.None);
+        await sut.Handle(_ctx.Object, _fixture.CreateTitle(), CancellationToken.None);
 
         // Assert
         _ctx.Verify(x => x.Conflict(
@@ -60,7 +60,7 @@ public class IndexPodcastHandlerTests
 
         // Act
         var sut = _mocker.CreateInstance<IndexPodcastHandler>();
-        await sut.Handle(_ctx.Object, _fixture.CreateTitle(), backlog: false, CancellationToken.None);
+        await sut.Handle(_ctx.Object, _fixture.CreateTitle(), CancellationToken.None);
 
         // Assert
         _ctx.Verify(x => x.Json(HttpStatusCode.GatewayTimeout,
@@ -73,8 +73,8 @@ public class IndexPodcastHandlerTests
     }
 
     [Fact(DisplayName =
-        "When the controller routes backlog index, the handler passes backlog: true to IndexAsync so Azure walks the full catalogue.")]
-    public async Task backlog_true_passes_backlog_to_index_service()
+        "When the controller routes backlog index, the handler calls IndexBacklogAsync so Azure walks the full catalogue.")]
+    public async Task backlog_route_calls_index_backlog_async()
     {
         // Arrange
         _result = new PodcastIndexResult(PodcastIndexStatus.AlreadyRunning);
@@ -82,18 +82,21 @@ public class IndexPodcastHandlerTests
 
         // Act
         var sut = _mocker.CreateInstance<IndexPodcastHandler>();
-        await sut.Handle(_ctx.Object, podcastName, backlog: true, CancellationToken.None);
+        await sut.HandleBacklog(_ctx.Object, podcastName, CancellationToken.None);
 
         // Assert
         _mocker.GetMock<IPodcastIndexService>().Verify(
-            s => s.IndexAsync(podcastName, It.IsAny<CancellationToken>(), true),
+            s => s.IndexBacklogAsync(podcastName, It.IsAny<CancellationToken>()),
             Times.Once);
+        _mocker.GetMock<IPodcastIndexService>().Verify(
+            s => s.IndexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
         _ctx.Verify(c => c.Query(It.IsAny<string>()), Times.Never);
     }
 
     [Fact(DisplayName =
-        "When the controller routes default hub Index, the handler passes backlog: false so ReleasedDaysAgo lookback stays.")]
-    public async Task backlog_false_passes_false_to_index_service()
+        "When the controller routes default hub Index, the handler calls IndexAsync so ReleasedDaysAgo lookback stays.")]
+    public async Task default_route_calls_index_async()
     {
         // Arrange
         _result = new PodcastIndexResult(PodcastIndexStatus.AlreadyRunning);
@@ -101,12 +104,15 @@ public class IndexPodcastHandlerTests
 
         // Act
         var sut = _mocker.CreateInstance<IndexPodcastHandler>();
-        await sut.Handle(_ctx.Object, podcastName, backlog: false, CancellationToken.None);
+        await sut.Handle(_ctx.Object, podcastName, CancellationToken.None);
 
         // Assert
         _mocker.GetMock<IPodcastIndexService>().Verify(
-            s => s.IndexAsync(podcastName, It.IsAny<CancellationToken>(), false),
+            s => s.IndexAsync(podcastName, It.IsAny<CancellationToken>()),
             Times.Once);
+        _mocker.GetMock<IPodcastIndexService>().Verify(
+            s => s.IndexBacklogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
         _ctx.Verify(c => c.Query(It.IsAny<string>()), Times.Never);
     }
 }

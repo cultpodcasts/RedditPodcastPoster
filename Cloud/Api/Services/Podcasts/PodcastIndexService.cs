@@ -18,19 +18,14 @@ public class PodcastIndexService(
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
 
-    public async Task<PodcastIndexResult> IndexAsync(
-        string podcastName,
-        CancellationToken c,
-        bool backlog = false)
+    public async Task<PodcastIndexResult> IndexAsync(string podcastName, CancellationToken c)
     {
         try
         {
-            logger.LogInformation(
-                "{method}: Index podcast '{podcastName}' (backlog={backlog}).",
-                nameof(IndexAsync),
-                podcastName,
-                backlog);
-            return await IndexPodcast(c, () => indexer.Index(podcastName, CreateIndexingContext(backlog)));
+            logger.LogInformation("{method}: Index podcast '{podcastName}'.", nameof(IndexAsync), podcastName);
+            return await IndexPodcast(
+                c,
+                () => indexer.Index(podcastName, CuratorIndexingContext.Create(_indexerOptions)));
         }
         catch (Exception ex)
         {
@@ -39,8 +34,24 @@ public class PodcastIndexService(
         }
     }
 
-    private IndexingContext CreateIndexingContext(bool backlog) =>
-        CuratorIndexingContext.Create(_indexerOptions, backlog);
+    public async Task<PodcastIndexResult> IndexBacklogAsync(string podcastName, CancellationToken c)
+    {
+        try
+        {
+            logger.LogInformation(
+                "{method}: Index podcast '{podcastName}' (backlog).",
+                nameof(IndexBacklogAsync),
+                podcastName);
+            return await IndexPodcast(
+                c,
+                () => indexer.Index(podcastName, CuratorIndexingContext.CreateBacklog()));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{method}: Failed to index-podcast backlog.", nameof(IndexBacklogAsync));
+            return new PodcastIndexResult(PodcastIndexStatus.Failed);
+        }
+    }
 
     private async Task<PodcastIndexResult> IndexPodcast(
         CancellationToken c,

@@ -55,7 +55,7 @@ public class PodcastController(
             req,
             ["curate"],
             PodcastRouteNameNormalizer.Normalize(podcastName),
-            (ctx, name, token) => indexPodcastHandler.Handle(ctx, name, backlog: false, token),
+            indexPodcastHandler.Handle,
             Unauthorised,
             ct);
 
@@ -73,7 +73,7 @@ public class PodcastController(
             req,
             ["curate"],
             PodcastRouteNameNormalizer.Normalize(podcastName),
-            (ctx, name, token) => indexPodcastHandler.Handle(ctx, name, backlog: true, token),
+            indexPodcastHandler.HandleBacklog,
             Unauthorised,
             ct);
 

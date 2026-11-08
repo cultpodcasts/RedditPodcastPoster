@@ -25,14 +25,14 @@ public class CuratorIndexingContextRules
     }
 
     [Fact(DisplayName =
-        "Backlog curator index clears ReleasedSince so provider pagination walks past the two-day hub Index floor.")]
+        "CreateBacklog clears ReleasedSince so provider pagination walks past the two-day hub Index floor.")]
     public void backlog_curator_index_clears_released_since()
     {
         // Arrange
-        var options = new IndexerOptions { ReleasedDaysAgo = 2 };
+        // CreateBacklog needs no IndexerOptions; ReleasedSince is cleared on purpose.
 
         // Act
-        var context = CuratorIndexingContext.Create(options, backlog: true);
+        var context = CuratorIndexingContext.CreateBacklog();
 
         // Assert
         context.ReleasedSince.Should().BeNull();
@@ -44,7 +44,7 @@ public class CuratorIndexingContextRules
     }
 
     [Fact(DisplayName =
-        "Default curator index still requires ReleasedDaysAgo; backlog mode does not, because ReleasedSince is unset on purpose.")]
+        "Create still requires ReleasedDaysAgo; CreateBacklog does not, because ReleasedSince is unset on purpose.")]
     public void default_requires_released_days_ago_but_backlog_does_not()
     {
         // Arrange
@@ -52,7 +52,7 @@ public class CuratorIndexingContextRules
 
         // Act
         var actDefault = () => CuratorIndexingContext.Create(options);
-        var actBacklog = () => CuratorIndexingContext.Create(options, backlog: true);
+        var actBacklog = () => CuratorIndexingContext.CreateBacklog();
 
         // Assert
         actDefault.Should().Throw<InvalidOperationException>();

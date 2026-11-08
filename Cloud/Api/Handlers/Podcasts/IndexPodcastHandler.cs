@@ -12,13 +12,24 @@ public class IndexPodcastHandler(
     IPodcastIndexService podcastIndexService,
     ILogger<IndexPodcastHandler> logger) : IIndexPodcastHandler
 {
-    public async Task<HttpResponseData> Handle(
+    public Task<HttpResponseData> Handle(
         IHandlerContext ctx,
         string podcastName,
-        bool backlog,
+        CancellationToken c) =>
+        Respond(ctx, () => podcastIndexService.IndexAsync(podcastName, c), c);
+
+    public Task<HttpResponseData> HandleBacklog(
+        IHandlerContext ctx,
+        string podcastName,
+        CancellationToken c) =>
+        Respond(ctx, () => podcastIndexService.IndexBacklogAsync(podcastName, c), c);
+
+    private async Task<HttpResponseData> Respond(
+        IHandlerContext ctx,
+        Func<Task<PodcastIndexResult>> index,
         CancellationToken c)
     {
-        var result = await podcastIndexService.IndexAsync(podcastName, c, backlog);
+        var result = await index();
 
         return result.Status switch
         {

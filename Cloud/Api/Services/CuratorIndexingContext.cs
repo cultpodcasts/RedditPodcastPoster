@@ -9,29 +9,32 @@ namespace Api.Services;
 /// may read large playlists from the uploads head; a curator index always walks them in full).
 /// </summary>
 /// <remarks>
-/// Default mode uses <see cref="IndexerOptions.ReleasedDaysAgo"/> (prod: 2). When <c>backlog</c> is true, clears
-/// <see cref="IndexingContext.ReleasedSince"/> so provider pagination walks the full catalogue
-/// (docs/catalogue-pagination.md). Same on-demand HTTP budget still applies — a long walk may 504 TimedOut
-/// (cultpodcasts/RedditPodcastPoster#1310).
+/// <see cref="Create"/> uses <see cref="IndexerOptions.ReleasedDaysAgo"/> (prod: 2).
+/// <see cref="CreateBacklog"/> clears <see cref="IndexingContext.ReleasedSince"/> so provider pagination walks the
+/// full catalogue (docs/catalogue-pagination.md). Same on-demand HTTP budget still applies — a long walk may 504
+/// TimedOut (cultpodcasts/RedditPodcastPoster#1310).
 /// </remarks>
 public static class CuratorIndexingContext
 {
-    /// <param name="backlog">
-    /// When true, clear <see cref="IndexingContext.ReleasedSince"/> for a full-catalogue walk. Default false keeps
-    /// the short lookback from <see cref="IndexerOptions.ReleasedDaysAgo"/>.
-    /// </param>
-    public static IndexingContext Create(IndexerOptions indexerOptions, bool backlog = false)
+    public static IndexingContext Create(IndexerOptions indexerOptions)
     {
-        if (!backlog && indexerOptions.ReleasedDaysAgo == null)
+        if (indexerOptions.ReleasedDaysAgo == null)
         {
             throw new InvalidOperationException("Unable to index with null released-days-ago.");
         }
 
-        var baseline = backlog
-            ? new IndexingContext(ReleasedSince: null)
-            : indexerOptions.ToIndexingContext();
+        return ApplyCuratorFlags(indexerOptions.ToIndexingContext());
+    }
 
-        return baseline with
+    /// <summary>
+    /// Full-catalogue curator walk: <see cref="IndexingContext.ReleasedSince"/> unset so providers are not capped at
+    /// the hub Index lookback. Does not read <see cref="IndexerOptions.ReleasedDaysAgo"/>.
+    /// </summary>
+    public static IndexingContext CreateBacklog() =>
+        ApplyCuratorFlags(new IndexingContext(ReleasedSince: null));
+
+    private static IndexingContext ApplyCuratorFlags(IndexingContext baseline) =>
+        baseline with
         {
             IndexSpotify = true,
             SkipSpotifyUrlResolving = false,
@@ -40,5 +43,4 @@ public static class CuratorIndexingContext
             SkipExpensiveSpotifyQueries = false,
             SkipPodcastDiscovery = true
         };
-    }
 }
