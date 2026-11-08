@@ -49,7 +49,8 @@ before the episode is deleted, so nothing is lost; re-send after adding the fiel
 ## Attach as trailer
 
 `POST episode/{podcastId}/{episodeId}/trailer`, body `{ "filmId": "...", "title": "optional" }`, curate role,
-202 with `{ filmId, name, failureIndexing }`. Order (`EpisodeTrailerAttachService`):
+success `202` with `{ filmId, name, failureIndexing }`; when another film already holds the episode, `409` with
+`filmId` of that film (as in step 1). Order (`EpisodeTrailerAttachService`):
 
 1. Add the trailer (id = episode id) to the film and save it with an ETag-guarded replace. Before that add, films
    are queried across partitions for `trailers[].id` equal to the episode id. If another film already holds it
