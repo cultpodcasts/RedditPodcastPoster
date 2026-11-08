@@ -82,8 +82,9 @@ public static class HashtagText
     // A tag continues through letters, digits, '_' and combining marks (accents, Indic vowel signs),
     // read as whole runes so letters outside the BMP count. Anything else ends it: dashes,
     // apostrophes, quotes, punctuation, symbols and emoji, whitespace, and invisible breaks such as
-    // the zero-width joiner. Variation selectors (U+FE00–U+FE0F) also end it, as Bluesky's
-    // rule rejects U+FE0F.
+    // ZWNJ/ZWJ. Variation selectors (U+FE00–U+FE0F and supplementary U+E0100–U+E01EF) also end it.
+    // The first body character must be a letter, digit or '_' — a combining mark straight after '#'
+    // is not a tag (#1084).
     internal static bool TryReadTagRune(string text, int index, out int width)
     {
         if (Rune.DecodeFromUtf16(text.AsSpan(index), out var rune, out width) != OperationStatus.Done)
@@ -97,7 +98,8 @@ public static class HashtagText
         }
 
         // U+02BC (modifier letter apostrophe) is a letter by category but reads as an apostrophe.
-        if (rune.Value is >= 0xFE00 and <= 0xFE0F or 0x02BC)
+        // Variation selectors are Mn but must not stay inside a tag (BMP FE00–FE0F and supplementary).
+        if (rune.Value is (>= 0xFE00 and <= 0xFE0F) or (>= 0xE0100 and <= 0xE01EF) or 0x02BC)
         {
             return false;
         }
@@ -117,6 +119,12 @@ public static class HashtagText
             return false;
         }
 
+        if (Rune.DecodeFromUtf16(tag.AsSpan(), out var first, out _) != OperationStatus.Done ||
+            !IsTagBodyStartRune(first))
+        {
+            return false;
+        }
+
         foreach (var c in tag)
         {
             if (!char.IsDigit(c) && !char.IsPunctuation(c))
@@ -126,5 +134,18 @@ public static class HashtagText
         }
 
         return false;
+    }
+
+    private static bool IsTagBodyStartRune(Rune rune)
+    {
+        if (rune.Value == '_')
+        {
+            return true;
+        }
+
+        return Rune.GetUnicodeCategory(rune) is
+            UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter or
+            UnicodeCategory.TitlecaseLetter or UnicodeCategory.ModifierLetter or
+            UnicodeCategory.OtherLetter or UnicodeCategory.DecimalDigitNumber;
     }
 }
