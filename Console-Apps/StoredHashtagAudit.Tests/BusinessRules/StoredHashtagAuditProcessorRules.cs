@@ -40,8 +40,9 @@ public class StoredHashtagAuditProcessorRules
     }
 
     [Fact(DisplayName =
-        "Stored hashtag audit: a podcast whose HashTag is reproduced as-is and one with a hyphen are counted " +
-        "separately, and the audit never saves, because the inventory must be safe against the live catalogue.")]
+        "Stored hashtag audit: a podcast whose HashTag is permitted as-is and one with a hyphen are counted " +
+        "separately, and the audit never saves, because the inventory must surface invalid stored tokens " +
+        "(ToHashTags would drop them) and must be safe against the live catalogue.")]
     public async Task podcast_reproducible_and_hyphenated_are_counted_and_nothing_is_written()
     {
         // Arrange
@@ -68,7 +69,7 @@ public class StoredHashtagAuditProcessorRules
 
     [Fact(DisplayName =
         "Stored hashtag audit: a subject HashTag with an ampersand is non-reproducible and listed with its " +
-        "ToTagText, because posting would omit that tag rather than write a shortened form.")]
+        "ToTagText, because it is not a permitted HashTag and posting would omit it rather than write a shortened form.")]
     public async Task subject_ampersand_tag_is_listed_as_non_reproducible()
     {
         // Arrange
@@ -136,7 +137,8 @@ public class StoredHashtagAuditProcessorRules
 
     [Fact(DisplayName =
         "Stored hashtag audit: a space-delimited multi-tag episode HashTag with one hyphenated token is " +
-        "non-reproducible and samples name that token, because any failing token fails the row.")]
+        "non-reproducible and samples name that token, because any non-permitted token fails the row " +
+        "even though ToHashTags would drop it before posting.")]
     public async Task multi_tag_one_hyphen_is_non_reproducible_and_samples_name_offender()
     {
         // Arrange

@@ -6,15 +6,17 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.HashTags;
 
 namespace StoredHashtagAudit;
 
 /// <summary>
 /// Read-only scan of stored subject / publisher / playable hashtags that fail
-/// <see cref="HashtagText.IsReproducedAsIs"/>. Reports counts (and optional samples) so a later
-/// consent-gated cleanup can be sized; never writes Cosmos.
+/// <see cref="HashtagText.IsPermittedHashTag"/> (same X∩Bluesky rule as
+/// <see cref="HashtagText.IsReproducedAsIs"/> for space-free tokens). Splits the stored field on
+/// spaces but does <b>not</b> use <c>ToHashTags</c>, which would drop invalid tokens before they
+/// can be inventoried. Reports counts (and optional samples) so a later consent-gated cleanup can
+/// be sized; never writes Cosmos.
 /// </summary>
 public class StoredHashtagAuditProcessor(
     ISubjectRepository subjectRepository,
@@ -131,12 +133,13 @@ public class StoredHashtagAuditProcessor(
             }
 
             tally.WithHashTag++;
-            // Posting splits first (HashTagExtensions.ToHashTags), then checks each token.
-            var tokens = stored.ToHashTags()
-                .Select(h => h.Tag)
-                .Where(t => !string.IsNullOrWhiteSpace(t))
+            // Split like ToHashTags, but keep every token so invalid stored tags are inventoried
+            // (ToHashTags would filter them out via IsPermittedHashTag and hide the problem).
+            var tokens = stored
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.Ordinal)
                 .ToArray();
-            var offenders = tokens.Where(t => !HashtagText.IsReproducedAsIs(t)).ToArray();
+            var offenders = tokens.Where(t => !HashtagText.IsPermittedHashTag(t)).ToArray();
             if (offenders.Length == 0)
             {
                 tally.Reproducible++;
@@ -225,7 +228,7 @@ public class StoredHashtagAuditProcessor(
 
         logger.LogInformation(
             "StoredHashtagAudit complete: total non-reproducible {totalOffenders} across {kinds} kind(s). " +
-            "Read-only — nothing written. Posting already omits tags that fail IsReproducedAsIs; " +
+            "Read-only — nothing written. Accept/posting paths drop tags that fail IsPermittedHashTag; " +
             "if total is 0, no cleanup is needed (#1082).",
             totalOffenders,
             result.ByKind.Count);
