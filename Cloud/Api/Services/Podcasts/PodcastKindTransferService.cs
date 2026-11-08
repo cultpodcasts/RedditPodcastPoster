@@ -4,7 +4,9 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Api.Models;
+using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -62,9 +64,12 @@ public class PodcastKindTransferService(
     IFileKeyAllocator fileKeyAllocator,
     IParentKindTransferLockStore lockStore,
     IYouTubePlaylistGuard youTubePlaylistGuard,
+    IOptions<PostingCriteria> postingCriteria,
     TimeProvider timeProvider,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
 {
+    private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
+
     /// <summary>A marker with no heartbeat for this long belongs to a transfer that died.</summary>
     public static readonly TimeSpan LockStaleAfter = TimeSpan.FromMinutes(10);
 
@@ -248,7 +253,7 @@ public class PodcastKindTransferService(
                     podcast, snapshot.Episodes, resuming: snapshot.ExistingTvShow is not null, TvShowTarget(), lease),
                 CatalogueParentKind.NewsOrganisation => await TransferParent(
                     podcast, snapshot.Episodes, resuming: snapshot.ExistingNewsOrganisation is not null,
-                    NewsOrganisationTarget(), lease),
+                    NewsOrganisationTarget(podcast), lease),
                 _ => new PodcastKindTransferResult(PodcastKindTransferStatus.InvalidTarget)
             };
         }
@@ -321,17 +326,62 @@ public class PodcastKindTransferService(
             tvShowEpisodeRepository.Delete,
             tvShowRepository.Delete);
 
-    private TransferTarget<NewsOrganisation, NewsReport> NewsOrganisationTarget() =>
+    private TransferTarget<NewsOrganisation, NewsReport> NewsOrganisationTarget(Podcast podcast) =>
         new(
             CatalogueParentKind.NewsOrganisation,
             FileKeyKind.NewsOrganisation,
             SearchContentKind.NewsReport,
             CatalogueParentKindMapper.ToNewsOrganisation,
-            CatalogueParentKindMapper.ToNewsReport,
+            (episode, organisation) => MapNewsReportClearingLengthDerivedIgnored(episode, organisation, podcast),
             newsOrganisationRepository.Save,
             newsReportRepository.Save,
             newsReportRepository.Delete,
             newsOrganisationRepository.Delete);
+
+    /// <summary>
+    /// News parents force <c>bypassShortEpisodeChecking</c>, so new short reports are not length-ignored.
+    /// Episodes already ignored under podcast short-episode rules keep <see cref="Playable.Ignored"/> when
+    /// mapped as-is. Clear that flag when short checking was enforced on the source podcast and length is
+    /// under the same threshold indexing/submit used (<see cref="Podcast.MinimumDuration"/> else posting
+    /// criteria). Longer ignored episodes (manual / ignore-all / other) stay ignored. Short episodes that
+    /// were ignore-all are indistinguishable from length-derived and are also cleared.
+    /// </summary>
+    private NewsReport MapNewsReportClearingLengthDerivedIgnored(
+        Episode episode,
+        NewsOrganisation organisation,
+        Podcast podcast)
+    {
+        var report = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+        if (IsLengthDerivedIgnoredUnderPodcastRules(podcast, episode))
+        {
+            report.Ignored = false;
+        }
+
+        return report;
+    }
+
+    /// <summary>
+    /// True when the episode is ignored and podcast short-episode checking would have set that from length
+    /// alone (same enforce/threshold as <c>PodcastUpdater</c> / submit <c>EpisodeFactory</c>).
+    /// </summary>
+    private bool IsLengthDerivedIgnoredUnderPodcastRules(Podcast podcast, Episode episode)
+    {
+        if (!episode.Ignored)
+        {
+            return false;
+        }
+
+        // Explicit podcast MinimumDuration always applies. Bypass only skips the global posting-criteria floor.
+        var bypassGlobalShortCheck = podcast.BypassShortEpisodeChecking == true;
+        var enforceMinimumDuration = podcast.MinimumDuration.HasValue || !bypassGlobalShortCheck;
+        if (!enforceMinimumDuration)
+        {
+            return false;
+        }
+
+        var threshold = podcast.MinimumDuration ?? _postingCriteria.MinimumDuration;
+        return episode.Length < threshold;
+    }
 
     /// <summary>Per-transfer counters for the one summary log line.</summary>
     private sealed class TransferStats
