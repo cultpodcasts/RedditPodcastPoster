@@ -124,7 +124,7 @@ Flex bills **On Demand Execution Time** (GB·s × memory) after the monthly free
 | Mid-month Functions £ jump (~£0.20+/day) with Monitor flat | Grant exhausted — Execution Time metering |
 | 1st of month Functions £ reset to ~0 while GB·s continue | New month / grant reset — not a deploy that “fixed” a runaway |
 
-`instanceMemoryMB` is **512 / 2048 / 4096** only. GB·s scale with memory for the same wall clock. Prefer lower memory on short HTTP apps (`api-infra`, `discover-infra`) and keep `indexer-infra` at **2048** until a memory soak proves 512 safe for Durable orchestrations. Cutting memory does not change Azure Monitor’s ~£0.12/day baseline.
+`instanceMemoryMB` is **512 / 2048 / 4096** only. GB·s scale with memory for the same wall clock. Do **not** drop memory without headroom evidence — `memoryProbe__Enabled` is currently **`false`** in bicep, so production has no `MemoryProbe.*` working-set traces to justify a cut. Enable the probe, soak, then reconsider 512. Cutting memory does not change Azure Monitor’s ~£0.12/day baseline.
 
 ## Flex Consumption activation
 

@@ -838,8 +838,7 @@ module apiFunction 'function.bicep' = {
     runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: true
-    // 512: cuts Flex GB·s vs 2048 for HTTP work (#1278 free-grant overage). Indexer stays 2048.
-    instanceMemoryMB: 512
+    instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Api: 'Information'
         // Explicit: OptionsValidationException if missing after code that binds TitleCasingRules.
