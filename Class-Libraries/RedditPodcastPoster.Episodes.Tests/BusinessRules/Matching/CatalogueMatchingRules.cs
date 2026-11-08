@@ -1126,15 +1126,18 @@ public class CatalogueMatchingRules
     public void zero_length_probe_without_title_overlap_returns_null()
     {
         // Arrange
+        // CreateTitle draws from a small word list — two independent draws can substring-overlap
+        // and falsely duration-snipe a zero-length probe. Force disjoint titles.
+        var probeTitle = _fixture.CreateTitle();
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = probeTitle;
             e.Length = TimeSpan.Zero;
             e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(2);
         });
         var candidate = _fixture.CreateEpisode(e =>
         {
-            e.Title = _fixture.CreateTitle();
+            e.Title = _fixture.CreateTitleNotContainedIn(probeTitle);
             e.Length = _fixture.CreateDuration();
             e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(2);
             e.SpotifyId = _fixture.CreateSpotifyId();
