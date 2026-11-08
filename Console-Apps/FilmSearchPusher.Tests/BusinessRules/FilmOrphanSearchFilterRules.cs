@@ -59,12 +59,14 @@ public class FilmOrphanSearchFilterRules
         filter.Should().BeNull();
     }
 
-    [Fact(DisplayName =
+    [Theory(DisplayName =
         "When a live film id contains a comma or quote, then the not search.in filter is refused, because those characters would break the OData search.in list.")]
-    public void unsafe_live_id_characters_refuse_not_search_in_filter()
+    [InlineData(',')]
+    [InlineData('\'')]
+    public void unsafe_live_id_characters_refuse_not_search_in_filter(char unsafeChar)
     {
         // Arrange
-        var unsafeId = $"{_fixture.CreateGuid()},extra";
+        var unsafeId = $"{_fixture.CreateGuid()}{unsafeChar}extra";
 
         // Act
         var built = FilmOrphanSearchFilter.TryBuildNotSearchInFilter([unsafeId], out var filter);
