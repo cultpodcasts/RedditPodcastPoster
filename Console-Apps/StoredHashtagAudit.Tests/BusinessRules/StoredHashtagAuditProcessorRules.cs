@@ -46,7 +46,7 @@ public class StoredHashtagAuditProcessorRules
     {
         // Arrange
         var clean = _fixture.CreatePodcast();
-        clean.HashTag = "#CultPodcasts";
+        clean.HashTag = "#CleanTag";
         var hyphenated = _fixture.CreatePodcast();
         hyphenated.HashTag = "#Some-Tag";
         _mocker.GetMock<IPodcastRepository>().Setup(r => r.GetAll())
@@ -87,7 +87,8 @@ public class StoredHashtagAuditProcessorRules
         // Assert
         result.ByKind[HashtagEntityKind.Subject].NonReproducible.Should().Be(1);
         result.ByKind[HashtagEntityKind.Subject].Samples.Should().ContainSingle(s =>
-            s.Contains("Q&A", StringComparison.Ordinal) && s.Contains("toTagText=QA", StringComparison.Ordinal));
+            s.Contains("token=\"#Q&A\"", StringComparison.Ordinal) &&
+            s.Contains("toTagText=QA", StringComparison.Ordinal));
         _mocker.GetMock<ISubjectRepository>().Verify(r => r.Save(It.IsAny<Subject>()), Times.Never);
     }
 
@@ -113,8 +114,53 @@ public class StoredHashtagAuditProcessorRules
     }
 
     [Fact(DisplayName =
+        "Stored hashtag audit: a space-delimited multi-tag episode HashTag where every token is reproducible " +
+        "counts as one reproducible row, because posting splits then checks each token.")]
+    public async Task multi_tag_all_clean_is_reproducible()
+    {
+        // Arrange
+        var episode = _fixture.CreateEpisode();
+        episode.HashTag = "#AlphaBeta #CleanTag";
+        _mocker.GetMock<IEpisodeRepository>().Setup(r => r.GetAll())
+            .Returns(new[] { episode }.ToAsyncEnumerable());
+        var sut = _mocker.CreateInstance<StoredHashtagAuditProcessor>();
+
+        // Act
+        var result = await sut.Run(new StoredHashtagAuditRequest { Kind = "episode" });
+
+        // Assert
+        result.ByKind[HashtagEntityKind.Episode].WithHashTag.Should().Be(1);
+        result.ByKind[HashtagEntityKind.Episode].Reproducible.Should().Be(1);
+        result.ByKind[HashtagEntityKind.Episode].NonReproducible.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
+        "Stored hashtag audit: a space-delimited multi-tag episode HashTag with one hyphenated token is " +
+        "non-reproducible and samples name that token, because any failing token fails the row.")]
+    public async Task multi_tag_one_hyphen_is_non_reproducible_and_samples_name_offender()
+    {
+        // Arrange
+        var episode = _fixture.CreateEpisode();
+        episode.HashTag = "#CleanTag #Some-Tag";
+        _mocker.GetMock<IEpisodeRepository>().Setup(r => r.GetAll())
+            .Returns(new[] { episode }.ToAsyncEnumerable());
+        var sut = _mocker.CreateInstance<StoredHashtagAuditProcessor>();
+
+        // Act
+        var result = await sut.Run(new StoredHashtagAuditRequest { Kind = "episode", List = true });
+
+        // Assert
+        result.ByKind[HashtagEntityKind.Episode].Reproducible.Should().Be(0);
+        result.ByKind[HashtagEntityKind.Episode].NonReproducible.Should().Be(1);
+        result.ByKind[HashtagEntityKind.Episode].Samples.Should().ContainSingle(s =>
+            s.Contains("token=\"#Some-Tag\"", StringComparison.Ordinal) &&
+            s.Contains("toTagText=SomeTag", StringComparison.Ordinal) &&
+            !s.Contains("token=\"#CleanTag\"", StringComparison.Ordinal));
+    }
+
+    [Fact(DisplayName =
         "Stored hashtag audit: --kind all scans subjects, publishers and playables, because the inventory must " +
-        "cover every stored HashTag field that Bluesky posting can read.")]
+        "cover every catalogue HashTag field.")]
     public async Task kind_all_scans_every_hashtag_entity_kind()
     {
         // Arrange

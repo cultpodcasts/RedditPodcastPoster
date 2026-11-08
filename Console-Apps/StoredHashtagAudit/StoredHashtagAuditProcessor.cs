@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.HashTags;
 
 namespace StoredHashtagAudit;
@@ -130,7 +131,13 @@ public class StoredHashtagAuditProcessor(
             }
 
             tally.WithHashTag++;
-            if (HashtagText.IsReproducedAsIs(stored))
+            // Posting splits first (HashTagExtensions.ToHashTags), then checks each token.
+            var tokens = stored.ToHashTags()
+                .Select(h => h.Tag)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToArray();
+            var offenders = tokens.Where(t => !HashtagText.IsReproducedAsIs(t)).ToArray();
+            if (offenders.Length == 0)
             {
                 tally.Reproducible++;
                 continue;
@@ -148,8 +155,12 @@ public class StoredHashtagAuditProcessor(
                 continue;
             }
 
-            var written = HashtagText.ToTagText(stored) ?? "<null>";
-            tally.Samples.Add($"{id(entity)} | {label(entity)} | stored=\"{stored.Trim()}\" | toTagText={written}");
+            var offendingDetail = string.Join(
+                "; ",
+                offenders.Select(o =>
+                    $"token=\"{o.Trim()}\" toTagText={HashtagText.ToTagText(o) ?? "<null>"}"));
+            tally.Samples.Add(
+                $"{id(entity)} | {label(entity)} | stored=\"{stored.Trim()}\" | {offendingDetail}");
         }
 
         return tally;
