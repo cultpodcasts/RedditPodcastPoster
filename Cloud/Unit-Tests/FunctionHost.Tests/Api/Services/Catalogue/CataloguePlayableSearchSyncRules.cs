@@ -147,6 +147,24 @@ public class CataloguePlayableSearchSyncRules
     }
 
     [Fact(DisplayName =
+        "Plain English rule: when AfterHardDelete runs after a Cosmos hard delete, then the search document and the short-link record are deleted, " +
+        "because hard delete must leave the same cleanup as soft-remove and must not rely on the pull indexer alone.")]
+    public async Task after_hard_delete_deletes_search_document_and_short_link()
+    {
+        // Arrange
+        var film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = _fixture.CreateDuration() };
+        var shortLinkTarget = SocialPostRemovalTarget.For(film).Projection;
+
+        // Act
+        await Sut.AfterHardDelete(film.Id, film.Name, shortLinkTarget, CancellationToken.None);
+
+        // Assert
+        _search.DeletedKeys.Should().Equal(film.Id.ToString());
+        _shortLinkDeletes.Should().ContainSingle().Which.Episode.Id.Should().Be(film.Id);
+        _uploaded.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "Plain English rule: when the item's parent is removed, then an edit deletes the search document instead of pushing it and keeps the short link, because the pull indexer's filter leaves items of removed parents out of search.")]
     public async Task edit_under_removed_parent_deletes_search_document_only()
     {

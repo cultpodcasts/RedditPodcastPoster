@@ -6,6 +6,7 @@ using Moq.AutoMock;
 using Api.Models;
 using Api.Services.News;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -18,13 +19,15 @@ public class NewsReportDeleteRules
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly SearchCleanupMock _search = new();
+    private readonly List<PodcastEpisode> _shortLinkDeletes = [];
 
     public NewsReportDeleteRules()
     {
         _mocker.Use(NullLogger<NewsReportService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<IShortnerService>()
-            .Setup(s => s.Delete(It.IsAny<RedditPodcastPoster.Models.Episodes.PodcastEpisode>()))
+            .Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
+            .Callback<PodcastEpisode>(target => _shortLinkDeletes.Add(target))
             .ReturnsAsync(new RedditPodcastPoster.Cloudflare.Models.DeleteResult(true));
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>()))
@@ -101,5 +104,7 @@ public class NewsReportDeleteRules
         result.Status.Should().Be(EpisodeDeleteStatus.Deleted);
         _mocker.GetMock<INewsReportRepository>()
             .Verify(r => r.Delete(report.NewsOrganisationId, report.Id), Times.Once);
+        _search.VerifyDelete(report.Id, Times.Once());
+        _shortLinkDeletes.Should().ContainSingle().Which.Episode.Id.Should().Be(report.Id);
     }
 }

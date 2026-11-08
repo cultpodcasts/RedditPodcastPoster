@@ -6,6 +6,7 @@ using Api.Models;
 using Api.Services.Films;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -18,13 +19,15 @@ public class FilmDeleteRules
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly SearchCleanupMock _search = new();
+    private readonly List<PodcastEpisode> _shortLinkDeletes = [];
 
     public FilmDeleteRules()
     {
         _mocker.Use(NullLogger<FilmService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<IShortnerService>()
-            .Setup(s => s.Delete(It.IsAny<RedditPodcastPoster.Models.Episodes.PodcastEpisode>()))
+            .Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
+            .Callback<PodcastEpisode>(target => _shortLinkDeletes.Add(target))
             .ReturnsAsync(new RedditPodcastPoster.Cloudflare.Models.DeleteResult(true));
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.Delete(It.IsAny<Guid>()))
@@ -88,5 +91,7 @@ public class FilmDeleteRules
         // Assert
         result.Status.Should().Be(EpisodeDeleteStatus.Deleted);
         _mocker.GetMock<IFilmRepository>().Verify(r => r.Delete(film.Id), Times.Once);
+        _search.VerifyDelete(film.Id, Times.Once());
+        _shortLinkDeletes.Should().ContainSingle().Which.Episode.Id.Should().Be(film.Id);
     }
 }

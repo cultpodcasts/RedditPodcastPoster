@@ -2,7 +2,6 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
-using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -163,7 +162,7 @@ public class FilmService(
                     Tweeted: true);
             }
 
-            var shortLinkTarget = CatalogueParentKindMapper.ToPostProjection(film);
+            var shortLinkTarget = SocialPostRemovalTarget.For(film).Projection;
             await filmRepository.Delete(film.Id);
             await searchSync.AfterHardDelete(film.Id, film.Name, shortLinkTarget, cancellationToken);
 
