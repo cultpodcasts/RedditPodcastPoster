@@ -60,6 +60,8 @@ public class PodcastChangeRequest
 
     public string? YouTubePlaylistId { get; set; }
 
+    public bool? ClearYouTubeIndexingHints { get; set; }
+
     public string[]? IgnoredAssociatedSubjects { get; set; }
 
     public string[]? IgnoredSubjects { get; set; }

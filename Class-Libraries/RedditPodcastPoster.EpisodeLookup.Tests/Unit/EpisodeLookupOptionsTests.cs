@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.EpisodeLookup.Extensions;
 using RedditPodcastPoster.EpisodeLookup;
-using RedditPodcastPoster.EpisodeLookup;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;

@@ -34,7 +34,8 @@ public class PostEpisodeTvShowMoveHandler(
             EpisodeTvShowMoveStatus.BadRequest =>
                 await ctx.BadRequest(ApiErrorResponse.Failure(result.Error ?? "Invalid request"), cancellationToken),
             EpisodeTvShowMoveStatus.Failed =>
-                await ctx.InternalError(ApiErrorResponse.Failure("Unable to move episode to TV show"), cancellationToken),
+                // Same shape as film move / trailer attach: 500 body carries failureIndexing.
+                await ctx.InternalError(result.ToDto(), cancellationToken),
             _ => await LogAndFail(ctx, cancellationToken)
         };
     }

@@ -10,7 +10,7 @@
 |------|-----|
 | Order News → Film → TV (S-007) | One `--kind` per run, run in that order. Identify gives each podcast exactly one kind. |
 | Keep ids (S-006) | NewsOrganisation/TvShow id = podcast id. Every playable keeps its episode id. Film id = episode id. |
-| Search swap | `MergeOrUpload` of same-id documents with `contentKind` (active episodes only). An extra news channel uses the canonical organisation name. |
+| Search swap | `MergeOrUpload` of same-id documents with `contentKind` (active episodes only). An extra news channel uses the canonical organisation name ([channel aliases](../catalogue-news-organisation-channel-aliases.md)). |
 | Move, don't copy | Destination upsert → verify count → search swap → delete episodes → delete podcast. Removed episodes move too and stay removed. |
 | S-008 | News apply only for `CatalogueNewsOrganisationAllowlist` publishers, and only when every active episode is news. |
 | Auto-indexed podcasts | Blocked (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`), because Film/TV/News parents are not indexed. |
@@ -20,6 +20,7 @@
 | Idempotent / resumable | Every write is an upsert or an idempotent delete. On failure the run stops (exit 3) with the source rows kept. Re-running the same command resumes. `--limit` and `--batch-size` bound the run. |
 | Rollback | `--rollback <file>` (dry-run) or with `--apply` plus the rollback phrase. It restores the podcast and episodes from `begin`, swaps search back to Episode, then deletes the destination rows. It refuses when the parent now holds playables the batch did not write. |
 | Consent | `--consent "I approve CatalogueMigrate --kind <Kind> production writes"`, or for rollback `"I approve CatalogueMigrate rollback of <file name> in production"`. Exact, case-sensitive. The kind or file name is inside the phrase, so consent can't be replayed for another run. |
+| YouTube CLI secrets | Dry-run and apply register `AddYouTubeServices(Cli)` for playlist ownership (#1178). Need the same `youtube` user-secrets / config as other YouTube CLIs even when no podcast has a channel+playlist pair. |
 
 Note: snapshots are typed `Podcast`/`Episode`. Cosmos fields that are not on the models (for example leftover `urls.bbc`) are not in the evidence. The full backup (step 2) is the authoritative restore.
 

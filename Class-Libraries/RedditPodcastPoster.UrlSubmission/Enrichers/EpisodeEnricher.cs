@@ -99,7 +99,16 @@ public class EpisodeEnricher(
 
         if (categorisedItem.ResolvedYouTubeItem != null)
         {
-            if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
+            if (matchingPodcast.UsesYouTubePlaylist() && string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
+            {
+                // The playlist is the podcast's only YouTube source, so it needs no channel id. Filling one from the
+                // submitted video would make channel-based discovery and URL routing claim that channel's other
+                // uploads for this podcast, although only the playlist's videos are its episodes.
+                logger.LogInformation(
+                    "Not setting youtube channel-id '{resolvedYouTubeItemShowId}' on podcast '{matchingPodcastId}': it uses youtube-playlist-id '{playlistId}' as its YouTube source.",
+                    categorisedItem.ResolvedYouTubeItem.ShowId, matchingPodcast.Id, matchingPodcast.YouTubePlaylistId);
+            }
+            else if (string.IsNullOrWhiteSpace(matchingPodcast.YouTubeChannelId))
             {
                 matchingPodcast.YouTubeChannelId = categorisedItem.ResolvedYouTubeItem.ShowId;
                 matchingPodcast.YouTubePublicationOffset = Constants.DefaultMatchingPodcastYouTubePublishingDelay.Ticks;

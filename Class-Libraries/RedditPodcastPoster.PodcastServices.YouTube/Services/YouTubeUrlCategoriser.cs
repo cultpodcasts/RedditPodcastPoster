@@ -3,8 +3,10 @@ using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 using Google.Apis.YouTube.v3.Data;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using PodcastEpisode = RedditPodcastPoster.Models.Episodes.PodcastEpisode;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Episodes.Matching;
@@ -31,6 +33,7 @@ public class YouTubeUrlCategoriser(
     IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,
     ITolerantYouTubePlaylistService youTubePlaylistService,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
+    IEpisodeRepository episodeRepository,
     ILogger<YouTubeUrlCategoriser> logger)
     : IYouTubeUrlCategoriser
 {
@@ -82,7 +85,8 @@ public class YouTubeUrlCategoriser(
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
+            // A podcast with a playlist is a YouTube podcast without a channel id: the playlist is its only source.
+            if (pair.Podcast.HasYouTubeSource())
             {
                 return new ResolvedYouTubeItem(pair);
             }
@@ -111,10 +115,43 @@ public class YouTubeUrlCategoriser(
             var playlistId = YouTubePlaylistIdResolver.Extract(url);
             if (!string.IsNullOrWhiteSpace(playlistId))
             {
-                var playlist = await youTubePlaylistService.GetPlaylistInfo(
-                    new YouTubePlaylistId(playlistId, YouTubePlaylistIdSource.Unknown, "categoriser"), indexingContext);
-                snippetChannelTitle = playlist.Title;
-                snippetDescription = playlist.Description;
+                GetPlaylistInfoResponse? playlist = null;
+                try
+                {
+                    playlist = await youTubePlaylistService.GetPlaylistInfo(
+                        new YouTubePlaylistId(playlistId, YouTubePlaylistIdSource.Unknown, "categoriser"),
+                        indexingContext);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException ||
+                                           !indexingContext.CancellationToken.IsCancellationRequested)
+                {
+                    // Private, deleted, or a WL/LL/RD mix, or the lookup failed: the video itself is fine, so submit it
+                    // without the playlist rather than failing the whole submit.
+                    logger.LogWarning(ex,
+                        "Ignoring playlist-id '{PlaylistId}' from url '{Url}': its owner could not be resolved.",
+                        playlistId, url);
+                }
+
+                if (playlist == null)
+                {
+                    playlistId = null;
+                }
+                else if (string.Equals(playlist.ChannelId, item.Snippet.ChannelId, StringComparison.Ordinal))
+                {
+                    snippetChannelTitle = playlist.Title;
+                    snippetDescription = playlist.Description;
+                }
+                else
+                {
+                    // The URL's playlist is not the video channel's own (e.g. another channel's compilation, or a mix the
+                    // video happens to be in). A new podcast must not store it: a playlist is the podcast's only YouTube
+                    // source and every video in it is indexed, so an incidental list= would index someone else's videos.
+                    // A curator can still set any channel's playlist deliberately in the edit dialog.
+                    logger.LogWarning(
+                        "Ignoring playlist-id '{PlaylistId}' from url '{Url}': it belongs to channel '{PlaylistChannelId}', not the video's channel '{VideoChannelId}'.",
+                        playlistId, url, playlist.ChannelId, item.Snippet.ChannelId);
+                    playlistId = null;
+                }
             }
 
             if (channel != null)
@@ -138,7 +175,8 @@ public class YouTubeUrlCategoriser(
                     );
                 }
 
-                if (string.IsNullOrWhiteSpace(pair.Podcast.YouTubeChannelId))
+                // Reached only when the stored podcast has no YouTube source (a playlist podcast returned above).
+                if (!pair.Podcast.HasYouTubeSource())
                 {
                     pair.Podcast.YouTubeChannelId = item.Snippet.ChannelId;
                     return new ResolvedYouTubeItem(pair);
@@ -163,9 +201,10 @@ public class YouTubeUrlCategoriser(
         IList<EpisodeModel> episodes,
         IndexingContext indexingContext)
     {
-        if (!string.IsNullOrWhiteSpace(matchingPodcast?.YouTubeChannelId))
+        if (matchingPodcast != null && matchingPodcast.HasYouTubeSource())
         {
             string channelDescription = "", channelContentOwner = "";
+            await HealYouTubeIdsExtractableFromUrls(matchingPodcast, episodes); // pragma: allowlist secret
             var mismatchedEpisodes = episodes.Where(HasInconsistentYouTubeIdAndUrl).ToArray();
             if (mismatchedEpisodes.Any())
             {
@@ -175,8 +214,11 @@ public class YouTubeUrlCategoriser(
 
             var expectedPublish = criteria.Release.Add(matchingPodcast.YouTubePublishingDelay());
             var band = EpisodeReleaseTolerance.GetSubmitMatchBand(expectedPublish);
-            var publishedAfter = new DateTimeOffset(DateTime.SpecifyKind(band.Start, DateTimeKind.Utc));
-            var publishedBefore = new DateTimeOffset(DateTime.SpecifyKind(band.End.AddDays(1), DateTimeKind.Utc));
+            // The submit band is whole calendar days (EpisodeReleaseTolerance compares .Date), so its
+            // bounds are UTC midnights by definition: relabel the day as UTC rather than converting it.
+            // A Local-kind day must not shift to the previous UTC day (date-only release rule, #1212).
+            var publishedAfter = UtcDateTimes.ToUtcOffset(DateTime.SpecifyKind(band.Start, DateTimeKind.Utc));
+            var publishedBefore = UtcDateTimes.ToUtcOffset(DateTime.SpecifyKind(band.End.AddDays(1), DateTimeKind.Utc));
             var items = await LoadSubmitMatchCandidates(
                 matchingPodcast,
                 indexingContext,
@@ -190,13 +232,12 @@ public class YouTubeUrlCategoriser(
 
             var podcastEpisodeYouTubeIds = episodes
                 .Select(x => EpisodeServicePresence.YouTubeEpisodeId(x))
-                .Where(id => !string.IsNullOrWhiteSpace(id));
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.Ordinal);
+            // Compare video ids: a playlist item's Id is the playlist-item id, not the video id.
             var unassignedChannelUploads =
-                items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Id)).ToArray();
-            var publishedWithin = unassignedChannelUploads.Where(x =>
-                    x.Snippet.PublishedAtDateTimeOffset > expectedPublish.Subtract(PublishThreshold) &&
-                    x.Snippet.PublishedAtDateTimeOffset < expectedPublish.Add(PublishThreshold))
-                .ToArray();
+                items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Snippet?.ResourceId?.VideoId ?? x.Id)).ToArray();
+            var publishedWithin = PublishedWithinThreshold(unassignedChannelUploads, expectedPublish);
             PlaylistItem? match;
             if (publishedWithin.Any())
             {
@@ -287,7 +328,8 @@ public class YouTubeUrlCategoriser(
         {
             if (matchingPodcast != null)
             {
-                logger.LogInformation("Podcast with id '{podcastId}' does not have youtube-id.", matchingPodcast.Id);
+                logger.LogInformation(
+                    "Podcast with id '{podcastId}' has no youtube channel-id or playlist-id.", matchingPodcast.Id);
             }
         }
 
@@ -300,6 +342,14 @@ public class YouTubeUrlCategoriser(
         DateTimeOffset publishedAfter,
         DateTimeOffset publishedBefore)
     {
+        // The playlist is the podcast's only YouTube source when set, so the match is searched in it rather than in the
+        // channel (whose other uploads are not the podcast's, and whose id may be unset or another channel's).
+        if (matchingPodcast.UsesYouTubePlaylist())
+        {
+            return await LoadBandBoundedPlaylist(
+                matchingPodcast, indexingContext, publishedAfter, publishedBefore, "youTubePlaylist");
+        }
+
         var uploadsPlaylistReason = youTubeChannelVideoRetrievalPolicy.GetUploadsPlaylistReason(matchingPodcast);
         if (uploadsPlaylistReason != null)
         {
@@ -359,9 +409,10 @@ public class YouTubeUrlCategoriser(
         string reason)
     {
         logger.LogInformation(
-            "Submit match paging playlist until publish times are older than {BandStart:u} for channel '{ChannelId}' ({Reason}). Items newer than {BandEnd:u} are dropped.",
+            "Submit match paging playlist until publish times are older than {BandStart:u} for channel '{ChannelId}' playlist '{PlaylistId}' ({Reason}). Items newer than {BandEnd:u} are dropped.",
             publishedAfter,
             matchingPodcast.YouTubeChannelId,
+            matchingPodcast.YouTubePlaylistId,
             reason,
             publishedBefore);
 
@@ -375,7 +426,10 @@ public class YouTubeUrlCategoriser(
         var response = await youTubePlaylistService.GetPlaylistVideoSnippets(
             playlistId,
             playlistContext,
-            expensivePlaylist: matchingPodcast.HasExpensiveYouTubePlaylistQuery());
+            // An arbitrary-order playlist cannot stop at the band floor; the uploads playlist is always newest-first.
+            playlistOrder: playlistId.Source == YouTubePlaylistIdSource.PodcastEntity
+                ? matchingPodcast.YouTubePlaylistOrder
+                : null);
         return WithinSubmitMatchBand(response.Result, publishedAfter, publishedBefore);
     }
 
@@ -429,6 +483,42 @@ public class YouTubeUrlCategoriser(
     }
 
     /// <summary>
+    /// A live episode whose YouTube url contains a video id but whose nested id is empty is healed
+    /// (<see cref="EpisodeServicePresence.FillYouTubeIdFromUrl"/>) on the instance in the list, then // pragma: allowlist secret
+    /// re-read and saved from that fresh copy. Search reads only the nested id, so an in-memory fill // pragma: allowlist secret
+    /// that is not saved leaves the Watch icon missing. The list was loaded before the other platform
+    /// calls, and Save upserts the whole document, so the loaded instance is not what gets written.
+    /// Rows this cannot reconcile stay for <see cref="HasInconsistentYouTubeIdAndUrl"/>.
+    /// </summary>
+    private async Task HealYouTubeIdsExtractableFromUrls(Podcast podcast, IList<EpisodeModel> episodes) // pragma: allowlist secret
+    {
+        foreach (var episode in episodes) // pragma: allowlist secret
+        {
+            if (!HasInconsistentYouTubeIdAndUrl(episode))
+            {
+                continue;
+            }
+
+            if (!EpisodeServicePresence.FillYouTubeIdFromUrl(episode)) // pragma: allowlist secret
+            {
+                continue;
+            }
+
+            var current = await episodeRepository.GetEpisode(episode.PodcastId, episode.Id);
+            if (current is null || !EpisodeServicePresence.FillYouTubeIdFromUrl(current)) // pragma: allowlist secret
+            {
+                continue;
+            }
+
+            logger.LogInformation(
+                "Healed episode '{EpisodeId}' on podcast '{PodcastId}': filled missing ids.youtube from the video id in the YouTube url.",
+                episode.Id,
+                podcast.Id);
+            await episodeRepository.Save(current);
+        }
+    }
+
+    /// <summary>
     /// True when the stored YouTube id and URL disagree, or only one of them is present
     /// (except a removed episode that has a URL and no stored id).
     /// Compares the nested stored id, not the read fallback that extracts a video id from the URL.
@@ -442,5 +532,18 @@ public class YouTubeUrlCategoriser(
                (youTubeUrl is null && !idMissing) ||
                (!idMissing && youTubeUrl is not null &&
                 YouTubeIdResolver.Extract(youTubeUrl) != youTubeId);
+    }
+
+    /// <summary>
+    /// The uploads published within <see cref="PublishThreshold"/> either side of <paramref name="expectedPublish"/>.
+    /// <paramref name="expectedPublish"/> is UTC (unspecified kind is UTC, #1194), never host-local time.
+    /// </summary>
+    internal static PlaylistItem[] PublishedWithinThreshold(IEnumerable<PlaylistItem> uploads, DateTime expectedPublish)
+    {
+        var expected = UtcDateTimes.ToUtcOffset(expectedPublish);
+        return uploads.Where(x =>
+                x.Snippet.PublishedAtDateTimeOffset > expected.Subtract(PublishThreshold) &&
+                x.Snippet.PublishedAtDateTimeOffset < expected.Add(PublishThreshold))
+            .ToArray();
     }
 }

@@ -70,9 +70,7 @@ public class YouTubeEpisodeRetrievalHandlerFetchFailureRules
             .Setup(x => x.GetPlaylistEpisodes(
                 It.IsAny<Podcast>(),
                 It.IsAny<YouTubePlaylistId>(),
-                It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse(null, Failure: failure));

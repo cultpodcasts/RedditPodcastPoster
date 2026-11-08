@@ -22,7 +22,7 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
 
     /// <summary>
     /// Semantic release (year / date / UTC datetime). Setting this updates
-    /// <see cref="ReleaseSort"/> and <see cref="ReleaseCosmosFallback"/> to the same UTC instant.
+    /// <see cref="ReleaseSort"/> to the same UTC instant.
     /// Prefer <see cref="SetRelease"/> at call sites.
     /// </summary>
     [JsonPropertyName("release")]
@@ -33,9 +33,7 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         set
         {
             _release = value;
-            var sortUtc = value?.ToSortUtc() ?? default;
-            ReleaseSort = sortUtc;
-            ReleaseCosmosFallback = sortUtc;
+            ReleaseSort = value?.ToSortUtc() ?? default;
         }
     }
 
@@ -43,24 +41,12 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     /// UTC instant for Cosmos range filters and ordering. Synced from <see cref="Release"/>
     /// (and from STJ populate of <c>releaseSort</c>). Private set so callers cannot desync it
     /// from <see cref="Release"/> — use <see cref="SetRelease"/>.
-    /// Until the corpus is backfilled, server-side range filters must dual-key with
-    /// <see cref="ReleaseCosmosFallback"/> (legacy docs may only have <c>release</c>).
+    /// Every stored playable carries <c>releaseSort</c> (GATE 1 wire rewrite), so server-side
+    /// range filters use it alone.
     /// </summary>
     [JsonPropertyName("releaseSort")]
     [JsonPropertyOrder(31)]
     public DateTime ReleaseSort { get; private set; }
-
-    /// <summary>
-    /// Cosmos LINQ-only dual-key companion mapping to JSON <c>release</c> as <see cref="DateTime"/>.
-    /// STJ ignores this member so it does not conflict with <see cref="Release"/>;
-    /// <c>CosmosLinqSerializer.SerializeMemberName</c> still emits <c>release</c> from
-    /// <see cref="JsonPropertyNameAttribute"/>. Use in server-side predicates:
-    /// <c>(ReleaseSort.IsDefined() ? ReleaseSort : ReleaseCosmosFallback) &gt;= since</c>
-    /// until every matching document has <c>releaseSort</c>. Not for application reads.
-    /// </summary>
-    [JsonPropertyName("release")]
-    [JsonIgnore]
-    public DateTime ReleaseCosmosFallback { get; private set; }
 
     [JsonPropertyName("duration")]
     [JsonPropertyOrder(32)]
@@ -74,9 +60,54 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     [JsonPropertyOrder(40)]
     public bool Posted { get; set; }
 
+    /// <summary>
+    /// Legacy Cosmos flag (<c>tweeted</c>). Populated only by deserialization of documents posted
+    /// before the post id was stored, or when a post is recorded with no id. Do not set this for a
+    /// new post — store <see cref="TweetPost"/>.
+    /// </summary>
     [JsonPropertyName("tweeted")]
     [JsonPropertyOrder(41)]
-    public bool Tweeted { get; set; }
+    public bool? OldTweeted { get; set; }
+
+    /// <summary>
+    /// Id of the X post made for this item (from the <c>POST /2/tweets</c> response), so un-tweet deletes it by id.
+    /// Same role as <see cref="BlueskyPost"/>. Null on items tweeted before the id was stored.
+    /// </summary>
+    [JsonPropertyName("tweetPost")]
+    [JsonPropertyOrder(42)]
+    public string? TweetPost { get; set; }
+
+    /// <summary>
+    /// Why this item must not be posted to X (stable reason code). When set, the hourly tweet run skips it
+    /// so a permanent form failure does not rewrite the shortener every hour. Cleared with
+    /// <see cref="ClearTweetState"/>.
+    /// </summary>
+    [JsonPropertyName("tweetSkipReason")]
+    [JsonPropertyOrder(421)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TweetSkipReason { get; set; }
+
+    /// <summary>
+    /// Reads <c>tweetId</c> written by the short-lived #1218 shape. Never written back.
+    /// </summary>
+    [JsonPropertyName("tweetId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyTweetId
+    {
+        get => null;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(TweetPost) && !string.IsNullOrWhiteSpace(value))
+            {
+                TweetPost = value;
+            }
+        }
+    }
+
+    [JsonIgnore]
+    public bool Tweeted =>
+        OldTweeted == true || !string.IsNullOrWhiteSpace(TweetPost) ||
+        !string.IsNullOrWhiteSpace(TweetSkipReason);
 
     /// <summary>
     /// Legacy Cosmos flag (<c>bluesky</c>). Populated only by deserialization of pre-migration
@@ -84,14 +115,14 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
     /// <see cref="BlueskyPost"/> after a network post.
     /// </summary>
     [JsonPropertyName("bluesky")]
-    [JsonPropertyOrder(42)]
+    [JsonPropertyOrder(43)]
     public bool? OldBlueskyPosted { get; set; }
 
     /// <summary>
     /// AT URI of the Bluesky post (<c>at://{did}/app.bsky.feed.post/{rkey}</c>).
     /// </summary>
     [JsonPropertyName("blueskyPost")]
-    [JsonPropertyOrder(43)]
+    [JsonPropertyOrder(44)]
     public string? BlueskyPost { get; set; }
 
     [JsonIgnore]
@@ -99,15 +130,15 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         OldBlueskyPosted == true || !string.IsNullOrWhiteSpace(BlueskyPost);
 
     [JsonPropertyName("ignored")]
-    [JsonPropertyOrder(44)]
+    [JsonPropertyOrder(45)]
     public bool Ignored { get; set; }
 
     [JsonPropertyName("removed")]
-    [JsonPropertyOrder(45)]
+    [JsonPropertyOrder(46)]
     public bool Removed { get; set; }
 
     [JsonPropertyName("lang")]
-    [JsonPropertyOrder(46)]
+    [JsonPropertyOrder(47)]
     public string? Language { get; set; }
 
     [JsonPropertyName("subjects")]
@@ -159,10 +190,8 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
 
     /// <summary>
     /// Denormalised parent publisher <see cref="Publisher.Removed"/> (JSON <c>parentRemoved</c>).
-    /// Not used on <see cref="Films.Film"/>.
-    /// Until the Episode corpus is rewritten, Cosmos SQL/LINQ must also treat legacy
-    /// <c>podcastRemoved</c> (see <see cref="CosmosParentNotRemovedSql"/>) — deserialize
-    /// bridges alone are not query-safe.
+    /// Not used on <see cref="Films.Film"/>. Server-side filters use
+    /// <see cref="CosmosParentNotRemovedSql"/>.
     /// </summary>
     [JsonPropertyName("parentRemoved")]
     [JsonPropertyOrder(94)]
@@ -186,6 +215,27 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         OldBlueskyPosted = null;
     }
 
+    public void ClearTweetState()
+    {
+        OldTweeted = null;
+        TweetPost = null;
+        TweetSkipReason = null;
+    }
+
+    /// <summary>
+    /// Cosmos SQL: playable is tweeted. Do not filter on <c>e.tweeted</c> alone —
+    /// <c>tweetPost</c>-only or <c>tweetSkipReason</c>-only documents would look untweeted and risk
+    /// re-posts / shortener churn. Combine <c>IS_DEFINED</c> with value comparison (same shape as Bluesky).
+    /// </summary>
+    public const string CosmosIsTweetedSql =
+        "((IS_DEFINED(e.tweeted) AND e.tweeted = true) OR (IS_DEFINED(e.tweetPost) AND NOT IS_NULL(e.tweetPost)) OR (IS_DEFINED(e.tweetSkipReason) AND NOT IS_NULL(e.tweetSkipReason)))";
+
+    /// <summary>
+    /// Cosmos SQL: playable is not tweeted (ready for a new X post).
+    /// </summary>
+    public const string CosmosIsNotTweetedSql =
+        "((NOT IS_DEFINED(e.tweeted) OR e.tweeted != true) AND (NOT IS_DEFINED(e.tweetPost) OR IS_NULL(e.tweetPost)) AND (NOT IS_DEFINED(e.tweetSkipReason) OR IS_NULL(e.tweetSkipReason)))";
+
     /// <summary>
     /// Cosmos SQL: playable is Bluesky-posted. Do not use null-only checks — combine
     /// <c>IS_DEFINED</c> with value comparison.
@@ -200,18 +250,30 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         "((NOT IS_DEFINED(e.bluesky) OR e.bluesky != true) AND (NOT IS_DEFINED(e.blueskyPost) OR IS_NULL(e.blueskyPost)))";
 
     /// <summary>
-    /// Cosmos SQL expression: effective release instant — <c>releaseSort</c> when present,
-    /// else legacy <c>release</c>. Alias <c>e</c>. Use for range filters until backfill.
-    /// </summary>
-    public const string CosmosReleaseSortOrReleaseSql =
-        "(IS_DEFINED(e.releaseSort) ? e.releaseSort : e.release)";
-
-    /// <summary>
-    /// Cosmos SQL: parent publisher is not removed — dual-key <c>parentRemoved</c> and legacy
-    /// <c>podcastRemoved</c>. Alias <c>e</c>. Deserialize bridges do not satisfy this predicate.
+    /// Cosmos SQL: parent publisher is not removed (<c>parentRemoved</c> absent, null or false). Alias <c>e</c>.
+    /// Explicit null counts as not removed, the same as the LINQ <c>EpisodeCosmosFilters.ParentNotRemoved</c>
+    /// (in Cosmos SQL <c>null = false</c> is not true, so null needs its own arm).
     /// </summary>
     public const string CosmosParentNotRemovedSql =
-        "((NOT IS_DEFINED(e.parentRemoved) OR e.parentRemoved=false) AND (NOT IS_DEFINED(e.podcastRemoved) OR e.podcastRemoved=false))";
+        "(NOT IS_DEFINED(e.parentRemoved) OR IS_NULL(e.parentRemoved) OR e.parentRemoved=false)";
+
+    /// <summary>
+    /// Cosmos SQL: playable itself is not removed (<c>removed</c> absent, null or false). Alias <c>e</c>.
+    /// Explicit null counts as not removed, the same as <see cref="IsRemoved"/>
+    /// (in Cosmos SQL <c>null = false</c> is not true, so null needs its own arm — #1153).
+    /// </summary>
+    public const string CosmosNotRemovedSql =
+        "(NOT IS_DEFINED(e.removed) OR IS_NULL(e.removed) OR e.removed=false)";
+
+    /// <summary>
+    /// Same as <see cref="CosmosNotRemovedSql"/> for an arbitrary document alias
+    /// (sibling search SQL uses <c>c</c>).
+    /// </summary>
+    public static string CosmosNotRemovedSqlFor(string documentAlias)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentAlias);
+        return $"(NOT IS_DEFINED({documentAlias}.removed) OR IS_NULL({documentAlias}.removed) OR {documentAlias}.removed=false)";
+    }
 
     /// <summary>
     /// Applies a curator subject update (episodes, TV episodes, news reports) and maintains <see cref="Playable.RemovedSubjects"/>.

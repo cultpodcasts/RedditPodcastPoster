@@ -1,7 +1,9 @@
+using Api.Services.YouTube;
 using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -18,6 +20,8 @@ public class NewsOrganisationService(
     INewsReportRepository newsReportRepository,
     EpisodeSearchIndexCleanup searchIndexCleanup,
     IServiceIdsUniqueness serviceIdsUniqueness,
+    IYouTubePlaylistGuard youTubePlaylistGuard,
+    IChannelWideYouTubeClaimGuard channelWideYouTubeClaimGuard,
     ILogger<NewsOrganisationService> logger) : INewsOrganisationService
 {
     public async Task<NewsOrganisationGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -67,6 +71,42 @@ public class NewsOrganisationService(
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.NotFound);
             }
 
+            var playlistCheck = await youTubePlaylistGuard.Check(
+                organisation.Indexing?.YouTubePlaylistId,
+                request.Change.YouTubePlaylistId,
+                cancellationToken);
+            if (playlistCheck is { IsAllowed: false } refused)
+            {
+                logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                    organisation.Id, refused.Code, refused.Message);
+                return new NewsOrganisationUpdateResult(
+                    refused.IsRetryable ? NewsOrganisationUpdateStatus.ServiceUnavailable : NewsOrganisationUpdateStatus.BadRequest,
+                    refused.Message,
+                    Code: refused.Code);
+            }
+
+            if (ChannelWideYouTubeClaimProjection.ChangeAffectsClaim(request.Change))
+            {
+                var (projectedChannel, projectedPlaylist, projectedRemoved) =
+                    ChannelWideYouTubeClaimProjection.ForParent(
+                        organisation.Indexing, organisation.IsRemoved(), request.Change);
+                if (await channelWideYouTubeClaimGuard.Check(
+                        organisation.Id,
+                        ChannelWideYouTubeClaimKind.NewsOrganisation,
+                        projectedChannel,
+                        projectedPlaylist,
+                        projectedRemoved,
+                        cancellationToken) is { } claimConflict)
+                {
+                    logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                        organisation.Id, ChannelWideYouTubeClaimConflict.Code, claimConflict.Message);
+                    return new NewsOrganisationUpdateResult(
+                        NewsOrganisationUpdateStatus.BadRequest,
+                        claimConflict.Message,
+                        Code: ChannelWideYouTubeClaimConflict.Code);
+                }
+            }
+
             PublisherChangeApplier.Apply(organisation, request.Change);
             if (await serviceIdsUniqueness.FindConflict(organisation.Id, request.Change) is { } conflict)
             {
@@ -75,6 +115,27 @@ public class NewsOrganisationService(
             }
 
             organisation.Indexing = ServiceIdsApplier.Apply(organisation.Indexing, request.Change, organisation, logger);
+            if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
+                    playlistCheck, organisation.Indexing?.YouTubeChannelId) is { } derivedOwner)
+            {
+                // Derive runs after Apply, so request.Change never included this channel for FindConflict.
+                // On conflict, skip derive + warn and still save the playlist — playlist-only edits stay
+                // allowed; do not refuse the whole PATCH for an automatic channel write.
+                if (await serviceIdsUniqueness.FindConflict(
+                        organisation.Id,
+                        new NewsOrganisationChangeRequest { YouTubeChannelId = derivedOwner }) is { } deriveConflict)
+                {
+                    logger.LogWarning(
+                        "{method}: skipping derived youTubeChannelId '{channelId}' for '{id}': {message}",
+                        nameof(UpdateAsync), derivedOwner, organisation.Id, deriveConflict.Message);
+                }
+                else
+                {
+                    organisation.Indexing ??= new CatalogueIndexingSource();
+                    organisation.Indexing.YouTubeChannelId = derivedOwner;
+                }
+            }
+
             await newsOrganisationRepository.Save(organisation);
 
             if (!request.Change.ChangesChildProjection)

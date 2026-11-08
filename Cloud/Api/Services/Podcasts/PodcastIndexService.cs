@@ -54,6 +54,8 @@ public class PodcastIndexService(
             {
                 IndexStatus.NotFound => PodcastIndexStatus.NotFound,
                 IndexStatus.Performed => PodcastIndexStatus.Ok,
+                IndexStatus.AlreadyRunning => PodcastIndexStatus.AlreadyRunning,
+                IndexStatus.TimedOut => PodcastIndexStatus.TimedOut,
                 _ => PodcastIndexStatus.BadRequest
             };
 

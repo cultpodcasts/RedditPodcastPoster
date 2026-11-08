@@ -142,8 +142,7 @@ public class EnrichYouTubePodcastProcessor(
         }
 
         var playlistQueryResponse =
-            await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId), indexOptions,
-                expensivePlaylist: podcast.HasExpensiveYouTubePlaylistQuery());
+            await youTubePlaylistService.GetPlaylistVideoSnippets(new YouTubePlaylistId(playlistId), indexOptions);
         if (playlistQueryResponse.Result == null)
         {
             logger.LogError("Unable to retrieve playlist items from playlist '{playlistId}'.", playlistId);

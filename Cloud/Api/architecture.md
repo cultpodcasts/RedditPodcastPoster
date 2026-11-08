@@ -74,7 +74,7 @@ A command result carries status and command details. It does not carry the saved
 
 ## Podcast-episode resolver
 
-`PodcastEpisodeResolver` is the one place that turns an episode route into an episode and its podcast. Episode get, update, delete, publish and public get all use it. The route decides how the podcast is found.
+`PodcastEpisodeResolver` is the one place that turns a **podcast** episode route into an episode and its podcast. Episode get, update, delete, **guid-only** publish (`POST episode/publish/{id}`), and public get all use it for the podcast-episode path. Kind-scoped catalogue publish does **not** (see below). The route decides how the podcast is found.
 
 ```mermaid
 flowchart TD
@@ -165,7 +165,9 @@ Cloud/Api/
 | Error envelope | `Api.Dtos` | `ApiErrorResponse` | No | Yes on failure paths |
 | Submit-url success shape | `Api.Dtos` | `SubmitUrlResponse` | No | Yes — **only** submit-url flow (do not reuse as generic error) |
 
-**Episode GET by id resolves every kind.** `GET episode/{id}` (and the podcast-scoped GETs) and `GET public/episode/{id}` look up a podcast episode first, then a news report, TV episode or film with that id (`ICataloguePlayableResolver`; the catalogue migration keeps ids). `EpisodeDto` / `PublicEpisodeDto` carry the additive `IPlayableKindDto` fields from `Api.Models.PlayableKind`: `contentKind` (`Episode` | `NewsReport` | `TvShowEpisode` | `Film`), `parentId`, `parentName`, `slug` and `path` (`CatalogueShortId.PlayablePath`). They are omitted when null, so other episode responses keep their shape. A film has no parent fields. The public GET is 404 for a removed item or parent. News, TV and film PATCHes re-index and, on removal, delete the search document and short link through `CataloguePlayableSearchSync`.
+**Episode GET by id resolves every kind.** `GET episode/{id}` (and the podcast-scoped GETs) and `GET public/episode/{id}` look up a podcast episode first, then a news report, TV episode or film with that id (`ICataloguePlayableResolver` three-container fan-out; the catalogue migration keeps ids). `EpisodeDto` / `PublicEpisodeDto` carry the additive `IPlayableKindDto` fields from `Api.Models.PlayableKind`: `contentKind` (`Episode` | `NewsReport` | `TvShowEpisode` | `Film`), `parentId`, `parentName`, `slug` and `path` (`CatalogueShortId.PlayablePath`). They are omitted when null, so other episode responses keep their shape. A film has no parent fields. The public GET is 404 for a removed item or parent. News, TV and film PATCHes re-index and, on removal, delete the search document and short link through `CataloguePlayableSearchSync`.
+
+**Episode publish resolve by route.** Guid-only `POST episode/publish/{id}` keeps podcast-then-catalogue: `PodcastEpisodeResolver` first, then `ICataloguePlayableResolver.Resolve(id)` (three-container) when no podcast episode exists. Kind routes `POST film|newsreport|tvshowepisode/{id}/publish` set `EpisodePublishRequestWrapper.ExpectedKind`, **skip** `IPodcastEpisodeResolver`, and call `ICataloguePlayableResolver.Resolve(id, expectedKind)` (single container). A missing row, kind mismatch, or parent-removed catalogue playable returns `EpisodePublishStatus.NotFound` → HTTP 404 (not `Failed`/500).
 
 **Naming rule:** never put a type named `Person`, `Podcast`, `Subject`, or bare `Episode` in `Api.Dtos` or `Api.Models` — those collide with `RedditPodcastPoster.Models.*` and break aliases. Use `PersonDto` / `PersonChangeRequest` (and likewise for Podcast/Subject).
 
@@ -211,6 +213,20 @@ Cloud/Api/
 - [ ] Prefer `Dtos/Extensions/*Extension.cs` for `ToDto`.
 - [ ] Use `Dtos/Mapping/` when mapping needs DI (e.g. `EpisodeDtoMapper`).
 - [ ] Keep `[JsonPropertyName]` stable when renaming CLR types (`Person` → `PersonDto`).
+
+---
+
+## Podcast kind transfer (background job)
+
+`POST podcast/{id}/kind` **enqueues** a transfer (Storage Queue `podcast-kind-transfer`) and returns **202** with a command-outcome body (`status: Queued`, `statusPath`). It does **not** wait for the move. A queue-triggered function runs `PodcastKindTransferService` (single-flight LookUps lock unchanged). `GET podcast/{id}/kind` is the query: Queued / Running / Completed / Failed / Incomplete / Idle / NotFound from the job document, lock, and parent presence. Job phase `Running` without a fresh single-flight marker is surfaced as **Failed** (dead worker), never authoritative Running.
+
+### Release train (do not deploy ahead of website)
+
+This POST contract is **breaking** for the live curator UI: the website still binds the old sync body (`transferInProgress` / `retryRequired` / `playableCount`). Merge to `main` ships `api-infra` via `deploy.yml`. **Do not merge or deploy this Function change until the website polling PR is ready to ship in the same release train** (or hold Actions / use an interim dual-read). Api Worker proxy alone is not enough — the Angular client must poll `GET …/kind` after `202 Queued`. Companion Worker: Api `#212`.
+
+### Operators: queue host settings
+
+`Cloud/Api/host.json` sets `extensions.queues` for this workload: `visibilityTimeout` 5 minutes (host renews while the invocation runs; transfers heartbeat about once a minute), `maxDequeueCount` 3, `batchSize` 1. The enqueue path still calls `CreateIfNotExistsAsync` (UAMI needs Storage Queue Data Contributor). Manual `QueueClient` uses the connection string locally and identity-based `AzureWebJobsStorage__accountName` / `__clientId` in production (same split settings as the `[QueueTrigger]` binding).
 
 ---
 

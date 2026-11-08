@@ -1,8 +1,10 @@
+using Api.Services.YouTube;
 using Api.Services.Catalogue;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Api.Dtos.Mapping;
+using Api.Models;
 using Api.Handlers.Discovery;
 using Api.Handlers.DiscoverySchedule;
 using Api.Handlers.DiscoverySubmissions;
@@ -49,6 +51,7 @@ public static class ApiAreaServiceCollectionExtensions
 {
     public static IServiceCollection AddApiEpisodes(this IServiceCollection services) =>
         services
+            .AddCatalogueEditing()
             .AddScoped<EpisodeSearchIndexCleanup>()
             .AddScoped<EpisodeDtoMapper>()
             .AddScoped<EpisodeChangeApplier>()
@@ -82,18 +85,28 @@ public static class ApiAreaServiceCollectionExtensions
         services
             .AddScoped<PodcastEpisodeProjectionHelper>()
             .AddScoped<PodcastChangeApplier>()
+            .AddScoped<IYouTubePlaylistGuard, YouTubePlaylistGuard>()
+            .AddScoped<IChannelWideYouTubeClaimGuard, ChannelWideYouTubeClaimGuard>()
             .AddScoped<IPodcastGetService, PodcastGetService>()
             .AddScoped<IPodcastUpdateService, PodcastUpdateService>()
             .AddScoped<IPodcastKindTransferService, PodcastKindTransferService>()
+            .AddScoped<IPodcastKindTransferEnqueueService, PodcastKindTransferEnqueueService>()
+            .AddScoped<IPodcastKindTransferStatusService, PodcastKindTransferStatusService>()
+            .AddScoped<IPodcastKindTransferJobUpdater, PodcastKindTransferJobUpdater>()
+            .AddScoped<IPodcastKindTransferQueueProcessor, PodcastKindTransferQueueProcessor>()
+            .AddSingleton(_ => PodcastKindTransferQueueClientFactory.Create())
+            .AddSingleton<IPodcastKindTransferQueue, PodcastKindTransferQueue>()
             .AddScoped<IPodcastIndexService, PodcastIndexService>()
             .AddScoped<IPodcastRenameService, PodcastRenameService>()
             .AddScoped<IGetPodcastHandler, GetPodcastHandler>()
             .AddScoped<IPostPodcastHandler, PostPodcastHandler>()
             .AddScoped<IPostPodcastKindTransferHandler, PostPodcastKindTransferHandler>()
+            .AddScoped<IGetPodcastKindTransferStatusHandler, GetPodcastKindTransferStatusHandler>()
             .AddScoped<IIndexPodcastHandler, IndexPodcastHandler>()
             .AddScoped<IRenamePodcastHandler, RenamePodcastHandler>()
             .AddScoped<IPodcastEpisodeResolver, PodcastEpisodeResolver>()
-            .AddScoped<ICataloguePlayableResolver, CataloguePlayableResolver>();
+            .AddScoped<ICataloguePlayableResolver, CataloguePlayableResolver>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiTvShows(this IServiceCollection services) =>
         services
@@ -108,8 +121,11 @@ public static class ApiAreaServiceCollectionExtensions
     /// <summary>Shared by the news, TV and film editors (post-status retraction, rename). Safe to call more than once.</summary>
     private static IServiceCollection AddCatalogueEditing(this IServiceCollection services)
     {
+        services.TryAddScoped<IPlayableGuestDtoEnricher, PlayableGuestDtoEnricher>();
         services.TryAddScoped<IPlayableSocialRetraction, PlayableSocialRetraction>();
         services.TryAddScoped<IServiceIdsUniqueness, ServiceIdsUniqueness>();
+        services.TryAddScoped<IYouTubePlaylistGuard, YouTubePlaylistGuard>();
+        services.TryAddScoped<IChannelWideYouTubeClaimGuard, ChannelWideYouTubeClaimGuard>();
         services.TryAddScoped<PlayableSearchRename>();
         services.TryAddScoped<CataloguePlayableSearchSync>();
         services.TryAddScoped<ICatalogueRenameService, CatalogueRenameService>();
@@ -216,7 +232,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IDiscoveryScheduleGetService, DiscoveryScheduleGetService>()
             .AddScoped<IDiscoveryScheduleUpdateService, DiscoveryScheduleUpdateService>()
             .AddScoped<IGetDiscoveryScheduleHandler, GetDiscoveryScheduleHandler>()
-            .AddScoped<IPutDiscoveryScheduleHandler, PutDiscoveryScheduleHandler>();
+            .AddScoped<IPutDiscoveryScheduleHandler, PutDiscoveryScheduleHandler>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiSupportedLanguages(this IServiceCollection services) =>
         services

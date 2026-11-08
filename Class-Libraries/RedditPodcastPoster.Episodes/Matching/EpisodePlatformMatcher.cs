@@ -81,7 +81,16 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         {
             if (incomingEpisode.Title == existingEpisode.Title)
             {
-                return EpisodeMatchKind.Certain;
+                // Offset confidence model: title is never alone. Exact title Certain only when
+                // duration and the release-strategy chain also align — otherwise months-late
+                // Spotify with a recycled/shared title wrong-merges onto the wrong YouTube row.
+                if (DurationsMatch(existingEpisode, incomingEpisode, podcast) &&
+                    EpisodesReleaseMatch(existingEpisode, incomingEpisode, podcast))
+                {
+                    return EpisodeMatchKind.Certain;
+                }
+
+                return EpisodeMatchKind.None;
             }
 
             return Heuristic(MatchesByDefaultHeuristics(existingEpisode, incomingEpisode, podcast));
@@ -126,7 +135,7 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         return MatchesByReleaseAndDuration(existingEpisode, incomingEpisode, podcast);
     }
 
-    private static bool MatchesByFuzzyTitleAndDuration(
+    private bool MatchesByFuzzyTitleAndDuration(
         Episode existingEpisode,
         Episode incomingEpisode,
         Podcast podcast)
@@ -136,7 +145,15 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
             return false;
         }
 
-        return DurationsMatch(existingEpisode, incomingEpisode, podcast);
+        if (!DurationsMatch(existingEpisode, incomingEpisode, podcast))
+        {
+            return false;
+        }
+
+        // Offset confidence model: fuzzy/near-exact title + duration alone must not Heuristic-match
+        // a recycled title months away from the stored release (Ágora-class hole). Same release gate
+        // as exact-title Certain — case/one-edit variants must not outrank byte-exact title.
+        return EpisodesReleaseMatch(existingEpisode, incomingEpisode, podcast);
     }
 
     private bool MatchesByReleaseAndDuration(
@@ -230,4 +247,29 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         var bringsApple = audioSide.HasAppleIdentity() && !youTubeSide.HasAppleIdentity();
         return bringsSpotify || bringsApple;
     }
+
+    /// <summary>
+    /// Calendar-day gate for catalogue title-containment short-circuits
+    /// (<see cref="SelectReleaseAlignedTitleMatch"/>). Uses
+    /// <see cref="EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance"/> only — not the
+    /// 14-day tick bridge — so title containment cannot attach a wrong-week Spotify row.
+    /// Exact-title Certain uses <see cref="EpisodesReleaseMatch"/> (full strategy chain), not this helper.
+    /// </summary>
+    internal static bool CalendarDaysWithinSpotifyCatalogueDayTolerance(
+        DateTime left,
+        DateTime right,
+        Podcast podcast)
+    {
+        if (left == DateTime.MinValue || right == DateTime.MinValue)
+        {
+            return false;
+        }
+
+        var dayTolerance = EpisodeReleaseTolerance.GetSpotifyCatalogueDayTolerance(podcast);
+        return Math.Abs(
+                   DateOnly.FromDateTime(left).DayNumber -
+                   DateOnly.FromDateTime(right).DayNumber) <=
+               dayTolerance;
+    }
+
 }

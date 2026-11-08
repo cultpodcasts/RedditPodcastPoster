@@ -13,7 +13,7 @@ public class PlayableSearchSqlRules
 {
     [Fact(DisplayName =
         "Sibling search SQL omits series name for Film, maps the parent name for TV and news, " +
-        "and includes image, svc, youtubeId from c.youTubeId, and the release dual-key, with the description cap Constants.DescriptionSize, " +
+        "and includes image, svc, youtubeId from c.youTubeId, and release from releaseSort only, with the description cap Constants.DescriptionSize, " +
         "because every playable card uses title, seriesName, and description only.")]
     public void sibling_sql_matches_the_shared_card_and_description_cap()
     {
@@ -21,7 +21,7 @@ public class PlayableSearchSqlRules
         var keys = StreamingServiceCatalog.SearchEncodedKeys;
         var images = StreamingServiceCatalog.ImageCoalesceOrder;
         var descriptionSql = DescriptionTruncator.CosmosSql("c.description");
-        var releaseSql = SearchIndexCosmosSql.ReleaseSortOrRelease("c");
+        var releaseSql = SearchIndexCosmosSql.ReleaseSort("c");
 
         // Act
         var film = PlayableSearchSql.SiblingQuery(
@@ -61,7 +61,50 @@ public class PlayableSearchSqlRules
         episodeColumns.Should().Contain($"{DescriptionTruncator.CosmosSql("e.description")} as description");
         episodeColumns.Should().NotContain("episodeTitle");
         episodeColumns.Should().NotContain("seriesDescription");
-        SearchIndexCosmosSql.ReleaseSortOrRelease("e").Should().Be(Playable.CosmosReleaseSortOrReleaseSql);
+        releaseSql.Should().Be("c.releaseSort");
+        SearchIndexCosmosSql.ReleaseSort("e").Should().Be("e.releaseSort");
+    }
+
+    [Fact(DisplayName =
+        "Sibling search SQL keeps a TV episode or news report whose parentRemoved is absent, null or false, " +
+        "because explicit null means the parent is not removed, the same rule as Playable.CosmosParentNotRemovedSql " +
+        "and the LINQ ParentNotRemoved filter.")]
+    public void sibling_sql_treats_null_parentRemoved_as_not_removed()
+    {
+        // Arrange
+        var projection = new PlayableSearchSql.SiblingProjection(
+            SearchContentKind.TvShowEpisode, "c.title", "c.tvShowName", IncludeSeries: true);
+
+        // Act
+        var sql = PlayableSearchSql.SiblingQuery(
+            projection,
+            StreamingServiceCatalog.SearchEncodedKeys,
+            StreamingServiceCatalog.ImageCoalesceOrder);
+
+        // Assert
+        sql.Should().Contain(
+            "(NOT IS_DEFINED(c.parentRemoved) OR IS_NULL(c.parentRemoved) OR c.parentRemoved = false)");
+    }
+
+    [Fact(DisplayName =
+        "Sibling search SQL keeps a TV episode or news report whose removed is absent, null or false, " +
+        "because explicit null means the playable is not removed, the same rule as Playable.CosmosNotRemovedSql " +
+        "and Playable.IsRemoved (#1153).")]
+    public void sibling_sql_treats_null_removed_as_not_removed()
+    {
+        // Arrange
+        var projection = new PlayableSearchSql.SiblingProjection(
+            SearchContentKind.NewsReport, "c.title", "c.newsOrganisationName", IncludeSeries: true);
+
+        // Act
+        var sql = PlayableSearchSql.SiblingQuery(
+            projection,
+            StreamingServiceCatalog.SearchEncodedKeys,
+            StreamingServiceCatalog.ImageCoalesceOrder);
+
+        // Assert
+        sql.Should().Contain(Playable.CosmosNotRemovedSqlFor("c"));
+        sql.Should().Contain("IS_NULL(c.removed)");
     }
 
     private static void AssertCardColumns(string sql, string descriptionSql, string releaseSql)
@@ -70,6 +113,7 @@ public class PlayableSearchSqlRules
         sql.Should().NotContain("episodeDescription");
         sql.Should().Contain(Constants.DescriptionSize.ToString());
         sql.Should().Contain($"{releaseSql} as release");
+        sql.Should().NotContain("IS_DEFINED(c.releaseSort)");
         sql.Should().Contain(" as svc");
         sql.Should().Contain(" as image");
         sql.Should().Contain(" as youtubeId");
@@ -161,8 +205,9 @@ public class PlayableSearchSqlRules
 
     [Fact(DisplayName =
         "podcastAppleId is cut from the last /id segment before ?i= (the part before ?i= reversed, up to the first " +
-        "di/), so an Apple slug that itself starts with \"id\" (identity-crisis, idaho-...) cannot be taken for the " +
-        "show id, which the old first-/id expression got wrong on every content kind.")]
+        "di/) with SUBSTRING, so a missing ?i= or /id (INDEX_OF of -1) is an empty prefix and cut > 0 keeps an empty " +
+        "id null, and an Apple slug that itself starts with \"id\" (identity-crisis, idaho-...) cannot be taken for " +
+        "the show id, which the old first-/id expression got wrong on every content kind.")]
     public void podcast_apple_id_is_anchored_on_the_last_id_segment()
     {
         // Arrange
@@ -172,8 +217,10 @@ public class PlayableSearchSqlRules
         var sql = Normalise(PlayableSearchSql.ApplePodcastIdFromUrlExpression(urlExpression));
 
         // Assert
-        sql.Should().Contain("REVERSE(LEFT(e.services.apple.url, INDEX_OF(e.services.apple.url, \"?i=\")))");
-        sql.Should().Contain("INDEX_OF(REVERSE(LEFT(e.services.apple.url, INDEX_OF(e.services.apple.url, \"?i=\"))), \"di/\") > 0");
+        sql.Should().Contain("REVERSE(SUBSTRING(e.services.apple.url, 0, INDEX_OF(e.services.apple.url, \"?i=\")))");
+        sql.Should().Contain(
+            "INDEX_OF(REVERSE(SUBSTRING(e.services.apple.url, 0, INDEX_OF(e.services.apple.url, \"?i=\"))), \"di/\") > 0");
+        sql.Should().NotContain("LEFT(");
         sql.Should().NotContain("INDEX_OF(e.services.apple.url, \"/id\")");
         sql.Should().EndWith("null)");
     }

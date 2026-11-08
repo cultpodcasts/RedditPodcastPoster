@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.YouTubePushNotifications.Models;
@@ -33,7 +34,7 @@ public class NotificationAdaptor(
                 ? new Uri(xml.Root.Element(Namespace + "author")!.Element(Namespace + "uri")!.Value, UriKind.Absolute)
                 : null,
             Published = xml.Root.Element(Namespace + "published") != null
-                ? DateTime.Parse(xml.Root.Element(Namespace + "published")!.Value)
+                ? ParseUtc(xml.Root.Element(Namespace + "published")!.Value)
                 : null
         };
         var entries = xml.Root.Elements(Namespace + "entry");
@@ -61,10 +62,10 @@ public class NotificationAdaptor(
                     UriKind.Absolute)
                 : null,
             Published = entry.Element(Namespace + "published") != null
-                ? DateTime.Parse(entry.Element(Namespace + "published")!.Value)
+                ? ParseUtc(entry.Element(Namespace + "published")!.Value)
                 : null,
             Updated = entry.Element(Namespace + "updated") != null
-                ? DateTime.Parse(entry.Element(Namespace + "updated")!.Value)
+                ? ParseUtc(entry.Element(Namespace + "updated")!.Value)
                 : null
         };
 
@@ -138,4 +139,12 @@ public class NotificationAdaptor(
 
         return entryEntity;
     }
+
+    /// <summary>
+    /// Atom <c>published</c>/<c>updated</c> carry an offset (e.g. <c>+00:00</c>); read as a UTC instant
+    /// (<see cref="DateTimeKind.Utc"/>) rather than converted to the host's local time.
+    /// </summary>
+    private static DateTime ParseUtc(string value) =>
+        DateTime.Parse(value, CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 }

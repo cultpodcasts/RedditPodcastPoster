@@ -4,6 +4,7 @@ public enum EpisodePublishStatus
 {
     Ok,
     BadRequest,
+    NotFound,
     Failed
 }
 

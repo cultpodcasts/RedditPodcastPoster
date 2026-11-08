@@ -1,10 +1,11 @@
 
+using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Cosmos;
 
 namespace RedditPodcastPoster.Models.Posting;
 
 [CosmosSelector(ModelType.RedditPost)]
-public sealed class RedditPost : CosmosSelector
+public sealed class RedditPost : CosmosSelector, IFileKeyed
 {
     public RedditPost(Guid id)
     {
@@ -30,5 +31,7 @@ public sealed class RedditPost : CosmosSelector
     public string Text { get; set; } = "";
     public string Html { get; set; } = "";
 
-    public override string FileKey => FullName;
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => FullName;
 }

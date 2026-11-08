@@ -52,14 +52,23 @@ public sealed class RepositoryCatalogueMigrateDestinationReader(
         }
     }
 
-    public async Task<Guid?> FindOtherParentWithName(string kind, string name, string fileKey, Guid excludeId) =>
-        kind switch
+    /// <summary>
+    /// Another parent of the same kind that already has this name or file key. The name is compared ignoring letter
+    /// case (#1148), as <c>PublisherNameAttachLookup</c> does for create, rename and move, so a case variant such as
+    /// "example show" still blocks a migrated "Example Show".
+    /// </summary>
+    public async Task<Guid?> FindOtherParentWithName(string kind, string name, string fileKey, Guid excludeId)
+    {
+        // Invariant on the constant; ToLower on Name so Cosmos LOWER stays culture-stable.
+        var lowerName = name.ToLowerInvariant();
+        return kind switch
         {
             SubmitClassification.NewsReport => (await newsOrganisations.GetBy(x =>
-                (x.Name == name || x.FileKey == fileKey) && x.Id != excludeId))?.Id,
+                (x.Name.ToLower() == lowerName || x.FileKey == fileKey) && x.Id != excludeId))?.Id,
             SubmitClassification.TvShowEpisode => (await tvShows.GetBy(x =>
-                (x.Name == name || x.FileKey == fileKey) && x.Id != excludeId))?.Id,
+                (x.Name.ToLower() == lowerName || x.FileKey == fileKey) && x.Id != excludeId))?.Id,
             SubmitClassification.Film => null,
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
+    }
 }

@@ -194,6 +194,12 @@ public class PostProcessor(
                 case TweetSendStatus.TooManyRequests:
                     logger.LogError("Too many twitter requests");
                     break;
+                case TweetSendStatus.PaymentRequired:
+                    logger.LogError("X credits depleted (402 Payment Required); tweet not sent.");
+                    break;
+                case TweetSendStatus.AuthenticationFailed:
+                    logger.LogError("X rejected the credentials (401/403); tweet not sent.");
+                    break;
                 case TweetSendStatus.Failed:
                     logger.LogError("Failed to send tweet.");
                     break;

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
@@ -58,7 +59,9 @@ public sealed record CataloguePlayableServicesBackfillRunResult(
 /// </summary>
 public class CataloguePlayableServicesBackfillProcessor(
     IFilmRepository filmRepository,
+    ITvShowRepository tvShowRepository,
     ITvShowEpisodeRepository tvShowEpisodeRepository,
+    INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     IEpisodeBackupStore backupStore,
     Func<string, IPublicDatabaseUrlIndex> publicDatabaseUrlIndexFactory,
@@ -71,6 +74,9 @@ public class CataloguePlayableServicesBackfillProcessor(
     public const int ExitApplyRefused = 2;
     public const int ExitFailed = 3;
     public const int SearchBatchSize = 100;
+
+    private readonly Dictionary<Guid, TvShow?> _tvShowsById = new();
+    private readonly Dictionary<Guid, NewsOrganisation?> _organisationsById = new();
 
     public const string YouTubeIdFilled = "filled";
     public const string YouTubeIdOverwritten = "overwritten";
@@ -219,7 +225,7 @@ public class CataloguePlayableServicesBackfillProcessor(
                     return WriteResult.Failed;
                 }
 
-                return WriteResult.Written(CataloguePlayableSearchDocument.ShouldExcludeFromSearch(saved)
+                return WriteResult.Written(CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(saved)
                     ? null
                     : CataloguePlayableSearchDocument.For(saved));
             });
@@ -243,16 +249,18 @@ public class CataloguePlayableServicesBackfillProcessor(
                 }
 
                 var outcome = await tvShowEpisodeRepository.PatchFields(
-                    episode.TvShowId, episode.Id, fresh.ETag, plan.ToPatch());
+                    episode.TvShowId, episode.Id, fresh.ETag, plan.ToPatch(fresh));
                 if (outcome != CataloguePlayablePatchOutcome.Patched)
                 {
                     return WriteResult.From(outcome);
                 }
 
                 plan.ApplyTo(fresh.Item);
-                return WriteResult.Written(CataloguePlayableSearchDocument.ShouldExcludeFromSearch(fresh.Item)
-                    ? null
-                    : CataloguePlayableSearchDocument.For(fresh.Item));
+                var show = await GetTvShowCached(fresh.Item.TvShowId);
+                var exclude = show is null
+                    ? CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(fresh.Item)
+                    : CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(show, fresh.Item);
+                return WriteResult.Written(exclude ? null : CataloguePlayableSearchDocument.For(fresh.Item));
             });
     }
 
@@ -276,17 +284,43 @@ public class CataloguePlayableServicesBackfillProcessor(
                 }
 
                 var outcome = await newsReportRepository.PatchFields(
-                    report.NewsOrganisationId, report.Id, fresh.ETag, plan.ToPatch());
+                    report.NewsOrganisationId, report.Id, fresh.ETag, plan.ToPatch(fresh));
                 if (outcome != CataloguePlayablePatchOutcome.Patched)
                 {
                     return WriteResult.From(outcome);
                 }
 
                 plan.ApplyTo(fresh.Item);
-                return WriteResult.Written(CataloguePlayableSearchDocument.ShouldExcludeFromSearch(fresh.Item)
-                    ? null
-                    : CataloguePlayableSearchDocument.For(fresh.Item));
+                var organisation = await GetNewsOrganisationCached(fresh.Item.NewsOrganisationId);
+                var exclude = organisation is null
+                    ? CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(fresh.Item)
+                    : CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(organisation, fresh.Item);
+                return WriteResult.Written(exclude ? null : CataloguePlayableSearchDocument.For(fresh.Item));
             });
+    }
+
+    private async Task<TvShow?> GetTvShowCached(Guid tvShowId)
+    {
+        if (_tvShowsById.TryGetValue(tvShowId, out var cached))
+        {
+            return cached;
+        }
+
+        var show = await tvShowRepository.GetTvShow(tvShowId);
+        _tvShowsById[tvShowId] = show;
+        return show;
+    }
+
+    private async Task<NewsOrganisation?> GetNewsOrganisationCached(Guid newsOrganisationId)
+    {
+        if (_organisationsById.TryGetValue(newsOrganisationId, out var cached))
+        {
+            return cached;
+        }
+
+        var organisation = await newsOrganisationRepository.GetNewsOrganisation(newsOrganisationId);
+        _organisationsById[newsOrganisationId] = organisation;
+        return organisation;
     }
 
     /// <summary>
@@ -585,7 +619,7 @@ public class CataloguePlayableServicesBackfillProcessor(
         logger.LogInformation(
             "CataloguePlayableServicesBackfill done. Scanned={Scanned} Identical={Identical} MissingTruth={MissingTruth} Discrepancies={Discrepancies} YouTubeIdFilled={Filled} YouTubeIdOverwritten={Overwritten} YouTubeIdCleared={Cleared} YouTubeIdSkippedUnparseable={SkippedUnparseable} Applied={Applied} SkippedNotFound={SkippedNotFound} SkippedConflict={SkippedConflict} SearchUploaded={SearchUploaded} FailedWrites={FailedWrites}",
             c.Scanned, c.Identical, c.MissingTruth, c.Discrepancies, c.YouTubeIdFilled, c.YouTubeIdOverwritten,
-            c.YouTubeIdCleared, c.YouTubeIdSkippedUnparseable, c.Applied, c.SkippedNotFound, c.SkippedConflict,
+            0, c.YouTubeIdSkippedUnparseable, c.Applied, c.SkippedNotFound, c.SkippedConflict,
             c.SearchUploaded, c.FailedWrites);
         var exitCode = c.FailedWrites > 0 ? ExitFailed : ExitOk;
         return new CataloguePlayableServicesBackfillRunResult(
@@ -594,7 +628,8 @@ public class CataloguePlayableServicesBackfillProcessor(
         {
             YouTubeIdFilled = c.YouTubeIdFilled,
             YouTubeIdOverwritten = c.YouTubeIdOverwritten,
-            YouTubeIdCleared = c.YouTubeIdCleared,
+            // Sync never clears an id (url-wins / skipped-unparseable keeps existing).
+            YouTubeIdCleared = 0,
             YouTubeIdSkippedUnparseable = c.YouTubeIdSkippedUnparseable,
             SkippedNotFound = c.SkippedNotFound,
             SkippedConflict = c.SkippedConflict
@@ -615,7 +650,6 @@ public class CataloguePlayableServicesBackfillProcessor(
         public int FailedWrites;
         public int YouTubeIdFilled;
         public int YouTubeIdOverwritten;
-        public int YouTubeIdCleared;
         public int YouTubeIdSkippedUnparseable;
         public int SkippedNotFound;
         public int SkippedConflict;
@@ -634,12 +668,14 @@ public class CataloguePlayableServicesBackfillProcessor(
         Dictionary<string, ServiceLink>? Services,
         CatalogueYouTubeIdSyncResult YouTube)
     {
-        public CataloguePlayableFieldPatch ToPatch() => new()
+        public CataloguePlayableFieldPatch ToPatch<T>(ETagged<T> fresh) => new()
         {
             SetServices = ServicesChanged,
             Services = ServicesChanged ? Services : null,
+            ServicesDefined = fresh.ServicesDefined,
             SetYouTubeId = YouTube.Changed,
-            YouTubeId = YouTube.Changed ? YouTube.After : null
+            YouTubeId = YouTube.Changed ? YouTube.After : null,
+            YouTubeIdDefined = fresh.YouTubeIdDefined
         };
 
         public void ApplyTo(ICatalogueYouTubeItem item)

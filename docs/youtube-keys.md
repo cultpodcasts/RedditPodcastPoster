@@ -179,6 +179,6 @@ Slot  Usage      DisplayName
 ## Related
 
 - [README — Configuration](../README.md#configuration)
-- [interim-deployment.md](interim-deployment.md) — when GitHub Actions / bicep provision is offline
+- [interim-deployment.md](interim-deployment.md) — local script / bicep fallback when Actions is offline
 - [indexing-app-insights-queries.md](indexing-app-insights-queries.md) — indexer key ring telemetry
 - [indexer-youtube-go-live.md](indexer-youtube-go-live.md) — production go-live checklist

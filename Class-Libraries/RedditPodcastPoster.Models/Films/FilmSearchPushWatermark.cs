@@ -10,7 +10,7 @@ namespace RedditPodcastPoster.Models.Films;
 /// A missing document or a null <see cref="HighWaterMark"/> means "push every film".
 /// </summary>
 [CosmosSelector(ModelType.FilmSearchPushWatermark)]
-public sealed class FilmSearchPushWatermark : CosmosSelector
+public sealed class FilmSearchPushWatermark : CosmosSelector, IFileKeyed
 {
     public static readonly Guid _Id = Guid.Parse("8c3f6d21-4b7a-4e0c-9f15-2a6e9d4b7c03");
 
@@ -39,5 +39,7 @@ public sealed class FilmSearchPushWatermark : CosmosSelector
     [JsonPropertyOrder(13)]
     public int? LastRunDeleted { get; set; }
 
-    public override string FileKey => nameof(FilmSearchPushWatermark);
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => nameof(FilmSearchPushWatermark);
 }

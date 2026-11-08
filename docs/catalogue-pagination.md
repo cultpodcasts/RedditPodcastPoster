@@ -385,16 +385,13 @@ page is 1 quota unit. The stop is still `StoppedAtWindow` when a next token rema
 - Circuit breaker: `MaxPages = 20` (~1000 items). Before fetching past the budget with a
   next token remaining → **LogError** and stop (prefer operator signal over quota burn).
 
-### `RunExpensiveYouTubePlaylistPagination`
+### Playlist page size
 
-```text
-HasExpensiveYouTubePlaylistQuery() && !SkipExpensiveYouTubeQueries
-```
-
-Passed as `expensivePlaylist` into the service. It no longer changes the request: every
-playlist walk uses `YouTubePlaylistService.PlaylistPageSize` = 50, the YouTube maximum
-(playlistItems.list is 1 unit per page whatever its size, so the old 1 / 3 / 5 / 10 sizes only
-added calls).
+Every playlist walk uses `YouTubePlaylistService.PlaylistPageSize` = 50, the YouTube maximum.
+`playlistItems.list` is 1 unit per page whatever its size, so the old `expensivePlaylist` argument
+(1 / 3 / 5 / 10) only added calls and has been removed. `YouTubePlaylistQueryIsExpensive` is still
+stored from the head-order probe for callers that treat an oldest-first playlist as expensive. It
+does not change how many items a page requests.
 
 Every non-arbitrary playlist pages on every pass (until it leaves the window when newest-first,
 to the end otherwise). The handler logs this as
@@ -408,15 +405,16 @@ sit at the tail of an oldest-first playlist and would never be found.
 YouTube can keep returning a `nextPageToken` after the last item. On some playlists (Kelly
 R. Minter's, 143 items) the token points at an empty page whose own `nextPageToken` is the same
 token, so a walk that only stops on a null token re-fetches that page until the function
-times out. `YouTubePageWalkGuard` (playlistItems walks and the channel `search.list` walk)
-stops a walk, keeps the items already gathered, and logs `YouTube page walk stopped:` with
+times out. `YouTubePageWalkGuard` covers playlistItems walks and both `search.list` walks:
+the channel walk (`channel-search`) and the query search walk (`YouTubeSearcher`, `query-search`).
+It stops a walk, keeps the items already gathered, and logs `YouTube page walk stopped:` with
 the reason, id, source, pages fetched, `totalResults` and page size (never the token):
 
 | Reason | When | Level |
 |--------|------|-------|
 | `RepeatedPageToken` | next token equals the token just requested | Warning on an empty page once ≥ `totalResults - 2` distinct ids are read (or no total), e.g. Kelly; otherwise Error |
 | `EmptyPage` | a page has 0 items but a new next token, and ≥ `totalResults - 2` distinct ids are read (or no total). Short of that the walk keeps going | Information |
-| `NoNewItems` | every video id on the page was already seen in this walk | Error (Warning on the channel `search.list` walk, where repeats across 5-item pages are a known cost stop) |
+| `NoNewItems` | every video id on the page was already seen in this walk | Error. Warning on both `search.list` walks — channel `channel-search` (5 items a page) and query `query-search` (`YouTubeSearcher`, 25 items a page) — because each page costs 100 units and a repeated page is a cost stop, not a fault |
 | `PageCapExceeded` | pages fetched reach `ceil(totalResults / 50) + 2` with a token left | Error |
 | `ConsecutiveEmptyPages` | a 2nd empty page in a row (each with a new next token) while short of `totalResults - 2` distinct ids, so a chain of empty pages cannot run all the way to the cap | Error |
 
@@ -521,11 +519,10 @@ still must be capped so a mis-tagged uploads feed cannot empty the daily key bud
 | Scheduled-upload indexing window (later of added-at / video-published-at) | `YouTube.Tests/Extensions/ScheduledUploadIndexingWindowRules.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderScheduledUploadRules.cs` |
 | Playlist discovery skips known video ids (window-aligned; incomplete stored episodes stay re-fetched); path labels | `YouTube.Tests/Episode/YouTubeEpisodeProviderKnownIdRules.cs`, `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerPlaylistCostRules.cs` |
 | Discovery path wiring | `YouTube.Tests/Handlers/YouTubeEpisodeRetrievalHandlerTests.cs` |
-| `RunExpensiveYouTubePlaylistPagination` | `YouTube.Tests/IndexingContextExtensionsTests.cs` |
 | Known-channel submit searches the release band; forbidden and PreferUploadsPlaylist use a band-bounded playlist | `YouTube.Tests/BusinessRules/Services/YouTubeSubmitMatchBandRules.cs` |
 | Channel search is at most two pages and throws when Search.List is account-delegation forbidden | `YouTube.Tests/BusinessRules/ChannelSnippets/YouTubeChannelReleaseBandSearchRules.cs` |
 | Pipeline persistence | `PodcastServices.Tests/BusinessRules/Indexing/IndexingOrchestrationRules.cs` |
-| Page-walk guards incl. two consecutive empty pages | `YouTube.Tests/Paging/YouTubePlaylistServicePagingRules.cs`, `YouTube.Tests/BusinessRules/Paging/YouTubeConsecutiveEmptyPagesRules.cs` |
+| Page-walk guards incl. two consecutive empty pages and the query-search walk (`query-search`: repeating token at Warning, already-seen page at Warning, estimated `totalResults` ignored) | `YouTube.Tests/Paging/YouTubePlaylistServicePagingRules.cs`, `YouTube.Tests/BusinessRules/Paging/YouTubeConsecutiveEmptyPagesRules.cs`, `YouTube.Tests/BusinessRules/Paging/YouTubeSearcherPagingRules.cs` |
 | Newest-first extra pages for a video added outside the window but published inside it, and the extra-page quota bound | `YouTube.Tests/BusinessRules/Paging/YouTubePublishedWindowPagingRules.cs` |
 | Tail append on an oldest-first playlist is found from the uploads head when expensive queries are skipped (any batch) | `YouTube.Tests/BusinessRules/IndexingHints/YouTubeUploadsHeadCheckRules.cs`, `Indexer.Tests/BusinessRules/YouTubeBatchUploadsHeadCoverageRules.cs` |
 | Indexing hints: planner (opt-in, skip-YouTube, slack), uploads-head check (quota per path, strict `>` watermark, count drop, full-walk-cheaper, undated gap, window/known filters), walk outcome (circuit breaker, failed build), handler | `YouTube.Tests/BusinessRules/IndexingHints/*.cs`, `YouTube.Tests/Episode/YouTubeEpisodeProviderBuildPlaylistEpisodesRules.cs` |

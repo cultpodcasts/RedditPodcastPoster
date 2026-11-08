@@ -9,7 +9,23 @@ public interface IPromotable
 
     bool Posted { get; set; }
 
-    bool Tweeted { get; set; }
+    /// <summary>
+    /// Whether treated as done for X posting: stored <see cref="TweetPost"/>, legacy <c>tweeted</c>
+    /// (<see cref="OldTweeted"/>), or a permanent <see cref="TweetSkipReason"/>.
+    /// </summary>
+    bool Tweeted { get; }
+
+    /// <summary>Legacy Cosmos flag (<c>tweeted</c>). Prefer <see cref="TweetPost"/> for new posts.</summary>
+    bool? OldTweeted { get; set; }
+
+    /// <summary>Id of the X post, when it was stored at post time. Null for older posts.</summary>
+    string? TweetPost { get; set; }
+
+    /// <summary>
+    /// Why this item must not be posted to X (e.g. title budget exhausted). When set, treat as done for
+    /// posting so the hourly run does not retry or rewrite the shortener. Cleared with <see cref="ClearTweetState"/>.
+    /// </summary>
+    string? TweetSkipReason { get; set; }
 
     /// <summary>Legacy Cosmos flag (<c>bluesky</c>). Prefer <see cref="BlueskyPost"/> for new posts.</summary>
     bool? OldBlueskyPosted { get; set; }
@@ -24,4 +40,10 @@ public interface IPromotable
     string? HashTag { get; set; }
 
     void ClearBlueskyPostState();
+
+    /// <summary>
+    /// Clears <see cref="OldTweeted"/>, <see cref="TweetPost"/>, and <see cref="TweetSkipReason"/>
+    /// once the post is gone from X or the skip must be undone.
+    /// </summary>
+    void ClearTweetState();
 }

@@ -31,7 +31,7 @@ public class FilmRepositoryUpdateRules
         // Act
         var result = await _mocker.CreateInstance<FilmRepository>().Update(filmId, film =>
         {
-            film.Tweeted = true;
+            film.OldTweeted = true;
             return true;
         });
 

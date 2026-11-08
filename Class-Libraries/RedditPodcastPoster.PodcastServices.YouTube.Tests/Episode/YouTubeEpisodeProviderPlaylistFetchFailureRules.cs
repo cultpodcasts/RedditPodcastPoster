@@ -35,7 +35,6 @@ public class YouTubeEpisodeProviderPlaylistFetchFailureRules
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(
                 null,
@@ -45,7 +44,6 @@ public class YouTubeEpisodeProviderPlaylistFetchFailureRules
         var response = await Sut.GetPlaylistEpisodes(
             podcast,
             new YouTubePlaylistId(playlistId),
-            new YouTubeChannelId(_fixture.CreateYouTubeChannelId()),
             indexingContext);
 
         // Assert

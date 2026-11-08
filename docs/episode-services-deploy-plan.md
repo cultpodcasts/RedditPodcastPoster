@@ -1,5 +1,7 @@
 # Deployment plan: service catalog + nested ids
 
+> **Historical (Aug 2026).** Live status and “script-deploy Functions / blob truth” below describe that rollout. **Current** Function shipping is merge → Actions `deploy.yml` — see [deployment.md](deployment.md) and [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc).
+
 Operator plan. Detail and freeze rules live in the [ops playbook](episode-services-ops-runbook.md). Risk notes: [episode-services-risk.md](episode-services-risk.md).
 
 **Watch this file.** The **Live status** table is edited in place as work happens. Refresh/reopen if the editor does not auto-reload.

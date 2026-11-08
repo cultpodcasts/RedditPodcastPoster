@@ -7,9 +7,11 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlShortening.Services;
+using Api.Services.YouTube;
 
 namespace Api.Services.Podcasts;
 
@@ -21,6 +23,9 @@ public class PodcastUpdateService(
     IShortnerService shortnerService,
     PodcastChangeApplier podcastChangeApplier,
     PodcastEpisodeProjectionHelper episodeProjectionHelper,
+    IFileKeyAllocator fileKeyAllocator,
+    IYouTubePlaylistGuard youTubePlaylistGuard,
+    IChannelWideYouTubeClaimGuard channelWideYouTubeClaimGuard,
     ILogger<PodcastUpdateService> logger) : IPodcastUpdateService
 {
     public async Task<PodcastUpdateResult> UpdateAsync(
@@ -57,8 +62,66 @@ public class PodcastUpdateService(
             logger.LogInformation("{method}: Updating podcast-id '{podcastId}'.", nameof(UpdateAsync),
                 podcastChangeRequestWrapper.PodcastId);
 
+            var playlistCheck = await youTubePlaylistGuard.Check(
+                podcast.YouTubePlaylistId,
+                podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
+                c);
+            if (playlistCheck is { IsAllowed: false } refusedPlaylist)
+            {
+                logger.LogWarning("{method}: podcast-id '{podcastId}' refused: {code}. {message}", nameof(UpdateAsync),
+                    podcastChangeRequestWrapper.PodcastId, refusedPlaylist.Code, refusedPlaylist.Message);
+                return new PodcastUpdateResult(
+                    refusedPlaylist.IsRetryable ? PodcastUpdateStatus.ServiceUnavailable : PodcastUpdateStatus.BadRequest,
+                    podcastChangeRequestWrapper.PodcastId,
+                    Error: refusedPlaylist.Message,
+                    Code: refusedPlaylist.Code);
+            }
+
+            if (await youTubePlaylistGuard.CheckChannelAgainstPlaylist(
+                    podcast.YouTubePlaylistId,
+                    podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
+                    podcast.YouTubeChannelId,
+                    podcastChangeRequestWrapper.Podcast.YouTubeChannelId,
+                    c) is { } refusedChannel)
+            {
+                logger.LogWarning("{method}: podcast-id '{podcastId}' refused: {code}. {message}", nameof(UpdateAsync),
+                    podcastChangeRequestWrapper.PodcastId, refusedChannel.Code, refusedChannel.Message);
+                return new PodcastUpdateResult(
+                    refusedChannel.IsRetryable ? PodcastUpdateStatus.ServiceUnavailable : PodcastUpdateStatus.BadRequest,
+                    podcastChangeRequestWrapper.PodcastId,
+                    Error: refusedChannel.Message,
+                    Code: refusedChannel.Code);
+            }
+
+            if (ChannelWideYouTubeClaimProjection.ChangeAffectsClaim(podcastChangeRequestWrapper.Podcast))
+            {
+                var (projectedChannel, projectedPlaylist, projectedRemoved) =
+                    ChannelWideYouTubeClaimProjection.ForPodcast(podcast, podcastChangeRequestWrapper.Podcast);
+                if (await channelWideYouTubeClaimGuard.Check(
+                        podcast.Id,
+                        ChannelWideYouTubeClaimKind.Podcast,
+                        projectedChannel,
+                        projectedPlaylist,
+                        projectedRemoved,
+                        c) is { } claimConflict)
+                {
+                    logger.LogWarning("{method}: podcast-id '{podcastId}' refused: {code}. {message}", nameof(UpdateAsync),
+                        podcastChangeRequestWrapper.PodcastId, ChannelWideYouTubeClaimConflict.Code, claimConflict.Message);
+                    return new PodcastUpdateResult(
+                        PodcastUpdateStatus.BadRequest,
+                        podcastChangeRequestWrapper.PodcastId,
+                        Error: claimConflict.Message,
+                        Code: ChannelWideYouTubeClaimConflict.Code);
+                }
+            }
+
             var previousPodcastLanguage = podcast.Language;
             podcastChangeApplier.Apply(podcast, podcastChangeRequestWrapper.Podcast);
+            if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(playlistCheck, podcast.YouTubeChannelId) is
+                { } derivedOwner)
+            {
+                podcast.YouTubeChannelId = derivedOwner;
+            }
             var nameChanged = false;
             if (podcastChangeRequestWrapper.AllowNameChange &&
                 !string.IsNullOrWhiteSpace(podcastChangeRequestWrapper.Podcast.Name))
@@ -176,7 +239,10 @@ public class PodcastUpdateService(
         }
 
         podcast.Name = podcastName.Trim();
-        podcast.FileKey = FileKeyFactory.GetFileKey(podcast.Name);
+        // An edit with a name change re-keys the podcast, as it always has, but the key is never empty and never
+        // another podcast's: a name with no usable Latin slug keeps a usable current key (else gets an id key).
+        podcast.FileKey = await fileKeyAllocator.AllocateForRename(
+            FileKeyKind.Podcast, podcast.Name, podcast.Id, podcast.FileKey);
     }
 
     private async Task<bool> DeleteEpisodesFromSearchIndex(CancellationToken c, DomainPodcast podcast)

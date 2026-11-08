@@ -1,4 +1,5 @@
 using Discovery.Models;
+using RedditPodcastPoster.Models.Serialization;
 
 namespace Discovery.Services;
 
@@ -14,13 +15,13 @@ public static class DiscoveryLookbackCalculator
     /// <summary>
     /// Dynamic-only: <c>since = lastSuccess - overlap</c>.
     /// Caller must ensure <paramref name="latestSuccessfulDiscoveryBegan"/> is non-null
-    /// (fail closed otherwise).
+    /// (fail closed otherwise). An unspecified-kind watermark is UTC (#1219).
     /// </summary>
     public static DateTime ResolveSince(
         DateTime latestSuccessfulDiscoveryBegan,
         TimeSpan? dynamicOverlap = null)
     {
         var overlap = dynamicOverlap ?? DefaultDynamicOverlap;
-        return latestSuccessfulDiscoveryBegan.ToUniversalTime().Subtract(overlap);
+        return UtcDateTimes.ToUtc(latestSuccessfulDiscoveryBegan).Subtract(overlap);
     }
 }

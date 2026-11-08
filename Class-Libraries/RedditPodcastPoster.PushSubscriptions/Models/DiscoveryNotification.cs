@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Models.Serialization;
+
 namespace RedditPodcastPoster.PushSubscriptions.Models;
 
 public record DiscoveryNotification(int NumberOfReports, DateTime MinDateTime, int NumberOfResults)
@@ -18,17 +20,19 @@ public record DiscoveryNotification(int NumberOfReports, DateTime MinDateTime, i
             plural2 = string.Empty;
         }
 
+        var minUtc = UtcDateTimes.ToUtc(MinDateTime);
         var fmt = "t";
-        if (DateTime.UtcNow - MinDateTime >= TimeSpan.FromDays(1))
+        if (DateTime.UtcNow - minUtc >= TimeSpan.FromDays(1))
         {
             fmt = "dddd HH:mm";
         }
-        else if (DateTime.UtcNow - MinDateTime >= TimeSpan.FromDays(7))
+        else if (DateTime.UtcNow - minUtc >= TimeSpan.FromDays(7))
         {
             fmt = "f";
         }
 
-        var since = TimeZoneInfo.ConvertTimeFromUtc(MinDateTime.ToUniversalTime(), UK).ToString(fmt);
+        // Unspecified MinDateTime is UTC (#1219); ToUniversalTime would shift it on a host east of UTC before UK conversion.
+        var since = TimeZoneInfo.ConvertTimeFromUtc(minUtc, UK).ToString(fmt);
         return
             $"{NumberOfReports} report{plural} since {since}. {NumberOfResults} result{plural2}.";
     }

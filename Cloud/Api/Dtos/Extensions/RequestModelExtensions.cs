@@ -72,6 +72,7 @@ public static class RequestModelExtensions
         IgnoreAllEpisodes = request.IgnoreAllEpisodes,
         YouTubeChannelId = request.YouTubeChannelId,
         YouTubePlaylistId = request.YouTubePlaylistId,
+        ClearYouTubeIndexingHints = request.ClearYouTubeIndexingHints,
         IgnoredAssociatedSubjects = request.IgnoredAssociatedSubjects,
         IgnoredSubjects = request.IgnoredSubjects,
         KnownTerms = request.KnownTerms,
@@ -162,6 +163,7 @@ public static class RequestModelExtensions
     {
         model.YouTubeChannelId = request.YouTubeChannelId;
         model.YouTubePlaylistId = request.YouTubePlaylistId;
+        model.ClearYouTubeIndexingHints = request.ClearYouTubeIndexingHints;
         model.SpotifyId = request.SpotifyId;
         model.AppleId = request.AppleId;
         model.NullAppleId = request.NullAppleId;

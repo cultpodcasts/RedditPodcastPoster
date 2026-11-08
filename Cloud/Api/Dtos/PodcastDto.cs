@@ -95,6 +95,15 @@ public class PodcastDto
     [JsonPropertyName("youTubePlaylistIdHistory")]
     public YouTubePlaylistIdHistoryEntry[]? YouTubePlaylistIdHistory { get; set; }
 
+    /// <summary>
+    /// Indexer-owned YouTube playlist walk hints (read-only). Null when none, or when the stored
+    /// <c>playlistId</c> does not match the current YouTube playlist (next pass does a full walk).
+    /// Clear via PATCH <c>clearYouTubeIndexingHints: true</c>.
+    /// </summary>
+    [JsonPropertyName("youTubeIndexingHints")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public YouTubeIndexingHints? YouTubeIndexingHints { get; set; }
+
     [JsonPropertyName("ignoredAssociatedSubjects")]
     public string[]? IgnoredAssociatedSubjects { get; set; }
 

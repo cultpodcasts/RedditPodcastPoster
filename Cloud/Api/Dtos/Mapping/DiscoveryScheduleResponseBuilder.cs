@@ -6,14 +6,16 @@ namespace Api.Dtos.Mapping;
 
 public static class DiscoveryScheduleResponseBuilder
 {
+    /// <param name="utcNow">The current UTC time; the preview lists the next runs after it.</param>
     public static DiscoveryScheduleResponse Build(
         DiscoveryScheduleConfig config,
         bool isDefault,
-        int nextRunsPreviewCount)
+        int nextRunsPreviewCount,
+        DateTime utcNow)
     {
         var runTimes = DiscoveryScheduleLogic.ParseRunTimes(config.RunTimes);
         var tz = DiscoveryScheduleLogic.ResolveUkTimeZone(config.TimeZoneId);
-        var next = DiscoveryScheduleLogic.PreviewNextRuns(DateTime.UtcNow, runTimes, nextRunsPreviewCount, tz);
+        var next = DiscoveryScheduleLogic.PreviewNextRuns(utcNow, runTimes, nextRunsPreviewCount, tz);
         return new DiscoveryScheduleResponse
         {
             RunTimes = runTimes.Select(t => t.ToString("HH\\:mm")).ToList(),

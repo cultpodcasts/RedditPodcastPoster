@@ -35,7 +35,6 @@ public class YouTubeEpisodeProviderKnownIdRules
                 It.IsAny<YouTubePlaylistId>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(() => new GetPlaylistVideoSnippetsResponse(_playlistItems));
         _mocker.GetMock<ITolerantYouTubeVideoService>()
@@ -67,7 +66,6 @@ public class YouTubeEpisodeProviderKnownIdRules
         await sut.GetPlaylistEpisodes(
             _fixture.CreatePodcast(),
             new YouTubePlaylistId(_fixture.CreateYouTubePlaylistId()),
-            new YouTubeChannelId(_channelId),
             _indexingContext,
             knownIds: [knownId]);
 
@@ -89,7 +87,6 @@ public class YouTubeEpisodeProviderKnownIdRules
         var response = await sut.GetPlaylistEpisodes(
             _fixture.CreatePodcast(),
             new YouTubePlaylistId(_fixture.CreateYouTubePlaylistId()),
-            new YouTubeChannelId(_channelId),
             _indexingContext,
             knownIds: [knownId]);
 

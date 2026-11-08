@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.CloudflareRedirect.Models;
 using RedditPodcastPoster.CloudflareRedirect.Services;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Models.Cosmos;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.Podcasts;
@@ -12,6 +14,7 @@ public class PodcastRenameService(
     IRedirectService redirectService,
     IEpisodeSearchIndexerService searchIndexerService,
     PodcastEpisodeProjectionHelper episodeProjectionHelper,
+    IFileKeyAllocator fileKeyAllocator,
     ILogger<PodcastRenameService> logger) : IPodcastRenameService
 {
     private const int MaxPodcastToRename = 2;
@@ -63,6 +66,9 @@ public class PodcastRenameService(
                 {
                     var oldName = podcast.Name;
                     podcast.Name = change.NewName;
+                    // A rename keeps the stored file key; only an empty or placeholder key is replaced.
+                    podcast.FileKey = await fileKeyAllocator.RepairIfUnusable(
+                        FileKeyKind.Podcast, podcast.Name, podcast.Id, podcast.FileKey);
                     await podcastRepository.Save(podcast);
                     await episodeProjectionHelper.HydrateDetachedEpisodePodcastProjection(podcast, c);
                     logger.LogInformation("Renamed podcast '{oldName}' to '{newName}'.", oldName, change.NewName);

@@ -8,6 +8,7 @@ using Moq;
 using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Catalogue.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
@@ -90,9 +91,15 @@ public class UrlSubmissionDependencyInjectionTests
         services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
         // Hosts get this from AddPodcastServices (Null) or AddEdgeApiClient.
         services.AddSingleton(Mock.Of<IHeroEpisodePromoter>());
+        // Hosts get this from AddRepositories.
+        services.AddSingleton(Mock.Of<IFileKeyAllocator>());
+        services.AddSingleton(Mock.Of<RedditPodcastPoster.Subjects.Enrichers.ISubjectEnricher>());
+        services.AddSingleton(Mock.Of<RedditPodcastPoster.Subjects.Factories.ISubjectEnrichmentOptionsFactory>());
         // Catalogue identity comes from AddCatalogueServices at the composition root, not AddUrlSubmission.
         services.AddSingleton(Mock.Of<ICatalogueIdentityEnricher>());
         services.AddUrlSubmission();
+        // AddUrlSubmission registers the real guest enricher (people repository); the composition under test only needs it resolvable.
+        services.AddSingleton(Mock.Of<RedditPodcastPoster.People.Enrichers.IEpisodeGuestEnricher>());
 
         // Act
         using var provider = services.BuildServiceProvider();
@@ -113,6 +120,8 @@ public class UrlSubmissionDependencyInjectionTests
         var services = CatalogueSubmitterDependencies();
         services.AddCatalogueServices();
         services.AddUrlSubmission();
+        // AddUrlSubmission registers the real guest enricher (people repository); the composition under test only needs it resolvable.
+        services.AddSingleton(Mock.Of<RedditPodcastPoster.People.Enrichers.IEpisodeGuestEnricher>());
 
         // Act
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
@@ -156,6 +165,10 @@ public class UrlSubmissionDependencyInjectionTests
         services.AddSingleton(Mock.Of<INonPodcastServiceAdapterResolver>());
         // Hosts get this from AddPodcastServices (Null) or AddEdgeApiClient.
         services.AddSingleton(Mock.Of<IHeroEpisodePromoter>());
+        // Hosts get this from AddRepositories.
+        services.AddSingleton(Mock.Of<IFileKeyAllocator>());
+        services.AddSingleton(Mock.Of<RedditPodcastPoster.Subjects.Enrichers.ISubjectEnricher>());
+        services.AddSingleton(Mock.Of<RedditPodcastPoster.Subjects.Factories.ISubjectEnrichmentOptionsFactory>());
         return services;
     }
 }

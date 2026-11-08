@@ -163,7 +163,7 @@ public class PodcastUpdater(
                 .Where(episode =>
                     (!string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
                      string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode))) ||
-                    (!string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
+                    (podcast.HasYouTubeSource() &&
                      string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode))) ||
                     (podcast.AppleId.HasValue && EpisodeServicePresence.AppleEpisodeId(episode) is null)
                 ).ToList();

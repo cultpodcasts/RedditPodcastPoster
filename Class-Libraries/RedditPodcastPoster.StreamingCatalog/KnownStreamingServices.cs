@@ -5,6 +5,7 @@ using RedditPodcastPoster.Ard;
 using RedditPodcastPoster.Arte;
 using RedditPodcastPoster.BBC;
 using RedditPodcastPoster.CanalPlus;
+using RedditPodcastPoster.CbcGem;
 using RedditPodcastPoster.BcVideo;
 using RedditPodcastPoster.Channel4;
 using RedditPodcastPoster.DiscoveryPlus;
@@ -63,7 +64,8 @@ public static class KnownStreamingServices
         ZdfStreamingService.Registration,
         ArdStreamingService.Registration,
         CanalPlusStreamingService.Registration,
-        AbcIviewStreamingService.Registration
+        AbcIviewStreamingService.Registration,
+        CbcGemStreamingService.Registration
     ];
 
     public static readonly string[] ImageCoalesceStreamingKeys = StreamingServiceWire.ImageCoalesceKeys;

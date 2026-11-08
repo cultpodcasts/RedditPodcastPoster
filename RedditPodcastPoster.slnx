@@ -16,6 +16,8 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.CanalPlus/RedditPodcastPoster.CanalPlus.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.CbcGem/RedditPodcastPoster.CbcGem.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.Channel4/RedditPodcastPoster.Channel4.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.DiscoveryPlus/RedditPodcastPoster.DiscoveryPlus.csproj" />
@@ -65,6 +67,7 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery/RedditPodcastPoster.Discovery.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.ML/RedditPodcastPoster.Discovery.ML.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes/RedditPodcastPoster.Episodes.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup/RedditPodcastPoster.EpisodeLookup.csproj" />
@@ -144,6 +147,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Arte.Tests/RedditPodcastPoster.Arte.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.AbcIview.Tests/RedditPodcastPoster.AbcIview.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.CanalPlus.Tests/RedditPodcastPoster.CanalPlus.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.CbcGem.Tests/RedditPodcastPoster.CbcGem.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Peacock.Tests/RedditPodcastPoster.Peacock.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Tubi.Tests/RedditPodcastPoster.Tubi.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Zdf.Tests/RedditPodcastPoster.Zdf.Tests.csproj" />
@@ -154,9 +158,11 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.PlayRts.Tests/RedditPodcastPoster.PlayRts.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.TvnzPlus.Tests/RedditPodcastPoster.TvnzPlus.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.BBC.Tests/RedditPodcastPoster.BBC.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.Bluesky.Tests/RedditPodcastPoster.Bluesky.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Tmdb.Tests/RedditPodcastPoster.Tmdb.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.TheTvdb.Tests/RedditPodcastPoster.TheTvdb.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Discovery.Tests/RedditPodcastPoster.Discovery.Tests.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.DependencyInjection.Tests/RedditPodcastPoster.DependencyInjection.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.Episodes.Tests/RedditPodcastPoster.Episodes.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests/RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests.csproj" />
     <Project Path="Class-Libraries/RedditPodcastPoster.EpisodeLookup.Tests/RedditPodcastPoster.EpisodeLookup.Tests.csproj" />
@@ -191,6 +197,8 @@
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Text.Tests/RedditPodcastPoster.Text.Tests.csproj" />
 
+    <Project Path="Class-Libraries/RedditPodcastPoster.Twitter.Tests/RedditPodcastPoster.Twitter.Tests.csproj" />
+
     <Project Path="Class-Libraries/RedditPodcastPoster.UrlSubmission.Tests/RedditPodcastPoster.UrlSubmission.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.YouTubePushNotifications.Tests/RedditPodcastPoster.YouTubePushNotifications.Tests.csproj" />
@@ -210,6 +218,8 @@
   </Folder>
 
   <Folder Name="/Cloud/Unit Test/">
+
+    <Project Path="Cloud/Unit-Tests/Discovery.Tests/Discovery.Tests.csproj" />
 
     <Project Path="Cloud/Unit-Tests/FunctionHost.Tests/FunctionHost.Tests.csproj" />
 
@@ -265,6 +275,8 @@
     <Project Path="Console-Apps/EpisodeLanguageBackfill/EpisodeLanguageBackfill.csproj" />
     <Project Path="Console-Apps/NewsOrganisationDefaultsBackfill/NewsOrganisationDefaultsBackfill.csproj" />
     <Project Path="Console-Apps/NewsOrganisationDefaultsBackfill.Tests/NewsOrganisationDefaultsBackfill.Tests.csproj" />
+    <Project Path="Console-Apps/UnusableFileKeyAudit/UnusableFileKeyAudit.csproj" />
+    <Project Path="Console-Apps/UnusableFileKeyAudit.Tests/UnusableFileKeyAudit.Tests.csproj" />
     <Project Path="Console-Apps/EpisodeServiceBackfill/EpisodeServiceBackfill.csproj" />
     <Project Path="Console-Apps/EpisodeServiceBackfill.Tests/EpisodeServiceBackfill.Tests.csproj" />
 
@@ -291,6 +303,8 @@
 
     <Project Path="Console-Apps/MigrateConfig/MigrateConfig.csproj" />
 
+    <Project Path="Console-Apps/MigrateLanguageIgnoredSubjects/MigrateLanguageIgnoredSubjects.csproj" />
+
     <Project Path="Console-Apps/Poster/Poster.csproj" />
 
     <Project Path="Console-Apps/PublishR2/PublishR2.csproj" />
@@ -302,6 +316,9 @@
     <Project Path="Console-Apps/SubmitUrl/SubmitUrl.csproj" />
 
     <Project Path="Console-Apps/ThrowawayConsole/ThrowawayConsole.csproj" />
+
+    <Project Path="Console-Apps/XOAuth2Authorize/XOAuth2Authorize.csproj" />
+    <Project Path="Console-Apps/XOAuth2TokenExchange/XOAuth2TokenExchange.csproj" />
 
   </Folder>
 

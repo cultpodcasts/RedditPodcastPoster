@@ -22,6 +22,15 @@ public interface IEpisodeRepository : IRepository<Episode>, IFilterableRepositor
     Task Delete(Guid podcastId, Guid episodeId);
 
     /// <summary>
+    /// Point-deletes <paramref name="episodes"/> from <paramref name="podcastId"/>'s partition with bounded
+    /// parallelism (<see cref="CatalogueBulkWrite.Parallelism"/>), retrying throttling. Every episode must belong to
+    /// <paramref name="podcastId"/>; this is checked before any delete, so a refused call deletes nothing. A missing
+    /// row is skipped. Unlike <see cref="Delete"/> there are no side effects: no per-episode read, no home page
+    /// counter change and no latest-release recompute. Callers that need those own them.
+    /// </summary>
+    Task<EpisodeBulkDeleteResult> DeleteMany(Guid podcastId, IReadOnlyCollection<Episode> episodes);
+
+    /// <summary>
     /// Surgical Cosmos patch of <c>/guests</c> only. Does not touch handle fields or other properties.
     /// </summary>
     Task PatchGuests(Guid podcastId, Guid episodeId, string[] guests);

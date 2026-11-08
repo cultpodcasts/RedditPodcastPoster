@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Xml.Linq;
 using FluentAssertions;
 using Moq.AutoMock;
@@ -17,391 +18,391 @@ public class NotificationAdaptorTests
 
     private INotificationAdaptor Sut => _mocker.CreateInstance<NotificationAdaptor>();
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then a notification is produced, because the push handler needs a parsed feed.")]
     public void Adapt_WithKnownMessage_IsCorrect()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Should().NotBeNull();
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the id from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsId()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Id.Should().Be("yt:channel:sT0YIqwnpJCM-mx7-gSA4Q");
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the channel id from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsChannelId()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.ChannelId.Should().Be("sT0YIqwnpJCM-mx7-gSA4Q");
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the title from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsTitle()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Title.Should().Be("TEDx Talks");
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the link alternative from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsLinkAlternative()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.LinkAlternative.Should()
             .Be(new Uri("https://www.youtube.com/channel/UCsT0YIqwnpJCM-mx7-gSA4Q", UriKind.Absolute));
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the author name from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsAuthorName()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.AuthorName.Should().Be("TEDx Talks");
     }
 
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the author uri from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsAuthorUri()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.AuthorUri.Should()
             .Be(new Uri("https://www.youtube.com/channel/UCsT0YIqwnpJCM-mx7-gSA4Q", UriKind.Absolute));
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the published from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsPublished()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
-        result.Published.Should().Be(DateTime.Parse("2009-06-23T16:00:48+00:00"));
+        // Assert
+        result.Published.Should().Be(DateTimeOffset.Parse("2009-06-23T16:00:48+00:00", CultureInfo.InvariantCulture).UtcDateTime);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntry()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Should().HaveCount(1);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entries from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntries()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessageMultipleEntries);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Should().HaveCount(5);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry id from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryId()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Single().Id.Should().Be("yt:video:SdcFlRBp-Vc");
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry video id from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryVideoId()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Single().VideoId.Should().Be("SdcFlRBp-Vc");
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry channel id from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryChannelId()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Single().ChannelId.Should().Be("UCsT0YIqwnpJCM-mx7-gSA4Q");
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry title from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryTitle()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Single().Title.Should()
             .Be("Your dream job has a game plan | Karen Crisostomo | TEDxEDHECBusinessSchool");
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry link alternative from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryLinkAlternative()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Single().LinkAlternative.Should()
             .Be(new Uri("https://www.youtube.com/watch?v=SdcFlRBp-Vc", UriKind.Absolute));
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry author name from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryAuthorName()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Single().AuthorName.Should().Be("TEDx Talks");
     }
 
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry author uri from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryAuthorUri()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Single().AuthorUri.Should()
             .Be(new Uri("https://www.youtube.com/channel/UCsT0YIqwnpJCM-mx7-gSA4Q", UriKind.Absolute));
     }
 
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry published from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryPublished()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
-        result.Entries.Single().Published.Should().Be(DateTime.Parse("2023-10-28T14:00:17+00:00"));
+        // Assert
+        result.Entries.Single().Published.Should().Be(DateTimeOffset.Parse("2023-10-28T14:00:17+00:00", CultureInfo.InvariantCulture).UtcDateTime);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry updated from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryUpdated()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
-        result.Entries.Single().Updated.Should().Be(DateTime.Parse("2023-10-28T18:45:32+00:00"));
+        // Assert
+        result.Entries.Single().Updated.Should().Be(DateTimeOffset.Parse("2023-10-28T18:45:32+00:00", CultureInfo.InvariantCulture).UtcDateTime);
     }
 
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroup()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.Single().Group.Should().NotBeNull();
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group title from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupTitle()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.Title.Should()
             .Be("Your dream job has a game plan | Karen Crisostomo | TEDxEDHECBusinessSchool");
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group content url from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupContentUrl()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.ContentUrl.Should()
             .Be(new Uri("https://www.youtube.com/v/SdcFlRBp-Vc?version=3", UriKind.Absolute));
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group content width from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupContentWidth()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.ContentWidth.Should().Be(640);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group content height from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupContentHeight()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.ContentHeight.Should().Be(390);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group thumbnail url from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupThumbnailUrl()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.ThumbnailUrl.Should()
             .Be(new Uri("https://i4.ytimg.com/vi/SdcFlRBp-Vc/hqdefault.jpg", UriKind.Absolute));
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group thumbnail width from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupThumbnailWidth()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.ThumbnailWidth.Should().Be(480);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group thumbnail height from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupThumbnailHeight()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.ThumbnailHeight.Should().Be(360);
     }
 
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group description from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupDescription()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.Description.Should().StartWith("Through her engaging storytelling,");
     }
 
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group community from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupCommunity()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.Community.Should().NotBeNull();
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group community star rating count from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupCommunityStarRatingCount()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.Community?.StarRatingCount.Should().Be(598);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group community star rating average from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupCommunityStarRatingAverage()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.Community?.StarRatingAverage.Should().Be(5.00m);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group community star rating min from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupCommunityStarRatingMin()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.Community?.StarRatingMin.Should().Be(1);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group community star rating max from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupCommunityStarRatingMax()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.Community?.StarRatingMax.Should().Be(5);
     }
 
-    [Fact]
+    [Fact(DisplayName = "When a known push notification is adapted, then it maps the entry group community statistics views from the feed, because the push handler reads it from the parsed notification.")]
     public void Adapt_WithKnownMessage_MapsEntryGroupCommunityStatisticsViews()
     {
-        // arrange
+        // Arrange
         var xml = XDocument.Parse(KnownNotificationMessage);
-        // act
+        // Act
         var result = Sut.Adapt(xml);
-        // assert
+        // Assert
         result.Entries.SingleOrDefault()?.Group?.Community?.StatisticsViews.Should().Be(11808);
     }
 }

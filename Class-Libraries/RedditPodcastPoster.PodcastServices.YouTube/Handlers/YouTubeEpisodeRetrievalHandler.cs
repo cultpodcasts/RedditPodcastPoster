@@ -34,28 +34,20 @@ public class YouTubeEpisodeRetrievalHandler(
     {
         var handled = false;
         IList<EpisodeModel> newEpisodes = new List<EpisodeModel>();
-        if (string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+        if (!podcast.HasYouTubeSource())
         {
-            LogDiscoveryPath(podcast, "skipped-no-channel", indexingContext, 0, null);
+            LogDiscoveryPath(podcast, "skipped-no-youtube-source", indexingContext, 0, null);
             return new EpisodeRetrievalHandlerResponse(newEpisodes, handled);
         }
 
-        if (!string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+        // A playlist is the parent's only YouTube source when set: the channel id is not used (and need not be set).
+        if (podcast.UsesYouTubePlaylist())
         {
             var arbitraryOrder = podcast.HasArbitraryYouTubePlaylistOrder();
-            var runExpensivePagination = indexingContext.RunExpensiveYouTubePlaylistPagination(podcast);
-            // Every non-arbitrary playlist pages (until it leaves the window when newest-first, to the end otherwise);
-            // the expensive-query flag only changes the page size. The old "playlist-single-page" label was misleading.
+            // Every non-arbitrary playlist pages (until it leaves the window when newest-first, to the end otherwise).
             var discoveryPath = arbitraryOrder
                 ? "playlist-arbitrary-full-walk"
                 : "playlist-paginated";
-            if (!arbitraryOrder && podcast.HasExpensiveYouTubePlaylistQuery() &&
-                indexingContext.SkipExpensiveYouTubeQueries)
-            {
-                logger.LogInformation(
-                    "Podcast '{PodcastId}' has known expensive playlist query; expensive-sized pages are not used this pass (smaller batch size, playlist still paginated).",
-                    podcast.Id);
-            }
 
             var playlistId = new YouTubePlaylistId(podcast.YouTubePlaylistId,
                 YouTubePlaylistIdSource.PodcastEntity, podcast.Id.ToString());
@@ -86,8 +78,7 @@ public class YouTubeEpisodeRetrievalHandler(
             var getPlaylistEpisodesResult = await youTubeEpisodeProvider.GetPlaylistEpisodes(
                 podcast,
                 playlistId,
-                new YouTubeChannelId(podcast.YouTubeChannelId),
-                indexingContext, runExpensivePagination, podcast.YouTubePlaylistOrder,
+                indexingContext, podcast.YouTubePlaylistOrder,
                 knownPlaylistIds);
             if (getPlaylistEpisodesResult.Results != null)
             {
@@ -149,8 +140,7 @@ public class YouTubeEpisodeRetrievalHandler(
         var built = check.Members.Count == 0
             ? new GetPlaylistEpisodesResponse([])
             : await youTubeEpisodeProvider.BuildPlaylistEpisodes(
-                podcast, new YouTubeChannelId(podcast.YouTubeChannelId), indexingContext, check.Members,
-                knownPlaylistIds);
+                podcast, indexingContext, check.Members, knownPlaylistIds);
         if (built.Results == null)
         {
             const string buildFailed = "build-failed";

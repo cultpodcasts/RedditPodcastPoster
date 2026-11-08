@@ -12,10 +12,12 @@ using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.Text.Enrichers;
+using RedditPodcastPoster.Text.HashTags;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Twitter.Configuration;
 using RedditPodcastPoster.Twitter.Dtos;
+using RedditPodcastPoster.Twitter.Models;
 
 namespace RedditPodcastPoster.Twitter.Builders;
 
@@ -57,14 +59,22 @@ public class TweetBuilder(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
+                // Decide from the stored tag. MatchingText can already be a shortened
+                // form (Some-Tag → #SomeTag). The text written after '#' must be that stored body.
+                if (!HashtagText.IsReproducedAsIs(hashtag.Tag))
+                {
+                    continue;
+                }
+
+                var tagText = HashtagText.ToTagText(hashtag.Tag)!;
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
                         hashtag.Tag.TrimStart('#'),
-                        hashtag.MatchingText?.TrimStart('#'));
+                        tagText);
                 if (addedHashTag)
                 {
-                    hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
+                    hashtagsAdded.Add(hashtag.Tag);
                 }
             }
         }
@@ -110,6 +120,7 @@ public class TweetBuilder(
                 .Select(x => x.Tag)
                 .Distinct()
                 .Where(x => !hashtagsAdded.Contains(x))
+                .Where(HashtagText.IsReproducedAsIs)
                 .Select(x => $"#{x.TrimStart('#')}"));
         if (!string.IsNullOrWhiteSpace(endHashTags))
         {
@@ -130,7 +141,8 @@ public class TweetBuilder(
             var min = Math.Min(episodeTitle.Length, permittedTitleLength - 1);
             if (min < MinTitleLength)
             {
-                throw new InvalidOperationException(
+                throw new UntweetableException(
+                    TweetSkipReasons.TitleTooLong,
                     $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{tweetBuilder}', calculated title-length: {min} which is less than {MinTitleLength}.");
             }
 
@@ -151,7 +163,7 @@ public class TweetBuilder(
                 out var postUrl,
                 out _))
         {
-            throw new InvalidOperationException("No link found to tweet");
+            throw new UntweetableException(TweetSkipReasons.NoLink, "No link found to tweet");
         }
 
         tweetBuilder.Append(postUrl);

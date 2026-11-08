@@ -80,5 +80,20 @@ public enum ModelType
     YouTubeThumbnailRecheckCursor = 25,
 
     [JsonPropertyName(nameof(FilmSearchPushWatermark))]
-    FilmSearchPushWatermark = 26
+    FilmSearchPushWatermark = 26,
+
+    [JsonPropertyName(nameof(ParentKindTransferLock))]
+    ParentKindTransferLock = 27,
+
+    [JsonPropertyName(nameof(XOAuth2TokenState))]
+    XOAuth2TokenState = 28,
+
+    [JsonPropertyName(nameof(ParentIndexingLock))]
+    ParentIndexingLock = 29,
+
+    [JsonPropertyName(nameof(ParentKindTransferJob))]
+    ParentKindTransferJob = 30,
+
+    [JsonPropertyName(nameof(FileKeyClaim))]
+    FileKeyClaim = 31
 }

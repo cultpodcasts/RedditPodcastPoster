@@ -58,6 +58,13 @@ public static class CatalogueMigratePlanner
         "The TV show / news organisation would not keep the podcast's YouTube / Spotify / Apple ids, so submits and " +
         "the indexer would stop matching it. Merge and deploy PR #1050 (parents keep indexing ids) before apply.";
 
+    /// <summary>
+    /// Prefix of the apply-block reason when
+    /// <see cref="CatalogueMigrateServiceIds.YouTubePlaylistOwnershipRefusal"/> refuses the pair (#1178).
+    /// Full text comes from <see cref="CatalogueMigrateServiceIds.OwnershipBlockReason"/>.
+    /// </summary>
+    public const string YouTubePlaylistOwnershipRefusedPrefix = "YouTube playlist ownership refused";
+
     public const string ParentNameExists =
         "Another TV show / news organisation already has this name (or fileKey). Apply would create a duplicate " +
         "parent. A curator must merge or rename first.";

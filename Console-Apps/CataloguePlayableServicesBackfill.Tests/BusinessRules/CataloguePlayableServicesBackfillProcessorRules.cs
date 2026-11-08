@@ -12,6 +12,7 @@ using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using Xunit;
@@ -607,6 +608,82 @@ public class CataloguePlayableServicesBackfillProcessorRules : IDisposable
     }
 
     [Fact(DisplayName =
+        "Catalogue playable services backfill: when the live news organisation is Removed but ParentRemoved still " +
+        "lags false, then apply patches the row but skips the search upload (Written null), because live parent " +
+        "Removed is authoritative over lagging denorm.")]
+    public async Task apply_skips_search_upload_when_live_news_parent_removed_with_lagging_denorm()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var report = UrlOnlyReport(videoId);
+        report.ParentRemoved = false;
+        var organisation = new NewsOrganisation(_fixture.CreateTitle())
+        {
+            Id = report.NewsOrganisationId,
+            Removed = true
+        };
+        _mocker.GetMock<INewsReportRepository>().Setup(r => r.GetAll()).Returns(ToAsync(report));
+        FreshNewsCopy(report, "etag-1", parentRemoved: false);
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(r => r.GetNewsOrganisation(report.NewsOrganisationId))
+            .ReturnsAsync(organisation);
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.PatchFields(report.NewsOrganisationId, report.Id, "etag-1",
+                It.IsAny<CataloguePlayableFieldPatch>()))
+            .ReturnsAsync(CataloguePlayablePatchOutcome.Patched);
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(YouTubeIdOnlyApply("news-removed-parent.jsonl"));
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.Applied.Should().Be(1);
+        result.SearchUploaded.Should().Be(0);
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Verify(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when the live TV show is Removed but ParentRemoved still lags false, " +
+        "then apply patches the row but skips the search upload (Written null), because live parent Removed is " +
+        "authoritative over lagging denorm.")]
+    public async Task apply_skips_search_upload_when_live_tv_parent_removed_with_lagging_denorm()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var episode = UrlOnlyTvEpisode(videoId);
+        episode.ParentRemoved = false;
+        var show = new TvShow(_fixture.CreateTitle())
+        {
+            Id = episode.TvShowId,
+            Removed = true
+        };
+        _mocker.GetMock<ITvShowEpisodeRepository>().Setup(r => r.GetAll()).Returns(ToAsync(episode));
+        FreshTvCopy(episode, "etag-1", parentRemoved: false);
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.GetTvShow(episode.TvShowId))
+            .ReturnsAsync(show);
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.PatchFields(episode.TvShowId, episode.Id, "etag-1",
+                It.IsAny<CataloguePlayableFieldPatch>()))
+            .ReturnsAsync(CataloguePlayablePatchOutcome.Patched);
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(YouTubeIdOnlyApply("tv-removed-parent.jsonl", "tvshowepisode"));
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.Applied.Should().Be(1);
+        result.SearchUploaded.Should().Be(0);
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Verify(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+    }
+
+    [Fact(DisplayName =
         "Catalogue playable services backfill: when --youtube-id-only runs and an episode backup holds a different " +
         "service url, then services are left alone and only an already-synced item is identical, because the mode " +
         "never carries truth-source urls.")]
@@ -664,7 +741,7 @@ public class CataloguePlayableServicesBackfillProcessorRules : IDisposable
         _mocker.GetMock<INewsReportRepository>().Setup(r => r.GetAll()).Returns(ToAsync(scanned));
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.GetNewsReportWithETag(scanned.NewsOrganisationId, scanned.Id))
-            .ReturnsAsync(new ETagged<NewsReport>(fresh, "etag-fresh"));
+            .ReturnsAsync(new ETagged<NewsReport>(fresh, "etag-fresh", ServicesDefined: true, YouTubeIdDefined: true));
         CataloguePlayableFieldPatch? patch = null;
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.PatchFields(scanned.NewsOrganisationId, scanned.Id, "etag-fresh",
@@ -684,7 +761,13 @@ public class CataloguePlayableServicesBackfillProcessorRules : IDisposable
         // Assert
         result.Applied.Should().Be(1);
         result.SkippedConflict.Should().Be(0);
-        patch.Should().Be(new CataloguePlayableFieldPatch { SetYouTubeId = true, YouTubeId = videoId });
+        patch.Should().Be(new CataloguePlayableFieldPatch
+        {
+            SetYouTubeId = true,
+            YouTubeId = videoId,
+            ServicesDefined = true,
+            YouTubeIdDefined = true
+        });
         uploaded.Should().ContainSingle().Which.Title.Should().Be(fresh.Title);
         _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
     }
@@ -941,7 +1024,7 @@ public class CataloguePlayableServicesBackfillProcessorRules : IDisposable
         };
 
     /// <summary>The ETag re-read returns an unchanged copy of the scanned report.</summary>
-    private void FreshNewsCopy(NewsReport scanned, string eTag)
+    private void FreshNewsCopy(NewsReport scanned, string eTag, bool? parentRemoved = null)
     {
         var copy = new NewsReport(scanned.Title)
         {
@@ -949,11 +1032,29 @@ public class CataloguePlayableServicesBackfillProcessorRules : IDisposable
             NewsOrganisationId = scanned.NewsOrganisationId,
             Services = scanned.Services?.ToDictionary(
                 x => x.Key, x => new ServiceLink { Url = x.Value.Url, Image = x.Value.Image }),
-            YouTubeId = scanned.YouTubeId
+            YouTubeId = scanned.YouTubeId,
+            ParentRemoved = parentRemoved ?? scanned.ParentRemoved
         };
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.GetNewsReportWithETag(scanned.NewsOrganisationId, scanned.Id))
             .ReturnsAsync(new ETagged<NewsReport>(copy, eTag));
+    }
+
+    /// <summary>The ETag re-read returns an unchanged copy of the scanned TV episode.</summary>
+    private void FreshTvCopy(TvShowEpisode scanned, string eTag, bool? parentRemoved = null)
+    {
+        var copy = new TvShowEpisode(scanned.Title)
+        {
+            Id = scanned.Id,
+            TvShowId = scanned.TvShowId,
+            Services = scanned.Services?.ToDictionary(
+                x => x.Key, x => new ServiceLink { Url = x.Value.Url, Image = x.Value.Image }),
+            YouTubeId = scanned.YouTubeId,
+            ParentRemoved = parentRemoved ?? scanned.ParentRemoved
+        };
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.GetTvShowEpisodeWithETag(scanned.TvShowId, scanned.Id))
+            .ReturnsAsync(new ETagged<TvShowEpisode>(copy, eTag));
     }
 
     private CataloguePlayableServicesBackfillRequest YouTubeIdOnlyApply(

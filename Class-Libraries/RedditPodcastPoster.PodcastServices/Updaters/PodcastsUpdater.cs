@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -16,6 +17,7 @@ public class PodcastsUpdater(
     IPodcastUpdater podcastUpdater,
     IPodcastRepository podcastRepository,
     IPodcastPassApiCache passApiCache,
+    IParentIndexingLockStore indexingLockStore,
     IOptions<PodcastUpdateBudgetOptions> budgetOptions,
     IOptions<PodcastIndexingStageLogOptions> stageLogOptions,
     PodcastUpdateBudgetCutTracker budgetCutTracker,
@@ -28,6 +30,33 @@ public class PodcastsUpdater(
 
     /// <summary>Stable log prefix when an abandoned update finally finishes in the background.</summary>
     public const string AbandonedCompletedMessagePrefix = "IndexerPodcastAbandonedCompleted";
+
+    /// <summary>
+    /// Stable log prefix when the hourly pass skips a podcast because an on-demand (or other) index holds its lease
+    /// (App Insights keys off it).
+    /// </summary>
+    public const string AlreadyRunningMessagePrefix = "IndexerParentIndexingAlreadyRunning";
+
+    /// <summary>
+    /// A marker with no heartbeat for this long belongs to an index that died.
+    /// At least on-demand budget (<see cref="PodcastUpdateBudgetOptions.MaxOnDemandBudgetSeconds"/>) plus abandon
+    /// grace and drain (~195s); five minutes covers that with margin.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockStaleAfter = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// How often the holder renews its marker while it works. Zero disables heartbeats: every holder must stay
+    /// budget-capped under <see cref="IndexingLockStaleAfter"/> (on-demand ≤ ~195s; hourly uses
+    /// <see cref="PodcastUpdateBudgetOptions.BudgetFor"/> — including expensive-pass when the multiplier is &gt; 0).
+    /// An expensive pass with <c>ExpensivePassBudgetMultiplier &lt;= 0</c> is unbounded and must not rely on Zero alone.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockHeartbeatInterval = TimeSpan.Zero;
+
+    /// <summary>
+    /// Stable log prefix when an abandoned hourly update is still running after the bounded drain
+    /// (App Insights keys off it).
+    /// </summary>
+    public const string AbandonedOutlivesDrainMessagePrefix = "IndexerPodcastAbandonedOutlivesDrain";
 
     private readonly PodcastUpdateBudgetOptions _budget = budgetOptions.Value ?? new PodcastUpdateBudgetOptions();
 
@@ -75,9 +104,29 @@ public class PodcastsUpdater(
                     podcastToUpdate.Id, podcastToUpdate.Name, logger, timeProvider, _stageLogOptions);
                 var budget = _budget.BudgetFor(expensivePass);
                 Task<IndexPodcastResult>? updateTask = null;
+                // Register the budget timer before any await so fake-time advances in tests are not lost.
                 using var budgetCts = budget.HasValue
                     ? new CancellationTokenSource(budget.Value, timeProvider)
                     : new CancellationTokenSource();
+                // Acquire synchronously so fake-time budget tests can Advance after UpdatePodcasts starts and still
+                // hit WaitAsync (an await here would let Advances land before the timeout is registered).
+                var lease = ParentIndexingLease.TryStart(
+                    indexingLockStore,
+                    timeProvider,
+                    podcastToUpdate.Id,
+                    IndexingLockStaleAfter,
+                    IndexingLockHeartbeatInterval,
+                    ParentIndexingLock.SourceHourly,
+                    logger).GetAwaiter().GetResult();
+                if (lease is null)
+                {
+                    logger.LogWarning(
+                        AlreadyRunningMessagePrefix +
+                        " podcast-id='{PodcastId}' podcast-name='{PodcastName}' source='{Source}'. Continuing with the next podcast.",
+                        podcastToUpdate.Id, podcastToUpdate.Name, ParentIndexingLock.SourceHourly);
+                    continue;
+                }
+
                 try
                 {
                     stageLog.Stage("start");
@@ -146,6 +195,9 @@ public class PodcastsUpdater(
                     if (abandoned && updateTask != null)
                     {
                         ObserveAbandonedUpdate(updateTask, podcastToUpdate, stageLog);
+                        // Hold the lease through a bounded drain (TimeProvider) so a concurrent index cannot acquire
+                        // while the abandoned task may still write — same shape as CatalogueParentsUpdater on-demand.
+                        await DrainAbandonedUpdate(updateTask, _budget.OnDemandAbandonDrain, podcastToUpdate);
                     }
 
                     success = false;
@@ -158,6 +210,7 @@ public class PodcastsUpdater(
                 }
                 finally
                 {
+                    await lease.DisposeAsync();
                     passApiCache.Clear();
                 }
             }
@@ -209,5 +262,26 @@ public class PodcastsUpdater(
             CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// Bounded wait (fake-time friendly via <see cref="TimeProvider"/>) before releasing the lease after abandon, so a
+    /// concurrent on-demand/hourly index cannot take the marker while the abandoned task may still complete a write.
+    /// </summary>
+    private async Task DrainAbandonedUpdate(Task updateTask, TimeSpan drain, Podcast podcast)
+    {
+        if (drain <= TimeSpan.Zero || updateTask.IsCompleted)
+        {
+            return;
+        }
+
+        await Task.WhenAny(updateTask, Task.Delay(drain, timeProvider));
+        if (!updateTask.IsCompleted)
+        {
+            logger.LogWarning(
+                AbandonedOutlivesDrainMessagePrefix +
+                " podcast-id='{PodcastId}' podcast-name='{PodcastName}' drain-seconds='{DrainSeconds}'. The abandoned update is still running after the drain; the lease will be released.",
+                podcast.Id, podcast.Name, (int) drain.TotalSeconds);
+        }
     }
 }

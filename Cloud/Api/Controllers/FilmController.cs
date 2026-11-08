@@ -6,10 +6,12 @@ using Api.Configuration;
 using Api;
 using Api.Dtos.Extensions;
 using Api.Factories;
+using Api.Handlers.Episodes;
 using Api.Handlers.Films;
 using Api.Handlers.Catalogue;
 using Api.Models;
 using Azure.Diagnostics;
+using RedditPodcastPoster.Models.ContentKinds;
 
 namespace Api.Controllers;
 
@@ -17,6 +19,7 @@ public class FilmController(
     IGetFilmHandler getFilmHandler,
     IPostFilmHandler postFilmHandler,
     ICatalogueRenameHandler catalogueRenameHandler,
+    IPublishEpisodeHandler publishEpisodeHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<FilmController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -52,6 +55,22 @@ public class FilmController(
             ["curate"],
             new FilmChangeRequestWrapper(filmId, change.ToModel()),
             postFilmHandler.Handle,
+            Unauthorised,
+            ct);
+
+    [Function("FilmPublish")]
+    public Task<HttpResponseData> Publish(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "film/{filmId:guid}/publish")]
+        HttpRequestData req,
+        Guid filmId,
+        [FromBody] Dtos.EpisodePublishRequest episodePostRequest,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["curate"],
+            new EpisodePublishRequestWrapper(
+                null, filmId, episodePostRequest.ToModel(), ContentKind.Film),
+            publishEpisodeHandler.Handle,
             Unauthorised,
             ct);
 

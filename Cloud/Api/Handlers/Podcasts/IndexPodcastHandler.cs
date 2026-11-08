@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
@@ -26,6 +27,18 @@ public class IndexPodcastHandler(
                 await ctx.NotFound(ToResponse(result), c),
             PodcastIndexStatus.BadRequest =>
                 await ctx.BadRequest(ToResponse(result), c),
+            PodcastIndexStatus.AlreadyRunning =>
+                await ctx.Conflict(new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.IndexingInProgress,
+                    Message = CatalogueIndexRejection.IndexingInProgressMessage
+                }, c),
+            PodcastIndexStatus.TimedOut =>
+                await ctx.Json(HttpStatusCode.GatewayTimeout, new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.TimedOut,
+                    Message = CatalogueIndexRejection.TimedOutMessage
+                }, c),
             PodcastIndexStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to index podcast"), c),
             _ => await LogAndFail(ctx, c)

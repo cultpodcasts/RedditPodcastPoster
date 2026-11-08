@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Podcasts;
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
@@ -100,7 +101,7 @@ public class PodcastGetService(
         // Submit does not use this — name-only POST 409s whenever more than one row shares the name.
         var podcastsWithServiceIds = podcasts.Where(x =>
             !string.IsNullOrWhiteSpace(x.SpotifyId) ||
-            !string.IsNullOrWhiteSpace(x.YouTubeChannelId) ||
+            x.HasYouTubeSource() ||
             x.AppleId != null).ToArray();
         if (podcastsWithServiceIds.Length == 1)
         {

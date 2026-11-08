@@ -3,13 +3,15 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Repositories;
 
 public class PodcastRepository(
     Container podcastsContainer,
-    ILogger<PodcastRepository> logger)
+    ILogger<PodcastRepository> logger,
+    IFileKeyClaimStore fileKeyClaims)
     : IPodcastRepository
 {
     public async Task<Podcast?> GetPodcast(Guid podcastId)
@@ -27,6 +29,7 @@ public class PodcastRepository(
     public async Task Save(Podcast podcast)
     {
         await podcastsContainer.UpsertItemAsync(podcast, new PartitionKey(podcast.Id.ToString()));
+        await fileKeyClaims.Acknowledge(podcast.FileKey);
     }
 
     public async Task Delete(Guid podcastId)

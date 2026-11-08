@@ -50,7 +50,7 @@ public class FileRepository : IFileRepository
         }
     }
 
-    public async Task Write<T>(T data) where T : CosmosSelector
+    public async Task Write<T>(T data) where T : CosmosSelector, IFileKeyed
     {
         if (string.IsNullOrWhiteSpace(data.FileKey))
         {
@@ -117,22 +117,6 @@ public class FileRepository : IFileRepository
         }
     }
 
-    public async IAsyncEnumerable<string> GetAllFileKeys<T>() where T : CosmosSelector
-    {
-        var filenames = GetFilenames<T>();
-        var keys = filenames.Select(x =>
-            x.Substring(_container.Length, x.Length - (FileExtension.Length + _container.Length)));
-        foreach (var item in keys)
-        {
-            var cosmosSelector = await Read<CosmosSelector>(item);
-            if (cosmosSelector != null)
-            {
-                yield return cosmosSelector.FileKey;
-            }
-        }
-    }
-
-
     public async Task<T?> GetBy<T>(Expression<Func<T, bool>> selector) where T : CosmosSelector
     {
         var items = await GetAll<T>().ToListAsync();
@@ -167,14 +151,14 @@ public class FileRepository : IFileRepository
         return reduce;
     }
 
-    public Task Delete<T>(T data) where T : CosmosSelector
+    public Task Delete<T>(T data) where T : CosmosSelector, IFileKeyed
     {
         var filePath = GetFilePath(data);
         File.Delete(filePath);
         return Task.CompletedTask;
     }
 
-    public string GetFilePath<T>(T data) where T : CosmosSelector
+    public string GetFilePath<T>(T data) where T : CosmosSelector, IFileKeyed
     {
         return GetFilePath<T>(data.FileKey);
     }

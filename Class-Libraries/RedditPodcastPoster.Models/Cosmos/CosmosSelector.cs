@@ -13,10 +13,6 @@ public class CosmosSelector
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public virtual ModelType ModelType { get; set; }
 
-    [JsonPropertyName("fileKey")]
-    [JsonPropertyOrder(1000)]
-    public virtual string FileKey { get; set; } = "";
-
     [JsonPropertyName("_ts")]
     public virtual long Timestamp { get; set; }
 }

@@ -393,10 +393,10 @@ public class PublicDatabasePublisher(
     }
 
     /// <summary>An item that will have a file, and how to build that file's content given the release texts it may keep.</summary>
-    private sealed record Candidate(PublishedItem Item, Func<BaselineReleaseText, Task<CosmosSelector>> Build)
+    private sealed record Candidate(PublishedItem Item, Func<BaselineReleaseText, Task<IFileKeyed>> Build)
     {
         public static Candidate For<T>(Guid id, string fileKey, PublicKind kind, Func<BaselineReleaseText, Task<T>> build)
-            where T : CosmosSelector =>
+            where T : CosmosSelector, IFileKeyed =>
             new(new PublishedItem(id, fileKey, kind), async previous => await build(previous));
     }
 }

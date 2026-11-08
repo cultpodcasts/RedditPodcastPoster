@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Spotify.Client;
 using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
@@ -27,7 +28,8 @@ public class SpotifySearcher(
         {
             indexingContext = indexingContext with
             {
-                ReleasedSince = indexingContext.ReleasedSince!.Value.ToUniversalTime().Floor(TimeSpan.FromDays(1))
+                // Unspecified ReleasedSince is UTC (#1219); ToUniversalTime would read it as host-local and floor to the previous day east of UTC.
+                ReleasedSince = UtcDateTimes.ToUtc(indexingContext.ReleasedSince!.Value).Floor(TimeSpan.FromDays(1))
             };
         }
 

@@ -42,7 +42,7 @@ public sealed class CatalogueLanguageDetector : ICatalogueLanguageDetector
 
     private static readonly string[] ScriptOrder =
     [
-        "ko", "ja", "zh", "th", "el", "he", "gu", "ta", "te", "bn", "pa", "si", "hi", "ar", "uk", "bg", "sr", "ru"
+        "ko", "ja", "zh", "th", "el", "he", "gu", "ta", "te", "bn", "pa", "si", "hi", "fa", "ur", "ar", "uk", "bg", "sr", "ru"
     ];
 
     public CatalogueLanguageDetection Detect(CatalogueLanguageTexts texts)
@@ -153,6 +153,9 @@ public sealed class CatalogueLanguageDetector : ICatalogueLanguageDetector
     {
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);
         var letters = 0;
+        var arabicScript = 0;
+        var persianMarkers = 0;
+        var urduMarkers = 0;
         foreach (var ch in text)
         {
             if (!char.IsLetter(ch))
@@ -161,6 +164,24 @@ public sealed class CatalogueLanguageDetector : ICatalogueLanguageDetector
             }
 
             letters++;
+            if (IsArabicScript(ch))
+            {
+                // Shared Arabic-script letters must not vote for Arabic. Persian and Urdu are written in
+                // that script; a few letters Arabic does not use decide the language, then the whole
+                // run counts as that language. Otherwise those letters lose to the shared ones.
+                arabicScript++;
+                if (IsUrduOnly(ch))
+                {
+                    urduMarkers++;
+                }
+                else if (IsPersianNotArabic(ch))
+                {
+                    persianMarkers++;
+                }
+
+                continue;
+            }
+
             var code = ScriptOf(ch);
             if (code == null)
             {
@@ -168,6 +189,12 @@ public sealed class CatalogueLanguageDetector : ICatalogueLanguageDetector
             }
 
             counts[code] = counts.GetValueOrDefault(code) + 1;
+        }
+
+        if (arabicScript > 0)
+        {
+            var arabicFamily = urduMarkers > 0 ? "ur" : persianMarkers > 0 ? "fa" : "ar";
+            counts[arabicFamily] = arabicScript;
         }
 
         if (letters < 12)
@@ -204,17 +231,20 @@ public sealed class CatalogueLanguageDetector : ICatalogueLanguageDetector
         >= '\u0A00' and <= '\u0A7F' => "pa",
         >= '\u0D80' and <= '\u0DFF' => "si",
         >= '\u0900' and <= '\u097F' => ch == '\u0933' ? "mr" : "hi",
-        >= '\u0600' and <= '\u06FF' or >= '\u0750' and <= '\u077F' => ArabicFamily(ch),
         >= '\u0400' and <= '\u04FF' => CyrillicFamily(ch),
         _ => null
     };
 
-    private static string ArabicFamily(char ch) => ch switch
-    {
-        '\u0679' or '\u0688' or '\u0691' or '\u06BA' or '\u06BE' or '\u06C1' or '\u06D2' => "ur",
-        '\u067E' or '\u0686' or '\u0698' or '\u06AF' or '\u06CC' => "fa",
-        _ => "ar"
-    };
+    private static bool IsArabicScript(char ch) =>
+        ch is >= '\u0600' and <= '\u06FF' or >= '\u0750' and <= '\u077F';
+
+    /// <summary>Letters used by Urdu and not by Persian or Arabic.</summary>
+    private static bool IsUrduOnly(char ch) =>
+        ch is '\u0679' or '\u0688' or '\u0691' or '\u06BA' or '\u06BE' or '\u06C1' or '\u06D2';
+
+    /// <summary>Letters used by Persian (and often Urdu) that Arabic does not use.</summary>
+    private static bool IsPersianNotArabic(char ch) =>
+        ch is '\u067E' or '\u0686' or '\u0698' or '\u06AF' or '\u06A9' or '\u06CC';
 
     private static string CyrillicFamily(char ch) => ch switch
     {

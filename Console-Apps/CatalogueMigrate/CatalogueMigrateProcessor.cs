@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 
 namespace CatalogueMigrate;
@@ -43,6 +44,7 @@ public class CatalogueMigrateProcessor(
     ICatalogueMigrateDestinationReader destinationReader,
     CatalogueMigrateRollbackPreviewer rollbackPreviewer,
     ICatalogueMigrateEvidenceStore evidenceStore,
+    IYouTubePlaylistValidator youTubePlaylistValidator,
     TimeProvider timeProvider,
     ILogger<CatalogueMigrateProcessor> logger)
 {
@@ -149,6 +151,7 @@ public class CatalogueMigrateProcessor(
                     continue;
                 }
 
+                unit = await BlockMismatchedYouTubePlaylist(unit, cancellationToken);
                 unit = await BlockDuplicateParent(unit);
                 if (apply)
                 {
@@ -309,6 +312,38 @@ public class CatalogueMigrateProcessor(
             restored,
             conflicts.Count);
         return new CatalogueMigrateRunResult(exitCode, targets.Count, 0, AppliedCount: request.Apply ? restored : 0, EvidenceFiles: evidenceFiles);
+    }
+
+    /// <summary>
+    /// Blocks a News / TV move whose podcast carries a youTubeChannelId / youTubePlaylistId pair the channel does
+    /// not own (#1178). Dry-run reports the refusal; apply skips the podcast. Film has no parent indexing block.
+    /// Consent / --apply gates are unchanged.
+    /// </summary>
+    private async Task<CatalogueMigrateUnit> BlockMismatchedYouTubePlaylist(
+        CatalogueMigrateUnit unit,
+        CancellationToken cancellationToken)
+    {
+        if (!unit.ApplyEligible || CatalogueMigratePlanner.DestinationParent(unit.Podcast, unit.Kind) is null)
+        {
+            return unit;
+        }
+
+        var refused = await CatalogueMigrateServiceIds.YouTubePlaylistOwnershipRefusal(
+            unit.Podcast,
+            youTubePlaylistValidator,
+            cancellationToken);
+        if (refused is null)
+        {
+            return unit;
+        }
+
+        var reason = CatalogueMigrateServiceIds.OwnershipBlockReason(refused);
+        logger.LogWarning(
+            "Catalogue migrate {PodcastId} {Kind}: {Reason}",
+            unit.Podcast.Id,
+            unit.Kind,
+            reason);
+        return unit with { ApplyBlockReason = reason };
     }
 
     /// <summary>

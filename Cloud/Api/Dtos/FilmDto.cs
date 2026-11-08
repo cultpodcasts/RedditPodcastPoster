@@ -1,12 +1,13 @@
 using System.Text.Json.Serialization;
+using Api.Dtos.Mapping;
 
 namespace Api.Dtos;
 
 /// <summary>
 /// Curator GET for a film: the shared publisher fields, the IMDb canonical id and the playable fields a film has.
-/// <c>release</c> is <c>yyyy</c> for a year-only release, otherwise <c>yyyy-MM-dd</c>.
+/// <c>release</c> is <c>yyyy</c>, <c>yyyy-MM-dd</c>, or UTC <c>yyyy-MM-ddTHH:mm:ssZ</c>.
 /// </summary>
-public class FilmDto : PublisherFieldsDto
+public class FilmDto : PublisherFieldsDto, IPlayableGuestFieldsDto
 {
     [JsonPropertyName("imdbId")]
     public string? ImdbId { get; set; }
@@ -40,6 +41,14 @@ public class FilmDto : PublisherFieldsDto
 
     [JsonPropertyName("guests")]
     public string[]? Guests { get; set; }
+
+    /// <summary>Resolved people for <see cref="Guests"/> (curator edit).</summary>
+    [JsonPropertyName("guestPeople")]
+    public IList<PersonDto>? GuestPeople { get; set; }
+
+    /// <summary>People matched from title/description who are not already in <see cref="Guests"/>.</summary>
+    [JsonPropertyName("guestSuggestions")]
+    public IList<EpisodeDto.PersonMatch>? GuestSuggestions { get; set; }
 
     [JsonPropertyName("services")]
     public Dictionary<string, ServiceLinkDto>? Services { get; set; }

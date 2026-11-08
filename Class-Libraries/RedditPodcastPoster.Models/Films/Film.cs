@@ -24,10 +24,15 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
         ModelType = ModelType.Film;
     }
 
+    /// <summary>
+    /// Sets <see cref="Name"/> and a provisional, never-empty file key built from this constructor's own new
+    /// <c>Id</c>. Setting <c>Id</c> in an object initializer afterwards does not update the key, and the key is not
+    /// checked for uniqueness: code that saves a new item must set <c>FileKey</c> from <c>IFileKeyAllocator</c>.
+    /// </summary>
     public Film(string name) : this()
     {
         Name = name;
-        FileKey = FileKeyFactory.GetFilmFileKey(name);
+        FileKey = FileKeyFactory.GetFilmFileKey(name, Id);
     }
 
     private CatalogueRelease? _release;
@@ -63,9 +68,41 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     [JsonPropertyOrder(40)]
     public bool Posted { get; set; }
 
+    /// <summary>Legacy Cosmos flag (<c>tweeted</c>). Prefer <see cref="TweetPost"/> for a new post.</summary>
     [JsonPropertyName("tweeted")]
     [JsonPropertyOrder(41)]
-    public bool Tweeted { get; set; }
+    public bool? OldTweeted { get; set; }
+
+    /// <summary>Id of the X post made for this film. See <see cref="Playable.TweetPost"/>.</summary>
+    [JsonPropertyName("tweetPost")]
+    [JsonPropertyOrder(41)]
+    public string? TweetPost { get; set; }
+
+    /// <summary>Why this film must not be posted to X. See <see cref="Playable.TweetSkipReason"/>.</summary>
+    [JsonPropertyName("tweetSkipReason")]
+    [JsonPropertyOrder(411)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TweetSkipReason { get; set; }
+
+    /// <summary>Reads <c>tweetId</c> from the short-lived #1218 shape. Never written back.</summary>
+    [JsonPropertyName("tweetId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyTweetId
+    {
+        get => null;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(TweetPost) && !string.IsNullOrWhiteSpace(value))
+            {
+                TweetPost = value;
+            }
+        }
+    }
+
+    [JsonIgnore]
+    public bool Tweeted =>
+        OldTweeted == true || !string.IsNullOrWhiteSpace(TweetPost) ||
+        !string.IsNullOrWhiteSpace(TweetSkipReason);
 
     [JsonPropertyName("bluesky")]
     [JsonPropertyOrder(42)]
@@ -156,5 +193,12 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     {
         BlueskyPost = null;
         OldBlueskyPosted = null;
+    }
+
+    public void ClearTweetState()
+    {
+        OldTweeted = null;
+        TweetPost = null;
+        TweetSkipReason = null;
     }
 }

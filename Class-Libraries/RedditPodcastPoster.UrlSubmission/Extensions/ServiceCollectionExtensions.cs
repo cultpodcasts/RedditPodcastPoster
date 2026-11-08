@@ -70,12 +70,17 @@ public static class ServiceCollectionExtensions
             .AddScoped<ICatalogueLanguageGate, CatalogueLanguageGate>()
             .AddScoped<IPodcastAndEpisodeFactory, PodcastAndEpisodeFactory>()
             .AddScoped<IPodcastProcessor, PodcastProcessor>()
+            .AddScoped<ICatalogueSubmitEnrichment, CatalogueSubmitEnrichment>()
             .AddScoped<ICatalogueKindSubmitter, CatalogueKindSubmitter>()
             .AddScoped<ICatalogueParentLookup, CatalogueParentLookup>()
             .AddScoped<IEpisodeUrlRouter, EpisodeUrlRouter>()
             .AddScoped<ICatalogueParentSubmitter, CatalogueParentSubmitter>()
             .AddScoped<ICategorisedItemProcessor, CategorisedItemProcessor>()
-            .AddScoped<IDiscoveryUrlSubmitter, DiscoveryUrlSubmitter>()
+            .AddScoped<ICatalogueOwnershipGuard, CatalogueOwnershipGuard>()
+            .AddScoped<DiscoveryUrlSubmitter>()
+            // Discovery submits pass the catalogue ownership guard first (#1089).
+            .AddScoped<IDiscoveryUrlSubmitter>(sp => ActivatorUtilities.CreateInstance<CatalogueOwnedDiscoveryUrlSubmitter>(
+                sp, sp.GetRequiredService<DiscoveryUrlSubmitter>()))
             .AddScoped<IDiscoveryResultProcessor, DiscoveryResultProcessor>()
             .AddSingleton<ISubmitResultAdaptor, SubmitResultAdaptor>();
     }

@@ -20,11 +20,15 @@ public class FindDuplicateEpisodesProcessor(
     IJsonSerializerOptionsProvider jsonSerializerOptionsProvider,
     ILogger<FindDuplicateEpisodesProcessor> logger)
 {
-    private const string ActiveEpisodesFilter =
-        $"{Playable.CosmosParentNotRemovedSql} and ((NOT IS_DEFINED(e.removed)) OR e.removed=false)";
+    /// <summary>
+    /// Live episodes for duplicate detection: parent not removed and the episode itself not removed
+    /// (<see cref="Playable.CosmosNotRemovedSql"/> — absent, null or false).
+    /// </summary>
+    internal const string ActiveEpisodesFilter =
+        $"{Playable.CosmosParentNotRemovedSql} and {Playable.CosmosNotRemovedSql}";
 
     private static readonly HashSet<string> ExcludedComparisonFields =
-        new(StringComparer.Ordinal) { "id", "_rid", "_self", "_etag", "_attachments", "_ts", "posted", "tweeted", "bluesky", "blueskyPost", "description" };
+        new(StringComparer.Ordinal) { "id", "_rid", "_self", "_etag", "_attachments", "_ts", "posted", "tweeted", "tweetId", "tweetPost", "bluesky", "blueskyPost", "description" };
 
     private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
     private readonly JsonSerializerOptions _jsonSerializerOptions = jsonSerializerOptionsProvider.GetJsonSerializerOptions();

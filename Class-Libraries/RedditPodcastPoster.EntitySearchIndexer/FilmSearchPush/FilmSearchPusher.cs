@@ -37,6 +37,16 @@ public sealed class FilmSearchPusher(
                 $"Batch size must be between 1 and {FilmSearchPushRequest.MaxBatchSize}.");
         }
 
+        if (request.FilmId is { } singleFilmId)
+        {
+            if (request.Full)
+            {
+                throw new ArgumentException("A single-film push cannot also be a full push.", nameof(request));
+            }
+
+            return await PushOne(singleFilmId, request.DryRun, cancellationToken);
+        }
+
         var saved = await watermarkStore.GetAsync(cancellationToken);
         var previous = saved?.HighWaterMark;
         var full = await DecideFull(request, previous, cancellationToken);
@@ -172,6 +182,37 @@ public sealed class FilmSearchPusher(
             toPush.Count, toDelete.Count, previous?.ToString() ?? "none", next?.ToString() ?? "none");
         return new FilmSearchPushResult(true, full, false, previous, next, films.Count, toPush.Count, toDelete.Count,
             0, true);
+    }
+
+    /// <summary>
+    /// One film by id: merge-or-upload its document, or delete it when the film is removed. The watermark is neither
+    /// read nor saved, so the scheduled incremental run is unaffected. A missing film fails without writing.
+    /// </summary>
+    private async Task<FilmSearchPushResult> PushOne(Guid filmId, bool dryRun, CancellationToken cancellationToken)
+    {
+        var film = await filmRepository.GetFilm(filmId);
+        if (film is null)
+        {
+            logger.LogError("Film search push: film '{FilmId}' was not found in Cosmos; nothing pushed.", filmId);
+            return new FilmSearchPushResult(false, false, dryRun, null, null, 0, 0, 0, 1, false);
+        }
+
+        var delete = CataloguePlayableSearchDocument.ShouldExcludeFromSearch(film);
+        var document = delete ? null : CataloguePlayableSearchDocument.For(film);
+        if (dryRun)
+        {
+            logger.LogInformation("Film search push DRY RUN: would {Action} film '{FilmId}'. Nothing written.",
+                delete ? "delete" : "push", filmId);
+            return new FilmSearchPushResult(true, false, true, null, null, 1, delete ? 0 : 1, delete ? 1 : 0, 0, false);
+        }
+
+        var failed = delete
+            ? (await searchIndex.Delete([film.Id.ToString()], cancellationToken)).Count
+            : (await searchIndex.MergeOrUpload([document!], cancellationToken)).Count;
+        logger.LogInformation("Film search push: {Action} film '{FilmId}' {Outcome}; watermark unchanged.",
+            delete ? "deleted" : "pushed", filmId, failed == 0 ? "ok" : "FAILED");
+        return new FilmSearchPushResult(failed == 0, false, false, null, null, 1, delete ? 0 : 1, delete ? 1 : 0,
+            failed, false);
     }
 
     /// <summary>

@@ -17,7 +17,8 @@ public sealed record CatalogueLookup(
     string? DefaultSubject = null,
     IReadOnlyList<string>? IgnoredSubjects = null,
     string? Language = null,
-    TimeSpan? YouTubePublishingDelay = null)
+    TimeSpan? YouTubePublishingDelay = null,
+    string? DescriptionRegex = null)
 {
     /// <summary>Use-case doing the lookup (from <c>IndexingContext.LookupFlow</c>).</summary>
     public EpisodeLookupFlow Flow { get; init; } = EpisodeLookupFlow.Submit;

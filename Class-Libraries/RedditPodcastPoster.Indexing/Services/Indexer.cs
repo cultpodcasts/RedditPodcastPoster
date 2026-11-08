@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Indexing.Models;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People.Enrichers;
@@ -8,6 +10,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Subjects.Enrichers;
 using RedditPodcastPoster.Subjects.Factories;
 
@@ -20,9 +23,40 @@ public class Indexer(
     ISubjectEnricher subjectEnricher,
     ISubjectEnrichmentOptionsFactory subjectEnrichmentOptionsFactory,
     IEpisodeGuestEnricher guestEnricher,
+    IParentIndexingLockStore indexingLockStore,
+    IOptions<PodcastUpdateBudgetOptions> budgetOptions,
+    TimeProvider timeProvider,
     ILogger<Indexer> logger
 ) : IIndexer
 {
+    /// <summary>Stable log prefix when on-demand indexing is cut by its time budget (App Insights keys off it).</summary>
+    public const string BudgetExceededMessagePrefix = "IndexerOnDemandBudgetExceeded";
+
+    /// <summary>Stable log prefix when an abandoned on-demand update finally finishes in the background.</summary>
+    public const string AbandonedCompletedMessagePrefix = "IndexerOnDemandAbandonedCompleted";
+
+    /// <summary>
+    /// Stable log prefix when on-demand answers while its abandoned update is still running after the drain
+    /// (the update may then fail once the request scope is disposed).
+    /// </summary>
+    public const string AbandonedOutlivesRequestMessagePrefix = "IndexerOnDemandAbandonedOutlivesRequest";
+
+    /// <summary>
+    /// A marker with no heartbeat for this long belongs to an index that died.
+    /// At least on-demand budget (<see cref="PodcastUpdateBudgetOptions.MaxOnDemandBudgetSeconds"/>) plus abandon
+    /// grace and drain (~195s); five minutes covers that with margin.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockStaleAfter = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// How often the holder renews its marker while it works. Zero disables heartbeats: every holder must stay
+    /// budget-capped under <see cref="IndexingLockStaleAfter"/> (on-demand ≤ ~195s with grace + drain; hourly uses
+    /// <see cref="PodcastUpdateBudgetOptions.BudgetFor"/>). Heartbeats are not a substitute for that cap.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockHeartbeatInterval = TimeSpan.Zero;
+
+    private readonly PodcastUpdateBudgetOptions _budget = budgetOptions.Value ?? new PodcastUpdateBudgetOptions();
+
     public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
         var podcasts = await FindPodcastsByName(podcastName);
@@ -93,66 +127,108 @@ public class Indexer(
 
         if (performAutoIndex || enrichOnly || forceIndex)
         {
-            logger.LogInformation("Indexing podcast '{podcastName}' with podcast-id '{podcastId}'.", podcast.Name,
-                podcastId);
-
-            // Pass podcast directly ΓÇö no conversion needed.
-            var results = await podcastUpdater.Update(podcast, enrichOnly, indexingContext);
-
-            updatedEpisodes = results.MergeResult.AddedEpisodes
-                .Select(x =>
-                    new IndexedEpisode(
-                        x,
-                        EpisodeServicePresence.HasUrl(x, ServiceKeys.Spotify),
-                        EpisodeServicePresence.HasUrl(x, ServiceKeys.Apple),
-                        EpisodeServicePresence.HasUrl(x, ServiceKeys.YouTube)))
-                .Concat(results.EnrichmentResult.UpdatedEpisodes.Select(x =>
-                    new IndexedEpisode(
-                        x.Episode,
-                        x.EnrichmentContext.SpotifyUrlUpdated,
-                        x.EnrichmentContext.AppleUrlUpdated,
-                        x.EnrichmentContext.YouTubeUrlUpdated)))
-                // Elimination marks Removed in Cosmos; include those IDs so search push deletes them.
-                .Concat(results.FilterResult.FilteredEpisodes.Select(x =>
-                    new IndexedEpisode(
-                        x.Episode,
-                        EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Spotify),
-                        EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Apple),
-                        EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.YouTube))))
-                .Distinct()
-                .ToArray();
-
-            var resultsMessage = results.ToString();
-            if (results.MergeResult.FailedEpisodes.Any() ||
-                (results.SpotifyBypassed && !indexingContext.SkipSpotifyUrlResolving) ||
-                (results.YouTubeBypassed && !indexingContext.SkipYouTubeUrlResolving))
+            var lease = await ParentIndexingLease.TryStart(
+                indexingLockStore,
+                timeProvider,
+                podcastId,
+                IndexingLockStaleAfter,
+                IndexingLockHeartbeatInterval,
+                ParentIndexingLock.SourceOnDemand,
+                logger);
+            if (lease is null)
             {
-                logger.LogError(resultsMessage);
-            }
-            else
-            {
-                logger.LogInformation(resultsMessage);
+                logger.LogWarning(
+                    "IndexerParentIndexingAlreadyRunning podcast-id='{PodcastId}' podcast-name='{PodcastName}' source='{Source}'.",
+                    podcastId, podcast.Name, ParentIndexingLock.SourceOnDemand);
+                return new IndexResponse(IndexStatus.AlreadyRunning);
             }
 
-            foreach (var indexedEpisode in updatedEpisodes.Where(x => !x.Episode.IsRemoved()))
+            await using (lease)
             {
-                var subjectsResult = await subjectEnricher.EnrichSubjects(
-                    indexedEpisode.Episode,
-                    await subjectEnrichmentOptionsFactory.CreateAsync(podcast, indexedEpisode.Episode));
+                logger.LogInformation("Indexing podcast '{podcastName}' with podcast-id '{podcastId}'.", podcast.Name,
+                    podcastId);
 
-                var guestsResult = await guestEnricher.EnrichGuests(indexedEpisode.Episode);
-
-                var result = updatedEpisodes.FirstOrDefault(x => x.Episode.Id == indexedEpisode.Episode.Id);
-                result?.Subjects = subjectsResult.Additions;
-
-                if (subjectsResult.Additions.Any() || subjectsResult.Removals.Any() ||
-                    guestsResult.Additions.Any())
+                var budget = _budget.OnDemandBudget;
+                Task<IndexPodcastResult>? updateTask = null;
+                using var budgetCts = new CancellationTokenSource(budget, timeProvider);
+                try
                 {
-                    await episodeRepository.Save(indexedEpisode.Episode);
+                    var onDemandContext = indexingContext with { CancellationToken = budgetCts.Token };
+                    updateTask = podcastUpdater.Update(podcast, enrichOnly, onDemandContext);
+                    var results = await updateTask.WaitAsync(budget + _budget.OnDemandAbandonGrace, timeProvider);
+
+                    updatedEpisodes = results.MergeResult.AddedEpisodes
+                        .Select(x =>
+                            new IndexedEpisode(
+                                x,
+                                EpisodeServicePresence.HasUrl(x, ServiceKeys.Spotify),
+                                EpisodeServicePresence.HasUrl(x, ServiceKeys.Apple),
+                                EpisodeServicePresence.HasUrl(x, ServiceKeys.YouTube)))
+                        .Concat(results.EnrichmentResult.UpdatedEpisodes.Select(x =>
+                            new IndexedEpisode(
+                                x.Episode,
+                                x.EnrichmentContext.SpotifyUrlUpdated,
+                                x.EnrichmentContext.AppleUrlUpdated,
+                                x.EnrichmentContext.YouTubeUrlUpdated)))
+                        // Elimination marks Removed in Cosmos; include those IDs so search push deletes them.
+                        .Concat(results.FilterResult.FilteredEpisodes.Select(x =>
+                            new IndexedEpisode(
+                                x.Episode,
+                                EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Spotify),
+                                EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.Apple),
+                                EpisodeServicePresence.HasUrl(x.Episode, ServiceKeys.YouTube))))
+                        .Distinct()
+                        .ToArray();
+
+                    var resultsMessage = results.ToString();
+                    if (results.MergeResult.FailedEpisodes.Any() ||
+                        (results.SpotifyBypassed && !onDemandContext.SkipSpotifyUrlResolving) ||
+                        (results.YouTubeBypassed && !onDemandContext.SkipYouTubeUrlResolving))
+                    {
+                        logger.LogError(resultsMessage);
+                    }
+                    else
+                    {
+                        logger.LogInformation(resultsMessage);
+                    }
+
+                    foreach (var indexedEpisode in updatedEpisodes.Where(x => !x.Episode.IsRemoved()))
+                    {
+                        var subjectsResult = await subjectEnricher.EnrichSubjects(
+                            indexedEpisode.Episode,
+                            await subjectEnrichmentOptionsFactory.CreateAsync(podcast, indexedEpisode.Episode));
+
+                        var guestsResult = await guestEnricher.EnrichGuests(indexedEpisode.Episode);
+
+                        var result = updatedEpisodes.FirstOrDefault(x => x.Episode.Id == indexedEpisode.Episode.Id);
+                        result?.Subjects = subjectsResult.Additions;
+
+                        if (subjectsResult.Additions.Any() || subjectsResult.Removals.Any() ||
+                            guestsResult.Additions.Any())
+                        {
+                            await episodeRepository.Save(indexedEpisode.Episode);
+                        }
+                    }
+
+                    status = IndexStatus.Performed;
+                }
+                catch (Exception ex) when (budgetCts.IsCancellationRequested &&
+                                           ex is OperationCanceledException or TimeoutException)
+                {
+                    var abandoned = ex is TimeoutException;
+                    logger.LogError(
+                        BudgetExceededMessagePrefix +
+                        " podcast-id='{PodcastId}' podcast-name='{PodcastName}' budget-seconds='{BudgetSeconds}' abandoned='{Abandoned}'.",
+                        podcastId, podcast.Name, (int) budget.TotalSeconds, abandoned);
+                    if (abandoned && updateTask != null)
+                    {
+                        ObserveAbandonedUpdate(updateTask, podcast);
+                        await DrainAbandonedUpdate(updateTask, _budget.OnDemandAbandonDrain, podcast);
+                    }
+
+                    status = IndexStatus.TimedOut;
                 }
             }
-
-            status = IndexStatus.Performed;
         }
         else
         {
@@ -188,6 +264,42 @@ public class Indexer(
             .ToListAsync();
 
         return episodes.Any();
+    }
+
+    /// <summary>
+    /// An on-demand index runs inside the HTTP request's DI scope. Give an abandoned update a short, bounded time to
+    /// stop so it finishes while scoped repositories are still alive — then release the lease.
+    /// </summary>
+    private async Task DrainAbandonedUpdate(Task updateTask, TimeSpan drain, Podcast podcast)
+    {
+        if (drain <= TimeSpan.Zero || updateTask.IsCompleted)
+        {
+            return;
+        }
+
+        await Task.WhenAny(updateTask, Task.Delay(drain, timeProvider));
+        if (!updateTask.IsCompleted)
+        {
+            logger.LogWarning(
+                AbandonedOutlivesRequestMessagePrefix +
+                " podcast-id='{PodcastId}' podcast-name='{PodcastName}' drain-seconds='{DrainSeconds}'. The abandoned update is still running after the on-demand drain and may fail once the request scope is disposed.",
+                podcast.Id, podcast.Name, (int) drain.TotalSeconds);
+        }
+    }
+
+    private void ObserveAbandonedUpdate(Task<IndexPodcastResult> updateTask, Podcast podcast)
+    {
+        updateTask.ContinueWith(task =>
+            {
+                var error = task.Exception?.GetBaseException();
+                logger.LogWarning(
+                    AbandonedCompletedMessagePrefix +
+                    " podcast-id='{PodcastId}' podcast-name='{PodcastName}' status='{Status}' error-type='{ErrorType}'",
+                    podcast.Id, podcast.Name, task.Status, error?.GetType().Name ?? string.Empty);
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private static IndexedEpisode[]? Collapse(IndexedEpisode[]? episodes)

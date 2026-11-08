@@ -22,6 +22,7 @@
     <ProjectReference Include="..\RedditPodcastPoster.Arte\RedditPodcastPoster.Arte.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.BBC\RedditPodcastPoster.BBC.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.CanalPlus\RedditPodcastPoster.CanalPlus.csproj" />
+    <ProjectReference Include="..\RedditPodcastPoster.CbcGem\RedditPodcastPoster.CbcGem.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Channel4\RedditPodcastPoster.Channel4.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DiscoveryPlus\RedditPodcastPoster.DiscoveryPlus.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.DisneyPlus\RedditPodcastPoster.DisneyPlus.csproj" />

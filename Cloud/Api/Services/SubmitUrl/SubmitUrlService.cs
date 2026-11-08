@@ -41,10 +41,10 @@ public class SubmitUrlService(
                 return new SubmitUrlResult(SubmitUrlStatus.BadRequest, Message: parentError);
             }
 
-            if (parentTarget != null && !UrlSubmitter.IsPodcastPlatformUrl(submitUrlModel.Url))
+            if (parentTarget != null && !UrlSubmitter.CanFileUnderCatalogueParent(submitUrlModel.Url))
             {
                 return new SubmitUrlResult(SubmitUrlStatus.BadRequest,
-                    Message: "Only Spotify, YouTube or Apple Podcasts URLs can be filed under a news organisation or TV show.");
+                    Message: "Only Spotify, YouTube, Apple Podcasts, or a recognised streaming service URL can be filed as a TvShowEpisode or NewsReport.");
             }
 
             if (parentTarget != null)
@@ -135,6 +135,11 @@ public class SubmitUrlService(
             if (result.CatalogueSearchSource is { } searchSource)
             {
                 await IndexCatalogueParentItem(searchSource, cancellationToken);
+            }
+
+            if (result.FilmSearchSource is { } film)
+            {
+                await CatalogueSubmitSearchIndexing.IndexFilmAsync(playableSearch, film, logger, cancellationToken);
             }
 
             if (result.PlayableId.HasValue && result.Episode == null)

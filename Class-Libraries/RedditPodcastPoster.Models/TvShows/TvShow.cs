@@ -14,10 +14,15 @@ public sealed class TvShow : Publisher, ITvCanonical, IHasYouTubeIndexingSetting
         ModelType = ModelType.TvShow;
     }
 
+    /// <summary>
+    /// Sets <see cref="Name"/> and a provisional, never-empty file key built from this constructor's own new
+    /// <c>Id</c>. Setting <c>Id</c> in an object initializer afterwards does not update the key, and the key is not
+    /// checked for uniqueness: code that saves a new item must set <c>FileKey</c> from <c>IFileKeyAllocator</c>.
+    /// </summary>
     public TvShow(string name) : this()
     {
         Name = name;
-        FileKey = FileKeyFactory.GetTvShowFileKey(name);
+        FileKey = FileKeyFactory.GetTvShowFileKey(name, Id);
     }
 
     /// <summary>IMDb title id (<c>tt…</c>) for this programme. Omitted when unknown.</summary>

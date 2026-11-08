@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Discovery\RedditPodcastPoster.Discovery.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Discovery.ML\RedditPodcastPoster.Discovery.ML.csproj" />

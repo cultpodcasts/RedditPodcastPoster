@@ -9,7 +9,7 @@ namespace RedditPodcastPoster.Models.Thumbnails;
 /// equal turn. All fields are nullable: a missing document or null fields mean "start from the beginning".
 /// </summary>
 [CosmosSelector(ModelType.YouTubeThumbnailRecheckCursor)]
-public sealed class YouTubeThumbnailRecheckCursor : CosmosSelector
+public sealed class YouTubeThumbnailRecheckCursor : CosmosSelector, IFileKeyed
 {
     public static readonly Guid _Id = Guid.Parse("5e0b8a43-7c1d-4f2e-9a6b-3d8c1f0e7b29");
 
@@ -33,5 +33,7 @@ public sealed class YouTubeThumbnailRecheckCursor : CosmosSelector
     [JsonPropertyOrder(12)]
     public DateTime? UpdatedUtc { get; set; }
 
-    public override string FileKey => nameof(YouTubeThumbnailRecheckCursor);
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => nameof(YouTubeThumbnailRecheckCursor);
 }

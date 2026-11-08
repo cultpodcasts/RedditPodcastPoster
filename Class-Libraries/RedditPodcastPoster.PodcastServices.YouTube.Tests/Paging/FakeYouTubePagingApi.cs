@@ -25,7 +25,7 @@ public sealed record FakeYouTubePage(IReadOnlyList<string> VideoIds, string? Nex
 
 /// <summary>
 /// Fake YouTube Data API: serves synthetic playlistItems.list / search.list pages keyed by
-/// <c>pageToken</c> and records each request's <c>pageToken</c> and <c>maxResults</c>.
+/// <c>pageToken</c> and records each request's <c>pageToken</c>, <c>maxResults</c> and <c>publishedAfter</c>.
 /// Requests past <see cref="MaxRequests"/> fail so a looping walk ends the test instead of hanging it.
 /// </summary>
 public sealed class FakeYouTubePagingApi
@@ -35,6 +35,9 @@ public sealed class FakeYouTubePagingApi
     private readonly Dictionary<string, FakeYouTubePage> _pages = new(StringComparer.Ordinal);
 
     public List<(string PageToken, int? MaxResults)> Requests { get; } = [];
+
+    /// <summary>Each request's <c>publishedAfter</c> query value, in request order (null when not sent).</summary>
+    public List<string?> PublishedAfter { get; } = [];
 
     public FakeYouTubePagingApi Page(string pageToken, FakeYouTubePage page)
     {
@@ -58,6 +61,7 @@ public sealed class FakeYouTubePagingApi
         var token = query["pageToken"] ?? "";
         int? maxResults = int.TryParse(query["maxResults"], out var m) ? m : null;
         Requests.Add((token, maxResults));
+        PublishedAfter.Add(query["publishedAfter"]);
         if (Requests.Count > MaxRequests || !_pages.TryGetValue(token, out var page))
         {
             return new HttpResponseMessage(HttpStatusCode.BadRequest)
@@ -95,7 +99,15 @@ public sealed class FakeYouTubePagingApi
                 {
                     kind = "youtube#searchResult",
                     id = new { kind = "youtube#video", videoId = id },
-                    snippet = new { title = $"Synthetic {id}", publishedAt = addedAt, liveBroadcastContent = "none" }
+                    snippet = new
+                    {
+                        title = $"Synthetic {id}",
+                        description = $"Synthetic description {id}",
+                        channelId = "UCsyntheticchannel0001",
+                        channelTitle = "Synthetic channel",
+                        publishedAt = addedAt,
+                        liveBroadcastContent = "none"
+                    }
                 }
                 : new
                 {

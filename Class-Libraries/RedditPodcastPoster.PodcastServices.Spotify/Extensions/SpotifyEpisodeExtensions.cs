@@ -61,7 +61,7 @@ public static class SpotifyEpisodeExtensions
             return DateTime.MinValue;
         }
 
-        return DateTime.ParseExact(episode.ReleaseDate, SpotifyDateFormat, CultureInfo.InvariantCulture);
+        return ParseSpotifyReleaseDate(episode.ReleaseDate);
     }
 
     public static DateTime GetReleaseDate(this FullEpisode episode)
@@ -71,7 +71,7 @@ public static class SpotifyEpisodeExtensions
             return DateTime.MinValue;
         }
 
-        return DateTime.ParseExact(episode.ReleaseDate, SpotifyDateFormat, CultureInfo.InvariantCulture);
+        return ParseSpotifyReleaseDate(episode.ReleaseDate);
     }
 
     public static TimeSpan GetDuration(this SimpleEpisode episode)
@@ -83,4 +83,15 @@ public static class SpotifyEpisodeExtensions
     {
         return TimeSpan.FromMilliseconds(episode.DurationMs);
     }
+
+    /// <summary>
+    /// Spotify release dates are calendar dates with no time of day; they are read as midnight UTC
+    /// (<see cref="DateTimeKind.Utc"/>) so they are never serialised as a zone-less local time.
+    /// </summary>
+    private static DateTime ParseSpotifyReleaseDate(string releaseDate) =>
+        DateTime.ParseExact(
+            releaseDate,
+            SpotifyDateFormat,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 }

@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -28,24 +27,25 @@ public sealed partial class EpisodePlatformMatcher
         CatalogueMatchByLengthOptions options,
         Func<Episode, bool>? reducer = null)
     {
-        var requestEpisodeTitle = WebUtility.HtmlDecode(probe.Title.Trim());
-
         var matches = candidates.Where(x =>
-        {
-            var trimmedEpisodeTitle = WebUtility.HtmlDecode(x.Title.Trim());
-            return trimmedEpisodeTitle == requestEpisodeTitle ||
-                   trimmedEpisodeTitle.Contains(requestEpisodeTitle) ||
-                   requestEpisodeTitle.Contains(trimmedEpisodeTitle);
-        });
+            EpisodeTitleMatch.EqualsOrContains(x.Title, probe.Title));
         if (reducer != null)
         {
             matches = matches.Where(reducer);
         }
 
-        var match = matches.MaxBy(x => x.Title);
-        if (match != null)
+        // Title containment alone must not win across calendar days (daily-show wrong attach).
+        // Prefer day-aligned title matches; closest release breaks ties; exact title preferred.
+        // YouTube-discovered enrich: require day alignment (no years-apart title fall-back) —
+        // unmatched titles go to CatalogueMatchScorer.
+        var titleMatch = SelectReleaseAlignedTitleMatch(
+            probe,
+            matches,
+            podcast,
+            requireDayAlignment: options.EnrichingYouTubeDiscoveredEpisode);
+        if (titleMatch != null)
         {
-            return match;
+            return titleMatch;
         }
 
         IList<Episode> sampleList = reducer != null
@@ -86,12 +86,12 @@ public sealed partial class EpisodePlatformMatcher
             return FuzzyMatcher.Match(probe.Title, sameLength, x => x.Title, CatalogueMinSameLengthFuzzyScore);
         }
 
-        match = sameLength.SingleOrDefault(x =>
+        var fuzzySameLength = sameLength.SingleOrDefault(x =>
             FuzzyMatcher.IsMatch(probe.Title, x, y => y.Title, CatalogueMinFuzzyScore));
 
-        if (match != null)
+        if (fuzzySameLength != null)
         {
-            return match;
+            return fuzzySameLength;
         }
 
         if (probe.ReleaseUtc != DateTime.MinValue)
@@ -123,22 +123,19 @@ public sealed partial class EpisodePlatformMatcher
         Regex? episodeMatchRegex,
         Func<Episode, bool>? reducer = null)
     {
-        var lowerTitle = probe.Title.ToLowerInvariant();
         var matches = candidates.Where(x =>
-        {
-            var itemLowerTitle = x.Title.Trim().ToLowerInvariant();
-            return itemLowerTitle == lowerTitle || itemLowerTitle.Contains(lowerTitle) ||
-                   lowerTitle.Contains(itemLowerTitle);
-        });
+            EpisodeTitleMatch.EqualsOrContains(x.Title, probe.Title));
         if (reducer != null)
         {
             matches = matches.Where(reducer);
         }
 
-        var match = matches.FirstOrDefault();
-        if (match != null)
+        // FirstOrDefault on title containment without a day gate attaches the wrong Spotify
+        // row when several episodes share a title substring inside the ±14-day submit band.
+        var titleMatch = SelectReleaseAlignedTitleMatch(probe, matches, podcast);
+        if (titleMatch != null)
         {
-            return match;
+            return titleMatch;
         }
 
         if (probe.ReleaseUtc == DateTime.MinValue)
@@ -220,4 +217,69 @@ public sealed partial class EpisodePlatformMatcher
         options.EnrichingYouTubeDiscoveredEpisode || options.AcceptUniqueDurationWithoutTitleMatch
             ? CatalogueYouTubeDiscoveredDurationThreshold
             : CatalogueTimeDifferenceThreshold;
+
+    /// <summary>
+    /// Among equals-or-contains title candidates, keep only those within Spotify catalogue day
+    /// tolerance of the probe. Prefer exact normalised title, then closest release. When
+    /// <paramref name="requireDayAlignment"/> is true, unknown (<see cref="DateTime.MinValue"/>)
+    /// catalogue releases are not treated as day-aligned and a null return falls through to
+    /// scoring. When false, unknown-release candidates remain eligible (years-apart
+    /// <see cref="FindCatalogueMatchByDate"/> fallback).
+    /// </summary>
+    private static Episode? SelectReleaseAlignedTitleMatch(
+        Episode probe,
+        IEnumerable<Episode> titleMatches,
+        Podcast podcast,
+        bool requireDayAlignment = false)
+    {
+        var candidates = titleMatches.ToList();
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        if (probe.ReleaseUtc == DateTime.MinValue)
+        {
+            return requireDayAlignment ? null : candidates.MaxBy(x => x.Title);
+        }
+
+        // Unknown catalogue release is only admitted on the non-require path (date-match
+        // years-apart fallback). YouTube-discovered enrich must not title-short-circuit on MinValue.
+        var dayAligned = candidates
+            .Where(x =>
+                (!requireDayAlignment && x.ReleaseUtc == DateTime.MinValue) ||
+                CalendarDaysWithinSpotifyCatalogueDayTolerance(probe.ReleaseUtc, x.ReleaseUtc, podcast))
+            .ToList();
+
+        // Prefer calendar-day alignment so a same-title row three days away cannot beat the
+        // same-day row inside the ±14-day submit band. When nothing is day-aligned: either
+        // require alignment (YouTube enrich → scorer) or keep unconstrained title containment
+        // (audio-to-audio out-of-band years-apart fallback).
+        IReadOnlyList<Episode> poolSource;
+        if (dayAligned.Count > 0)
+        {
+            poolSource = dayAligned;
+        }
+        else if (requireDayAlignment)
+        {
+            return null;
+        }
+        else
+        {
+            poolSource = candidates;
+        }
+
+        var probeTitle = EpisodeTitleMatch.Normalise(probe.Title);
+        var exact = poolSource
+            .Where(x => EpisodeTitleMatch.Normalise(x.Title) == probeTitle)
+            .ToList();
+        var pool = exact.Count > 0 ? exact : poolSource;
+
+        return pool
+            .OrderBy(x => x.ReleaseUtc == DateTime.MinValue
+                ? long.MaxValue
+                : Math.Abs((x.ReleaseUtc - probe.ReleaseUtc).Ticks))
+            .ThenByDescending(x => x.Title, StringComparer.Ordinal)
+            .First();
+    }
 }

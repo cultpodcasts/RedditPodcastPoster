@@ -4,8 +4,12 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.Notifications;
 
 [CosmosSelector(ModelType.PushSubscription)]
-public sealed class PushSubscription : CosmosSelector
+public sealed class PushSubscription : CosmosSelector, IFileKeyed
 {
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey { get; set; } = "";
+
     public PushSubscription(Uri endpoint, DateTime? expirationTime, string auth, string p256dh, string user)
     {
         Id = Guid.NewGuid();

@@ -202,6 +202,50 @@ public class UrlSubmissionEnrichmentRules
     }
 
     [Fact(DisplayName =
+        "A submitted video does not fill the YouTube channel id of a podcast that has a playlist but no channel id, " +
+        "because the playlist is the podcast's only YouTube source and a channel id would route channel discovery and URLs to that channel.")]
+    public void youtube_channel_not_filled_when_podcast_has_playlist()
+    {
+        // Arrange
+        var enricher = CreateEnricher();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var podcast = _fixture.CreatePodcast();
+        podcast.YouTubeChannelId = string.Empty;
+        podcast.YouTubePlaylistId = playlistId;
+        var youTubeInput = _fixture.CreateResolvedYouTubeItemInput();
+        var categorisedItem = new CategorisedItem(
+            podcast,
+            [],
+            null,
+            null,
+            null,
+            new CategorisedYouTubeItem(
+                _fixture.CreateYouTubeChannelId(),
+                youTubeInput.EpisodeId,
+                podcast.Name,
+                string.Empty,
+                _fixture.Create<string>(),
+                _fixture.CreateTitle(),
+                _fixture.Create<string>(),
+                youTubeInput.Release,
+                youTubeInput.Duration,
+                youTubeInput.Url!,
+                false,
+                null,
+                null),
+            null,
+            Service.YouTube);
+
+        // Act
+        var response = enricher.ApplyResolvedPodcastServiceProperties(podcast, categorisedItem, null);
+
+        // Assert
+        podcast.YouTubeChannelId.Should().BeEmpty();
+        podcast.YouTubePlaylistId.Should().Be(playlistId);
+        response.PodcastResult.Should().NotBe(SubmitResultState.Enriched);
+    }
+
+    [Fact(DisplayName =
         "When an existing episode already has all resolved platform links, the result remains EpisodeAlreadyExists.")]
     public void unchanged_existing_episode_remains_episode_already_exists()
     {

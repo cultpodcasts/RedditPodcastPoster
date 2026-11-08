@@ -5,6 +5,8 @@ using RedditPodcastPoster.Catalogue.Episodes;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.DependencyInjection;
+using RedditPodcastPoster.EpisodeLookup;
+using RedditPodcastPoster.Episodes.Matching; // pragma: allowlist secret
 using RedditPodcastPoster.Episodes.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
@@ -54,7 +56,13 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// an id already owned by another item is never assigned again also covers links held outside the window. The
 /// catch-up is bounded so it cannot eat the per-parent budget that discovery and the save need: at most
 /// <see cref="AudioCatchUpMaxCandidatesPerPass"/> items per pass (newest first, then longest first so a full episode
-/// claims its link before a shorter item), only items released in the last <see cref="AudioCatchUpRecency"/>, no item
+/// claims its link before a shorter item of the same title when both are looked up). A shorter item is kept out of a
+/// service while a strictly longer same-title item in the window still lacks that service and is not in this pass's
+/// capped set, including when that longer item is outside the recency window, outside the newest few, or older than
+/// this pass's release cutoff while still inside the matcher's same-day acceptance for catalogue parents (#1161;
+/// one half-open release + missing-audio read of <c>[acceptance, repositoryReleasedSince)</c>; the provider cutoff
+/// and the parent's whole history stay as they are). Only items released
+/// in the last <see cref="AudioCatchUpRecency"/> are looked up, no item
 /// shorter than <see cref="AudioCatchUpMinimumLength"/> (a clip is not looked up), and a soft stop once
 /// <see cref="AudioCatchUpBudgetShare"/> of the pass budget has elapsed. A stopped or failed catch-up never fails the
 /// pass. A Spotify rate limit hit during the catch-up does not mark the pass as bypassed (the bypass check uses the skip
@@ -88,6 +96,7 @@ public class CatalogueParentsUpdater(
     IAsyncInstance<IEliminationTermsProvider> eliminationTermsProviderInstance,
     IOptions<PostingCriteria> postingCriteria,
     IPodcastPassApiCache passApiCache,
+    IParentIndexingLockStore indexingLockStore,
     IOptions<PodcastUpdateBudgetOptions> budgetOptions,
     IOptions<PodcastIndexingStageLogOptions> stageLogOptions,
     PodcastUpdateBudgetCutTracker budgetCutTracker,
@@ -114,6 +123,27 @@ public class CatalogueParentsUpdater(
     /// (the update may then fail once the request scope is disposed).
     /// </summary>
     public const string AbandonedOutlivesRequestMessagePrefix = "IndexerCatalogueParentAbandonedOutlivesRequest";
+
+    /// <summary>
+    /// Stable log prefix when a parent is skipped / refused because another index holds its lease
+    /// (App Insights keys off it).
+    /// </summary>
+    public const string AlreadyRunningMessagePrefix = "IndexerParentIndexingAlreadyRunning";
+
+    /// <summary>
+    /// A marker with no heartbeat for this long belongs to an index that died.
+    /// At least on-demand budget (<see cref="PodcastUpdateBudgetOptions.MaxOnDemandBudgetSeconds"/>) plus abandon
+    /// grace and drain (~195s); five minutes covers that with margin.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockStaleAfter = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// How often the holder renews its marker while it works. Zero disables heartbeats: every holder must stay
+    /// budget-capped under <see cref="IndexingLockStaleAfter"/> (on-demand ≤ ~195s; hourly uses
+    /// <see cref="PodcastUpdateBudgetOptions.BudgetFor"/>). An expensive pass with
+    /// <c>ExpensivePassBudgetMultiplier &lt;= 0</c> is unbounded and must not rely on Zero alone.
+    /// </summary>
+    public static readonly TimeSpan IndexingLockHeartbeatInterval = TimeSpan.Zero;
 
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
 
@@ -164,8 +194,12 @@ public class CatalogueParentsUpdater(
                 {
                     if (IsIndexable(tvShow) && !await SourcePodcastStillExists("TvShow", tvShow))
                     {
-                        success &= await IndexWithinBudget("TvShow", tvShow,
-                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass) is not null;
+                        var run = await IndexWithinBudget("TvShow", tvShow,
+                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass);
+                        if (run.Status == ParentIndexRunStatus.TimedOut)
+                        {
+                            success = false;
+                        }
                     }
 
                     continue;
@@ -175,8 +209,12 @@ public class CatalogueParentsUpdater(
                 if (organisation is not null && IsIndexable(organisation) &&
                     !await SourcePodcastStillExists("NewsOrganisation", organisation))
                 {
-                    success &= await IndexWithinBudget("NewsOrganisation", organisation,
-                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass) is not null;
+                    var run = await IndexWithinBudget("NewsOrganisation", organisation,
+                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass);
+                    if (run.Status == ParentIndexRunStatus.TimedOut)
+                    {
+                        success = false;
+                    }
                 }
             }
             catch (Exception ex)
@@ -241,33 +279,59 @@ public class CatalogueParentsUpdater(
         }
 
         var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
-        var changed = await IndexWithinBudget(kind, parent, index, indexingContext, expensivePass,
-            new BudgetPlan(_budget.OnDemandBudget, _budget.OnDemandAbandonGrace, _budget.OnDemandAbandonDrain));
-        return changed is null
-            ? new CatalogueParentIndexResult(CatalogueParentIndexStatus.TimedOut)
-            : new CatalogueParentIndexResult(CatalogueParentIndexStatus.Indexed, changed);
+        var run = await IndexWithinBudget(kind, parent, index, indexingContext, expensivePass,
+            new BudgetPlan(_budget.OnDemandBudget, _budget.OnDemandAbandonGrace, _budget.OnDemandAbandonDrain),
+            ParentIndexingLock.SourceOnDemand);
+        return run.Status switch
+        {
+            ParentIndexRunStatus.AlreadyRunning =>
+                new CatalogueParentIndexResult(CatalogueParentIndexStatus.AlreadyRunning),
+            ParentIndexRunStatus.TimedOut =>
+                new CatalogueParentIndexResult(CatalogueParentIndexStatus.TimedOut),
+            _ => new CatalogueParentIndexResult(CatalogueParentIndexStatus.Indexed, run.Changed)
+        };
     }
 
     /// <summary>
-    /// Runs one parent's index under its time budget. Returns the saved playables, or null when the budget cut it off;
-    /// other failures propagate to the caller's per-parent catch. The hourly pass uses <see cref="HourlyPlan"/>; an
-    /// on-demand index passes its own, always-bounded plan.
+    /// Runs one parent's index under its time budget and a per-parent indexing lease. The hourly pass uses
+    /// <see cref="HourlyPlan"/>; an on-demand index passes its own, always-bounded plan.
     /// </summary>
-    private async Task<IReadOnlyList<Playable>?> IndexWithinBudget(
+    private async Task<ParentIndexRun> IndexWithinBudget(
         string kind,
         Publisher parent,
         Func<IndexingContext, Task<IReadOnlyList<Playable>>> index,
         IndexingContext indexingContext,
         bool expensivePass,
-        BudgetPlan? plan = null)
+        BudgetPlan? plan = null,
+        string source = ParentIndexingLock.SourceHourly)
     {
         plan ??= HourlyPlan(expensivePass);
         var budget = plan.Budget;
         var stageLog = new PodcastIndexingStageLog(parent.Id, parent.Name, logger, timeProvider, _stageLogOptions);
         Task<IReadOnlyList<Playable>>? updateTask = null;
+        // Register the budget timer before any await so fake-time advances in tests are not lost.
         using var budgetCts = budget.HasValue
             ? new CancellationTokenSource(budget.Value, timeProvider)
             : new CancellationTokenSource();
+        // Acquire synchronously so fake-time budget tests can Advance after IndexWithinBudget starts and still
+        // hit WaitAsync (an await here would let Advances land before the timeout is registered).
+        var lease = ParentIndexingLease.TryStart(
+            indexingLockStore,
+            timeProvider,
+            parent.Id,
+            IndexingLockStaleAfter,
+            IndexingLockHeartbeatInterval,
+            source,
+            logger).GetAwaiter().GetResult();
+        if (lease is null)
+        {
+            logger.LogWarning(
+                AlreadyRunningMessagePrefix +
+                " kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}' source='{Source}'.",
+                kind, parent.Id, parent.Name, source);
+            return ParentIndexRun.AlreadyRunning();
+        }
+
         try
         {
             stageLog.Stage("start", $"catalogue-parent-kind={kind}");
@@ -283,7 +347,7 @@ public class CatalogueParentsUpdater(
 
             stageLog.Stage("complete");
             budgetCutTracker.RecordCompleted(parent.Id);
-            return changed;
+            return ParentIndexRun.Completed(changed);
         }
         catch (Exception ex) when (budgetCts.IsCancellationRequested &&
                                    ex is OperationCanceledException or TimeoutException)
@@ -303,8 +367,30 @@ public class CatalogueParentsUpdater(
                 await DrainAbandonedUpdate(updateTask, plan.AbandonDrain, kind, parent);
             }
 
-            return null;
+            return ParentIndexRun.TimedOut();
         }
+        finally
+        {
+            // Release even when abandoning: the update's cancelled token stops further Cosmos writes.
+            await lease.DisposeAsync();
+        }
+    }
+
+    private enum ParentIndexRunStatus
+    {
+        Completed,
+        TimedOut,
+        AlreadyRunning
+    }
+
+    private sealed record ParentIndexRun(ParentIndexRunStatus Status, IReadOnlyList<Playable>? Changed = null)
+    {
+        public static ParentIndexRun Completed(IReadOnlyList<Playable> changed) =>
+            new(ParentIndexRunStatus.Completed, changed);
+
+        public static ParentIndexRun TimedOut() => new(ParentIndexRunStatus.TimedOut);
+
+        public static ParentIndexRun AlreadyRunning() => new(ParentIndexRunStatus.AlreadyRunning);
     }
 
     /// <summary>
@@ -418,6 +504,12 @@ public class CatalogueParentsUpdater(
             (since, cancellationToken) => tvShowEpisodeRepository
                 .GetByTvShowId(show.Id, PlayableCosmosFilters.HoldsSpotifyOrAppleLinkReleasedOnOrAfter<TvShowEpisode>(since))
                 .ToListAsync(cancellationToken).AsTask(),
+            (since, before, lookUpSpotify, lookUpApple, cancellationToken) => tvShowEpisodeRepository
+                .GetByTvShowId(
+                    show.Id,
+                    PlayableCosmosFilters.MissingAudioLinkReleasedInHalfOpenRange<TvShowEpisode>(
+                        since, before, lookUpSpotify, lookUpApple))
+                .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToTvShowEpisode(episode, show),
             context);
         var cancellationToken = context.CancellationToken;
@@ -454,6 +546,12 @@ public class CatalogueParentsUpdater(
             (since, cancellationToken) => newsReportRepository
                 .GetByNewsOrganisationId(
                     organisation.Id, PlayableCosmosFilters.HoldsSpotifyOrAppleLinkReleasedOnOrAfter<NewsReport>(since))
+                .ToListAsync(cancellationToken).AsTask(),
+            (since, before, lookUpSpotify, lookUpApple, cancellationToken) => newsReportRepository
+                .GetByNewsOrganisationId(
+                    organisation.Id,
+                    PlayableCosmosFilters.MissingAudioLinkReleasedInHalfOpenRange<NewsReport>(
+                        since, before, lookUpSpotify, lookUpApple))
                 .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToNewsReport(episode, organisation),
             context);
@@ -554,6 +652,7 @@ public class CatalogueParentsUpdater(
         CatalogueIndexingSource source,
         Func<DateTime, CancellationToken, Task<List<TPlayable>>> loadPlayables,
         Func<DateTime, CancellationToken, Task<List<TPlayable>>> loadAudioLinkHolders,
+        Func<DateTime, DateTime, bool, bool, CancellationToken, Task<List<TPlayable>>> loadOlderAudioGaps,
         Func<Episode, TPlayable> createPlayable,
         IndexingContext indexingContext)
         where TPlayable : Playable
@@ -610,11 +709,21 @@ public class CatalogueParentsUpdater(
         var discoverySkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var inScope = existing.Concat(addedEpisodes).ToList();
         indexingContext.ReportStage("enrich-audio-services", $"in-window={inScope.Count}");
+        // The provider already used this clone with the flow the batch passed in. Catch-up is the Index flow
+        // (newest pages, no title search), the same entry point as PodcastUpdater, on the clone IndexWithinBudget
+        // made so this pass's provider lookup is unchanged.
+        EpisodeLookupUseCases.ForIndex(indexingContext);
         var enrichedIds = await EnrichMissingAudioServices(
             parent,
             podcast,
             inScope,
             (since, ct) => LoadAudioLinkHolders(loadAudioLinkHolders, since, podcast, ct),
+            async (since, before, lookUpSpotify, lookUpApple, ct) =>
+            {
+                var older = await loadOlderAudioGaps(since, before, lookUpSpotify, lookUpApple, ct);
+                return older.Select(x => ToEpisode(x, podcast)).ToList();
+            },
+            repositoryReleasedSince,
             CatchUpDeadline(passStarted, expensivePass),
             indexingContext);
         cancellationToken.ThrowIfCancellationRequested();
@@ -765,6 +874,8 @@ public class CatalogueParentsUpdater(
         Podcast podcast,
         IReadOnlyList<Episode> inWindow,
         Func<DateTime, CancellationToken, Task<List<Episode>>> loadHolders,
+        Func<DateTime, DateTime, bool, bool, CancellationToken, Task<List<Episode>>> loadOlderAudioGaps,
+        DateTime repositoryReleasedSince,
         long? softDeadline,
         IndexingContext indexingContext)
     {
@@ -788,45 +899,95 @@ public class CatalogueParentsUpdater(
             .Where(x => x.Length <= TimeSpan.Zero || x.Length >= AudioCatchUpMinimumLength)
             .ToList();
         var skippedShort = recent.Count - longEnough.Count;
-        // Newest first picks which items this pass looks up; longest first within them lets a full episode claim its
-        // link before a shorter item of the same story is offered.
-        var candidates = longEnough
+        // Newest first picks which items this pass looks up. A shorter item stays out of a service while a
+        // strictly longer same-title item still lacks that service and is not in this capped set. That longer
+        // item may sit outside the recency window, outside the newest few, or older than this pass's release
+        // cutoff while still inside a same-title acceptance window the matcher could honour (catalogue parents:
+        // same UTC day, #1161). When both are in the set, longest first lets the full item claim the link first.
+        var capped = longEnough
             .OrderByDescending(x => x.ReleaseUtc)
             .Take(AudioCatchUpMaxCandidatesPerPass)
-            .OrderByDescending(x => x.Length)
-            .ThenBy(x => x.ReleaseUtc)
             .ToList();
-        var skippedByCap = longEnough.Count - candidates.Count;
+        var skippedByCap = longEnough.Count - capped.Count;
+        var cappedIds = capped.Select(x => x.Id).ToHashSet();
+        var stillMissing = new List<Episode>(missing);
+        List<Episode> candidates = [];
+        var skippedShorter = 0;
         var holderCount = 0;
+        var olderGaps = 0;
         var lookedUp = 0;
         var skippedByBudget = 0;
         string? failure = null;
-        if (candidates.Count > 0)
+        if (longEnough.Count > 0)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var holdersSince = candidates.Min(x => x.ReleaseUtc) - AudioCatchUpHolderLookback;
-                var inWindowIds = inWindow.Select(x => x.Id).ToHashSet();
-                var holders = (await loadHolders(holdersSince, cancellationToken))
-                    .Where(x => !inWindowIds.Contains(x.Id))
-                    .ToList();
-                holderCount = holders.Count;
-                // In-window instances come first and win: they carry this pass's merges and earlier catch-up links.
-                IReadOnlyList<Episode> requestEpisodes = [.. inWindow, .. holders];
-                foreach (var episode in candidates)
+                // Hourly passes cut the provider read at about two days. One half-open release + missing-audio
+                // read brings in older gaps used for longer-same-title holder decisions; they are not lookup
+                // candidates. The read still spans YouTubeAuthorityToAudioReleaseConsiderationThreshold before
+                // the oldest capped probe so those holder rows are visible; catalogue same-title linking itself
+                // is same-day only (#1161). Stops before the pass window so in-window items are not re-read.
+                var acceptanceSince = capped.Min(x => x.ReleaseUtc)
+                    - EpisodeReleaseTolerance.YouTubeAuthorityToAudioReleaseConsiderationThreshold;
+                if (repositoryReleasedSince > acceptanceSince)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (softDeadline is { } deadline && timeProvider.GetTimestamp() >= deadline)
-                    {
-                        skippedByBudget = candidates.Count - lookedUp;
-                        break;
-                    }
+                    var knownIds = inWindow.Select(x => x.Id).ToHashSet();
+                    var older = await loadOlderAudioGaps(
+                        acceptanceSince, repositoryReleasedSince, lookUpSpotify, lookUpApple, cancellationToken);
+                    var added = older.Where(episode =>
+                        !knownIds.Contains(episode.Id) &&
+                        !episode.Removed &&
+                        ((lookUpSpotify && MissingSpotify(episode)) || (lookUpApple && MissingApple(episode))))
+                        .ToList();
+                    olderGaps = added.Count;
+                    stillMissing.AddRange(added);
+                }
 
-                    lookedUp++;
-                    if (await EnrichCandidate(podcast, requestEpisodes, episode, lookUpSpotify, lookUpApple, indexingContext))
+                bool OfferSpotify(Episode episode) =>
+                    lookUpSpotify &&
+                    MissingSpotify(episode) &&
+                    !DeferredBehindLongerSameTitle(episode, stillMissing, cappedIds, MissingSpotify);
+                bool OfferApple(Episode episode) =>
+                    lookUpApple &&
+                    MissingApple(episode) &&
+                    !DeferredBehindLongerSameTitle(episode, stillMissing, cappedIds, MissingApple);
+                candidates = capped
+                    .Where(episode => OfferSpotify(episode) || OfferApple(episode))
+                    .OrderByDescending(x => x.Length)
+                    .ThenBy(x => x.ReleaseUtc)
+                    .ToList();
+                skippedShorter = capped.Count - candidates.Count;
+                if (candidates.Count > 0)
+                {
+                    var holdersSince = candidates.Min(x => x.ReleaseUtc) - AudioCatchUpHolderLookback;
+                    var inWindowIds = inWindow.Select(x => x.Id).ToHashSet();
+                    var holders = (await loadHolders(holdersSince, cancellationToken))
+                        .Where(x => !inWindowIds.Contains(x.Id))
+                        .ToList();
+                    holderCount = holders.Count;
+                    // In-window instances come first and win: they carry this pass's merges and earlier catch-up links.
+                    IReadOnlyList<Episode> requestEpisodes = [.. inWindow, .. holders]; // pragma: allowlist secret
+                    foreach (var episode in candidates)
                     {
-                        enriched.Add(episode.Id);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (softDeadline is { } deadline && timeProvider.GetTimestamp() >= deadline)
+                        {
+                            skippedByBudget = candidates.Count - lookedUp;
+                            break;
+                        }
+
+                        lookedUp++;
+                        if (await EnrichCandidate(
+                                podcast,
+                                requestEpisodes, // pragma: allowlist secret
+                                episode,
+                                OfferSpotify(episode),
+                                OfferApple(episode),
+                                indexingContext))
+                        {
+                            enriched.Add(episode.Id);
+                        }
                     }
                 }
             }
@@ -840,9 +1001,9 @@ public class CatalogueParentsUpdater(
         }
 
         logger.LogInformation(
-            "{Prefix} parent-id='{ParentId}' name='{ParentName}' missing='{Missing}' candidates='{Candidates}' looked-up='{LookedUp}' enriched='{Enriched}' holders='{Holders}' skipped-old='{SkippedOld}' skipped-short='{SkippedShort}' skipped-by-cap='{SkippedByCap}' skipped-by-budget='{SkippedByBudget}' failure='{Failure}'.",
+            "{Prefix} parent-id='{ParentId}' name='{ParentName}' missing='{Missing}' candidates='{Candidates}' looked-up='{LookedUp}' enriched='{Enriched}' holders='{Holders}' older-gaps='{OlderGaps}' skipped-old='{SkippedOld}' skipped-short='{SkippedShort}' skipped-shorter='{SkippedShorter}' skipped-by-cap='{SkippedByCap}' skipped-by-budget='{SkippedByBudget}' failure='{Failure}'.",
             AudioCatchUpMessagePrefix, parent.Id, parent.Name, missing.Count, candidates.Count, lookedUp, enriched.Count,
-            holderCount, skippedOld, skippedShort, skippedByCap, skippedByBudget, failure);
+            holderCount, olderGaps, skippedOld, skippedShort, skippedShorter, skippedByCap, skippedByBudget, failure);
         return enriched;
     }
 
@@ -899,7 +1060,9 @@ public class CatalogueParentsUpdater(
             Removed = episode.Removed,
             Ignored = episode.Ignored,
             Posted = episode.Posted,
-            Tweeted = episode.Tweeted,
+            OldTweeted = episode.OldTweeted,
+            TweetPost = episode.TweetPost,
+            TweetSkipReason = episode.TweetSkipReason,
             Language = episode.Language,
             Subjects = [.. episode.Subjects],
             RemovedSubjects = [.. episode.RemovedSubjects],
@@ -919,6 +1082,50 @@ public class CatalogueParentsUpdater(
 
     private static EpisodeIds CopyIds(EpisodeIds ids) =>
         new() { Spotify = ids.Spotify, Apple = ids.Apple, YouTube = ids.YouTube };
+
+    /// <summary>
+    /// True when <paramref name="episode"/> lacks <paramref name="lacksService"/> and a strictly longer same-title
+    /// item in <paramref name="stillMissing"/> also lacks it and is not in this pass's capped set. That list is the
+    /// in-window gaps plus older gaps from the half-open missing-audio read
+    /// (<c>[acceptance, repositoryReleasedSince)</c>).
+    /// The shorter item must not be offered
+    /// that service: the matcher returns the first same-title row before it scores duration, so the shorter item
+    /// would take the link the longer item still needs.
+    /// </summary>
+    private static bool DeferredBehindLongerSameTitle(
+        Episode episode,
+        IReadOnlyList<Episode> stillMissing,
+        HashSet<Guid> cappedIds,
+        Func<Episode, bool> lacksService)
+    {
+        if (!lacksService(episode))
+        {
+            return false;
+        }
+
+        foreach (var longer in stillMissing)
+        {
+            if (longer.Id == episode.Id ||
+                longer.Length <= episode.Length ||
+                cappedIds.Contains(longer.Id) ||
+                !lacksService(longer) ||
+                !SameTitle(longer, episode))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Same equals-or-contains title predicate as
+    /// <see cref="EpisodePlatformMatcher.FindCatalogueMatchByLength"/>'s first branch.
+    /// </summary>
+    private static bool SameTitle(Episode left, Episode right) =>
+        EpisodeTitleMatch.EqualsOrContains(left.Title, right.Title);
 
     private static bool MissingSpotify(Episode episode) =>
         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) == null ||
@@ -1022,7 +1229,9 @@ public class CatalogueParentsUpdater(
             Length = playable.Length,
             Explicit = playable.Explicit,
             Posted = playable.Posted,
-            Tweeted = playable.Tweeted,
+            OldTweeted = playable.OldTweeted,
+            TweetPost = playable.TweetPost,
+            TweetSkipReason = playable.TweetSkipReason,
             Ignored = playable.Ignored,
             Removed = playable.Removed,
             Language = playable.Language,

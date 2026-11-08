@@ -108,6 +108,35 @@ public class FindSpotifyEpisodeRequestFactoryRules
     }
 
     [Fact(DisplayName =
+        "When the podcast has a descriptionRegex, Create from episode and ToLookup carry it onto CatalogueLookup " +
+        "so YouTube-discovered catalogue classify can strip audio footers before subject matching.")]
+    public void Create_from_episode_and_ToLookup_carry_description_regex()
+    {
+        // Arrange
+        const string regex = @"^(?<body>[\s\S]*?)(?:\r?\n)+\*{5,}[\s\S]*$";
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.SpotifyId = _fixture.CreateSpotifyId();
+            p.DescriptionRegex = regex;
+        });
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.YouTubeId = youTubeId;
+            e.Urls.YouTube = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+        });
+
+        // Act
+        var request = FindSpotifyEpisodeRequestFactory.Create(podcast, episode);
+        var lookup = SpotifyEpisodeResolver.ToLookup(request, new IndexingContext());
+
+        // Assert
+        request.DescriptionRegex.Should().Be(regex);
+        lookup.DescriptionRegex.Should().Be(regex);
+        lookup.PodcastName.Should().Be(podcast.Name.Trim());
+    }
+
+    [Fact(DisplayName =
         "When building a request from YouTube-sourced criteria on an audio-primary podcast with a positive " +
         "publishing delay, Released is shifted back by the delay and EnrichingYouTubeDiscoveredEpisode is true " +
         "so the Spotify lookup anchors on the expected audio day, not the YouTube publish day.")]

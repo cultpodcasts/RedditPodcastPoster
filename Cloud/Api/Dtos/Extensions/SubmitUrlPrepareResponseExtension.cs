@@ -22,7 +22,8 @@ public static class SubmitUrlPrepareResponseExtension
             Image = meta.Image,
             Explicit = meta.Explicit,
             Publisher = meta.Publisher,
-            ShowName = meta.ShowName
+            ShowName = meta.ShowName,
+            MadeAsFilm = meta.MadeAsFilm
         };
     }
 }

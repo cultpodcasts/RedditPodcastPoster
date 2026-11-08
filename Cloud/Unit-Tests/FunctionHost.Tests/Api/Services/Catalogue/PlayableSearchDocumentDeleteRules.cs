@@ -5,6 +5,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
 
@@ -65,5 +66,54 @@ public class PlayableSearchDocumentDeleteRules
 
         // Assert
         result.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A whole podcast transfer's search documents go in batches of at most MaxDocumentsPerBatch (Azure AI Search " +
+        "takes at most 1000 per request), and a failed batch does not stop the rest but reports failure.")]
+    public async Task upload_and_delete_are_batched()
+    {
+        // Arrange
+        var uploadBatches = new List<int>();
+        var call = 0;
+        _client
+            .Setup(c => c.MergeOrUploadDocumentsAsync(
+                It.IsAny<IEnumerable<EpisodeSearchRecord>>(), It.IsAny<IndexDocumentsOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<EpisodeSearchRecord>, IndexDocumentsOptions, CancellationToken>(
+                (documents, _, _) => uploadBatches.Add(documents.Count()))
+            .ReturnsAsync(() =>
+            {
+                var succeeds = Interlocked.Increment(ref call) != 2;
+                return Response.FromValue(
+                    SearchModelFactory.IndexDocumentsResult(
+                        [SearchModelFactory.IndexingResult("id", succeeds ? null : "synthetic failure", succeeds, succeeds ? 200 : 503)]),
+                    Mock.Of<Response>());
+            });
+        var documents = Enumerable.Range(0, 1200)
+            .Select(_ => new EpisodeSearchRecord
+            {
+                Id = _fixture.CreateGuid().ToString(),
+                Release = DateTimeOffset.UnixEpoch,
+                Duration = string.Empty,
+                BBC = string.Empty,
+                InternetArchive = string.Empty,
+                Subjects = [],
+                PublisherSearchTerms = string.Empty,
+                EpisodeSearchTerms = string.Empty
+            })
+            .ToList();
+        var ids = Enumerable.Range(0, 1001).Select(_ => _fixture.CreateGuid()).ToList();
+        var swap = Create(succeeds: true);
+
+        // Act
+        var uploaded = await swap.UploadAsync(documents, CancellationToken.None);
+        var deleted = await swap.DeleteAsync(ids, CancellationToken.None);
+
+        // Assert
+        uploaded.Should().BeFalse();
+        uploadBatches.Should().Equal(500, 500, 200);
+        deleted.Should().BeTrue();
+        _batches.Select(batch => batch.Length).Should().Equal(500, 500, 1);
     }
 }

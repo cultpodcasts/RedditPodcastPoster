@@ -16,8 +16,9 @@
   the issue, a GraphQL ghost link is blocking the add: the script deletes that ghost item
   (via GraphQL deleteProjectV2Item) and retries the REST add.
 
-  Success criterion: the issue number appears in the board's item list
-  (GET /users/{owner}/projectsV2/{number}/items). A linked-but-unlisted issue is a failure.
+  Success criterion: the issue (owner/repo#number) appears in the board's item list
+  (GET /users/{owner}/projectsV2/{number}/items). Matching by number alone is wrong —
+  the board holds issues from multiple repos (#1227). A linked-but-unlisted issue is a failure.
 
 .PARAMETER IssueUrl
   Full issue URL, e.g. https://github.com/cultpodcasts/RedditPodcastPoster/issues/989
@@ -67,16 +68,60 @@ $issueNumber = [int]$Matches[3]
 
 $itemsPath = "/users/$Owner/projectsV2/$ProjectNumber/items"
 
-function Get-BoardIssueNumbers {
-    $raw = & gh api "$($itemsPath)?per_page=100" --jq '[.[] | .content.number]' 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "Board list failed: $raw" }
-    return @($raw | ConvertFrom-Json)
+# Runs gh with stdout and stderr merged, then splits them so only stdout is parsed as JSON or
+# numbers. Stderr (notices, deprecation lines) is kept for failure messages only.
+function Invoke-Gh {
+    $merged = & gh @args 2>&1
+    $exitCode = $LASTEXITCODE
+    $stdout = @($merged | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_" })
+    $stderr = @($merged | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { "$_" })
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Stdout   = ($stdout -join "`n")
+        Stderr   = ($stderr -join "`n")
+        All      = (@($stdout) + @($stderr)) -join "`n"
+    }
 }
 
-Write-Host "Resolving $repoOwner/$repoName#$issueNumber …"
+# Lists every issue on the board as "owner/repo#number". Number alone is not unique — the
+# board holds RedditPodcastPoster, website, Api, and freedomtimes issues (#1227). The items
+# endpoint pages at 100, so --paginate is required (#1224). The --jq filter emits one scalar
+# per item so paged output concatenates cleanly; drafts / non-issues are skipped.
+function Get-BoardIssueKeys {
+    $jq = '.[] | select(.content.number != null and .content.repository_url != null) | "\(.content.repository_url | sub("https://api.github.com/repos/"; ""))#\(.content.number)"'
+    $r = Invoke-Gh api --paginate "$($itemsPath)?per_page=100" --jq $jq
+    if ($r.ExitCode -ne 0) { throw "Board list failed: $($r.All)" }
+    return @($r.Stdout -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^[^/\s]+/[^/\s]+#\d+$' })
+}
+
+function Get-PropertyValue($Object, [string] $Name) {
+    if ($null -eq $Object) { return $null }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($null -eq $prop) { return $null }
+    return $prop.Value
+}
+
+# Reads the Status option name from a Projects V2 REST item. Option names are { html, raw }
+# objects, so compare .raw. Throws a clear message instead of a StrictMode property error
+# when the response has no Status field (for example when fields[] was not requested).
+function Get-ItemStatusName($Item, $StatusFieldId) {
+    $itemFields = @(Get-PropertyValue $Item 'fields')
+    $status = $itemFields | Where-Object {
+        $null -ne $_ -and ((Get-PropertyValue $_ 'name') -eq 'Status' -or "$(Get-PropertyValue $_ 'id')" -eq "$StatusFieldId")
+    } | Select-Object -First 1
+    if ($null -eq $status) {
+        throw "Status field missing from response (field id $StatusFieldId); got fields: $(($itemFields | ForEach-Object { Get-PropertyValue $_ 'name' }) -join ', ')."
+    }
+    $name = Get-PropertyValue (Get-PropertyValue $status 'value') 'name'
+    if ($name -is [string]) { return $name }
+    return [string](Get-PropertyValue $name 'raw')
+}
+
+$issueKey = "$repoOwner/$repoName#$issueNumber"
+Write-Host "Resolving $issueKey …"
 $issue = & gh api "/repos/$repoOwner/$repoName/issues/$issueNumber" --jq '{id, node_id, title}' | ConvertFrom-Json
 
-if ((Get-BoardIssueNumbers) -contains $issueNumber) {
+if ((Get-BoardIssueKeys) -contains $issueKey) {
     Write-Host "Already visible on the board."
     exit 0
 }
@@ -92,15 +137,14 @@ if (-not $statusOption) {
 }
 
 function Add-ItemViaRest {
-    $out = & gh api -X POST $itemsPath -f type=Issue -F id=$($issue.id) 2>&1
-    $joined = $out -join "`n"
-    if ($LASTEXITCODE -eq 0) {
-        return ($joined | ConvertFrom-Json).id
+    $r = Invoke-Gh api -X POST $itemsPath -f type=Issue -F id=$($issue.id)
+    if ($r.ExitCode -eq 0) {
+        return ($r.Stdout | ConvertFrom-Json).id
     }
-    if ($joined -match 'already exists') {
+    if ($r.All -match 'already exists') {
         return $null   # ghost or pre-existing link
     }
-    throw "REST add failed: $joined"
+    throw "REST add failed: $($r.All)"
 }
 
 Write-Host "Adding via REST …"
@@ -141,11 +185,15 @@ query($owner: String!, $name: String!, $number: Int!) {
 
 Write-Host "Item $itemDbId created. Setting Status=$StatusName …"
 $body = @{ fields = @(@{ id = $statusField.id; value = $statusOption.id }) } | ConvertTo-Json -Compress
-$body | & gh api -X PATCH "$itemsPath/$itemDbId" --input - | Out-Null
+$patchOut = $body | & gh api -X PATCH "$itemsPath/$itemDbId" --input - 2>&1
+if ($LASTEXITCODE -ne 0) { throw "Status PATCH failed for item ${itemDbId}: $($patchOut -join "`n")" }
 
 # Confirm the item itself persisted with the right status (direct GET, index-independent).
-$itemCheck = & gh api "$itemsPath/$itemDbId" | ConvertFrom-Json
-$appliedStatus = ($itemCheck.fields | Where-Object { $_.name -eq 'Status' }).value.name.raw
+# The item GET returns only the Title field unless field ids are requested with fields[] (#1043).
+$itemCheckRaw = Invoke-Gh api "$itemsPath/$($itemDbId)?fields[]=$($statusField.id)"
+if ($itemCheckRaw.ExitCode -ne 0) { throw "Item GET failed for item ${itemDbId}: $($itemCheckRaw.All)" }
+$itemCheck = $itemCheckRaw.Stdout | ConvertFrom-Json
+$appliedStatus = Get-ItemStatusName -Item $itemCheck -StatusFieldId $statusField.id
 if ($appliedStatus -ne $StatusName) { throw "Status did not persist (got '$appliedStatus')." }
 Write-Host "Item persisted with Status=$appliedStatus. Waiting for the board list to index it …"
 
@@ -153,8 +201,8 @@ $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
 $attempt = 0
 do {
     $attempt++
-    if ((Get-BoardIssueNumbers) -contains $issueNumber) {
-        Write-Host "OK: #$issueNumber is on https://github.com/users/$Owner/projects/$ProjectNumber ($StatusName) after $attempt check(s)."
+    if ((Get-BoardIssueKeys) -contains $issueKey) {
+        Write-Host "OK: $issueKey is on https://github.com/users/$Owner/projects/$ProjectNumber ($StatusName) after $attempt check(s)."
         exit 0
     }
     if ([DateTime]::UtcNow -ge $deadline) { break }

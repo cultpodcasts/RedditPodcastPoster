@@ -28,7 +28,7 @@ public static class CatalogueParentKindMapper
         };
         CopyPublisher(podcast, show);
         show.Name = showName;
-        show.FileKey = FileKeyFactory.GetTvShowFileKey(showName);
+        show.FileKey = FileKeyFactory.GetTvShowFileKey(showName, podcast.Id, podcast.FileKey);
         show.ModelType = ModelType.TvShow;
         show.Indexing = CatalogueIndexingSource.FromPodcast(podcast);
         return show;
@@ -44,7 +44,8 @@ public static class CatalogueParentKindMapper
         };
         CopyPublisher(podcast, organisation);
         organisation.Name = organisationName;
-        organisation.FileKey = FileKeyFactory.GetNewsOrganisationFileKey(organisationName);
+        organisation.FileKey =
+            FileKeyFactory.GetNewsOrganisationFileKey(organisationName, podcast.Id, podcast.FileKey);
         organisation.ModelType = ModelType.NewsOrganisation;
         // A transfer to news saves the news defaults (bypass short, always promote as hero) on, whatever the podcast had.
         organisation.Indexing = CatalogueIndexingSource.ApplyNewsOrganisationCreationDefaults(
@@ -85,13 +86,15 @@ public static class CatalogueParentKindMapper
         film.Language = episode.Language;
         film.SearchTerms = episode.SearchTerms;
         film.HashTag = episode.HashTag ?? podcast.HashTag;
-        film.FileKey = FileKeyFactory.GetFilmFileKey(episode.Title);
+        film.FileKey = FileKeyFactory.GetFilmFileKey(episode.Title, episode.Id);
         film.ModelType = ModelType.Film;
         film.SetRelease(episode.Release);
         film.Length = episode.Length;
         film.Explicit = episode.Explicit;
         film.Posted = episode.Posted;
-        film.Tweeted = episode.Tweeted;
+        film.OldTweeted = episode.OldTweeted;
+        film.TweetPost = episode.TweetPost;
+        film.TweetSkipReason = episode.TweetSkipReason;
         film.OldBlueskyPosted = episode.OldBlueskyPosted;
         film.BlueskyPost = episode.BlueskyPost;
         film.Ignored = episode.Ignored;
@@ -147,7 +150,9 @@ public static class CatalogueParentKindMapper
             Length = film.Length,
             Explicit = film.Explicit,
             Posted = film.Posted,
-            Tweeted = film.Tweeted,
+            OldTweeted = film.OldTweeted,
+            TweetPost = film.TweetPost,
+            TweetSkipReason = film.TweetSkipReason,
             OldBlueskyPosted = film.OldBlueskyPosted,
             BlueskyPost = film.BlueskyPost,
             Ignored = film.Ignored,
@@ -206,7 +211,9 @@ public static class CatalogueParentKindMapper
         target.Length = source.Length;
         target.Explicit = source.Explicit;
         target.Posted = source.Posted;
-        target.Tweeted = source.Tweeted;
+        target.OldTweeted = source.OldTweeted;
+        target.TweetPost = source.TweetPost;
+        target.TweetSkipReason = source.TweetSkipReason;
         target.OldBlueskyPosted = source.OldBlueskyPosted;
         target.BlueskyPost = source.BlueskyPost;
         target.Ignored = source.Ignored;

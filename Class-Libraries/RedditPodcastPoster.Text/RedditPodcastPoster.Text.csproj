@@ -24,6 +24,9 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>RedditPodcastPoster.Text.Tests</_Parameter1>
     </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>RedditPodcastPoster.Bluesky</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

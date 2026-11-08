@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.PodcastServices.Apple;
 using RedditPodcastPoster.PodcastServices.Spotify;
 using RedditPodcastPoster.PodcastServices.YouTube;
@@ -61,6 +62,15 @@ public class EpisodeUrlRouter(
         YouTubePodcastServiceMatcher.IsMatch(url) ||
         ApplePodcastServiceMatcher.IsMatch(url);
 
+    /// <summary>
+    /// Hub filing under a TV show or news organisation (TvShowEpisode / NewsReport): podcast platforms plus any
+    /// URL the streaming catalog recognises (Channel 4, BBC iPlayer, Netflix, …). Film has no parent and does
+    /// not use this predicate. Owner auto-routing still uses <see cref="IsPodcastPlatformUrl"/> only — channel/show
+    /// ownership is podcast-platform shaped.
+    /// </summary>
+    public static bool CanFileUnderCatalogueParent(Uri url) =>
+        IsPodcastPlatformUrl(url) || StreamingServiceCatalog.TryResolveKey(url) is not null;
+
     public async Task<EpisodeUrlRoute> RouteByOwner(Uri url, IndexingContext indexingContext)
     {
         var owner = await podcastService.GetEpisodeUrlOwner(url, indexingContext);
@@ -68,6 +78,12 @@ public class EpisodeUrlRouter(
         if (owner == null || !IsPodcastPlatformUrl(url))
         {
             return new EpisodeUrlRoute(owner, podcast, null);
+        }
+
+        if (owner.ChannelRouteDecided)
+        {
+            // PodcastService already applied playlist membership and the parent rule for this channel.
+            return new EpisodeUrlRoute(owner, podcast, owner.Parent);
         }
 
         if (podcast != null)
@@ -127,6 +143,11 @@ public class EpisodeUrlRouter(
         if (owner == null)
         {
             return null;
+        }
+
+        if (owner.ChannelRouteDecided)
+        {
+            return owner.Parent;
         }
 
         var parent = await catalogueParentLookup.FindByOwner(owner.Ids);

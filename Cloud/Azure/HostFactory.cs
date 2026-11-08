@@ -1,3 +1,4 @@
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Azure.Functions.Worker.OpenTelemetry;
 using Microsoft.Extensions.Configuration;
@@ -12,7 +13,10 @@ public static class HostFactory
 {
     private const float DefaultTraceSamplingRatio = 0.25f;
 
-    public static IHost Create(string[] args, Action<IServiceCollection> configureServices)
+    public static IHost Create(
+        string[] args,
+        Action<IServiceCollection> configureServices,
+        Action<IFunctionsWorkerApplicationBuilder>? configureWorker = null)
     {
         var builder = FunctionsApplication.CreateBuilder(args);
         var isDevelopment = builder.Configuration.IsDevelopment();
@@ -40,6 +44,7 @@ public static class HostFactory
         }
 
         configureServices(builder.Services);
+        configureWorker?.Invoke(builder);
         return builder.Build();
     }
 

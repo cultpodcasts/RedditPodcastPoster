@@ -14,7 +14,12 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// YouTube-authority shows with disjoint marketing titles but near-identical audio/video
 /// length still enrich (aligned in spirit with <see cref="CrossPlatformMatchScorer"/>
 /// duration+same-day = 60, without awarding same-day-alone credit to merely in-band lengths).
-/// Title, description, or subject similarity also supply the remaining confidence.
+/// Title, description, subject, recognised-guest, or shared proper-noun similarity also supply the
+/// remaining confidence. Duration + same-calendar-day + one shared subject/guest/proper-noun (15)
+/// clears the threshold without a title match; a name credited as a shared guest is excluded from
+/// shared-subject points and from proper-noun points so the same phrase is not counted twice.
+/// Proper nouns are taken from descriptions only (not titles — Title Case marketing titles are not
+/// reliable casing signals).
 /// When either side lacks duration (e.g. Apple omitting <c>durationInMilliseconds</c>),
 /// duration points are skipped and duration band is not a hard fail — release window plus
 /// title/description/subjects must still clear the threshold (release alone cannot).
@@ -62,6 +67,10 @@ public static class CatalogueMatchScorer
     public const int FuzzyDescriptionPoints = FuzzyTitlePoints;
     public const int SingleSharedSubjectPoints = 15;
     public const int MultipleSharedSubjectPoints = 25;
+    public const int SingleSharedGuestPoints = 15;
+    public const int MultipleSharedGuestPoints = 25;
+    public const int SingleSharedProperNounPoints = 15;
+    public const int MultipleSharedProperNounPoints = 25;
 
     /// <summary>
     /// Absolute length delta that qualifies for <see cref="NearExactDurationPoints"/>
@@ -166,7 +175,14 @@ public static class CatalogueMatchScorer
         score += releasePoints;
         score += ScoreTitle(probe.Title, catalogueItem.Title);
         score += descriptionPoints;
-        score += ScoreSubjects(probe.Subjects, catalogueItem.Subjects, subjectFilters);
+        var sharedGuestNames = SharedCanonicalNames(probe.Guests, catalogueItem.Guests);
+        score += ScoreFromSharedNameCount(
+            sharedGuestNames.Count,
+            SingleSharedGuestPoints,
+            MultipleSharedGuestPoints);
+        // One tip per recognised name: shared guests are not also credited as shared subjects.
+        score += ScoreSubjects(probe.Subjects, catalogueItem.Subjects, subjectFilters, sharedGuestNames);
+        score += ScoreProperNouns(probe, catalogueItem, subjectFilters);
 
         if (!durationInBand && descriptionPoints > 0 && releasePoints > 0)
         {
@@ -409,16 +425,91 @@ public static class CatalogueMatchScorer
     private static int ScoreSubjects(
         IEnumerable<string>? left,
         IEnumerable<string>? right,
-        CatalogueSubjectScoreFilters? filters)
+        CatalogueSubjectScoreFilters? filters,
+        IReadOnlySet<string>? excludeNames = null)
     {
-        var shared = CountSharedSubjects(left, right, filters);
-        return shared switch
+        var leftSet = FilterSubjectNames(left, filters);
+        var rightSet = FilterSubjectNames(right, filters);
+        if (excludeNames is { Count: > 0 })
         {
-            >= 2 => MultipleSharedSubjectPoints,
-            1 => SingleSharedSubjectPoints,
+            leftSet.RemoveWhere(excludeNames.Contains);
+            rightSet.RemoveWhere(excludeNames.Contains);
+        }
+
+        if (leftSet.Count == 0 || rightSet.Count == 0)
+        {
+            return 0;
+        }
+
+        return ScoreFromSharedNameCount(
+            leftSet.Count(rightSet.Contains),
+            SingleSharedSubjectPoints,
+            MultipleSharedSubjectPoints);
+    }
+
+    private static int ScoreFromSharedNameCount(int shared, int singlePoints, int multiplePoints) =>
+        shared switch
+        {
+            >= 2 => multiplePoints,
+            1 => singlePoints,
+            _ => 0
+        };
+
+    private static HashSet<string> SharedCanonicalNames(IEnumerable<string>? left, IEnumerable<string>? right)
+    {
+        var leftSet = CanonicalNames(left);
+        if (leftSet.Count == 0)
+        {
+            return leftSet;
+        }
+
+        leftSet.IntersectWith(CanonicalNames(right));
+        return leftSet;
+    }
+
+    private static int ScoreProperNouns(
+        Episode probe,
+        Episode catalogueItem,
+        CatalogueSubjectScoreFilters? subjectFilters)
+    {
+        var exclude = FilterSubjectNames(probe.Subjects, subjectFilters)
+            .Concat(FilterSubjectNames(catalogueItem.Subjects, subjectFilters))
+            .Concat(CanonicalNames(probe.Guests))
+            .Concat(CanonicalNames(catalogueItem.Guests));
+        var shared = ProperNounExtractor.Shared(
+            probe.Description,
+            catalogueItem.Description,
+            exclude);
+        return shared.Count switch
+        {
+            >= 2 => MultipleSharedProperNounPoints,
+            1 => SingleSharedProperNounPoints,
             _ => 0
         };
     }
+
+    public static int CountSharedGuestNames(IEnumerable<string>? left, IEnumerable<string>? right)
+    {
+        var leftSet = CanonicalNames(left);
+        if (leftSet.Count == 0)
+        {
+            return 0;
+        }
+
+        var rightSet = CanonicalNames(right);
+        if (rightSet.Count == 0)
+        {
+            return 0;
+        }
+
+        return leftSet.Count(rightSet.Contains);
+    }
+
+    private static HashSet<string> CanonicalNames(IEnumerable<string>? names) =>
+        (names ?? [])
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private static HashSet<string> FilterSubjectNames(
         IEnumerable<string>? names,

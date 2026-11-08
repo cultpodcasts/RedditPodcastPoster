@@ -14,6 +14,7 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
     private static readonly Regex DurationRegex = CreateDurationRegex();
     private static readonly Regex ReleaseRegex = CreateReleaseRegex();
     private static readonly CultureInfo Uk = new("en-GB");
+    private static readonly TimeZoneInfo UkTimeZone = ResolveUkTimeZone();
     private static readonly Regex NumericPrefix = CreateNumericPrefixRegex();
 
     public async Task<NonPodcastServiceItemMetaData> Extract(Uri url, HttpResponseMessage pageResponse)
@@ -123,19 +124,21 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
                     var date = matches.Groups["date"]?.Value;
                     if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, Uk, out var _dateTime))
                     {
+                        // Date only (no time on the page): deliberately left as midnight with an unspecified kind,
+                        // which the UTC converters write as 00:00Z. It is a calendar date, not a UK instant, so it is
+                        // not shifted by the BST offset.
                         release = _dateTime;
                         if (!string.IsNullOrWhiteSpace(hour) && int.TryParse(hour, out var _hour))
                         {
-                            release += TimeSpan.FromHours(_hour);
-                            if (pm == "pm")
-                            {
-                                release += TimeSpan.FromHours(12);
-                            }
+                            release += TimeSpan.FromHours(To24Hour(_hour, pm == "pm"));
 
                             if (!string.IsNullOrWhiteSpace(min) && int.TryParse(min, out var _min))
                             {
                                 release += TimeSpan.FromMinutes(_min);
                             }
+
+                            // iPlayer shows the broadcast time as UK wall-clock time (GMT/BST); store the UTC instant.
+                            release = UkWallClockToUtc(release.Value);
                         }
                     }
                 }
@@ -250,4 +253,51 @@ public partial class iPlayerPageMetaDataExtractor : IiPlayerPageMetaDataExtracto
         Uri? Image,
         bool Explicit,
         string? Series);
+
+    /// <summary>Converts a 12-hour clock hour (1-12) with am/pm to 0-23: 12am is 00, 12pm is 12.</summary>
+    internal static int To24Hour(int hour12, bool pm) => hour12 % 12 + (pm ? 12 : 0);
+
+    /// <summary>
+    /// Converts a UK wall-clock time (no zone) to UTC: one hour earlier during BST, unchanged during GMT.
+    /// <list type="bullet">
+    /// <item>Spring-forward gap (01:00-01:59 on the last Sunday of March): the time does not exist; it is read as GMT.</item>
+    /// <item>Fall-back repeated hour (01:00-01:59 on the last Sunday of October): the time happens twice; the
+    /// <b>second</b> occurrence (GMT) is chosen deliberately, the same choice <c>DiscoverySchedule</c> makes for slots.</item>
+    /// </list>
+    /// </summary>
+    internal static DateTime UkWallClockToUtc(DateTime ukWallClock)
+    {
+        var unspecified = DateTime.SpecifyKind(ukWallClock, DateTimeKind.Unspecified);
+        if (UkTimeZone.IsInvalidTime(unspecified))
+        {
+            return DateTime.SpecifyKind(unspecified - UkTimeZone.BaseUtcOffset, DateTimeKind.Utc);
+        }
+
+        if (UkTimeZone.IsAmbiguousTime(unspecified))
+        {
+            var gmt = UkTimeZone.GetAmbiguousTimeOffsets(unspecified).Min();
+            return DateTime.SpecifyKind(unspecified - gmt, DateTimeKind.Utc);
+        }
+
+        return TimeZoneInfo.ConvertTimeToUtc(unspecified, UkTimeZone);
+    }
+
+    private static TimeZoneInfo ResolveUkTimeZone()
+    {
+        foreach (var id in new[] { "Europe/London", "GMT Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        throw new InvalidOperationException("Unable to resolve UK time zone (tried Europe/London / GMT Standard Time).");
+    }
 }

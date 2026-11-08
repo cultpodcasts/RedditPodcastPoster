@@ -3,7 +3,9 @@ namespace RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 /// <param name="Full">Push every film and delete film documents whose film no longer exists, ignoring the watermark.</param>
 /// <param name="DryRun">Read and plan only: no search writes and no watermark save.</param>
 /// <param name="BatchSize">Documents per index request (Azure AI Search accepts at most 1000).</param>
-public sealed record FilmSearchPushRequest(bool Full = false, bool DryRun = false, int BatchSize = 500)
+/// <param name="FilmId">When set, push only this film's document (delete it if the film is removed) and leave the
+/// watermark untouched. Cannot be combined with <paramref name="Full"/>.</param>
+public sealed record FilmSearchPushRequest(bool Full = false, bool DryRun = false, int BatchSize = 500, Guid? FilmId = null)
 {
     public const int MaxBatchSize = 1000;
 }

@@ -4,7 +4,7 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.YouTubeQuota;
 
 [CosmosSelector(ModelType.YouTubeIndexerKeyState)]
-public sealed class YouTubeIndexerKeyState : CosmosSelector
+public sealed class YouTubeIndexerKeyState : CosmosSelector, IFileKeyed
 {
     public static readonly Guid _Id = Guid.Parse("a7c3e1f4-9b2d-4f6a-8c5e-1d3f7a9b2c4e");
 
@@ -30,5 +30,7 @@ public sealed class YouTubeIndexerKeyState : CosmosSelector
     [JsonPropertyOrder(13)]
     public DateTime UpdatedUtc { get; set; }
 
-    public override string FileKey => nameof(YouTubeIndexerKeyState);
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => nameof(YouTubeIndexerKeyState);
 }

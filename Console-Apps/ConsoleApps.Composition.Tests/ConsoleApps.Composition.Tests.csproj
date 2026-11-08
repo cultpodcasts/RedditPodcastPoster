@@ -26,8 +26,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AddAudioPodcast\AddAudioPodcast.csproj" />
+    <ProjectReference Include="..\EnrichExistingEpisodesFromPodcastServices\EnrichExistingEpisodesFromPodcastServices.csproj" />
     <ProjectReference Include="..\Index\Index.csproj" />
     <ProjectReference Include="..\Poster\Poster.csproj" />
+    <ProjectReference Include="..\SubmitUrl\SubmitUrl.csproj" />
   </ItemGroup>
 
 </Project>

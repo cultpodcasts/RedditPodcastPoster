@@ -4,6 +4,7 @@ using Moq;
 using Moq.AutoMock;
 using Api.Resolvers;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
@@ -43,6 +44,9 @@ public class CataloguePlayableResolverRules
 
     private Task<CataloguePlayableResolution?> Resolve(Guid id) =>
         _mocker.CreateInstance<CataloguePlayableResolver>().Resolve(id, CancellationToken.None);
+
+    private Task<CataloguePlayableResolution?> Resolve(Guid id, ContentKind expectedKind) =>
+        _mocker.CreateInstance<CataloguePlayableResolver>().Resolve(id, expectedKind, CancellationToken.None);
 
     [Fact(DisplayName =
         "Plain English rule: when a news report has the id, then it resolves as NewsReport with its organisation as parent and slug, because the news route is /news/{organisation}/{shortId}.")]
@@ -88,7 +92,7 @@ public class CataloguePlayableResolverRules
     }
 
     [Fact(DisplayName =
-        "Plain English rule: when the TV show is removed, then the TV episode resolves as removed, because a removed parent hides its episodes.")]
+        "When the TV show is removed, then the TV episode resolves as removed with ParentRemoved, because a removed parent hides its episodes from public GET and blocks curator publish.")]
     public async Task resolves_tv_episode_as_removed_when_show_removed()
     {
         // Arrange
@@ -100,6 +104,7 @@ public class CataloguePlayableResolverRules
 
         // Assert
         resolution!.Removed.Should().BeTrue();
+        resolution.ParentRemoved.Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -118,6 +123,7 @@ public class CataloguePlayableResolverRules
         resolution.ParentName.Should().BeNull();
         resolution.Slug.Should().Be(_film.Name);
         resolution.Removed.Should().BeTrue();
+        resolution.ParentRemoved.Should().BeFalse();
         resolution.Projection.Episode.Title.Should().Be(_film.Name);
     }
 
@@ -130,6 +136,47 @@ public class CataloguePlayableResolverRules
 
         // Act
         var resolution = await Resolve(id);
+
+        // Assert
+        resolution.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When Resolve is called with ContentKind.Film, then only the film repository is queried and a film id resolves as Film, because kind publish must not fan out to news and TV.")]
+    public async Task kind_scoped_film_hits_only_film_repository()
+    {
+        // Arrange
+        _film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var newsCalls = 0;
+        var tvCalls = 0;
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.GetBy(It.IsAny<Expression<Func<NewsReport, bool>>>()))
+            .Callback(() => newsCalls++)
+            .ReturnsAsync(() => _report);
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
+            .Callback(() => tvCalls++)
+            .ReturnsAsync(() => _tvEpisode);
+
+        // Act
+        var resolution = await Resolve(_film.Id, ContentKind.Film);
+
+        // Assert
+        resolution!.ContentKind.Should().Be("Film");
+        resolution.Projection.Episode.Id.Should().Be(_film.Id);
+        newsCalls.Should().Be(0);
+        tvCalls.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
+        "When Resolve is called with ContentKind.NewsReport for a film id, then nothing resolves, because the kind-scoped path only reads the news report container.")]
+    public async Task kind_scoped_news_misses_film_id()
+    {
+        // Arrange
+        _film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+
+        // Act
+        var resolution = await Resolve(_film.Id, ContentKind.NewsReport);
 
         // Assert
         resolution.Should().BeNull();

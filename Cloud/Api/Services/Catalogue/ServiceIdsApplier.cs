@@ -13,8 +13,8 @@ namespace Api.Services.Catalogue;
 /// <item><c>appleId</c> / <c>nullAppleId</c>: <c>nullAppleId: true</c> clears, otherwise <c>appleId</c> sets.</item>
 /// <item><c>youTubePlaylistId</c>: the <c>YouTubePlaylistIdChange</c> rule. Whitespace clears, the value is
 /// trimmed, a replaced non-empty id is appended to <c>youTubePlaylistIdHistory</c>, and a Warning is logged.</item>
-/// <item><c>youTubeChannelId</c>: trimmed; <c>""</c> clears (stored as null). The podcast DTO accepts it but its applier never
-/// stores it. Here it is stored, because it is what URL submission matches a YouTube channel on.</item>
+/// <item><c>youTubeChannelId</c>: trimmed; <c>""</c> clears (stored as null). Podcasts store the same wire field via
+/// <c>PodcastChangeApplier</c> (empty string rather than null). It is what URL submission matches a YouTube channel on.</item>
 /// <item>Discovery flags, as <c>PodcastChangeApplier</c>: <c>ignoreAllEpisodes</c> true sets, false clears;
 /// <c>bypassShortEpisodeChecking</c>, <c>alwaysPromoteAsHero</c> and <c>skipEnrichingFromYouTube</c> store the value sent
 /// (an explicit <c>false</c> is kept, so a news organisation can opt out of its bypass-short default);
@@ -85,6 +85,17 @@ public static class ServiceIdsApplier
             }
 
             setsSomething |= measured.Length > 0;
+        }
+
+        if (change.ClearYouTubeIndexingHints == true)
+        {
+            // Clear only the hints member; leave other indexing fields alone. Clear does not set
+            // setsSomething by itself; when indexing already existed, the existing setsSomething =
+            // true keeps the block so the nulled hints persist on save.
+            if (indexing != null)
+            {
+                source.YouTubeIndexingHints = null;
+            }
         }
 
         if (change.IndexAllEpisodes != null)

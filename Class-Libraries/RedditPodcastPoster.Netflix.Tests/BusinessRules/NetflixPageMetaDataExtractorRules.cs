@@ -57,7 +57,8 @@ public class NetflixPageMetaDataExtractorRules
     {
         // Arrange
         var episodeTitle = _fixture.CreateTitle();
-        var seriesName = _fixture.CreateTitle();
+        // Distinct candidates only: an identical og:video:series is dropped as the episode title.
+        var seriesName = _fixture.CreateTitleNotContainedIn(episodeTitle);
         var url = new Uri($"https://www.netflix.com/watch/{_fixture.CreateAppleId()}");
         _handler.Response = OkHtml(
             $"<html><head>" +
@@ -153,8 +154,10 @@ public class NetflixPageMetaDataExtractorRules
     {
         // Arrange
         var filmName = _fixture.CreateTitle();
-        var otherSeries = _fixture.CreateTitle();
         var marketingTitle = $"Watch {filmName} | Netflix Official Site";
+        // The rule under test keys on the series name NOT appearing in the marketing title;
+        // random titles share a small vocabulary, so regenerate until there is no overlap.
+        var otherSeries = _fixture.CreateTitleNotContainedIn(marketingTitle);
         var url = new Uri($"https://www.netflix.com/title/{_fixture.CreateAppleId()}");
         _handler.Response = OkHtml(
             $"<html><head><meta property=\"og:title\" content=\"{marketingTitle}\" /></head>" +

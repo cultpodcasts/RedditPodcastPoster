@@ -22,7 +22,7 @@
 | **TvShow** | Traditional multi-episode **series** (BBC iPlayer, Netflix series, etc.). **Not** YouTube entertainment “shows”. |
 | **TvShowEpisode** | One episode of a TvShow. Own Cosmos container. |
 | **Film** | Standalone work **made as a film** (one-off). Premiere venue irrelevant — cinema or one-off TV. Examples: *Going Clear*, *My Scientology Movie*, *A Very British Cult*. Standalone playable — **no parent**. Product name is **Film**, not Movie. |
-| **NewsOrganisation** | News outlet (e.g. BBC News, Sky News, 4-letter TV news stations). |
+| **NewsOrganisation** | News outlet (e.g. BBC News, Sky News, 4-letter TV news stations). Extra YouTube channels of the same outlet: [channel aliases](./catalogue-news-organisation-channel-aliases.md). |
 | **NewsReport** | One report belonging to a NewsOrganisation. Own Cosmos container. |
 | **`contentKind`** | Search/API facet on the **playable instance**: `Episode \| TvShowEpisode \| Film \| NewsReport`. |
 | **`shortId`** | URL-safe base64url payload: Podcast = 16-byte GUID; Film/TV/News = ASCII `f`\|`t`\|`n` + 16-byte GUID (same encoding on **routes and shortener**). See OPEN-003. |
@@ -366,7 +366,7 @@ Lookup: membership across playable containers; name attach per parent kind with 
 
 #### Episode JSON cutover (Phase 1)
 
-Phase 1 renames Episode parent-denorm JSON and adds a sort key. Production documents today use the legacy names only.
+Phase 1 renames Episode parent-denorm JSON and adds a sort key. GATE 1 rewrote the corpus to the new names; GATE 5 step 5 removed the deserialize bridges and dual-key queries (the "Notes" column below describes the retired Phase 1 behaviour — code now reads the new wire names only).
 
 | Legacy wire | New wire | Notes |
 |-------------|----------|--------|
@@ -392,11 +392,11 @@ flowchart TD
 
 **Rules**
 
-1. **Query dual-key required** until a verified corpus rewrite: use `Playable.CosmosParentNotRemovedSql`, `Playable.CosmosReleaseSortOrReleaseSql`, and `EpisodeCosmosFilters` (LINQ). Do not filter solely on `parentRemoved` / `releaseSort`.
+1. **Query dual-key** was required until the verified corpus rewrite. **Retired in GATE 5 step 5:** `Playable.CosmosParentNotRemovedSql` and `EpisodeCosmosFilters` / `PlayableCosmosFilters` now filter on `parentRemoved` / `releaseSort` only, and `CosmosReleaseSortOrReleaseSql` / `ReleaseCosmosFallback` are gone.
 2. **First `Save()` after code deploy** omits legacy keys and emits the new names (bridges get null). That is intentional withering — not a full corpus migrate.
 3. **Backfill tool** (if/when built): dry-run default; production writes require explicit `--apply` approval in-conversation. Prefer dual-key over mandatory pre-deploy rewrite when dual-key is already shipped.
-4. **Console SQL** (CreateSearchIndex, FindDuplicateEpisodes, etc.) must use the same dual-key fragments — do not keep `podcastRemoved`-only eligibility after search-terms dual-read lands.
-5. **Drop bridges / dual-key** only after a verified rewrite (ticket onto the features board when deferred).
+4. **Console SQL** (CreateSearchIndex, FindDuplicateEpisodes, etc.) uses the same shared fragments (`Playable.CosmosParentNotRemovedSql`, `SearchIndexCosmosSql.ReleaseSort`) — now new-name only.
+5. **Bridges / dual-key dropped** (GATE 5 step 5) after the GATE 1 rewrite; re-check the read-only audit in [deployment.md](./deployment.md) § Episode JSON cutover before deploying.
 
 Link: [deployment.md](./deployment.md) § Episode JSON cutover.
 

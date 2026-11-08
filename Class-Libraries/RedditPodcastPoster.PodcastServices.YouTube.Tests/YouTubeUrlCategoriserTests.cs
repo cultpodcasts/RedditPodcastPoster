@@ -35,7 +35,7 @@ public class YouTubeUrlCategoriserTests
         var matchingPodcast = _fixture.Create<Podcast>();
         var indexingContext = _fixture.Create<IndexingContext>();
         _mocker.GetMock<IYouTubeChannelVideosService>().Setup(x =>
-            x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>()))
+            x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(
                 new GetChannelVideosResponse(
                     new Google.Apis.YouTube.v3.Data.Channel

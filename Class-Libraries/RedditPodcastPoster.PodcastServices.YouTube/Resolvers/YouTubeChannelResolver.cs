@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
+using RedditPodcastPoster.Models.Serialization;
 using Google;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
@@ -67,7 +68,7 @@ public class YouTubeChannelResolver(
                 searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
                 if (indexingContext.ReleasedSince.HasValue)
                 {
-                    searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+                    searchListRequest.PublishedAfterDateTimeOffset = UtcDateTimes.ToUtcOffset(indexingContext.ReleasedSince);
                 }
 
                 searchListResponse = await searchListRequest.ExecuteAsync();

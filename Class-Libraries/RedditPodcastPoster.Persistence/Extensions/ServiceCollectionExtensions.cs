@@ -6,6 +6,8 @@ using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.DependencyInjection;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
+using RedditPodcastPoster.Persistence.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Providers;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Configuration;
@@ -41,7 +43,10 @@ public static class ServiceCollectionExtensions
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PodcastRepository>>();
-                    return new PodcastRepository(containerFactory.CreatePodcastsContainer(), logger);
+                    return new PodcastRepository(
+                        containerFactory.CreatePodcastsContainer(),
+                        logger,
+                        s.GetRequiredService<IFileKeyClaimStore>());
                 })
                 .AddSingleton<ILookupRepository>(s =>
                 {
@@ -73,7 +78,10 @@ public static class ServiceCollectionExtensions
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TvShowRepository>>();
-                    return new TvShowRepository(containerFactory.CreateTvShowsContainer(), logger);
+                    return new TvShowRepository(
+                        containerFactory.CreateTvShowsContainer(),
+                        logger,
+                        s.GetRequiredService<IFileKeyClaimStore>());
                 })
                 .AddSingleton<ITvShowEpisodeRepository>(s =>
                 {
@@ -85,13 +93,19 @@ public static class ServiceCollectionExtensions
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FilmRepository>>();
-                    return new FilmRepository(containerFactory.CreateFilmsContainer(), logger);
+                    return new FilmRepository(
+                        containerFactory.CreateFilmsContainer(),
+                        logger,
+                        s.GetRequiredService<IFileKeyClaimStore>());
                 })
                 .AddSingleton<INewsOrganisationRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<NewsOrganisationRepository>>();
-                    return new NewsOrganisationRepository(containerFactory.CreateNewsOrganisationsContainer(), logger);
+                    return new NewsOrganisationRepository(
+                        containerFactory.CreateNewsOrganisationsContainer(),
+                        logger,
+                        s.GetRequiredService<IFileKeyClaimStore>());
                 })
                 .AddSingleton<INewsReportRepository>(s =>
                 {
@@ -99,6 +113,11 @@ public static class ServiceCollectionExtensions
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<NewsReportRepository>>();
                     return new NewsReportRepository(containerFactory.CreateNewsReportsContainer(), logger);
                 })
+                .AddSingleton<IFileKeyClaimStore>(s =>
+                    new FileKeyClaimStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateFileKeyClaimsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FileKeyClaimStore>>()))
+                .AddScoped<IFileKeyAllocator, FileKeyAllocator>()
                 .AddSingleton<IActivityRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();
@@ -110,9 +129,25 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IYouTubeQuotaUsageStateStore, YouTubeQuotaUsageStateStore>()
                 .AddSingleton<IYouTubeIndexerKeyStateStore, YouTubeIndexerKeyStateStore>()
                 .AddSingleton<IYouTubeThumbnailRecheckCursorStore, YouTubeThumbnailRecheckCursorStore>()
+                .AddSingleton<IParentKindTransferLockStore>(s =>
+                    new ParentKindTransferLockStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ParentKindTransferLockStore>>()))
+                .AddSingleton<IParentIndexingLockStore>(s =>
+                    new ParentIndexingLockStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ParentIndexingLockStore>>()))
+                .AddSingleton<IParentKindTransferJobStore>(s =>
+                    new ParentKindTransferJobStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ParentKindTransferJobStore>>()))
                 .AddSingleton<IFilmSearchPushWatermarkStore>(s =>
                     new FilmSearchPushWatermarkStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))
+                .AddSingleton<IXOAuth2TokenStore>(s =>
+                    new XOAuth2TokenStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<XOAuth2TokenStore>>()))
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
                 .AddSingleton<IValidateOptions<CosmosDbSettings>, CosmosDbSettingsValidator>();
             services.AddOptions<CosmosDbSettings>().ValidateOnStart();

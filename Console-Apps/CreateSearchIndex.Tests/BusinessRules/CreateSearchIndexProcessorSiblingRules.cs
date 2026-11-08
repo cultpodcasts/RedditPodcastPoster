@@ -50,7 +50,8 @@ public class CreateSearchIndexProcessorSiblingRules
             NewsOrganisationsContainer = "newsorganisations", NewsReportsContainer = "newsreports",
             SubjectsContainer = "subjects", PeopleContainer = "people", ActivitiesContainer = "activities",
             DiscoveryContainer = "discovery", DiscoverySubmissionsContainer = "submissions",
-            LookUpsContainer = "lookups", TitleCasingRulesContainer = "titlecasing",
+            LookUpsContainer = "lookups", FileKeyClaimsContainer = "filekeyclaims",
+            TitleCasingRulesContainer = "titlecasing",
             PushSubscriptionsContainer = "push"
         }));
 

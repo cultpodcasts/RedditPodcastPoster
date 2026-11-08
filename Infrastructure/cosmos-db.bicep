@@ -183,6 +183,27 @@ resource lookupContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/con
         paths: ['/id']
         kind: 'Hash'
       }
+      // Opt-in TTL: items expire only when they set their own `ttl`. Kind-transfer markers use this;
+      // other LookUps docs omit `ttl` and never expire.
+      defaultTtl: -1
+    }
+    options: {}
+  }
+}
+
+// Short-lived file-key leases for concurrent creates. Opt-in TTL: uncommitted claims set `ttl`;
+// a committed claim uses -1 so it stays until an explicit delete (kind-transfer compensation).
+resource fileKeyClaimsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
+  parent: database
+  name: 'FileKeyClaims'
+  properties: {
+    resource: {
+      id: 'FileKeyClaims'
+      partitionKey: {
+        paths: ['/id']
+        kind: 'Hash'
+      }
+      defaultTtl: -1
     }
     options: {}
   }

@@ -27,9 +27,9 @@ Licensed under the MIT license.
 | `discover-infra` | Scheduled podcast discovery (Listen Notes, Spotify, YouTube, Taddy) |
 | `indexer-infra` | Scheduled indexing, categorisation, Reddit/Twitter/Bluesky posting |
 
-Pushes to `main` build and deploy these via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Production app settings are defined in [`Infrastructure/functions.bicep`](Infrastructure/functions.bicep) and applied during provisioning.
+**Production path:** merge a PR into `main` → [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (**Provision and Deploy**) builds and deploys all three. Production app settings are defined in [`Infrastructure/functions.bicep`](Infrastructure/functions.bicep) and applied during provisioning. See [docs/deployment.md](docs/deployment.md) and [`.cursor/rules/production-deploy-truth.mdc`](.cursor/rules/production-deploy-truth.mdc).
 
-**Local code-only deploy** (does not change app settings):
+**Fallback — local code-only deploy** (when Actions is down, or an explicit script / **deploy functions & clis** request; does not change app settings):
 
 ```powershell
 .\scripts\deploy-api.ps1
@@ -37,13 +37,7 @@ Pushes to `main` build and deploy these via [`.github/workflows/deploy.yml`](.gi
 .\scripts\deploy-indexer.ps1
 ```
 
-These call `scripts/deploy-function-local.ps1` internally with the correct `-FunctionName`.
-
-Defaults: resource group `AutomatedInfra`, apps `api-infra` / `discover-infra` / `indexer-infra`, storage `cultpodcastsstg`.
-
-Requires `az login` and appropriate blob upload permissions.
-
-When GitHub Actions is inactive, see [docs/interim-deployment.md](docs/interim-deployment.md) for the full script map and local configuration sources.
+These call `scripts/deploy-function-local.ps1` internally with the correct `-FunctionName`. Defaults: resource group `AutomatedInfra`, apps `api-infra` / `discover-infra` / `indexer-infra`, storage `cultpodcastsstg`. Requires `az login` and blob upload permissions. Full interim map: [docs/interim-deployment.md](docs/interim-deployment.md).
 
 ## Configuration
 
@@ -101,6 +95,7 @@ Use colon notation in user-secrets; Azure uses `__` instead of `:`.
   "cosmosdb:DiscoveryContainer": "Discovery",
   "cosmosdb:DiscoverySubmissionsContainer": "DiscoverySubmissions",
   "cosmosdb:LookUpsContainer": "LookUps",
+  "cosmosdb:FileKeyClaimsContainer": "FileKeyClaims",
   "cosmosdb:TitleCasingRulesContainer": "TitleCasingRules",
   "cosmosdb:PushSubscriptionsContainer": "PushSubscriptions",
   "cosmosdb:UseGateway": false,

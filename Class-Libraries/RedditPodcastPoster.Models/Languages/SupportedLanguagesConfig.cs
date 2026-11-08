@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.Models.Languages;
 /// Cosmos LookUps singleton listing languages offered in admin/UI and published to R2.
 /// </summary>
 [CosmosSelector(ModelType.SupportedLanguagesConfig)]
-public sealed class SupportedLanguagesConfig : CosmosSelector
+public sealed class SupportedLanguagesConfig : CosmosSelector, IFileKeyed
 {
     public static readonly Guid _Id = Guid.Parse("B2C3D4E5-F6A7-8901-BCDE-F12345678901");
 
@@ -36,7 +36,9 @@ public sealed class SupportedLanguagesConfig : CosmosSelector
     [JsonPropertyOrder(10)]
     public List<SupportedLanguage> Languages { get; set; } = [];
 
-    public override string FileKey => nameof(SupportedLanguagesConfig);
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => nameof(SupportedLanguagesConfig);
 
     public static SupportedLanguagesConfig CreateDefault() => new()
     {

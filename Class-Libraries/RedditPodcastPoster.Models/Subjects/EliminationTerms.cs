@@ -4,7 +4,7 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.Subjects;
 
 [CosmosSelector(ModelType.EliminationTerms)]
-public sealed class EliminationTerms : CosmosSelector
+public sealed class EliminationTerms : CosmosSelector, IFileKeyed
 {
     public static readonly Guid _Id = Guid.Parse("D7B683EC-4948-44C4-B7BD-FB382CD3B1B6");
 
@@ -18,5 +18,7 @@ public sealed class EliminationTerms : CosmosSelector
     [JsonPropertyOrder(10)]
     public List<string> Terms { get; set; } = new();
 
-    public override string FileKey => nameof(EliminationTerms);
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => nameof(EliminationTerms);
 }

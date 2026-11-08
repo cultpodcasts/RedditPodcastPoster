@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
@@ -23,8 +24,13 @@ public class PostNewsOrganisationHandler(
                 ctx.Accepted(),
             NewsOrganisationUpdateStatus.NotFound =>
                 await ctx.NotFound(new { id = request.NewsOrganisationId }, c),
+            NewsOrganisationUpdateStatus.BadRequest when result.Code != null =>
+                await ctx.BadRequest(new { message = result.Message, code = result.Code }, c),
             NewsOrganisationUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, c),
+            NewsOrganisationUpdateStatus.ServiceUnavailable =>
+                await ctx.Json(HttpStatusCode.ServiceUnavailable,
+                    new { message = result.Message, code = result.Code, retryable = true }, c),
             NewsOrganisationUpdateStatus.Conflict =>
                 await ctx.Conflict(new { message = result.Message, ids = result.ConflictingIds }, c),
             NewsOrganisationUpdateStatus.Failed =>

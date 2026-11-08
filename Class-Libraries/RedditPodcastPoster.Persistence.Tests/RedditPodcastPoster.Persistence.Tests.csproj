@@ -30,6 +30,11 @@
     <ProjectReference Include="..\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\RedditPodcastPoster.Persistence\RedditPodcastPoster.Persistence.csproj" />
     <ProjectReference Include="..\..\Console-Apps\MigrateLanguageIgnoredSubjects\MigrateLanguageIgnoredSubjects.csproj" />
+    <!-- Referenced so FileKeyPresenceSerializationRules can inspect their CosmosSelector types (Activity, public-database
+         models, backfill snapshot). every_project_declaring_cosmos_selectors_is_inspected fails if one is missing. -->
+    <ProjectReference Include="..\..\Cloud\Azure\Azure.csproj" />
+    <ProjectReference Include="..\..\Console-Apps\CultPodcasts.DatabasePublisher\CultPodcasts.DatabasePublisher.csproj" />
+    <ProjectReference Include="..\..\Console-Apps\EpisodeServiceBackfill\EpisodeServiceBackfill.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,5 @@
 using System.Net;
+using RedditPodcastPoster.Models.Serialization;
 using Google;
 using Google.Apis.YouTube.v3;
 using Google.Apis.YouTube.v3.Data;
@@ -11,6 +12,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Exceptions;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Factories;
 using RedditPodcastPoster.PodcastServices.YouTube.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Paging;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -52,12 +54,16 @@ public class YouTubeSearcher(
         IndexingContext indexingContext,
         SearchResource.ListRequest.VideoDurationEnum duration)
     {
+        // Unspecified-kind ReleasedSince is UTC (#1194); the implicit conversion would read it as host-local time.
+        var releasedSince = UtcDateTimes.ToUtcOffset(indexingContext.ReleasedSince);
         var results = new List<YouTubeItemDetails>();
         var nextPageToken = "";
+        var walkGuard = new YouTubePageWalkGuard((int) MaxSearchResults);
         while (nextPageToken != null && (!results.Any() ||
                                          results.Last().SearchResult.Snippet.PublishedAtDateTimeOffset >=
-                                         indexingContext.ReleasedSince))
+                                         releasedSince))
         {
+            var requestedPageToken = nextPageToken;
             SearchListResponse response;
             try
             {
@@ -67,13 +73,9 @@ public class YouTubeSearcher(
                 searchListRequest.Type = "video";
                 searchListRequest.SafeSearch = SearchResource.ListRequest.SafeSearchEnum.None;
                 searchListRequest.Order = SearchResource.ListRequest.OrderEnum.Date;
-                searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
+                searchListRequest.PublishedAfterDateTimeOffset = releasedSince;
                 searchListRequest.Q = query;
                 searchListRequest.VideoDuration = duration;
-                if (indexingContext.ReleasedSince.HasValue)
-                {
-                    searchListRequest.PublishedAfterDateTimeOffset = indexingContext.ReleasedSince;
-                }
 
                 response = await searchListRequest.ExecuteAsync();
             }
@@ -91,12 +93,36 @@ public class YouTubeSearcher(
                 return await ToEpisodeResultsAsync(results);
             }
 
-            var releasedInTimeFrame = response.Items.Where(x =>
-                x.Snippet.PublishedAtDateTimeOffset >= indexingContext.ReleasedSince);
-
+            var pageItems = response.Items ?? [];
+            var releasedInTimeFrame = pageItems.Where(x =>
+                x.Snippet.PublishedAtDateTimeOffset >= releasedSince);
 
             results.AddRange(releasedInTimeFrame.Select(x => new YouTubeItemDetails(x)));
             nextPageToken = response.NextPageToken;
+
+            // search.list costs 100 units a page. totalResults is only an estimate, so the page cap is not applied.
+            var stop = walkGuard.Observe(
+                requestedPageToken,
+                pageItems.Select(x => x?.Id?.VideoId).ToList(),
+                nextPageToken,
+                totalResults: null);
+            if (stop != YouTubePageWalkStopReason.None)
+            {
+                // search.list is known to repeat results across pages, and these pages hold 25
+                // items, so a page of nothing but already-seen ids (NoNewItems) can happen without
+                // YouTube looping. It is accepted here as a cost stop (another page is 100 units),
+                // not a fault, so it logs at Warning rather than Error.
+                walkGuard.LogStop(
+                    logger,
+                    stop,
+                    "query-search",
+                    query,
+                    null,
+                    null,
+                    results.Count,
+                    stop == YouTubePageWalkStopReason.NoNewItems ? LogLevel.Warning : null);
+                break;
+            }
         }
 
         await EnrichWithVideo(results, indexingContext);

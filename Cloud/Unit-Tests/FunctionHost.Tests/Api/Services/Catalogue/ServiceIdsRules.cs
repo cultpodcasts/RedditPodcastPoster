@@ -11,6 +11,7 @@ using Api.Services.TvShows;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Persistence.Providers;
@@ -533,6 +534,111 @@ public class ServiceIdsRules
             change.ReleaseAuthority.Should().Be(RedditPodcastPoster.Models.Podcasts.Service.Spotify);
             change.UnsetReleaseAuthority.Should().BeFalse();
             change.YouTubePublicationDelay.Should().Be("02:00:00");
+            change.ChangesServiceIds.Should().BeTrue();
+        }
+    }
+
+    [Fact(DisplayName =
+        "GET news organisation exposes indexing.youTubeIndexingHints as youTubeIndexingHints so curators can see the last full walk.")]
+    public void get_exposes_youtube_indexing_hints()
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var videoId = _fixture.CreateYouTubeId();
+        var lastWalk = DomainTestFixture.UtcDaysAgo(3);
+        var organisation = Organisation(new CatalogueIndexingSource
+        {
+            YouTubePlaylistId = playlistId,
+            YouTubeIndexingHints = new YouTubeIndexingHints
+            {
+                PlaylistId = playlistId,
+                LastFullWalk = lastWalk,
+                PlaylistItemCount = 80,
+                UploadsCheckedThrough = lastWalk,
+                UploadsCheckedThroughVideoId = videoId
+            }
+        });
+
+        // Act
+        var dto = organisation.ToDto();
+
+        // Assert
+        dto.YouTubeIndexingHints.Should().NotBeNull();
+        dto.YouTubeIndexingHints!.PlaylistId.Should().Be(playlistId);
+        dto.YouTubeIndexingHints.PlaylistItemCount.Should().Be(80);
+        dto.YouTubeIndexingHints.UploadsCheckedThroughVideoId.Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
+        "GET news organisation returns null youTubeIndexingHints when stored hints name a previous playlist after a swap, " +
+        "while the indexing member keeps those hints, because null means the next pass will full-walk.")]
+    public void get_nulls_youtube_indexing_hints_when_playlist_mismatched()
+    {
+        // Arrange
+        var oldPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var newPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var organisation = Organisation(new CatalogueIndexingSource
+        {
+            YouTubePlaylistId = newPlaylistId,
+            YouTubeIndexingHints = new YouTubeIndexingHints
+            {
+                PlaylistId = oldPlaylistId
+            }
+        });
+
+        // Act
+        var dto = organisation.ToDto();
+
+        // Assert
+        organisation.Indexing!.YouTubeIndexingHints.Should().NotBeNull();
+        organisation.Indexing.YouTubeIndexingHints!.PlaylistId.Should().Be(oldPlaylistId);
+        dto.YouTubeIndexingHints.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH clearYouTubeIndexingHints true on a news organisation removes only indexing.youTubeIndexingHints and leaves other indexing fields.")]
+    public async Task clear_youtube_indexing_hints()
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var organisation = Organisation(new CatalogueIndexingSource
+        {
+            YouTubeChannelId = ChannelId,
+            YouTubePlaylistId = playlistId,
+            YouTubeIndexingHints = new YouTubeIndexingHints
+            {
+                PlaylistId = playlistId,
+                LastFullWalk = DomainTestFixture.UtcDaysAgo(1),
+                PlaylistItemCount = 40
+            }
+        });
+
+        // Act
+        var result = await Patch(organisation, new NewsOrganisationChangeRequest { ClearYouTubeIndexingHints = true });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
+        _savedOrganisation!.Indexing!.YouTubeIndexingHints.Should().BeNull();
+        _savedOrganisation.Indexing.YouTubeChannelId.Should().Be(ChannelId);
+        _savedOrganisation.Indexing.YouTubePlaylistId.Should().Be(playlistId);
+        _savedOrganisation.ToDto().YouTubeIndexingHints.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH clearYouTubeIndexingHints wire name reaches the model and marks ChangesServiceIds so the indexing applier runs.")]
+    public void clear_youtube_indexing_hints_wire_name()
+    {
+        // Arrange
+        const string json = """{"clearYouTubeIndexingHints":true}""";
+
+        // Act
+        var news = JsonSerializer.Deserialize<global::Api.Dtos.NewsOrganisationChangeRequest>(json)!.ToModel();
+        var tv = JsonSerializer.Deserialize<global::Api.Dtos.TvShowChangeRequest>(json)!.ToModel();
+
+        // Assert
+        foreach (var change in new ServiceIdsChange[] { news, tv })
+        {
+            change.ClearYouTubeIndexingHints.Should().BeTrue();
             change.ChangesServiceIds.Should().BeTrue();
         }
     }

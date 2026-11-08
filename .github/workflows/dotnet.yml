@@ -28,6 +28,12 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore --verbosity minimal
+    - name: Solution membership (csproj ↔ slnx)
+      shell: pwsh
+      run: ./scripts/assert-slnx-membership.ps1
+    - name: Solution filters (*.slnf ↔ slnx)
+      shell: pwsh
+      run: ./scripts/assert-slnf.ps1
     - name: Build
       run: dotnet build --configuration Release
     - name: Test
@@ -46,3 +52,11 @@ jobs:
           git fetch origin $base --depth=1
           ./scripts/assert-unit-test-guardrails.ps1 -GitChanged -BaseRef "origin/$base"
         }
+    - name: Pester
+      shell: pwsh
+      run: |
+        if (-not (Get-Module -ListAvailable Pester -ErrorAction SilentlyContinue | Where-Object { $_.Version -ge [version]'5.0' })) {
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue
+          Install-Module Pester -MinimumVersion 5.0 -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber
+        }
+        Invoke-Pester ./scripts/tests -CI

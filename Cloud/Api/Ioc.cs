@@ -100,7 +100,8 @@ public static class Ioc
             .BindConfiguration<MemoryProbeOptions>("memoryProbe")
             .AddSingleton<IValidateOptions<HostingOptions>, HostingOptionsValidator>()
             .AddSingleton<IMemoryProbeOrchestrator, MemoryProbeOrchestrator>()
-            .AddPostingCriteria();
+            .AddPostingCriteria()
+            .AddUtcJsonDateTimes();
 
         serviceCollection.AddOptions<HostingOptions>().ValidateOnStart();
     }

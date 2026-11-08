@@ -1,15 +1,25 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Net;
+using System.Text.Json;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Api.Models;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.Search.Models;
+using Api.Services.YouTube;
 
 namespace Api.Services.Podcasts;
 
@@ -18,6 +28,28 @@ namespace Api.Services.Podcasts;
 /// each episode gets deterministic <c>services.*.url</c> from nested ids via
 /// <see cref="EpisodeServicePresence.EnsureServiceUrlsFromIds"/> (no Spotify / Apple / YouTube client calls).
 /// Client materialisation remains on single-episode Move, where one episode's quota cost is acceptable.
+/// <para>
+/// Only one transfer per podcast runs at a time: a LookUps marker (<see cref="IParentKindTransferLockStore"/>) is
+/// taken first, and a second request while it is fresh gets <see cref="PodcastKindTransferStatus.AlreadyRunning"/>.
+/// The marker carries a Cosmos item TTL of 2× <see cref="LockStaleAfter"/> (refreshed on each heartbeat) so a leftover
+/// from a crashed holder expires on its own. The holder renews the marker every <see cref="LockHeartbeatInterval"/>
+/// while it works; a marker with no heartbeat for <see cref="LockStaleAfter"/> belongs to a transfer that died, and
+/// the next request takes it over and resumes.
+/// A holder whose renewal finds the marker taken over stops at once (without compensating: the new holder owns the
+/// rows). A holder that cannot renew for <see cref="LockSelfFenceAfter"/> stops writing on its own before the
+/// marker can go stale, and a failed write is compensated only after a forced renewal proves the marker is still
+/// ours, so two attempts never write at once. Resume is safe because destination writes are upserts under the source guids, an existing destination
+/// parent of the requested kind is reused, source deletes skip rows already gone, and the podcast row is deleted
+/// last, only once a re-read finds no episodes left (episodes that arrive mid-transfer are moved too). Each move
+/// pass re-reads the planned episode ids before mapping, and again immediately before source delete so indexer or
+/// curator edits during playable write / search are remounted rather than lost with the stale destination row.
+/// </para>
+/// <para>
+/// Reads honour the request's cancellation token; once writing starts it is no longer honoured, because a caller
+/// that disconnects must not stop a transfer half way. Destination playables are saved and source episodes deleted
+/// with bounded parallelism (<see cref="CatalogueBulkWrite"/>), retrying Cosmos throttling. The home page active
+/// count is not touched: it counts the destination playables too, so a transfer changes it by nothing.
+/// </para>
 /// </summary>
 public class PodcastKindTransferService(
     IPodcastRepository podcastRepository,
@@ -27,8 +59,36 @@ public class PodcastKindTransferService(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     IPlayableSearchDocumentSwap searchSwap,
+    IFileKeyAllocator fileKeyAllocator,
+    IParentKindTransferLockStore lockStore,
+    IYouTubePlaylistGuard youTubePlaylistGuard,
+    TimeProvider timeProvider,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
 {
+    /// <summary>A marker with no heartbeat for this long belongs to a transfer that died.</summary>
+    public static readonly TimeSpan LockStaleAfter = TimeSpan.FromMinutes(10);
+
+    /// <summary>How often the holder renews its marker while it works.</summary>
+    public static readonly TimeSpan LockHeartbeatInterval = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// A holder that has not renewed its marker for this long stops writing (self-fences), one heartbeat before
+    /// another request may take the marker over as stale.
+    /// </summary>
+    public static readonly TimeSpan LockSelfFenceAfter = LockStaleAfter - LockHeartbeatInterval;
+
+    /// <summary>First wait after a failed renewal; it doubles per consecutive failure up to <see cref="RenewRetryMaxDelay"/>.</summary>
+    public static readonly TimeSpan RenewRetryBaseDelay = TimeSpan.FromSeconds(5);
+
+    /// <summary>Longest wait between renewal attempts after failures.</summary>
+    public static readonly TimeSpan RenewRetryMaxDelay = TimeSpan.FromSeconds(30);
+
+    /// <summary>Source episodes per bulk delete call; the marker is renewed between calls.</summary>
+    public const int SourceDeleteChunkSize = 200;
+
+    /// <summary>Extra passes that move episodes which arrived during the transfer before giving up.</summary>
+    public const int MaxLateArrivalPasses = 2;
+
     public async Task<PodcastKindTransferResult> TransferAsync(
         Guid podcastId,
         PodcastKindTransferRequest request,
@@ -39,40 +99,175 @@ public class PodcastKindTransferService(
             return new PodcastKindTransferResult(PodcastKindTransferStatus.InvalidTarget);
         }
 
+        ParentKindTransferLockAcquisition acquisition;
         try
         {
-            var podcast = await podcastRepository.GetPodcast(podcastId);
-            var existingTvShow = await tvShowRepository.GetTvShow(podcastId);
-            var existingNewsOrganisation = await newsOrganisationRepository.GetNewsOrganisation(podcastId);
+            acquisition = await lockStore.TryAcquire(podcastId, targetKind, UtcNow(), LockStaleAfter);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{method}: Failed to take the transfer marker for podcast '{podcastId}'.",
+                nameof(TransferAsync), podcastId);
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.Failed, podcastId);
+        }
 
-            if (podcast is null)
+        if (acquisition.Handle is not { } handle)
+        {
+            logger.LogInformation(
+                "{method}: A kind transfer of podcast '{podcastId}' is already running (since {runningSinceUtc:O}).",
+                nameof(TransferAsync), podcastId, acquisition.RunningSinceUtc);
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.AlreadyRunning, podcastId, targetKind);
+        }
+
+        var lease = new TransferLease(lockStore, timeProvider, handle, logger);
+        try
+        {
+            if (acquisition.Outcome == ParentKindTransferLockOutcome.ResumedStale)
             {
-                if (existingTvShow is not null || existingNewsOrganisation is not null)
-                {
-                    return new PodcastKindTransferResult(
-                        PodcastKindTransferStatus.Conflict,
-                        podcastId,
-                        targetKind);
-                }
-
-                return new PodcastKindTransferResult(PodcastKindTransferStatus.NotFound, podcastId);
+                logger.LogWarning(
+                    "{method}: Resuming kind transfer of podcast '{podcastId}' to {targetKind} after a stale marker " +
+                    "from {runningSinceUtc:O} (that transfer was to {previousTargetKind}).",
+                    nameof(TransferAsync), podcastId, targetKind, acquisition.RunningSinceUtc,
+                    acquisition.PreviousTargetKind);
             }
 
-            var episodes = new List<Episode>();
-            await foreach (var episode in episodeRepository.GetByPodcastId(podcastId)
-                               .WithCancellation(cancellationToken))
+            return await TransferUnderLock(
+                podcastId,
+                targetKind,
+                acquisition.PreviousTargetKind,
+                lease,
+                cancellationToken);
+        }
+        finally
+        {
+            await lockStore.Release(lease.Handle);
+        }
+    }
+
+    private DateTime UtcNow() => timeProvider.GetUtcNow().UtcDateTime;
+
+    private sealed record Snapshot(
+        Podcast? Podcast,
+        TvShow? ExistingTvShow,
+        NewsOrganisation? ExistingNewsOrganisation,
+        IReadOnlyList<Episode> Episodes);
+
+    private async Task<PodcastKindTransferResult> TransferUnderLock(
+        Guid podcastId,
+        CatalogueParentKind targetKind,
+        CatalogueParentKind? previousTargetKind,
+        TransferLease lease,
+        CancellationToken cancellationToken)
+    {
+        Snapshot snapshot;
+        try
+        {
+            snapshot = await ReadSnapshot(podcastId, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Only the read phase honours the token, so nothing was written.
+            logger.LogInformation(
+                "{method}: Caller cancelled the kind transfer of podcast '{podcastId}' before any write.",
+                nameof(TransferAsync), podcastId);
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.Failed, podcastId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{method}: Failed to read podcast '{podcastId}' for a kind transfer.",
+                nameof(TransferAsync), podcastId);
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.Failed, podcastId);
+        }
+
+        if (snapshot.Podcast is not { } podcast)
+        {
+            return snapshot.ExistingTvShow is not null || snapshot.ExistingNewsOrganisation is not null
+                ? new PodcastKindTransferResult(PodcastKindTransferStatus.Conflict, podcastId, targetKind)
+                : new PodcastKindTransferResult(PodcastKindTransferStatus.NotFound, podcastId);
+        }
+
+        var siblingParentExists = targetKind switch
+        {
+            CatalogueParentKind.TvShow => snapshot.ExistingNewsOrganisation is not null,
+            CatalogueParentKind.NewsOrganisation => snapshot.ExistingTvShow is not null,
+            _ => false
+        };
+        if (siblingParentExists)
+        {
+            if (previousTargetKind is { } previous && previous != targetKind)
             {
-                episodes.Add(episode);
+                logger.LogWarning(
+                    "{method}: An earlier kind transfer of podcast '{podcastId}' to {previousTargetKind} did not " +
+                    "finish; re-run the transfer to {previousTargetKind} to complete it.",
+                    nameof(TransferAsync), podcastId, previous, previous);
             }
 
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.Conflict, podcastId, targetKind);
+        }
+
+        // CatalogueParentKindMapper copies youTubeChannelId/youTubePlaylistId as-is; refuse a mismatched pair first
+        // (#1178), with the same 400/503 codes as the parent edit endpoints.
+        YouTubePlaylistValidation? refusedPlaylist;
+        try
+        {
+            refusedPlaylist = await youTubePlaylistGuard.CheckChannelOwnsPlaylist(
+                podcast.YouTubeChannelId,
+                podcast.YouTubePlaylistId,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(
+                "{method}: Caller cancelled the kind transfer of podcast '{podcastId}' before any write.",
+                nameof(TransferAsync), podcastId);
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.Failed, podcastId);
+        }
+
+        if (refusedPlaylist is { } refused)
+        {
+            logger.LogWarning(
+                "{method}: Kind transfer of podcast '{podcastId}' refused: {code}. {message}",
+                nameof(TransferAsync), podcastId, refused.Code, refused.Message);
+            return new PodcastKindTransferResult(
+                refused.IsRetryable
+                    ? PodcastKindTransferStatus.ServiceUnavailable
+                    : PodcastKindTransferStatus.BadRequest,
+                podcastId,
+                targetKind,
+                Error: refused.Message,
+                Code: refused.Code);
+        }
+
+        // From here on the transfer writes; the caller's token is no longer honoured, and any exception (including
+        // a client-side Cosmos or HTTP timeout surfacing as OperationCanceledException) is a real failure.
+        try
+        {
             return targetKind switch
             {
-                CatalogueParentKind.TvShow =>
-                    await TransferToTvShow(podcast, episodes, existingNewsOrganisation is not null, cancellationToken),
-                CatalogueParentKind.NewsOrganisation =>
-                    await TransferToNewsOrganisation(podcast, episodes, existingTvShow is not null, cancellationToken),
+                CatalogueParentKind.TvShow => await TransferParent(
+                    podcast, snapshot.Episodes, resuming: snapshot.ExistingTvShow is not null, TvShowTarget(), lease),
+                CatalogueParentKind.NewsOrganisation => await TransferParent(
+                    podcast, snapshot.Episodes, resuming: snapshot.ExistingNewsOrganisation is not null,
+                    NewsOrganisationTarget(), lease),
                 _ => new PodcastKindTransferResult(PodcastKindTransferStatus.InvalidTarget)
             };
+        }
+        catch (TransferLeaseLostException ex) when (ex.TakenOver)
+        {
+            logger.LogError(
+                ex,
+                "{method}: Another request took over the kind transfer of podcast '{podcastId}'; this attempt stopped.",
+                nameof(TransferAsync), podcastId);
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.AlreadyRunning, podcastId, targetKind);
+        }
+        catch (TransferLeaseLostException ex)
+        {
+            logger.LogError(
+                ex,
+                "{method}: The kind transfer of podcast '{podcastId}' could not keep its marker renewed, so it stopped " +
+                "writing without compensating; re-run the transfer to finish.",
+                nameof(TransferAsync), podcastId);
+            return new PodcastKindTransferResult(PodcastKindTransferStatus.Failed, podcastId);
         }
         catch (Exception ex)
         {
@@ -81,153 +276,406 @@ public class PodcastKindTransferService(
         }
     }
 
-    private Task<PodcastKindTransferResult> TransferToTvShow(
-        Podcast podcast,
-        IReadOnlyList<Episode> episodes,
-        bool siblingParentExists,
-        CancellationToken cancellationToken) =>
-        TransferParent(
-            podcast,
-            episodes,
-            siblingParentExists,
+    private async Task<Snapshot> ReadSnapshot(Guid podcastId, CancellationToken cancellationToken)
+    {
+        var podcast = await podcastRepository.GetPodcast(podcastId);
+        var existingTvShow = await tvShowRepository.GetTvShow(podcastId);
+        var existingNewsOrganisation = await newsOrganisationRepository.GetNewsOrganisation(podcastId);
+        var episodes = podcast is null ? [] : await ReadEpisodes(podcastId, cancellationToken);
+        return new Snapshot(podcast, existingTvShow, existingNewsOrganisation, episodes);
+    }
+
+    private async Task<List<Episode>> ReadEpisodes(Guid podcastId, CancellationToken cancellationToken)
+    {
+        var episodes = new List<Episode>();
+        await foreach (var episode in episodeRepository.GetByPodcastId(podcastId).WithCancellation(cancellationToken))
+        {
+            episodes.Add(episode);
+        }
+
+        return episodes;
+    }
+
+    private sealed record TransferTarget<TParent, TPlayable>(
+        CatalogueParentKind Kind,
+        FileKeyKind FileKeyKind,
+        string SearchContentKind,
+        Func<Podcast, TParent> MapParent,
+        Func<Episode, TParent, TPlayable> MapPlayable,
+        Func<TParent, Task> SaveParent,
+        Func<TPlayable, Task> SavePlayable,
+        Func<Guid, Guid, Task> DeletePlayable,
+        Func<Guid, Task> DeleteParent)
+        where TParent : Publisher
+        where TPlayable : Playable;
+
+    private TransferTarget<TvShow, TvShowEpisode> TvShowTarget() =>
+        new(
             CatalogueParentKind.TvShow,
+            FileKeyKind.TvShow,
             SearchContentKind.TvShowEpisode,
             CatalogueParentKindMapper.ToTvShow,
             CatalogueParentKindMapper.ToTvShowEpisode,
             tvShowRepository.Save,
             tvShowEpisodeRepository.Save,
             tvShowEpisodeRepository.Delete,
-            tvShowRepository.Delete,
-            cancellationToken);
+            tvShowRepository.Delete);
 
-    private Task<PodcastKindTransferResult> TransferToNewsOrganisation(
-        Podcast podcast,
-        IReadOnlyList<Episode> episodes,
-        bool siblingParentExists,
-        CancellationToken cancellationToken) =>
-        TransferParent(
-            podcast,
-            episodes,
-            siblingParentExists,
+    private TransferTarget<NewsOrganisation, NewsReport> NewsOrganisationTarget() =>
+        new(
             CatalogueParentKind.NewsOrganisation,
+            FileKeyKind.NewsOrganisation,
             SearchContentKind.NewsReport,
             CatalogueParentKindMapper.ToNewsOrganisation,
             CatalogueParentKindMapper.ToNewsReport,
             newsOrganisationRepository.Save,
             newsReportRepository.Save,
             newsReportRepository.Delete,
-            newsOrganisationRepository.Delete,
-            cancellationToken);
+            newsOrganisationRepository.Delete);
+
+    /// <summary>Per-transfer counters for the one summary log line.</summary>
+    private sealed class TransferStats
+    {
+        private int _throttleRetries;
+        public TimeSpan WriteElapsed;
+        public TimeSpan SearchElapsed;
+        public TimeSpan DeleteElapsed;
+        public int Deleted;
+        public int Missing;
+        public double DeleteRequestCharge;
+        public int ThrottleRetries => Volatile.Read(ref _throttleRetries);
+        public void Throttled() => Interlocked.Increment(ref _throttleRetries);
+
+        public void Add(EpisodeBulkDeleteResult result)
+        {
+            Deleted += result.Deleted;
+            Missing += result.Missing;
+            DeleteRequestCharge += result.RequestCharge;
+            Interlocked.Add(ref _throttleRetries, result.ThrottleRetries);
+        }
+    }
 
     private async Task<PodcastKindTransferResult> TransferParent<TParent, TPlayable>(
         Podcast podcast,
         IReadOnlyList<Episode> episodes,
-        bool siblingParentExists,
-        CatalogueParentKind targetKind,
-        string searchContentKind,
-        Func<Podcast, TParent> mapParent,
-        Func<Episode, TParent, TPlayable> mapPlayable,
-        Func<TParent, Task> saveParent,
-        Func<TPlayable, Task> savePlayable,
-        Func<Guid, Guid, Task> deletePlayable,
-        Func<Guid, Task> deleteParent,
-        CancellationToken cancellationToken)
-        where TParent : class
+        bool resuming,
+        TransferTarget<TParent, TPlayable> target,
+        TransferLease lease)
+        where TParent : Publisher
         where TPlayable : Playable
     {
-        if (siblingParentExists)
+        var total = Stopwatch.StartNew();
+        var stats = new TransferStats();
+        var parent = target.MapParent(podcast);
+        // Allocated here, under the transfer marker, so the key is chosen by the one attempt that writes the parent.
+        // Never empty and unique among the target kind: a name with no usable Latin slug keeps the podcast's own
+        // usable key (with the kind prefix), else gets an id key. The allocator ignores this parent's own id, so a
+        // resumed transfer gets the same key back.
+        await lease.Heartbeat();
+        parent.FileKey = await fileKeyAllocator.Allocate(target.FileKeyKind, parent.Name, parent.Id, podcast.FileKey);
+        await CatalogueBulkWrite.RetryThrottled(() => target.SaveParent(parent), stats.Throttled);
+
+        var batch = episodes;
+        var moved = 0;
+        var indexed = true;
+        var passes = 0;
+        for (var pass = 0; ; pass++)
         {
-            return new PodcastKindTransferResult(
-                PodcastKindTransferStatus.Conflict,
-                podcast.Id,
-                targetKind);
+            passes = pass + 1;
+            // A resumed transfer, or any later pass, must not compensate away the parent: playables moved earlier
+            // (whose source rows may already be gone) would be orphaned.
+            var passResult = await MovePass(
+                podcast, parent, batch, target, lease, stats, compensateParent: pass == 0 && !resuming);
+            moved += passResult.MovedCount;
+            indexed &= passResult.Swap.Indexed;
+            if (!passResult.Swap.DeleteSourceRows)
+            {
+                // A failed delete of a removed key cannot be retried once the source row is gone: the pull indexer
+                // never sees a removed destination playable, and this index has no soft-delete. Keep the source.
+                LogSummary(podcast.Id, target.Kind, moved, passes, stats, total.Elapsed, podcastDeleted: false);
+                return new PodcastKindTransferResult(
+                    PodcastKindTransferStatus.Accepted, podcast.Id, target.Kind, moved, FailureIndexingPlayables: true);
+            }
+
+            // Episodes can arrive while the transfer runs (Indexer, submit, discovery). Deleting the podcast row
+            // would orphan them, so move them too before the podcast goes.
+            batch = await ReadEpisodes(podcast.Id, CancellationToken.None);
+            if (batch.Count == 0)
+            {
+                break;
+            }
+
+            if (pass >= MaxLateArrivalPasses)
+            {
+                logger.LogWarning(
+                    "{method}: {count} episodes of podcast '{podcastId}' are still arriving after {passes} passes; " +
+                    "keeping the podcast row. Re-run the transfer to finish.",
+                    nameof(TransferParent), batch.Count, podcast.Id, pass + 1);
+                LogSummary(podcast.Id, target.Kind, moved, passes, stats, total.Elapsed, podcastDeleted: false);
+                return new PodcastKindTransferResult(
+                    PodcastKindTransferStatus.Incomplete, podcast.Id, target.Kind, moved, !indexed);
+            }
+
+            logger.LogInformation(
+                "{method}: {count} episodes of podcast '{podcastId}' arrived during the transfer; moving them.",
+                nameof(TransferParent), batch.Count, podcast.Id);
         }
+
+        await lease.Heartbeat();
+        await CatalogueBulkWrite.RetryThrottled(() => podcastRepository.Delete(podcast.Id), stats.Throttled);
+        LogSummary(podcast.Id, target.Kind, moved, passes, stats, total.Elapsed, podcastDeleted: true);
+        return new PodcastKindTransferResult(
+            PodcastKindTransferStatus.Accepted, podcast.Id, target.Kind, moved, FailureIndexingPlayables: !indexed);
+    }
+
+    private readonly record struct MovePassResult(SearchSwapResult Swap, int MovedCount);
+
+    private async Task<MovePassResult> MovePass<TParent, TPlayable>(
+        Podcast podcast,
+        TParent parent,
+        IReadOnlyList<Episode> episodes,
+        TransferTarget<TParent, TPlayable> target,
+        TransferLease lease,
+        TransferStats stats,
+        bool compensateParent)
+        where TParent : Publisher
+        where TPlayable : Playable
+    {
+        // Re-read planned ids so an Indexer / submit / curator edit after the snapshot is what we map, index, and
+        // delete. Rows gone from Cosmos are dropped (already moved or deleted elsewhere).
+        await lease.Heartbeat();
+        var batch = await RefreshEpisodesForPass(podcast.Id, episodes);
+        // Fingerprint before EnsureServiceUrlsFromIds mutates Services on these clones, so delete-time comparison
+        // matches the Cosmos row the Indexer/curator would have edited.
+        var fingerprints = batch.ToDictionary(episode => episode.Id, EpisodeTransferFingerprint);
 
         // Playables keep Services only. Fill missing services.*.url from nested ids (deterministic, no clients) so
         // a large podcast transfer stays Cosmos/search I/O and does not sequentially hit platform APIs.
-        foreach (var episode in episodes)
-        {
-            EpisodeServicePresence.EnsureServiceUrlsFromIds(episode, podcast.AppleId);
-        }
+        EnsureServiceUrls(batch, podcast.AppleId);
 
-        var parent = mapParent(podcast);
-        var playables = episodes
-            .Select(episode => mapPlayable(episode, parent))
-            .ToList();
-
-        var writtenPlayableIds = new List<Guid>();
-        var parentWritten = false;
+        var writtenPlayableIds = new ConcurrentBag<Guid>();
+        var phase = Stopwatch.StartNew();
         try
         {
-            await saveParent(parent);
-            parentWritten = true;
-            foreach (var playable in playables)
-            {
-                await savePlayable(playable);
-                writtenPlayableIds.Add(playable.Id);
-            }
+            await SavePlayables(batch, parent, target, lease, stats, writtenPlayableIds);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not TransferLeaseLostException)
         {
+            // Parallel.ForEachAsync surfaces the first failure, which can be a sibling's 429 or 5xx even after the
+            // marker was lost. Compensation deletes dest rows, so only run it while the marker is provably ours.
+            if (!await lease.ConfirmOwnership())
+            {
+                logger.LogError(
+                    ex,
+                    "{method}: Dest write failed for podcast '{podcastId}' to {targetKind} and the marker could not " +
+                    "be confirmed as ours; not compensating, because a newer attempt may own those rows.",
+                    nameof(MovePass),
+                    podcast.Id,
+                    target.Kind);
+                throw lease.Lost(ex);
+            }
+
             logger.LogError(
                 ex,
                 "{method}: Dest write failed for podcast '{podcastId}' to {targetKind}; compensating dest rows.",
-                nameof(TransferParent),
+                nameof(MovePass),
                 podcast.Id,
-                targetKind);
-            await CompensateDest(podcast.Id, parentWritten, writtenPlayableIds, deletePlayable, deleteParent);
+                target.Kind);
+            await CompensateDest(
+                podcast.Id, compensateParent, writtenPlayableIds.ToList(), target, parent.FileKey);
             throw;
         }
 
-        var swap = await SwapSearch(podcast, episodes, searchContentKind, cancellationToken);
-        // A failed delete of a removed key cannot be retried once the source row is gone: the pull indexer
-        // never sees a removed destination playable, and this index has no soft-delete. An empty excluded
-        // set still drops the source, because a kept id can be healed by the next pull.
-        if (swap.DeleteSourceRows)
+        stats.WriteElapsed += phase.Elapsed;
+
+        await lease.Heartbeat();
+        phase.Restart();
+        var swap = await SwapSearch(podcast, batch, target.SearchContentKind);
+        stats.SearchElapsed += phase.Elapsed;
+        if (!swap.DeleteSourceRows)
         {
-            await DeletePodcastRows(podcast, episodes);
+            return new MovePassResult(swap, batch.Count);
         }
 
-        return new PodcastKindTransferResult(
-            PodcastKindTransferStatus.Accepted,
-            podcast.Id,
-            targetKind,
-            playables.Count,
-            FailureIndexingPlayables: !swap.Indexed);
+        // Delete-time freshness (#1168): edits that landed during playable write / search must remount before we
+        // destroy the source row. Rows already gone are dropped; unchanged rows are left as written.
+        await lease.Heartbeat();
+        var finalBatch = await RefreshEpisodesForPass(podcast.Id, batch);
+        var remount = finalBatch
+            .Where(episode =>
+                !fingerprints.TryGetValue(episode.Id, out var fingerprint) ||
+                fingerprint != EpisodeTransferFingerprint(episode))
+            .ToList();
+        if (remount.Count > 0)
+        {
+            logger.LogInformation(
+                "{method}: {count} episode(s) of podcast '{podcastId}' changed during the move pass; remounting " +
+                "before source delete.",
+                nameof(MovePass),
+                remount.Count,
+                podcast.Id);
+
+            EnsureServiceUrls(remount, podcast.AppleId);
+            phase.Restart();
+            // Remount failure leaves source rows; earlier dest upserts stay for a re-run. Do not compensate.
+            await SavePlayables(remount, parent, target, lease, stats, writtenPlayableIds);
+            stats.WriteElapsed += phase.Elapsed;
+
+            await lease.Heartbeat();
+            phase.Restart();
+            var remountSwap = await SwapSearch(podcast, remount, target.SearchContentKind);
+            stats.SearchElapsed += phase.Elapsed;
+            swap = new SearchSwapResult(swap.Indexed && remountSwap.Indexed, remountSwap.DeleteSourceRows);
+            if (!swap.DeleteSourceRows)
+            {
+                return new MovePassResult(swap, finalBatch.Count);
+            }
+        }
+
+        // Source rows go in chunks so the marker is renewed between them; the podcast row stays until the end.
+        phase.Restart();
+        foreach (var chunk in finalBatch.Chunk(SourceDeleteChunkSize))
+        {
+            await lease.Heartbeat();
+            stats.Add(await episodeRepository.DeleteMany(podcast.Id, chunk));
+        }
+
+        stats.DeleteElapsed += phase.Elapsed;
+        return new MovePassResult(swap, finalBatch.Count);
     }
 
-    private async Task CompensateDest(
-        Guid parentId,
-        bool parentWritten,
-        IReadOnlyList<Guid> writtenPlayableIds,
-        Func<Guid, Guid, Task> deletePlayable,
-        Func<Guid, Task> deleteParent)
+    private static void EnsureServiceUrls(IEnumerable<Episode> episodes, long? podcastAppleId)
     {
-        foreach (var playableId in writtenPlayableIds)
+        foreach (var episode in episodes)
         {
-            try
+            EpisodeServicePresence.EnsureServiceUrlsFromIds(episode, podcastAppleId);
+        }
+    }
+
+    private async Task SavePlayables<TParent, TPlayable>(
+        IReadOnlyList<Episode> episodes,
+        TParent parent,
+        TransferTarget<TParent, TPlayable> target,
+        TransferLease lease,
+        TransferStats stats,
+        ConcurrentBag<Guid> writtenPlayableIds)
+        where TParent : Publisher
+        where TPlayable : Playable
+    {
+        var playables = episodes.Select(episode => target.MapPlayable(episode, parent)).ToList();
+        await Parallel.ForEachAsync(
+            playables,
+            new ParallelOptions { MaxDegreeOfParallelism = CatalogueBulkWrite.Parallelism },
+            async (playable, _) =>
             {
-                await deletePlayable(parentId, playableId);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(
-                    ex,
-                    "{method}: Failed to compensate dest playable '{playableId}' for parent '{parentId}'.",
-                    nameof(CompensateDest),
-                    playableId,
-                    parentId);
-            }
+                await lease.Heartbeat();
+                await CatalogueBulkWrite.RetryThrottled(() => target.SavePlayable(playable), stats.Throttled);
+                writtenPlayableIds.Add(playable.Id);
+            });
+    }
+
+    /// <summary>
+    /// Stable content snapshot of an episode as Cosmos holds it, used to detect Indexer/curator edits between the
+    /// entry-time refresh and the delete-time refresh.
+    /// </summary>
+    private static string EpisodeTransferFingerprint(Episode episode) =>
+        JsonSerializer.Serialize(episode);
+
+    /// <summary>
+    /// Loads the current Cosmos rows for the episode ids this pass planned to move. Same-id edits after the snapshot
+    /// replace the stale copies; ids missing from the podcast are skipped.
+    /// </summary>
+    private async Task<IReadOnlyList<Episode>> RefreshEpisodesForPass(
+        Guid podcastId,
+        IReadOnlyList<Episode> planned)
+    {
+        if (planned.Count == 0)
+        {
+            return planned;
         }
 
-        if (!parentWritten)
+        var plannedIds = planned.Select(episode => episode.Id).ToHashSet();
+        var live = await ReadEpisodes(podcastId, CancellationToken.None);
+        return live.Where(episode => plannedIds.Contains(episode.Id)).ToList();
+    }
+
+    private void LogSummary(
+        Guid podcastId,
+        CatalogueParentKind targetKind,
+        int moved,
+        int passes,
+        TransferStats stats,
+        TimeSpan elapsed,
+        bool podcastDeleted)
+    {
+        logger.LogWarning(
+            "{method}: Kind transfer of podcast '{podcastId}' to {targetKind}: {moved} playables in {elapsedMs} ms " +
+            "(writes {writeMs} ms, search {searchMs} ms, source deletes {deleteMs} ms); deleted {deleted}, already gone " +
+            "{missing}, delete RU {deleteRequestCharge:F1}, throttle retries {throttleRetries}, passes " +
+            "{passes}, podcast deleted {podcastDeleted}.",
+            nameof(TransferParent),
+            podcastId,
+            targetKind,
+            moved,
+            (long)elapsed.TotalMilliseconds,
+            (long)stats.WriteElapsed.TotalMilliseconds,
+            (long)stats.SearchElapsed.TotalMilliseconds,
+            (long)stats.DeleteElapsed.TotalMilliseconds,
+            stats.Deleted,
+            stats.Missing,
+            stats.DeleteRequestCharge,
+            stats.ThrottleRetries,
+            passes,
+            podcastDeleted);
+    }
+
+    private async Task CompensateDest<TParent, TPlayable>(
+        Guid parentId,
+        bool compensateParent,
+        IReadOnlyList<Guid> writtenPlayableIds,
+        TransferTarget<TParent, TPlayable> target,
+        string parentFileKey)
+        where TParent : Publisher
+        where TPlayable : Playable
+    {
+        await Parallel.ForEachAsync(
+            writtenPlayableIds,
+            new ParallelOptions { MaxDegreeOfParallelism = CatalogueBulkWrite.Parallelism },
+            async (playableId, _) =>
+            {
+                try
+                {
+                    await CatalogueBulkWrite.RetryThrottled(() => target.DeletePlayable(parentId, playableId));
+                }
+                catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+                {
+                    logger.LogDebug(
+                        "{method}: Dest playable '{playableId}' for parent '{parentId}' was already gone.",
+                        nameof(CompensateDest), playableId, parentId);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "{method}: Failed to compensate dest playable '{playableId}' for parent '{parentId}'.",
+                        nameof(CompensateDest),
+                        playableId,
+                        parentId);
+                }
+            });
+
+        if (!compensateParent)
         {
             return;
         }
 
         try
         {
-            await deleteParent(parentId);
+            await CatalogueBulkWrite.RetryThrottled(async () =>
+            {
+                await target.DeleteParent(parentId);
+                await fileKeyAllocator.Release(parentFileKey, parentId);
+            });
         }
         catch (Exception ex)
         {
@@ -244,32 +692,165 @@ public class PodcastKindTransferService(
     private async Task<SearchSwapResult> SwapSearch(
         Podcast podcast,
         IReadOnlyList<Episode> episodes,
-        string contentKind,
-        CancellationToken cancellationToken)
+        string contentKind)
     {
         var excluded = episodes
             .Where(episode => EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
             .Select(episode => episode.Id)
             .ToList();
         var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(podcast, episodes, contentKind);
-        var uploaded = await searchSwap.UploadAsync(documents, cancellationToken);
+        var uploaded = await searchSwap.UploadAsync(documents, CancellationToken.None);
         if (excluded.Count == 0)
         {
             return new SearchSwapResult(uploaded, DeleteSourceRows: true);
         }
 
         // A removed episode may already be in the index. Do not rewrite it as the new kind; drop that key.
-        var deleted = await searchSwap.DeleteAsync(excluded, cancellationToken);
+        // An empty excluded set still drops the source, because a kept id can be healed by the next pull.
+        var deleted = await searchSwap.DeleteAsync(excluded, CancellationToken.None);
         return new SearchSwapResult(uploaded && deleted, DeleteSourceRows: deleted);
     }
 
-    private async Task DeletePodcastRows(Podcast podcast, IReadOnlyList<Episode> episodes)
+    /// <summary>
+    /// Thrown once this attempt no longer holds the marker and must stop writing. <see cref="TakenOver"/> is true when
+    /// another request owns it; false when this attempt stopped itself (renewals kept failing, or ownership could not
+    /// be confirmed before compensating).
+    /// </summary>
+    private sealed class TransferLeaseLostException(Guid podcastId, bool takenOver, Exception? inner = null)
+        : Exception(
+            takenOver
+                ? $"The kind transfer marker for podcast '{podcastId}' was taken over."
+                : $"The kind transfer of podcast '{podcastId}' could not keep its marker renewed and stopped writing.",
+            inner)
     {
-        foreach (var episode in episodes)
+        public bool TakenOver { get; } = takenOver;
+    }
+
+    /// <summary>
+    /// The held marker. <see cref="Heartbeat"/> renews it at most once per <see cref="LockHeartbeatInterval"/>
+    /// (progress-driven, so no timer), backs off after a failed renewal, and throws
+    /// <see cref="TransferLeaseLostException"/> once the marker is taken over or has gone unrenewed for
+    /// <see cref="LockSelfFenceAfter"/> (self-fencing). <see cref="ConfirmOwnership"/> forces a renewal before a
+    /// destructive step such as compensation.
+    /// </summary>
+    private sealed class TransferLease(
+        IParentKindTransferLockStore store,
+        TimeProvider timeProvider,
+        ParentKindTransferLockHandle handle,
+        ILogger logger)
+    {
+        private readonly SemaphoreSlim _gate = new(1, 1);
+        private long _lastRenewedTicks = handle.StartedUtc.Ticks;
+        private long _retryNotBeforeTicks;
+        private int _consecutiveFailures;
+        private volatile bool _lost;
+        private volatile bool _takenOver;
+
+        public ParentKindTransferLockHandle Handle { get; private set; } = handle;
+
+        private DateTime LastRenewedUtc => new(Interlocked.Read(ref _lastRenewedTicks), DateTimeKind.Utc);
+
+        private DateTime Now() => timeProvider.GetUtcNow().UtcDateTime;
+
+        public async Task Heartbeat()
         {
-            await episodeRepository.Delete(podcast.Id, episode.Id);
+            ThrowIfLost();
+            var now = Now();
+            if (now - LastRenewedUtc >= LockHeartbeatInterval &&
+                now.Ticks >= Interlocked.Read(ref _retryNotBeforeTicks) &&
+                await _gate.WaitAsync(0))
+            {
+                try
+                {
+                    await TryRenew(now);
+                }
+                finally
+                {
+                    _gate.Release();
+                }
+            }
+
+            ThrowIfLost();
+            if (now - LastRenewedUtc >= LockSelfFenceAfter)
+            {
+                _lost = true;
+                logger.LogError(
+                    "Kind transfer marker for podcast '{podcastId}' not renewed since {lastRenewedUtc:O}; stopping " +
+                    "writes before it can be taken over as stale.",
+                    Handle.PodcastId, LastRenewedUtc);
+                ThrowIfLost();
+            }
         }
 
-        await podcastRepository.Delete(podcast.Id);
+        /// <summary>Forces a renewal; true only when it succeeded, so the marker is ours right now.</summary>
+        public async Task<bool> ConfirmOwnership()
+        {
+            if (_lost)
+            {
+                return false;
+            }
+
+            await _gate.WaitAsync();
+            try
+            {
+                return await TryRenew(Now());
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+
+        /// <summary>Marks the lease lost (if not already) and returns the exception that stops this attempt.</summary>
+        public TransferLeaseLostException Lost(Exception? inner = null)
+        {
+            _lost = true;
+            return new TransferLeaseLostException(Handle.PodcastId, _takenOver, inner);
+        }
+
+        private void ThrowIfLost()
+        {
+            if (_lost)
+            {
+                throw new TransferLeaseLostException(Handle.PodcastId, _takenOver);
+            }
+        }
+
+        // Callers hold _gate.
+        private async Task<bool> TryRenew(DateTime now)
+        {
+            try
+            {
+                var renewed = await store.Renew(Handle, now, LockStaleAfter);
+                if (renewed is null)
+                {
+                    _takenOver = true;
+                    _lost = true;
+                    return false;
+                }
+
+                Handle = renewed;
+                Interlocked.Exchange(ref _lastRenewedTicks, now.Ticks);
+                Interlocked.Exchange(ref _retryNotBeforeTicks, 0);
+                _consecutiveFailures = 0;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Transient: the marker is still ours until LockSelfFenceAfter; back off so a throttled LookUps
+                // container is not hit once per playable write.
+                _consecutiveFailures++;
+                var delay = TimeSpan.FromTicks(Math.Min(
+                    RenewRetryMaxDelay.Ticks,
+                    RenewRetryBaseDelay.Ticks << Math.Min(_consecutiveFailures - 1, 10)));
+                Interlocked.Exchange(ref _retryNotBeforeTicks, (now + delay).Ticks);
+                logger.LogWarning(
+                    ex,
+                    "Failed to renew the kind transfer marker for podcast '{podcastId}' ({failures} in a row); " +
+                    "retrying after {retryDelayMs} ms.",
+                    Handle.PodcastId, _consecutiveFailures, (long)delay.TotalMilliseconds);
+                return false;
+            }
+        }
     }
 }

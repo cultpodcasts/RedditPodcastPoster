@@ -6,6 +6,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Models.Episodes;
@@ -42,6 +43,7 @@ public class EpisodeFilmMoveService(
     IShortnerService shortnerService,
     ICatalogueIdentityEnricher identityEnricher,
     IEpisodeServiceMaterialiser episodeServiceMaterialiser,
+    IFileKeyAllocator fileKeyAllocator,
     ILogger<EpisodeFilmMoveService> logger) : IEpisodeFilmMoveService
 {
     public async Task<EpisodeFilmMoveResult> MoveAsync(EpisodeFilmMoveCommand command, CancellationToken cancellationToken)
@@ -135,7 +137,7 @@ public class EpisodeFilmMoveService(
                 await episodeServiceMaterialiser.MaterialiseAsync(podcast, episode, cancellationToken);
                 film = CatalogueParentKindMapper.ToFilm(podcast, episode);
                 film.Name = name;
-                film.FileKey = FileKeyFactory.GetFilmFileKey(name);
+                film.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.Film, name, film.Id);
                 // ToFilm copies publisher fields from the podcast, including Removed. Here the (active) episode is the
                 // unit that moves, so the film is active even when it leaves a removed podcast.
                 film.Removed = null;

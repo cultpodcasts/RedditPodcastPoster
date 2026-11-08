@@ -10,7 +10,9 @@ public interface IYouTubePlaylistMembership
 {
     /// <summary>
     /// Whether <paramref name="videoId"/> is an item of <paramref name="playlistId"/>: one
-    /// <c>playlistItems.list</c> call filtered by <c>videoId</c> (1 quota unit). Null when it could not be checked.
+    /// <c>playlistItems.list</c> call filtered by <c>videoId</c> (1 quota unit). False when YouTube says the
+    /// playlist does not exist or rejects its id (404 / 400), so a dead playlist reads as "not in it". Null only
+    /// when it could not be checked (quota, 5xx, network).
     /// </summary>
     Task<bool?> Contains(IYouTubeServiceWrapper youTubeService, string playlistId, string videoId);
 }
@@ -45,6 +47,18 @@ public class YouTubePlaylistMembership(
                 youTubeService.Usage,
                 YouTubeQuotaOperation.PlaylistItemsList);
             return null;
+        }
+        catch (GoogleApiException ex) when (ex.HttpStatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest)
+        {
+            logger.LogWarning(ex,
+                "YouTube reports playlist '{PlaylistId}' as missing or invalid ({Status}); treating video '{VideoId}' as not in it. Fix the stored id.",
+                playlistId, (int)ex.HttpStatusCode, videoId);
+            await quotaUsageTracker.RecordQuotaConsumedAsync(
+                youTubeService.CurrentApplication,
+                youTubeService.Usage,
+                YouTubeQuotaOperation.PlaylistItemsList,
+                YouTubeQuotaCosts.PlaylistItemsList);
+            return false;
         }
         catch (Exception ex)
         {

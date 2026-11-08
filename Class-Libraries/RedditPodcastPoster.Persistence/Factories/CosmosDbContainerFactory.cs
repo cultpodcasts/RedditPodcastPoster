@@ -91,6 +91,11 @@ public class CosmosDbContainerFactory(
         return GetContainer(cosmosDbSettings.LookUpsContainer, "cosmosdb:LookUpsContainer");
     }
 
+    public Container CreateFileKeyClaimsContainer()
+    {
+        return GetContainer(cosmosDbSettings.FileKeyClaimsContainer, "cosmosdb:FileKeyClaimsContainer");
+    }
+
     public Container CreateTitleCasingRulesContainer()
     {
         return GetContainer(cosmosDbSettings.TitleCasingRulesContainer, "cosmosdb:TitleCasingRulesContainer");

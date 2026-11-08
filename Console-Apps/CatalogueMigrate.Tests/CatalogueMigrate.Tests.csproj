@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CatalogueMigrate\CatalogueMigrate.csproj" />
     <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.PodcastServices.YouTube\RedditPodcastPoster.PodcastServices.YouTube.csproj" />
   </ItemGroup>
 
 </Project>

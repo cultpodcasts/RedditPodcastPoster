@@ -4,7 +4,9 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.CloudflareRedirect.Models;
 using RedditPodcastPoster.CloudflareRedirect.Services;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
 
@@ -21,7 +23,8 @@ namespace Api.Services.Catalogue;
 /// <c>HydrateDetachedEpisodePodcastProjection</c> copies <c>podcastName</c>.</item>
 /// <item>Update search straight away (<see cref="PlayableSearchRename"/>), as the podcast rename runs
 /// <c>IndexEpisodes</c>.</item>
-/// <item>Leave the stored <c>fileKey</c> unchanged, as a podcast rename does.</item>
+/// <item>Leave the stored <c>fileKey</c> unchanged, as a podcast rename does, unless it is empty or a placeholder
+/// (<see cref="IFileKeyAllocator.RepairIfUnusable"/>): then it gets a usable, unique key from the new name.</item>
 /// </list>
 /// The differences are for safety. The entity is addressed by guid or by a unique name (one entity, so there is no
 /// TooMany). Children are saved before the parent, and only the ones that changed, so a failed run can be retried with
@@ -38,11 +41,13 @@ public class CatalogueRenameService(
     IRedirectService redirectService,
     PlayableSearchRename searchRename,
     EpisodeSearchIndexCleanup searchIndexCleanup,
+    IFileKeyAllocator fileKeyAllocator,
     ILogger<CatalogueRenameService> logger) : ICatalogueRenameService
 {
     public Task<CatalogueRenameResult> RenameNewsOrganisation(CatalogueRenameCommand command, CancellationToken c) =>
         Rename(
             CatalogueRedirectKind.NewsOrganisation,
+            FileKeyKind.NewsOrganisation,
             newsOrganisationRepository,
             newsOrganisationRepository.GetNewsOrganisation,
             command,
@@ -62,6 +67,7 @@ public class CatalogueRenameService(
     public Task<CatalogueRenameResult> RenameTvShow(CatalogueRenameCommand command, CancellationToken c) =>
         Rename(
             CatalogueRedirectKind.TvShow,
+            FileKeyKind.TvShow,
             tvShowRepository,
             tvShowRepository.GetTvShow,
             command,
@@ -81,6 +87,7 @@ public class CatalogueRenameService(
     public Task<CatalogueRenameResult> RenameFilm(CatalogueRenameCommand command, CancellationToken c) =>
         Rename(
             CatalogueRedirectKind.Film,
+            FileKeyKind.Film,
             filmRepository,
             filmRepository.GetFilm,
             command,
@@ -90,15 +97,17 @@ public class CatalogueRenameService(
             c);
 
     /// <summary>
-    /// The name is copied onto a freshly read film. A trailer attached after the rename loaded the film stays,
+    /// The name (and a repaired file key) is copied onto a freshly read film. A trailer attached after the rename loaded the film stays,
     /// because the replace is ETag-guarded and retried on 412.
     /// </summary>
     private async Task SaveRenamedFilm(Film film)
     {
         var name = film.Name;
+        var fileKey = film.FileKey;
         if (await filmRepository.Update(film.Id, latest =>
             {
                 latest.Name = name;
+                latest.FileKey = fileKey;
                 return true;
             }) is null)
         {
@@ -108,6 +117,7 @@ public class CatalogueRenameService(
 
     private async Task<CatalogueRenameResult> Rename<TEntity>(
         CatalogueRedirectKind kind,
+        FileKeyKind fileKeyKind,
         IFilterableRepository<TEntity> repository,
         Func<Guid, Task<TEntity?>> getById,
         CatalogueRenameCommand command,
@@ -183,6 +193,8 @@ public class CatalogueRenameService(
                 }
 
                 entity.Name = newName;
+                entity.FileKey = await fileKeyAllocator.RepairIfUnusable(
+                    fileKeyKind, newName, entity.Id, entity.FileKey);
             }
 
             // Children, then the redirect, then the parent. If the children fail, no redirect is live and the old URL

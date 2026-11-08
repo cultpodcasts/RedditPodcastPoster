@@ -35,11 +35,42 @@ public class CataloguePlayableSocialPosts(
         return items.Where(x => !x.Episode.BlueskyPosted).ToArray();
     }
 
-    public Task MarkTweeted(PodcastEpisode item) =>
-        Update(item, playable => playable.Tweeted = true, film => film.Tweeted = true);
+    public Task MarkTweeted(PodcastEpisode item, string? tweetPost) =>
+        Update(item, playable => SetTweeted(playable, tweetPost), film => SetTweeted(film, tweetPost));
+
+    public Task MarkNotTweetable(PodcastEpisode item, string reason) =>
+        Update(item, playable => SetNotTweetable(playable, reason), film => SetNotTweetable(film, reason));
+
+    private static void SetTweeted(IPromotable stored, string? tweetPost)
+    {
+        if (!string.IsNullOrWhiteSpace(tweetPost))
+        {
+            stored.TweetPost = tweetPost;
+            return;
+        }
+
+        stored.OldTweeted = true;
+    }
+
+    private static void SetNotTweetable(IPromotable stored, string reason) =>
+        PromotableTweetSkip.ApplyNotTweetable(stored, reason);
 
     public Task MarkBlueskyPosted(PodcastEpisode item, string blueskyPostUri) =>
         Update(item, playable => playable.BlueskyPost = blueskyPostUri, film => film.BlueskyPost = blueskyPostUri);
+
+    public Task ClearIgnoredAndRemoved(PodcastEpisode item) =>
+        Update(
+            item,
+            playable =>
+            {
+                playable.Ignored = false;
+                playable.Removed = false;
+            },
+            film =>
+            {
+                film.Ignored = false;
+                film.Removed = false;
+            });
 
     private async Task<IReadOnlyList<PodcastEpisode>> GetRecent(DateTime since)
     {
@@ -53,7 +84,7 @@ public class CataloguePlayableSocialPosts(
         foreach (var tvShow in tvShows)
         {
             var episodes = await tvShowEpisodeRepository
-                .GetByTvShowId(tvShow.Id, x => (x.ReleaseSort.IsDefined() ? x.ReleaseSort : x.ReleaseCosmosFallback) >= since)
+                .GetByTvShowId(tvShow.Id, x => x.ReleaseSort >= since)
                 .ToArrayAsync();
             items.AddRange(episodes.Select(e => CatalogueParentKindMapper.ToPostProjection(e, tvShow)));
         }
@@ -66,7 +97,7 @@ public class CataloguePlayableSocialPosts(
         foreach (var organisation in organisations)
         {
             var reports = await newsReportRepository
-                .GetByNewsOrganisationId(organisation.Id, x => (x.ReleaseSort.IsDefined() ? x.ReleaseSort : x.ReleaseCosmosFallback) >= since)
+                .GetByNewsOrganisationId(organisation.Id, x => x.ReleaseSort >= since)
                 .ToArrayAsync();
             items.AddRange(reports.Select(r => CatalogueParentKindMapper.ToPostProjection(r, organisation)));
         }

@@ -64,6 +64,14 @@ public class EpisodeUpdateService(
                 nameof(UpdateAsync), episodeChangeRequestWrapper.EpisodeId, podcastEpisodeResolverResponse.Podcast.Id,
                 JsonSerializer.Serialize(podcastEpisodeResolverResponse.Episode));
 
+            // Taken before the change is applied: a legacy un-tweet (no stored tweet id) searches X for the post by the
+            // release and length it was made with, not the ones this request writes (#1204). Never saved.
+            var tweetRemovalTarget = episodeChangeRequestWrapper.EpisodeChangeRequest.Tweeted == false &&
+                                     podcastEpisodeResolverResponse.Episode.Tweeted
+                ? new PodcastEpisode(podcastEpisodeResolverResponse.Podcast,
+                    SnapshotForRemoval(podcastEpisodeResolverResponse.Episode))
+                : null;
+
             var changeState = episodeChangeApplier.Apply(
                 podcastEpisodeResolverResponse.Episode,
                 episodeChangeRequestWrapper.EpisodeChangeRequest);
@@ -113,17 +121,13 @@ public class EpisodeUpdateService(
                 }
             }
 
-            await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
-
-            // Reddit.NET live un-post / flair sync is retired. Cosmos `posted` is already
-            // applied via EpisodeChangeApplier; title/comment constructors remain for Devvit.
-
             var removeTweetResult = RemoveTweetState.Unknown;
             if (changeState.UnTweet)
             {
                 try
                 {
-                    removeTweetResult = await tweetManager.RemoveTweet(podcastEpisode);
+                    // Delete first, before Tweeted and the stored tweet id are cleared and saved (#1204).
+                    removeTweetResult = await tweetManager.RemoveTweet(tweetRemovalTarget ?? podcastEpisode);
                     if (removeTweetResult != RemoveTweetState.Deleted)
                     {
                         logger.LogWarning("Failure to delete tweet. Result= {removeTweetResult}.",
@@ -137,12 +141,24 @@ public class EpisodeUpdateService(
                         podcastEpisodeResolverResponse.Episode.Id);
                     removeTweetResult = RemoveTweetState.Other;
                 }
+
+                // Only clear Tweeted when the tweet is gone (or already absent); otherwise the hourly job would
+                // re-post an item whose tweet is still live.
+                if (removeTweetResult is RemoveTweetState.Deleted or RemoveTweetState.NotFound)
+                {
+                    podcastEpisode.Episode.ClearTweetState();
+                }
             }
+
+            await episodeRepository.Save(podcastEpisodeResolverResponse.Episode);
+
+            // Reddit.NET live un-post / flair sync is retired. Cosmos `posted` is already
+            // applied via EpisodeChangeApplier; title/comment constructors remain for Devvit.
 
             var outcome = new EpisodeUpdateOutcome();
             if (changeState.UnTweet)
             {
-                outcome.TweetDeleted = removeTweetResult == RemoveTweetState.Deleted;
+                outcome.TweetDeleted = removeTweetResult is RemoveTweetState.Deleted or RemoveTweetState.NotFound;
             }
 
             if (changeState.UnBlueskyPost)
@@ -198,4 +214,9 @@ public class EpisodeUpdateService(
             return new EpisodeUpdateResult(EpisodeUpdateStatus.Failed);
         }
     }
+
+    /// <summary>A detached copy of the stored episode, for removal matching only.</summary>
+    private static Episode SnapshotForRemoval(Episode episode) =>
+        JsonSerializer.Deserialize<Episode>(JsonSerializer.Serialize(episode))
+        ?? throw new InvalidOperationException($"Could not copy episode '{episode.Id}'.");
 }

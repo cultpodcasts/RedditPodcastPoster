@@ -47,4 +47,47 @@ public class PostPodcastHandlerTests
             Times.Once);
         ctx.Verify(x => x.InternalError(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact(DisplayName =
+        "POST podcast: a playlist refusal returns 400 with the stable code in the body, so the website can explain it.")]
+    public async Task playlist_bad_request_includes_code()
+    {
+        // Arrange
+        var podcastId = _fixture.Create<Guid>();
+        _result = new PodcastUpdateResult(PodcastUpdateStatus.BadRequest, podcastId, Error: "not found",
+            Code: "youTubePlaylistNotFound");
+        var ctx = _mocker.GetMock<IHandlerContext>();
+        var sut = _mocker.CreateInstance<PostPodcastHandler>();
+
+        // Act
+        await sut.Handle(ctx.Object, new PodcastChangeRequestWrapper(podcastId, new PodcastChangeRequest()),
+            CancellationToken.None);
+
+        // Assert
+        ctx.Verify(x => x.BadRequest(It.Is<ApiErrorResponse>(r =>
+            r.Error == "not found" && r.Code == "youTubePlaylistNotFound" && r.Retryable == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "POST podcast: when the playlist could not be looked up, the handler returns a retryable 503 with the code; nothing was saved.")]
+    public async Task service_unavailable_maps_to_503_retryable()
+    {
+        // Arrange
+        var podcastId = _fixture.Create<Guid>();
+        _result = new PodcastUpdateResult(PodcastUpdateStatus.ServiceUnavailable, podcastId, Error: "try again",
+            Code: "youTubePlaylistLookupFailed");
+        var ctx = _mocker.GetMock<IHandlerContext>();
+        var sut = _mocker.CreateInstance<PostPodcastHandler>();
+
+        // Act
+        await sut.Handle(ctx.Object, new PodcastChangeRequestWrapper(podcastId, new PodcastChangeRequest()),
+            CancellationToken.None);
+
+        // Assert
+        ctx.Verify(x => x.Json(System.Net.HttpStatusCode.ServiceUnavailable, It.Is<ApiErrorResponse>(r =>
+            r.Code == "youTubePlaylistLookupFailed" && r.Retryable == true), It.IsAny<CancellationToken>()),
+            Times.Once);
+        ctx.Verify(x => x.InternalError(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

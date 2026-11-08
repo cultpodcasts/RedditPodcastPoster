@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Languages;
 
@@ -18,7 +19,9 @@ public record SubmitResult(
     CatalogueSearchSource? CatalogueSearchSource = null,
     bool DefaultLanguageFromDetection = false,
     CatalogueLanguageHold? LanguageHold = null,
-    CatalogueIdentityHold? IdentityHold = null
+    CatalogueIdentityHold? IdentityHold = null,
+    // Set when a film was saved: the host uploads its search document now, not on the next pull index.
+    Film? FilmSearchSource = null
 )
 {
     public override string ToString()

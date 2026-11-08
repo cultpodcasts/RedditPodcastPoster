@@ -3,7 +3,6 @@ using Api.Dtos;
 using Api.Dtos.Extensions;
 using Api.Models;
 using RedditPodcastPoster.People.Models;
-using RedditPodcastPoster.People.Services;
 using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Text.Sanitisers;
 using DomainEpisode = RedditPodcastPoster.Models.Episodes.Episode;
@@ -17,7 +16,7 @@ namespace Api.Dtos.Mapping;
 
 public class EpisodeDtoMapper(
     ITextSanitiser textSanitiser,
-    IPersonService personService,
+    IPlayableGuestDtoEnricher guestDtoEnricher,
     ICachedSubjectProvider subjectsProvider)
 {
     public async Task<IReadOnlyList<EpisodeDto>> ToDtos(
@@ -28,7 +27,7 @@ public class EpisodeDtoMapper(
         var episodes = new List<EpisodeDto>();
         foreach (var pair in pairs)
         {
-            episodes.Add(await ToDto(pair.Episode, pair.Podcast, subjects));
+            episodes.Add(await ToDto(pair.Episode, pair.Podcast, subjects, cancellationToken: cancellationToken));
         }
 
         return episodes;
@@ -38,7 +37,8 @@ public class EpisodeDtoMapper(
         DomainEpisode episode,
         DomainPodcast podcast,
         IEnumerable<DomainSubject> subjects,
-        bool includeGuestSuggestions = false)
+        bool includeGuestSuggestions = false,
+        CancellationToken cancellationToken = default)
     {
         var episodeSubjects = subjects
             .Where(s => episode.Subjects.Contains(s.Name))
@@ -79,7 +79,7 @@ public class EpisodeDtoMapper(
             Matches = episode.Matches.ToDtos() ?? [],
             SearchTerms = episode.SearchTerms,
             HashTag = episode.HashTag,
-            YouTubePodcast = !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId),
+            YouTubePodcast = podcast.HasYouTubeSource(),
             SpotifyPodcast = !string.IsNullOrWhiteSpace(podcast.SpotifyId),
             ApplePodcast = podcast.AppleId != null,
             ReleaseAuthority = podcast.ReleaseAuthority.ToDto(),
@@ -97,21 +97,15 @@ public class EpisodeDtoMapper(
             DisplayDescription = textSanitiser.SanitiseDescription(episode.Description, descriptionRegex)
         };
 
-        if (episode.Guests is { Length: > 0 })
-        {
-            var guestPeople = await personService.GetByNames(episode.Guests);
-            dto.GuestPeople = guestPeople.Select(x => x.ToDto()).ToList();
-        }
-
-        if (includeGuestSuggestions)
-        {
-            var selectedNames = episode.Guests?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
-            var suggestions = await personService.MatchEpisode(episode);
-            dto.GuestSuggestions = suggestions
-                .Where(x => !selectedNames.Contains(x.Person.Name))
-                .Select(ToPersonMatch)
-                .ToList();
-        }
+        // Guest people / suggestions: shared with catalogue playable GETs via IPlayableGuestDtoEnricher.
+        await guestDtoEnricher.EnrichAsync(
+            dto,
+            episode.Title,
+            episode.Description,
+            episode.Language,
+            episode.Guests,
+            includeGuestSuggestions: includeGuestSuggestions,
+            cancellationToken: cancellationToken);
 
         return dto;
     }

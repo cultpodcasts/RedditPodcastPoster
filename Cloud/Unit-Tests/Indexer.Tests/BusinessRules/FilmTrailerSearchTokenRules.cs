@@ -34,6 +34,25 @@ public class FilmTrailerSearchTokenRules
     }
 
     [Fact(DisplayName =
+        "A pipe in a trailer URL is written as %7C, because a reader splits the token on the first two pipes and would otherwise cut the URL.")]
+    public void pipe_in_url_is_percent_encoded()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var trailer = CreateTrailer(TimeSpan.FromSeconds(90));
+        trailer.Url = new Uri($"https://www.youtube.com/watch?v={videoId}&list=a|b");
+
+        // Act
+        var parts = FilmTrailerSearchToken.Format(trailer).Split(FilmTrailerSearchToken.Separator, 3);
+
+        // Assert
+        parts.Should().HaveCount(3);
+        parts[1].Should().Be($"https://www.youtube.com/watch?v={videoId}&list=a%7Cb");
+        parts[1].Should().NotContain("|");
+        parts[2].Should().Be(trailer.Title);
+    }
+
+    [Fact(DisplayName =
         "A title containing the separator stays whole after the second separator, so titles need no escaping.")]
     public void title_with_separator_is_last()
     {

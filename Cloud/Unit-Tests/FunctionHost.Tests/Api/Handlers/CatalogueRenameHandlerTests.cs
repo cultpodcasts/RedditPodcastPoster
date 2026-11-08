@@ -104,7 +104,8 @@ public class CatalogueRenameHandlerTests
 
         // Assert
         _ctx.Verify(x => x.InternalError(
-            It.Is<ApiErrorResponse>(r => r.Error.Contains("news organisation")), It.IsAny<CancellationToken>()),
+            It.Is<ApiErrorResponse>(r => (r.Error ?? string.Empty).Contains("news organisation")),
+            It.IsAny<CancellationToken>()),
             Times.Once);
     }
 }

@@ -55,7 +55,7 @@ public class EpisodeProvider(
         }
 
         if (!indexingContext.SkipYouTubeUrlResolving &&
-            !string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) &&
+            podcast.HasYouTubeSource() &&
             !podcast.DependsOnYouTubeForEpisodeDiscovery() &&
             podcast.SkipEnrichingFromYouTube is not true)
         {

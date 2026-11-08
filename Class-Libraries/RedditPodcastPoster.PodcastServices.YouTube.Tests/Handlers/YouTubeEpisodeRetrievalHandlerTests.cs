@@ -58,19 +58,16 @@ public class YouTubeEpisodeRetrievalHandlerTests
             x => x.GetPlaylistEpisodes(
                 It.IsAny<Podcast>(),
                 It.IsAny<YouTubePlaylistId>(),
-                It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()),
             Times.Never);
     }
 
     [Fact(DisplayName =
-        "When the playlist is marked expensive and SkipExpensiveYouTubeQueries is set, GetEpisodes does not request " +
-        "expensive-sized pages (the playlist is still paginated at the smaller batch size), because expensive sizing only " +
-        "runs on a pass that allows expensive queries.")]
-    public async Task Expensive_playlist_does_not_use_expensive_page_size_when_expensive_queries_skipped()
+        "When the playlist is marked expensive and SkipExpensiveYouTubeQueries is set, GetEpisodes still reads the playlist, " +
+        "because the stored expensive flag no longer changes the playlistItems.list request.")]
+    public async Task Expensive_playlist_is_still_read_when_expensive_queries_skipped()
     {
         // Arrange
         var channelId = _fixture.CreateYouTubeChannelId();
@@ -92,9 +89,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
             .Setup(x => x.GetPlaylistEpisodes(
                 podcast,
                 It.Is<YouTubePlaylistId>(y => y.PlaylistId == playlistId),
-                It.Is<YouTubeChannelId>(y => y.ChannelId == channelId),
                 indexingContext,
-                false,
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse(expectedEpisodes));
@@ -109,18 +104,16 @@ public class YouTubeEpisodeRetrievalHandlerTests
             x => x.GetPlaylistEpisodes(
                 podcast,
                 It.Is<YouTubePlaylistId>(y => y.PlaylistId == playlistId),
-                It.Is<YouTubeChannelId>(y => y.ChannelId == channelId),
                 indexingContext,
-                false,
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()),
             Times.Once);
     }
 
     [Fact(DisplayName =
-        "When the playlist is marked expensive and expensive queries are allowed, GetEpisodes requests expensive playlist pagination " +
-        "because that pass may walk the ascending playlist.")]
-    public async Task Expensive_playlist_uses_pagination_when_expensive_queries_allowed()
+        "When the playlist is marked expensive and expensive queries are allowed, GetEpisodes still reads the playlist " +
+        "with the same call, because the stored expensive flag no longer changes the playlistItems.list request.")]
+    public async Task Expensive_playlist_is_still_read_when_expensive_queries_allowed()
     {
         // Arrange
         var channelId = _fixture.CreateYouTubeChannelId();
@@ -138,9 +131,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
             .Setup(x => x.GetPlaylistEpisodes(
                 podcast,
                 It.Is<YouTubePlaylistId>(y => y.PlaylistId == playlistId),
-                It.Is<YouTubeChannelId>(y => y.ChannelId == channelId),
                 indexingContext,
-                true,
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse([]));
@@ -153,9 +144,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
             x => x.GetPlaylistEpisodes(
                 podcast,
                 It.Is<YouTubePlaylistId>(y => y.PlaylistId == playlistId),
-                It.Is<YouTubeChannelId>(y => y.ChannelId == channelId),
                 indexingContext,
-                true,
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()),
             Times.Once);
@@ -179,9 +168,7 @@ public class YouTubeEpisodeRetrievalHandlerTests
             .Setup(x => x.GetPlaylistEpisodes(
                 podcast,
                 It.IsAny<YouTubePlaylistId>(),
-                It.IsAny<YouTubeChannelId>(),
                 It.IsAny<IndexingContext>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>(),
                 It.IsAny<IEnumerable<string>?>()))
             .ReturnsAsync(new GetPlaylistEpisodesResponse(
@@ -203,5 +190,58 @@ public class YouTubeEpisodeRetrievalHandlerTests
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A podcast with a playlist and no channel id is discovered from its playlist, because a playlist is the " +
+        "parent's only YouTube source and needs no channel id.")]
+    public async Task Playlist_without_channel_id_uses_playlist()
+    {
+        // Arrange
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = string.Empty;
+            p.YouTubePlaylistId = playlistId;
+        });
+        var indexingContext = new IndexingContext(DomainTestFixture.UtcDaysAgo(2));
+        var expectedEpisodes = new List<EpisodeModel> { _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast) };
+        _mocker.GetMock<IYouTubeEpisodeProvider>()
+            .Setup(x => x.GetPlaylistEpisodes(
+                podcast,
+                It.Is<YouTubePlaylistId>(y => y.PlaylistId == playlistId),
+                indexingContext,
+                It.IsAny<PlaylistOrder?>(),
+                It.IsAny<IEnumerable<string>?>()))
+            .ReturnsAsync(new GetPlaylistEpisodesResponse(expectedEpisodes));
+
+        // Act
+        var result = await Sut.GetEpisodes(podcast, [], indexingContext);
+
+        // Assert
+        result.Handled.Should().BeTrue();
+        result.Episodes.Should().BeEquivalentTo(expectedEpisodes);
+        _mocker.GetMock<IYouTubeEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IndexingContext>(), It.IsAny<IEnumerable<string>>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A podcast with neither a channel id nor a playlist is not handled and makes no YouTube call.")]
+    public async Task No_youtube_source_is_not_handled()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = string.Empty;
+            p.YouTubePlaylistId = string.Empty;
+        });
+
+        // Act
+        var result = await Sut.GetEpisodes(podcast, [], new IndexingContext(DomainTestFixture.UtcDaysAgo(2)));
+
+        // Assert
+        result.Handled.Should().BeFalse();
+        _mocker.GetMock<IYouTubeEpisodeProvider>().VerifyNoOtherCalls();
     }
 }

@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
@@ -23,8 +24,13 @@ public class PostTvShowHandler(
                 ctx.Accepted(),
             TvShowUpdateStatus.NotFound =>
                 await ctx.NotFound(new { id = request.TvShowId }, c),
+            TvShowUpdateStatus.BadRequest when result.Code != null =>
+                await ctx.BadRequest(new { message = result.Message, code = result.Code }, c),
             TvShowUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, c),
+            TvShowUpdateStatus.ServiceUnavailable =>
+                await ctx.Json(HttpStatusCode.ServiceUnavailable,
+                    new { message = result.Message, code = result.Code, retryable = true }, c),
             TvShowUpdateStatus.Conflict =>
                 await ctx.Conflict(new { message = result.Message, ids = result.ConflictingIds }, c),
             TvShowUpdateStatus.Failed =>

@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.Models.Discovery;
 /// Timer wakes every 30 minutes; runs only when UK local time matches <see cref="RunTimes"/>.
 /// </summary>
 [CosmosSelector(ModelType.DiscoveryScheduleConfig)]
-public sealed class DiscoveryScheduleConfig : CosmosSelector
+public sealed class DiscoveryScheduleConfig : CosmosSelector, IFileKeyed
 {
     public static readonly Guid _Id = Guid.Parse("A1B2C3D4-E5F6-7890-ABCD-EF1234567890");
 
@@ -42,7 +42,9 @@ public sealed class DiscoveryScheduleConfig : CosmosSelector
     [JsonPropertyOrder(30)]
     public bool Enabled { get; set; } = true;
 
-    public override string FileKey => nameof(DiscoveryScheduleConfig);
+    [JsonPropertyName("fileKey")]
+    [JsonPropertyOrder(1000)]
+    public string FileKey => nameof(DiscoveryScheduleConfig);
 
     public static DiscoveryScheduleConfig CreateDefault() => new()
     {

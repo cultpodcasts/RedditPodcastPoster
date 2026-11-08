@@ -4,9 +4,9 @@ namespace RedditPodcastPoster.Persistence.Abstractions.Episodes;
 
 /// <summary>
 /// Picks the latest episode by <see cref="Episode.ReleaseUtc"/> after deserialize.
-/// Cosmos cannot ORDER BY the dual-key ternary
-/// <c>IS_DEFINED(releaseSort) ? releaseSort : release</c> (error 2206: expression is not a
-/// document path). Scan the podcast partition and use this in process instead.
+/// The podcast partition is scanned and folded in process (introduced when Cosmos could not
+/// ORDER BY the old release dual-key, error 2206; kept so the result does not depend on the
+/// container's range index for <c>releaseSort</c>).
 /// Prefer <see cref="OfAsync"/> when the source is an <see cref="IAsyncEnumerable{T}"/> so the
 /// partition is folded while streaming instead of buffered.
 /// </summary>

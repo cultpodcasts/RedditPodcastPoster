@@ -2,11 +2,20 @@ namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
 /// Curator: extra YouTube channels of a news organisation already in the corpus
-/// under another podcast name. Playables keep their episode ids. Apply must
-/// parent those reports onto the canonical organisation, not mint a second one.
+/// under another podcast name. <see cref="OrganisationNameByChannelPublisherName"/>
+/// maps channel podcast name → canonical organisation name (e.g. AP Archive →
+/// Associated Press). Playables keep their episode ids. Migrate apply must parent
+/// those reports onto the canonical organisation, not mint a second one.
+/// Kind transfer reuses <see cref="OrganisationNameFor"/> for the new parent's
+/// Name (and fileKey seed); submit still matches by YouTube channel id.
+/// Full notes: docs/catalogue-news-organisation-channel-aliases.md.
 /// </summary>
 public static class CatalogueNewsOrganisationChannelAliases
 {
+    /// <summary>
+    /// Extra channel podcast <c>Name</c> → canonical NewsOrganisation <c>Name</c>.
+    /// See docs/catalogue-news-organisation-channel-aliases.md.
+    /// </summary>
     public static readonly IReadOnlyDictionary<string, string> OrganisationNameByChannelPublisherName =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {

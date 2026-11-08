@@ -78,6 +78,18 @@ param twitterConsumerKey string
 param twitterConsumerSecret string
 @secure()
 param twitterTwitterId string
+@description('X auth. functions.bicepparam sets OAuth2. The default OAuth1 remains if that param is omitted. Set OAuth2 only after XOAuth2Authorize --execute has saved a token pair (issue #1201).')
+@allowed([
+  'OAuth1'
+  'OAuth2'
+])
+param twitterAuthMode string = 'OAuth1'
+@description('X OAuth 2.0 confidential-client Client ID. Key Vault secret Twitter-OAuth2ClientId.')
+@secure()
+param twitterOAuth2ClientId string = ''
+@description('X OAuth 2.0 confidential-client Client Secret. Key Vault secret Twitter-OAuth2ClientSecret.')
+@secure()
+param twitterOAuth2ClientSecret string = ''
 @secure()
 param youTubeApiKey0 string
 @secure()
@@ -240,6 +252,7 @@ var cosmosdb= {
     cosmosdb__DiscoveryContainer: 'Discovery'
     cosmosdb__DiscoverySubmissionsContainer: 'DiscoverySubmissions'
     cosmosdb__LookUpsContainer: 'LookUps'
+    cosmosdb__FileKeyClaimsContainer: 'FileKeyClaims'
     cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
     cosmosdb__PushSubscriptionsContainer: 'PushSubscriptions'
     cosmosdb__UseGateway: 'false'
@@ -384,7 +397,8 @@ var indexerActivities= {
     activities__RunCategoriser: 'true'
     activities__RunPoster: 'false'
     activities__RunPublisher: 'true'
-    activities__RunTweet: 'false'
+    // Hourly X posts. #1214 still has this false; keep true when that PR merges.
+    activities__RunTweet: 'true'
     activities__RunBluesky: 'true'
 }
 
@@ -406,6 +420,9 @@ var twitter= {
     twitter__TwitterId: twitterTwitterId
     twitter__WithEpisodeUrl: 'true'
     twitter__ShortUrlOnlyWhenShareImage: 'false'
+    twitter__AuthMode: twitterAuthMode
+    twitter__OAuth2ClientId: twitterOAuth2ClientId
+    twitter__OAuth2ClientSecret: twitterOAuth2ClientSecret
 }
 
 var youtube= {

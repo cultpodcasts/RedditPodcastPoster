@@ -229,10 +229,9 @@ public class PodcastEpisodeFilter(
                 (string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
                  podcast.AppleId != null && EpisodeServicePresence.HasUrl(episode, ServiceKeys.Apple)) ||
                 (podcast.AppleId == null &&
-                                                                            !string.IsNullOrWhiteSpace(
-                                                                                podcast.YouTubeChannelId) &&
-                                                                            EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube)) ||
-                string.IsNullOrWhiteSpace(podcast.YouTubeChannelId))
+                 podcast.HasYouTubeSource() &&
+                 EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube)) ||
+                !podcast.HasYouTubeSource())
             {
                 return true;
             }
@@ -249,7 +248,7 @@ public class PodcastEpisodeFilter(
         bool _)
     {
         if (!youTubeRefreshed &&
-            !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
+            podcastEpisode.Podcast.HasYouTubeSource() &&
             string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode)))
         {
             if (podcastEpisode.Episode.ReleaseUtc.TimeOfDay > TimeSpan.Zero &&
@@ -264,7 +263,7 @@ public class PodcastEpisodeFilter(
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.YouTubeChannelId) &&
+        if (podcastEpisode.Podcast.HasYouTubeSource() &&
             IsRecentlyExpiredDelayedPublishing(podcastEpisode.Podcast, podcastEpisode.Episode) &&
             string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode)))
         {

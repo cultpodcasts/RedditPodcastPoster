@@ -308,7 +308,7 @@ public class FilmLinkUpdateRules
         repository
             .Setup(r => r.GetFilmForUpdate(film.Id))
             .ReturnsAsync(() => new FilmVersion(
-                new Film(renamed) { Id = film.Id, Trailers = [trailer], Tweeted = true },
+                new Film(renamed) { Id = film.Id, Trailers = [trailer], OldTweeted = true },
                 _fixture.Create<string>()));
         var replaced = new List<Film>();
         repository
@@ -340,7 +340,7 @@ public class FilmLinkUpdateRules
         var film = CreateFilm(f =>
         {
             f.Trailers = [kept];
-            f.Tweeted = true;
+            f.OldTweeted = true;
             f.BlueskyPost = _fixture.Create<string>();
         });
         var attached = CreateTrailer();
@@ -354,7 +354,7 @@ public class FilmLinkUpdateRules
                     ? new List<FilmTrailer> { kept }
                     : new List<FilmTrailer> { kept, attached };
                 return new FilmVersion(
-                    new Film(film.Name) { Id = film.Id, Trailers = trailers, Tweeted = true, BlueskyPost = film.BlueskyPost },
+                    new Film(film.Name) { Id = film.Id, Trailers = trailers, OldTweeted = true, BlueskyPost = film.BlueskyPost },
                     _fixture.Create<string>());
             });
 
@@ -388,7 +388,7 @@ public class FilmLinkUpdateRules
     public async Task untweet_clears_the_flag_on_a_reread_after_the_replace()
     {
         // Arrange
-        var film = CreateFilm(f => f.Tweeted = true);
+        var film = CreateFilm(f => f.OldTweeted = true);
         var renamed = _fixture.CreateTitle();
         var repository = _mocker.GetMock<IFilmRepository>();
         var replacedTweeted = new List<bool>();
@@ -405,7 +405,7 @@ public class FilmLinkUpdateRules
             .Setup(r => r.Update(film.Id, It.IsAny<Func<Film, bool>>()))
             .ReturnsAsync((Guid _, Func<Film, bool> mutate) =>
             {
-                var stored = new Film(renamed) { Id = film.Id, Tweeted = true };
+                var stored = new Film(renamed) { Id = film.Id, OldTweeted = true };
                 mutate(stored);
                 cleared = stored;
                 return stored;

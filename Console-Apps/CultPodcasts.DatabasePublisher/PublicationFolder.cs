@@ -189,7 +189,7 @@ public class PublicationFolder
     }
 
     /// <summary>Writes the new content of a file to <c>{key}.json.tmp</c>; the real file is not touched.</summary>
-    public async Task StageAsync(CosmosSelector data)
+    public async Task StageAsync(IFileKeyed data)
     {
         await using var stream = new FileStream(
             StagingPathOf(data.FileKey), FileMode.CreateNew, FileAccess.Write, FileShare.None);

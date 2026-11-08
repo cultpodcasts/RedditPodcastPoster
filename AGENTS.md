@@ -7,6 +7,15 @@ Azure `HandleRequest` checks JWT **`permissions`** / OAuth **`scope`** via `Clie
 - Cross-repo map: [`website/cultpodcasts/docs/auth0-roles-and-permissions.md`](../../website/cultpodcasts/docs/auth0-roles-and-permissions.md)
 - Discovery curation: [`docs/discovery-curation-api.md`](docs/discovery-curation-api.md)
 - **Planned epic (not scheduled):** [`docs/catalogue-content-types-epic.md`](docs/catalogue-content-types-epic.md) — separate TvShow/TvShowEpisode, **Film** (made-as-film one-off, cinema or TV; no parent), NewsOrganisation/NewsReport containers + unified search `contentKind` (`Episode | TvShowEpisode | Film | NewsReport`). Phase 0 sign-off 2026-09-23: [ADRs](./docs/adr/README.md), [search storage impact](./docs/catalogue-content-types-search-storage-impact.md). Do not use product name Movie.
+- **Search platform epic (in progress):** replace Azure AI Search Free with D1 FTS — start at [`docs/search-platform/README.md`](docs/search-platform/README.md) / [`agent-handoff.md`](docs/search-platform/agent-handoff.md) when an `SP-*` ticket is thin. Parent narrative: [`docs/search-platform-epic.md`](docs/search-platform-epic.md). Board label `epic:search-platform`; epic issue SP-E. No production `apihost` cutover or Worker deploys unless explicitly asked.
+
+## Provision latch (HARD)
+
+After a failed Actions **provision** (`run_provision` / `Infrastructure/**` apply), repo variable `PROVISION_LATCH` blocks later **package-only** deploys until provision succeeds. Do **not** `bypass_provision_latch` or `gh variable delete PROVISION_LATCH` unless the user explicitly requests that break-glass in the current conversation. Prefer Run workflow with `run_provision=true`.
+
+**Local Function deploys also circumvent the latch.** Do **not** run `scripts/deploy-*.ps1` or honour **deploy functions & clis** as a workaround for a latch-blocked / failed Actions package-only run unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete (unapplied bicep). Prefer `run_provision=true` to clear the latch. Detail: [`docs/deployment.md`](docs/deployment.md) § Provision latch.
+
+Authoritative: [`docs/deployment.md`](docs/deployment.md) § Provision latch · [`.cursor/rules/production-deploy-truth.mdc`](.cursor/rules/production-deploy-truth.mdc).
 
 ## Catalogue migrate / playable-services CLIs (HARD)
 
@@ -74,9 +83,10 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - YouTube episode images are chosen only by `YouTubeThumbnailResolver` (success status + taller than the 90px placeholder) and are never cleared; recent `maxresdefault`/`hq720` images are re-checked hourly by the Indexer `YouTubeThumbnailRecheck` activity. See [docs/youtube-thumbnails.md](docs/youtube-thumbnails.md).
 - Search documents store compact service identifiers and short key names. The UI reconstructs URLs. Call the type `CompactSearchRecord`. Do not add `V2` or `Legacy` names.
 - Do not add Episode members for compact IDs. Use the existing Spotify, YouTube, and Apple IDs. Derive the Apple episode slug from the Apple URL.
-- Cosmos container name is `LookUps` (not `knownTerms`). `KnownTerms` and elimination terms are items in `LookUps`. Infrastructure includes a `PushSubscriptions` container.
+- Cosmos container name is `LookUps` (not `knownTerms`). `KnownTerms` and elimination terms are items in `LookUps`. Short-lived file-key leases live in `FileKeyClaims`, not LookUps. Infrastructure includes a `PushSubscriptions` container.
 - Use detached `Podcast` / `Episode` models and the `PodcastEpisode` pair. Canonical repositories are the split-container implementations in `RedditPodcastPoster.Persistence`. Do not reintroduce `Persistence.Legacy` or embedded-container repositories.
 - Episode ID is globally unique. Azure Search indexing does not use soft-delete.
+- Date-times are UTC. An unspecified-kind `DateTime` is UTC (`UtcDateTimes.ToUtc`). Never convert `DateTime` to `DateTimeOffset` implicitly or with `new DateTimeOffset(dateTime)`: both read unspecified as host-local time (#1191, #1194). Use `UtcDateTimes.ToUtcOffset`. The API writes every date-time as ISO-8601 with `Z` (contract: `FunctionHost.Tests` `UtcJsonDtoContractRules`); the only exception is the discovery schedule's UK-local `slotStartUk`. Date-only releases stay at midnight UTC on that date.
 - `podcast.Removed` is the removal flag. Do not trust episode-level `podcastRemoved` when deciding whether an episode can be posted.
 - Container factories are explicit: `CreatePodcastsContainer()` and `CreateEpisodesContainer()`.
 - Cosmos settings bind to the `cosmosdb` configuration section.
@@ -101,8 +111,12 @@ available for the guardrail scripts.
   `Reddit.NET` (there is no `using Reddit;`). Do **not** re-add a `Third-Party/**` project or a solution
   reference to it. (Historical note: it was a maintainer fork never committed to git, so any solution
   reference to it breaks `dotnet restore` on a clean checkout.)
-- **`Discover.slnf` does not load on Linux**: it lists projects with Windows backslash paths, which the
-  slnx parser rejects. Build/test the full `RedditPodcastPoster.slnx` instead.
+- **`Discover.slnf`**: forward-slash paths only; every entry must exist in `RedditPodcastPoster.slnx`
+  (`pwsh ./scripts/assert-slnf.ps1`). Prefer full-solution build/test unless you need the filter.
+- **slnx membership**: every on-disk `*.csproj` under the repo root is in `RedditPodcastPoster.slnx`
+  except the documented allowlist (`films-refactor/**` — GATE 1 throwaway; generated `obj`/`bin`;
+  local `.tmp*` scratch). The assert walks the filesystem (`Get-ChildItem`), not `git ls-files`.
+  CI runs `assert-slnx-membership.ps1`.
 - **Build / test** (matches CI, no cloud services needed — unit tests are fully mocked):
   `dotnet build RedditPodcastPoster.slnx -c Release` then
   `dotnet test RedditPodcastPoster.slnx -c Release --no-build` (~1762 tests). The startup update script

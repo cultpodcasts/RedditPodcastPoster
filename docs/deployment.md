@@ -25,7 +25,39 @@ Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-di
 | Package | Folder artifact (Linux paths; `include-hidden-files: true` for `.azurefunctions/`) | `New-LinuxFunctionAppZip` — forward-slash zip (Windows and Linux) |
 | Deploy | `Azure/functions-action@v1` → `package: output/<name>` → `*-infra` | Upload `released-package.zip` to bicep deployment container → `az functionapp restart` |
 | App settings | Bicep only | **Never changed** by deploy scripts |
-| Provision | Bicep when `Infrastructure/**` changes | Not run locally |
+| Provision | Bicep when `Infrastructure/**` changes **or** manual `workflow_dispatch` with `run_provision=true`; Cosmos/functions before subscription budget; `*-deploy` requires `needs.provision.result == 'success'` **and** `needs.provision.outputs.deploy_allowed == 'true'` (latch + same-run gate; no package deploy on provision failure) | Not run locally — and local package upload **does not** honour `PROVISION_LATCH` (see § Provision latch) |
+
+**Manual run (main):** Actions → **Provision and Deploy** → **Run workflow** → branch `main`. Set **run_provision** to create/update Cosmos containers and function app settings even when this commit did not touch `Infrastructure/**` (e.g. retry after a failed provision). Leave it off to redeploy packages only. Provision failure still blocks `*-deploy`.
+
+### Provision latch (`PROVISION_LATCH`) — HARD for agents
+
+**Why:** If a `run_provision` attempt fails (e.g. #1295 budget before Cosmos/settings), later merges with **no** `Infrastructure/**` change still used to ship packages from `main` (including the dependent code) while bicep never applied — host crash / missing containers. The latch stops that.
+
+| Event | Effect |
+|-------|--------|
+| `run_provision=true` and provision **fails** | Sets repo Actions variable `PROVISION_LATCH` to `blocked\|<sha>\|<run_id>\|<run_url>` |
+| `run_provision=true` and provision **succeeds** | **Deletes** `PROVISION_LATCH`; sets job output `deploy_allowed=true` for this run |
+| Package-only run (`run_provision` false) while latch is set | **Blocks** `*-deploy` (provision job fails on the latch step; `deploy_allowed=false`) |
+| Latch unset | Package-only deploys allowed as before |
+
+**Same-run gate (`deploy_allowed`) vs cross-run latch (`vars.PROVISION_LATCH`):** `*-deploy` jobs must use `needs.provision.outputs.deploy_allowed == 'true'`, **not** a re-read of `vars.PROVISION_LATCH`. After a successful clear in the same workflow, the `vars` context can still be stale; the job output is the authoritative same-run signal. Keep `PROVISION_LATCH` as the **cross-run** latch only (blocks later package-only runs until provision succeeds). Do not “simplify” `*-deploy` back to `vars.PROVISION_LATCH` — that re-breaks post-clear deploys.
+
+**Clear the latch (preferred):** Actions → Run workflow → `run_provision=true` → succeed end-to-end (Cosmos → functions → budget).
+
+**Bypass (break-glass only — does not clear the latch):**
+
+1. Actions → Run workflow → enable **`bypass_provision_latch`** (allows `*-deploy` **this run only**; next package-only run is still blocked until provision succeeds or the variable is deleted).
+2. Or delete the variable: `gh variable delete PROVISION_LATCH --repo cultpodcasts/RedditPodcastPoster`
+
+**Agents (HARD):**
+
+- Never set `bypass_provision_latch` or delete `PROVISION_LATCH` unless the user **explicitly** asks for that break-glass in the **current** conversation.
+- Prefer fixing / re-running provision (`run_provision=true`) over bypass.
+- Do not treat a green package-only deploy as “infra is healthy” while the latch is set.
+- Never use local `scripts/deploy-*.ps1` or **deploy functions & clis** as a workaround for a latch-blocked / failed Actions package-only run unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete (unapplied bicep). Local scripts do not read `PROVISION_LATCH` and can recreate the #1295→#1299 incident.
+- Authoritative: this section + [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc).
+
+**Budget start date:** Azure rejects updates that change a Consumption budget’s `timePeriod.startDate`. `functions-budget-subscription.bicep` keeps a fixed `budgetStartDate` (must match the live `functions-cost-budget-infra` create date). Do not use `utcNow()` — that failed provision on #1295 and skipped Cosmos before FileKeyClaims could be created.
 
 Target apps (resource group `AutomatedInfra`):
 
@@ -37,7 +69,13 @@ Target apps (resource group `AutomatedInfra`):
 
 Bicep configures Flex Consumption (`FC1`) with `functionAppConfig.deployment.storage.type: blobContainer` pointing at `cultpodcastsstg/<container>`. CI's `functions-action` uploads and activates on Linux; local Windows mirrors the same outcome via blob upload + restart.
 
-## Single command
+## Production path (normal)
+
+Merge to `main` → **Provision and Deploy** (`deploy.yml`) auto-deploys `api-infra`, `discover-infra`, and `indexer-infra`. Agents must not run local Function deploy scripts merely because a PR merged. Prove the release with a successful `deploy.yml` run (see [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc)).
+
+## Fallback — local single commands
+
+Use only when Actions is unavailable, or the user explicitly asks for script deploy / **deploy functions & clis**. Local scripts **do not** honour `PROVISION_LATCH` — do **not** use them to work around a latch-blocked Actions run unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete. Prefer `run_provision=true` (see § Provision latch).
 
 ```powershell
 az login
@@ -92,11 +130,11 @@ Local deploy scripts are **code-only**. App settings come from bicep ([`Infrastr
 
 ### Provision before code (required Cosmos settings)
 
-`CosmosDbSettingsValidator` fails host start (`OptionsValidationException` / exit 134) when any required `cosmosdb__*` container key is missing. Local `deploy-*.ps1` uploads code and restarts — it **never** applies app settings. When `CosmosDbSettings` / `functions.bicep` gain new required keys, provision **before** code deploy:
+`CosmosDbSettingsValidator` fails host start (`OptionsValidationException` / exit 134) when any required `cosmosdb__*` container key is missing. Code deploys (Actions or local scripts) **never** apply app settings. When `CosmosDbSettings` / `functions.bicep` gain new required keys, provision **before** shipping code:
 
 1. Apply Cosmos containers (`Infrastructure/cosmos-db.bicep`) when new containers are approved.
 2. Apply / re-provision `Infrastructure/functions.bicep` (or manually set the keys on `indexer-infra`, `discover-infra`, and `api-infra`) so app settings match the validator.
-3. Only then run `deploy-indexer.ps1` / `deploy-discover.ps1` / `deploy-api.ps1`.
+3. Only then merge to `main` (Actions deploy) — or, as fallback, run `deploy-indexer.ps1` / `deploy-discover.ps1` / `deploy-api.ps1`.
 
 **Catalogue content types (Phase 1) — five new required keys** (also in `functions.bicep` `cosmosdb` object):
 
@@ -107,18 +145,42 @@ Local deploy scripts are **code-only**. App settings come from bicep ([`Infrastr
 | `cosmosdb__FilmsContainer` | `Films` |
 | `cosmosdb__NewsOrganisationsContainer` | `NewsOrganisations` |
 | `cosmosdb__NewsReportsContainer` | `NewsReports` |
+| `cosmosdb__FileKeyClaimsContainer` | `FileKeyClaims` |
 
-Shipping Phase 1 code without those keys on every Function app is the same class of miss as the TitleCasingRules incident.
+Shipping Phase 1 code (or later keys such as `FileKeyClaims`) without those settings on every Function app is the same class of miss as the TitleCasingRules incident. The `FileKeyClaims` container must exist in Cosmos (`cosmos-db.bicep`) before code that validates `cosmosdb__FileKeyClaimsContainer` is live.
 
 ### Episode JSON cutover (Phase 1 dual-key queries)
 
 Phase 1 renames several Episode denorm wire names and adds `releaseSort`. **Deserialize bridges are not query-safe** — Cosmos SQL/LINQ evaluates stored JSON, not client setters. See epic § [Episode JSON cutover](./catalogue-content-types-epic.md#episode-json-cutover-phase-1).
 
-**Before Function code that filters on the new names ships:**
+**History:** Phase 1 shipped **dual-key** predicates and deserialize bridges so legacy docs kept matching; GATE 1 then ran the corpus wire rewrite (`films-refactor/EpisodeWireRewrite`). GATE 5 step 5 **dropped the bridges and dual-key** — code now reads and queries the new names only (`Playable.CosmosParentNotRemovedSql` = `parentRemoved` only, absent/null/false = not removed; `EpisodeCosmosFilters` / `PlayableCosmosFilters` filter on `releaseSort` only; search SQL projects `releaseSort as release` and `publisherSearchTerms` only).
 
-1. Prefer **dual-key** predicates (`Playable.CosmosParentNotRemovedSql`, `Playable.CosmosReleaseSortOrReleaseSql`, `EpisodeCosmosFilters`) so legacy docs keep matching.
-2. Optional corpus rewrite / `releaseSort` backfill is a separate tool (dry-run default; `--apply` only with explicit approval) — not required if dual-key is in place, but required before dropping dual-key or bridges.
-3. Order relative to container provision: containers + `cosmosdb__*` settings first (above), then dual-key-safe Function code, then optional backfill.
+**Before deploying code without the bridges:**
+
+1. Confirm the Episodes container has **no** legacy wire names and every Episode has `releaseSort` — read-only audit (Cosmos Data Explorer, expect `0`):
+   `SELECT VALUE COUNT(1) FROM c WHERE IS_DEFINED(c.podcastSearchTerms) OR IS_DEFINED(c.podcastLanguage) OR IS_DEFINED(c.podcastMetadataVersion) OR IS_DEFINED(c.podcastRemoved) OR NOT IS_DEFINED(c.releaseSort) OR IS_NULL(c.releaseSort)`
+   **Do not add a `c.type='Episode'` filter.** The Episodes container holds only Episode docs, but their stored `type` may be the string `"Episode"`, the number `2`, or absent (as `EpisodeWireRewrite.WireCutoverPlanner` accepts). On 30 Oct 2026 only 2,902 of 93,939 docs had `type='Episode'`, so a type filter checks about 3% of the corpus and can return `0` while legacy docs remain.
+   or the `EpisodeWireRewrite` dry run (`dotnet run --project films-refactor/EpisodeWireRewrite -- --all`, no `--apply`). If non-zero, re-run the rewrite (with explicit approval) before deploying.
+   The `release` fallback was also dropped for TV show episodes and news reports (`PlayableCosmosFilters`, homepage, social posts, sibling search SQL), so run the same read-only check on the TV-show-episode and news-report containers (expect `0` each):
+   `SELECT VALUE COUNT(1) FROM c WHERE NOT IS_DEFINED(c.releaseSort) OR IS_NULL(c.releaseSort)`
+   A non-zero count there means those items drop out of "released since" filters and get a null search `release`; re-save them (e.g. via the admin edit, which writes `releaseSort`) before deploying.
+2. Merge to `main`: the GitHub Actions **Provision and Deploy** workflow ([`deploy.yml`](../.github/workflows/deploy.yml), on push to `main`) auto-deploys the `api`, `discover` and `indexer` Function apps. The local `deploy-indexer.ps1` → `deploy-discover.ps1` → `deploy-api.ps1` chain is a **fallback only** (when Actions is unavailable). Then republish consoles that use these libraries (e.g. CreateSearchIndex, FindDuplicateEpisodes) before their next run.
+3. **Removed parents never reach search.** The episode datasource SQL (`CreateSearchIndexProcessor.ActiveEpisodesFilter`) excludes `parentRemoved` **and** keeps a guard on the retired `podcastRemoved` key, because the `EpisodeWireRewrite` rollback writes `podcastRemoved: true` back; `RemovedParentExclusionRules` pins both, plus the TV/news sibling `parentRemoved` exclusion. Do not drop either arm.
+   **The deployed datasource SQL must match the code.** Azure Search keeps the query it was given when its datasource was last written. Deploying the apps does not change it. The live episode datasource (`cultpodcasts-ds`) must match `CreateSearchIndexProcessor.EpisodeDataSourceQuery()`, and the TV-show-episode and news-report sibling datasources must match `PlayableSearchSql`. **Whenever a change to `ActiveEpisodesFilter` (or the sibling WHERE clause) merges, updating the datasource is required, not optional:**
+   ```powershell
+   CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcasts-ds                 # episode datasource only (ActiveEpisodesFilter changed)
+   CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcasts-ds --all-playables # episode + TV/news sibling datasources (sibling WHERE changed too)
+   ```
+   The second command is a superset of the first: it updates `cultpodcasts-ds`, then the siblings. `--update-existing` always adds any missing `EpisodeSearchRecord` index fields first. `--all-playables` also runs CreateOrUpdate on the sibling **indexers**, which rewrites their schedule, and deletes a leftover Film pull datasource and indexer (films are pushed by FilmSearchPusher). Neither is harmful, but know they happen.
+   Run it between :15 and :55 past the hour. That keeps it clear of the app Indexer's `Hourly` (:03) and `HourlyCatchUp` (:08) starts (see `CatalogueMigrateIndexerWindow`). The new query takes effect at the next Azure Search pull run, which happens at about :15 and :45.
+   Whether an indexer reset is needed depends on which way the WHERE clause changed. The datasources use `HighWaterMarkChangeDetectionPolicy("_ts")` and have **no deletion-detection policy**:
+   - **Stricter clause** (e.g. restoring the `podcastRemoved` guard): no reset is needed for future pulls. But documents **already in the index** that the new clause excludes are **not removed**; the indexer just stops sending them. Count them first with a read-only search query. Then delete them from the index separately, as the Api does on removal, or with a targeted delete. That delete is a production write and needs Jon's explicit OK. Re-check the count afterwards.
+   - **Looser clause** (e.g. the `parentRemoved: null` = not-removed arm, or a newly included kind): documents whose `_ts` is older than the high-water mark are never pulled, so a reset **is** needed. Add `--reset-indexer --indexer <episode indexer name>` (`--reset-indexer` requires `--indexer`; the command throws without it). With `--all-playables` the sibling indexers are reset too. Touching (re-saving) the affected documents also works.
+   Worked example: on 30 Oct 2026 the live `cultpodcasts-ds` was rewritten with #1152's SQL (`parentRemoved` only, no `podcastRemoved` arm). After #1174 restored the guard in code, the live datasource was updated on 31 Oct 2026 at 07:07 GMT with the post-#1172 SQL (guard included). A follow-up check found 0 removed-parent episodes left in the index. It was updated again at 19:13 GMT the same day for CBC Gem.
+   After each such deploy, compare the live datasource's query (read-only, e.g. the Azure portal's data source JSON) with `EpisodeDataSourceQuery()`. Update it if the WHERE clause differs.
+4. No app settings were added for the bridges, so none need removing.
+
+**Result for #1151/#1152 (30 Oct 2026):** the read-only production audit at 14:41 GMT returned `0` on the Episodes container (with and without the `type` filter) and `0` on the TV-show-episode and news-report containers. DoD § F step F checks 1–5 passed; the PublicDatabase `update.ps1` preview ran clean 15:54–16:00 GMT (preview only, nothing published).
 
 ## Thin wrapper architecture
 
@@ -184,13 +246,13 @@ Enforced in [`.cursor/rules/deployment.mdc`](../.cursor/rules/deployment.mdc) (a
 
 1. **Never delete or rename `scripts/deploy-*.ps1`** without explicit user approval. User-facing entry points: `deploy-api.ps1`, `deploy-discover.ps1`, `deploy-indexer.ps1` → internal `deploy-function-local.ps1`.
 2. **Do not change the deployment mechanism** (OneDeploy modes, blob upload flow, app settings, Kudu/SAS polling) unless the user explicitly asks.
-3. **Do not deploy to production** unless the user explicitly asks.
+3. **Do not run local Function deploy scripts** unless the user explicitly asks (or says **deploy functions & clis**). Merging to `main` is the normal production ship path via Actions.
 4. **Prefer CI** — push to `main` and let `deploy.yml` run when Actions billing is healthy.
 5. **Compare to `deploy.yml` and bicep first** — local script changes must be justified as "CI equivalent on Windows", not "new Azure integration".
 6. **Never modify app settings** during code deploy.
 7. **Read this file** before editing `scripts/`.
 8. **Document** script changes here when behaviour changes.
-9. **Production deploy truth** — before stating when prod was last released, query blob `lastModified` per [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc). Never infer from Kudu deploy history or GitHub Build status.
+9. **Production deploy truth** — before stating when prod was last released, use [production-deploy-truth.mdc](../.cursor/rules/production-deploy-truth.mdc): successful `deploy.yml` for Actions releases, or blob `lastModified` for script fallback. Never infer from Kudu alone or from a non-deploy Build workflow.
 10. **Production execution truth** — before stating a scheduled run succeeded/failed/missed, query `AppRequests` per [production-execution-truth.mdc](../.cursor/rules/production-execution-truth.mdc). Never verdict from `AppTraces` or host-startup logs alone.
 
 ### June 2026 session incident
@@ -222,7 +284,24 @@ Signing keys are loaded at process start — restart after flipping the switch.
 
 **Agents MUST use this before claiming prod is stale, current, or that a fix is/isn't live.**
 
-Script deploys (`deploy-*.ps1`) upload `released-package.zip` to `cultpodcastsstg` and restart the app. **Blob `lastModified` is the only authoritative release timestamp.**
+### Normal path (Actions)
+
+Merge to `main` triggers **Provision and Deploy** ([`deploy.yml`](../.github/workflows/deploy.yml)). That workflow deploys via `Azure/functions-action` to `api-infra`, `discover-infra`, and `indexer-infra`.
+
+**Authoritative for Actions releases:** the `deploy.yml` run for the merge commit succeeded, including the app’s `*-deploy` job (`api-deploy` / `discover-deploy` / `indexer-deploy`).
+
+```powershell
+gh run list --repo cultpodcasts/RedditPodcastPoster --workflow=deploy.yml --branch main --limit 5
+gh run view <run-id> --repo cultpodcasts/RedditPodcastPoster --json conclusion,status,jobs,headSha,url
+```
+
+Merge alone = deploy **triggered**, not yet proof of live code. In-progress run → say unconfirmed; failed job → not live. Latch / `deploy_allowed` failure → prefer `run_provision=true` (see § Provision latch); other failures → fallback scripts only if requested.
+
+### Fallback path (local scripts)
+
+When Actions is unavailable, or the user explicitly asks for script deploy / **deploy functions & clis**, `deploy-*.ps1` uploads `released-package.zip` to `cultpodcastsstg` and restarts the app. See [interim-deployment.md](interim-deployment.md). Do **not** use this path to circumvent `PROVISION_LATCH` unless the user explicitly asks for that break-glass **and** acknowledges incomplete infra (§ Provision latch).
+
+**Authoritative for script releases:** blob `lastModified` + matching restart within ~60s.
 
 | App | Container |
 |-----|-----------|
@@ -238,26 +317,16 @@ az storage blob show --account-name cultpodcastsstg --container-name indexer-dep
 az monitor activity-log list --resource-group AutomatedInfra --start-time 2026-07-07T15:09:00Z --end-time 2026-07-07T15:14:00Z --query "[?contains(resourceId,'indexer-infra') && contains(operationName.value,'restart')].eventTimestamp" -o tsv
 ```
 
-**Not authoritative for script deploys (never use alone):**
+CI `functions-action` deploys do **not** update these blobs — an unchanged blob after an Actions deploy does not mean prod is stale.
+
+**Never use alone:**
 
 - `az webapp log deployment list` / Kudu deploy history
-- GitHub **Build** or **deploy.yml** run success/failure
-- Git commit time, PR merge, or "branch pushed"
-- `az functionapp restart` without a matching blob upload (restart ≠ release)
+- Non-deploy GitHub **Build** workflow success
+- Git commit time or PR merge without a successful `deploy.yml` (or script blob proof)
+- `az functionapp restart` without Actions success or a matching blob upload
 
 Cursor rule: [`.cursor/rules/production-deploy-truth.mdc`](../.cursor/rules/production-deploy-truth.mdc) (`alwaysApply: true`).
-
-## CI status check
-
-**CI status is not production deploy truth** when you deploy by script. Use blob timestamps above for "what is on prod."
-
-GitHub Actions is relevant only when `deploy.yml` is the active deploy path:
-
-```powershell
-gh run list --workflow=deploy.yml --limit 3
-```
-
-As of 2026-06-11, recent `deploy.yml` runs failed with **GitHub Actions billing lock** — use [interim-deployment.md](interim-deployment.md) and script deploys instead.
 
 ## Backfill (separate)
 

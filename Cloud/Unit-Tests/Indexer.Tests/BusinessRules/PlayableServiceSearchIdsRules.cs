@@ -15,8 +15,8 @@ namespace Indexer.Tests.BusinessRules;
 /// Pull/push parity for the Spotify and Apple search ids of news, TV and film documents. The pull SQL
 /// (<see cref="PlayableSearchSql"/>) and the curator-edit push (<see cref="CataloguePlayableSearchDocument"/>) must
 /// give the same three values for the same <c>services</c> URLs: the push is a merge-upload, so a null there blanks
-/// what the pull wrote. Each case below is the value the SQL contract gives (the SQL was run read-only against Cosmos
-/// with these URLs as literals; see PR #1158).
+/// what the pull wrote. Each case is that string contract (the C# twin of the SQL). The last-/id rows, including the
+/// reversed cut, were not executed against Cosmos.
 /// </summary>
 public class PlayableServiceSearchIdsRules
 {
@@ -85,8 +85,11 @@ public class PlayableServiceSearchIdsRules
     public void service_ids_follow_the_pull_sql_contract(
         string? spotifyUrl, string? appleUrl, string? spotifyId, string? appleId, string? podcastAppleId)
     {
+        // Arrange
+        var services = Services(spotifyUrl, appleUrl, _fixture.CreateYouTubeId());
+
         // Act
-        var ids = PlayableServiceSearchIds.From(Services(spotifyUrl, appleUrl, _fixture.CreateYouTubeId()));
+        var ids = PlayableServiceSearchIds.From(services);
 
         // Assert
         ids.Should().Be((spotifyId, appleId, podcastAppleId));

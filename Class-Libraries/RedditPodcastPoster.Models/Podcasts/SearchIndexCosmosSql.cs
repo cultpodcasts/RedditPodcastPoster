@@ -57,13 +57,12 @@ public static class SearchIndexCosmosSql
         $"(({CoalescedImageFallback(imageCoalesceOrder, documentAlias)}) ?? \"\")";
 
     /// <summary>
-    /// Effective release instant: <c>releaseSort</c> when present, otherwise <c>release</c>.
-    /// Same predicate as <c>Playable.CosmosReleaseSortOrReleaseSql</c> for alias <c>e</c>.
+    /// Release instant column: <c>releaseSort</c>. Every stored playable carries it.
     /// </summary>
-    public static string ReleaseSortOrRelease(string documentAlias)
+    public static string ReleaseSort(string documentAlias)
     {
         EnsureDocumentAlias(documentAlias);
-        return $"(IS_DEFINED({documentAlias}.releaseSort) ? {documentAlias}.releaseSort : {documentAlias}.release)";
+        return $"{documentAlias}.releaseSort";
     }
 
     private static void EnsureDocumentAlias(string documentAlias)
