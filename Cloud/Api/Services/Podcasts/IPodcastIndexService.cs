@@ -8,7 +8,7 @@ public interface IPodcastIndexService
     Task<PodcastIndexResult> IndexAsync(string podcastName, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Curator cold-start / backlog Index: clear <c>ReleasedSince</c> so providers walk the full catalogue.
+    /// Curator cold-start / backlog Index: use the far-past <c>ReleasedSince</c> floor so providers walk essentially the full catalogue.
     /// </summary>
     Task<PodcastIndexResult> IndexBacklogAsync(string podcastName, CancellationToken cancellationToken);
 }

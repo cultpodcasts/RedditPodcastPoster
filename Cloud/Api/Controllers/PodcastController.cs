@@ -60,7 +60,7 @@ public class PodcastController(
             ct);
 
     /// <summary>
-    /// Curator cold-start / backlog index: clears <c>ReleasedSince</c> so providers walk the full catalogue.
+    /// Curator cold-start / backlog index: uses the far-past <c>ReleasedSince</c> floor so providers walk essentially the full catalogue.
     /// Default hub Index stays on <see cref="Index"/>.
     /// </summary>
     [Function("PodcastIndexBacklog")]
