@@ -417,12 +417,62 @@ alarm/buffer code. A DO adds value only if we later need per-document fencing to
 read-your-write coordination across colos — neither applies to a search index that
 tolerates seconds of staleness.
 
+**Does a DO help with the weekly swap (§5B)?** Also no. The in-place rename swap is
+already atomic inside one `db.batch()`, so there is nothing to coordinate. For the
+blue/green variant, a DO *could* hold the active-database pointer with strong
+consistency, but that puts a single-object hop on every read of a read-heavy path to
+solve a non-problem: during a KV pointer flip both databases are valid, so eventual
+consistency costs nothing. Rebuild orchestration (export → load → verify → swap) is
+better served by a cron Worker or Cloudflare Workflows than DO alarms. The honest DO
+use-case remains the one above — fencing/ordering guarantees we do not need.
+
 Transport for pushes: authenticated HTTPS from azure-api to the search Worker
 (shared-secret header like today's `api-key`, or Auth0 M2M). Note the §4C finding: the
 endpoint must be reachable without the zone's bot challenge — either a dedicated
 unproxied hostname/route exempted from Bot Fight Mode, or (preferred once the engine
 lives behind the api Worker) pushes land on the api Worker and reach the search engine
 over a **service binding**.
+
+### 5B. Drip updates and the weekly index reset (blue/green)
+
+How the backend drips changes in, and how the index is swapped wholesale when drip has
+failed — "just reset the index" as the recovery path (2026-11-08).
+
+**Drip (in-week amends), concretely.** `SearchIndexerService` call-sites POST batches to
+an authenticated admin route on the search Worker: `{ upserts: [doc…], deletes: [id…] }`.
+The Worker applies them with one `db.batch()` — atomic, serialized by D1, FTS kept in
+step by the external-content triggers, stale replays discarded by the `modified_at`
+guard. No downtime: a row upsert is visible to the next query.
+
+**Weekly reset (drip-failure recovery and schema changes).** Two workable designs:
+
+1. **In-place shadow rebuild (preferred).** Bulk-load Cosmos into `search_docs_new` (+
+   shadow FTS + triggers) while the live tables keep serving, verify, then swap with a
+   single `db.batch()` of `ALTER TABLE … RENAME` statements — D1 batches are
+   transactional, so readers see old tables or new tables, never a mix. Drop the old
+   tables after. The §4B load took ~10 s for the full corpus, so the rebuild window is
+   minutes including Cosmos export.
+2. **Blue/green dual database.** Two D1 databases bound as `SEARCH_DB_A` / `SEARCH_DB_B`;
+   a KV key names the active one. Weekly reset rebuilds the inactive database and flips
+   the pointer; rollback is flipping it back. KV's ~60 s propagation is harmless — both
+   sides are valid during the overlap. Buys hard isolation and instant rollback at the
+   cost of a second database and the pointer read.
+
+Start with (1); adopt (2) only if rebuild-while-serving ever interferes with live reads.
+
+**When to reset instead of patch.** The weekly reconcile already diffs Cosmos against the
+index id inventory. Give it a threshold: small drift → targeted upserts/deletes (patch);
+drift beyond the threshold, a failed migration, or an FTS tokenizer change → full rebuild
++ swap. Gate the swap on the §4C.2-style check (doc count + a handful of family counts vs
+Cosmos) so a bad build never goes live. Orchestrate with a cron-triggered Worker — or
+Cloudflare Workflows if the export→load→verify→swap chain wants durable steps/retries.
+
+**Read replication interplay (accepted direction).** D1 read replication (Sessions API)
+serves the read-heavy browse path (93.7 % of traffic) from replicas. Replicas follow the
+primary automatically, so drip writes and the rename swap propagate without extra work;
+search tolerates the seconds of replica lag. Sequential consistency within a session is
+free with `withSession(first-unconstrained)`; nothing in the search path needs
+read-your-writes.
 
 ## 6. Phase sketch (D1 path)
 
@@ -447,6 +497,63 @@ Open decisions for Phase 0:
 4. Whether the existing `apiDB` D1 database hosts the search tables or a dedicated
    search database is created (isolation + independent Time Travel restore favour
    dedicated; binding count is a non-issue).
+
+## 6A. Enhancements backlog (post-parity — keep collecting)
+
+Ideas and suggestions gathered as the parity work progresses (started 2026-11-08).
+Parity first; everything here ships after cutover unless marked otherwise.
+
+**Relevance (search page, 1.5 % of traffic but the point of search):**
+
+- **bm25 per-column weights** — the known P2 gap: top-10 overlap with Azure is 0–7/10 on
+  free text. FTS5 `bm25()` takes per-column weights (title > seriesName > subjects >
+  description > search terms); tune against the harness's top-10 overlap metric.
+- **Recency blending** — blended `ORDER BY` of bm25 + release-date decay so fresh
+  episodes surface. Azure needed a scoring profile for this; the live index never
+  defined one.
+- **Proximity boosting** — rank `NEAR(a b, n)` matches above bag-of-words matches.
+  Azure simple syntax has no equivalent.
+- **Zero-result rescue** — when all-terms matching returns nothing, relax to OR / drop
+  the rarest term and tell the UI "showing results for…". Impossible in Azure's fixed
+  pipeline; trivial when the translator owns the query.
+
+**Net-new capabilities (Azure had these unused, or lacked them):**
+
+- **Spell-correct / "did you mean"** — an `fts5vocab` table exposes the real corpus
+  vocabulary; the Worker corrects query terms by edit distance against it. Replaces the
+  one genuine capability loss (Azure full-Lucene fuzzy, which the website never used).
+- **Autosuggest enrichment** — the existing pipeline is engine-independent and survives
+  the swap unchanged: `SearchSuggestionsIndexBuilder` (Cosmos subjects, podcasts, TV
+  shows, news organisations, films) → `PublishR2` → R2 object → api Worker
+  `searchSuggestions` route (edge-cached, ETagged). Post-swap, enrich the same R2 object
+  from D1 — corpus vocabulary, popular titles, query telemetry — without a new read
+  path. The live Azure index defines no suggester, so this is additive either way.
+- **Synonym expansion** — query-side, from a table versioned in the repo ("LDS" ↔
+  "latter-day saints"). More testable than Azure synonym maps (never configured).
+- **Highlights over full descriptions** — FTS5 `snippet()`/`highlight()` emitted in
+  Azure `@search.highlights` shape (needed for drop-in anyway). Strictly better than
+  Azure's, which could only highlight inside its ~100-char truncated descriptions.
+
+**Already banked (verified):** full descriptions beyond the ~100-char cap, guests +
+curator search-term fields, diacritics folding (2026-11-08 A/B: `agora`/`ágora` both 421
+on D1 vs 23/407 disjoint on Azure — en.lucene has no ASCII folding), legacy
+`podcastName` filter tolerance (stale clients get results instead of Azure's 400).
+
+**Operational:**
+
+- **Deterministic pagination** — add `id` as secondary sort key; fixes the measured
+  same-timestamp tie shuffle (87/104 positions in the worst 43-doc tie series) and makes
+  paging more stable than Azure, whose own within-tie order is undocumented index order.
+- **Read replication (Sessions API)** — accepted direction; see §5B. Serves the
+  read-heavy browse path (93.7 % of traffic) from replicas.
+- **KV-cached facet/count snapshots** — browse counts and facet blocks are highly
+  repetitive; short-TTL caching also guards the overload mode observed when the replay
+  drove concurrent heavy `COUNT(*)` queries.
+- **Service binding + smart placement** — §4C.1 operational finding; no public edge, no
+  bot-challenge false positives.
+- **Zero-result + slow-query telemetry** — log searches that return nothing (product
+  signal: demand the catalogue lacks) through the api Worker's existing structured-log
+  pattern.
 
 ## 7. Sources (verified 2026-11-07)
 
