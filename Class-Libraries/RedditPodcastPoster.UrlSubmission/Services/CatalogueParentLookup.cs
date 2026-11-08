@@ -2,10 +2,8 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
-using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
-using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Services;
@@ -174,7 +172,8 @@ public class CatalogueParentLookup(
             var unknown = new List<CatalogueParentMatch>();
             foreach (var candidate in playlistScoped)
             {
-                var inPlaylist = await IsVideoInPlaylist(candidate.Indexing!.YouTubePlaylistId, url, indexingContext);
+                var inPlaylist = await youTubePlaylistMembership.IsVideoInPlaylist(
+                    youTubeService, candidate.Indexing!.YouTubePlaylistId, url, indexingContext.SkipYouTubeUrlResolving);
                 if (inPlaylist == true)
                 {
                     containing.Add(candidate);
@@ -225,40 +224,6 @@ public class CatalogueParentLookup(
         }
 
         return matches;
-    }
-
-    /// <summary>
-    /// True when <paramref name="playlistId"/> is blank (channel-wide), the URL's <c>list=</c> matches, or YouTube
-    /// lists the video in it. False when not in it or the stored id is malformed; null only when it could not be
-    /// checked (quota, outage).
-    /// </summary>
-    private async Task<bool?> IsVideoInPlaylist(string? playlistId, Uri url, IndexingContext indexingContext)
-    {
-        if (string.IsNullOrWhiteSpace(playlistId))
-        {
-            return true;
-        }
-
-        if (string.Equals(YouTubePlaylistIdResolver.Extract(url), playlistId, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        if (!YouTubePlaylistIdFormat.IsValid(playlistId))
-        {
-            logger.LogWarning(
-                "Stored youtube-playlist-id '{PlaylistId}' is malformed; treating '{Url}' as not in it. Fix the stored id.",
-                playlistId, url);
-            return false;
-        }
-
-        var videoId = YouTubeIdResolver.Extract(url);
-        if (string.IsNullOrWhiteSpace(videoId) || indexingContext.SkipYouTubeUrlResolving)
-        {
-            return null;
-        }
-
-        return await youTubePlaylistMembership.Contains(youTubeService, playlistId, videoId);
     }
 
     public async Task<CatalogueParentMatch?> FindUnclaimedByYouTubeChannelTitle(string channelTitle)

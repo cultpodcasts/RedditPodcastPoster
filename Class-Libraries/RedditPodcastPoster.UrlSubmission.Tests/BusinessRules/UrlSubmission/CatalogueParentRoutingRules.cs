@@ -520,7 +520,8 @@ public class CatalogueParentRoutingRules
             i.YouTubePlaylistId = playlistId;
         });
         _mocker.GetMock<IYouTubePlaylistMembership>()
-            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .Setup(m => m.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(), playlistId, It.IsAny<Uri>(), It.IsAny<bool>()))
             .ReturnsAsync(true);
         var sut = _mocker.Get<ICatalogueParentLookup>();
 
@@ -550,7 +551,8 @@ public class CatalogueParentRoutingRules
             i.YouTubePlaylistId = playlistId;
         });
         _mocker.GetMock<IYouTubePlaylistMembership>()
-            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .Setup(m => m.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(), playlistId, It.IsAny<Uri>(), It.IsAny<bool>()))
             .ReturnsAsync(false);
         var sut = _mocker.Get<ICatalogueParentLookup>();
 
@@ -580,7 +582,8 @@ public class CatalogueParentRoutingRules
             i.YouTubePlaylistId = playlistId;
         });
         _mocker.GetMock<IYouTubePlaylistMembership>()
-            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .Setup(m => m.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(), playlistId, It.IsAny<Uri>(), It.IsAny<bool>()))
             .ReturnsAsync((bool?)null);
         var sut = _mocker.Get<ICatalogueParentLookup>();
 
@@ -616,7 +619,8 @@ public class CatalogueParentRoutingRules
             i.YouTubePlaylistId = secondPlaylistId;
         });
         _mocker.GetMock<IYouTubePlaylistMembership>()
-            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), videoId))
+            .Setup(m => m.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<Uri>(), It.IsAny<bool>()))
             .ReturnsAsync(false);
         var sut = _mocker.Get<ICatalogueParentLookup>();
 

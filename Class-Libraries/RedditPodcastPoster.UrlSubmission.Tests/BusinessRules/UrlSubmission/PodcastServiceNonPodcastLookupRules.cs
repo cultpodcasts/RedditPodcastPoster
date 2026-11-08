@@ -95,36 +95,33 @@ public class PodcastServiceNonPodcastLookupRules
     }
 
     [Fact(DisplayName =
-        "Playlist membership: a channel-wide podcast always contains the video, a list= URL of its playlist needs no API call, otherwise YouTube's answer (including unknown) is returned.")]
-    public async Task playlist_membership_rules()
+        "IsVideoInPodcastPlaylist delegates playlist membership to the shared YouTube helper with the podcast playlist id, URL, and SkipYouTubeUrlResolving.")]
+    public async Task playlist_membership_delegates_to_shared_helper()
     {
         // Arrange
         var playlistId = _fixture.CreateYouTubePlaylistId();
         var videoId = _fixture.CreateYouTubeId();
         var scoped = _fixture.CreatePodcast(p => p.YouTubePlaylistId = playlistId);
-        var channelWide = _fixture.CreatePodcast(p => p.YouTubePlaylistId = string.Empty);
+        var url = new Uri($"https://www.youtube.com/watch?v={videoId}");
         var membership = _mocker.GetMock<RedditPodcastPoster.PodcastServices.YouTube.Playlist.IYouTubePlaylistMembership>();
-        membership.SetupSequence(m => m.Contains(
-                It.IsAny<RedditPodcastPoster.PodcastServices.YouTube.Clients.IYouTubeServiceWrapper>(), playlistId, videoId))
-            .ReturnsAsync(false)
-            .ReturnsAsync((bool?)null);
+        membership.Setup(m => m.IsVideoInPlaylist(
+                It.IsAny<RedditPodcastPoster.PodcastServices.YouTube.Clients.IYouTubeServiceWrapper>(),
+                playlistId,
+                url,
+                true))
+            .ReturnsAsync(false);
         var sut = _mocker.CreateInstance<PodcastService>();
-        var plain = new Uri($"https://www.youtube.com/watch?v={videoId}");
-        var withList = new Uri($"https://www.youtube.com/watch?v={videoId}&list={playlistId}");
 
         // Act
-        var wide = await sut.IsVideoInPodcastPlaylist(channelWide, plain, new IndexingContext());
-        var listed = await sut.IsVideoInPodcastPlaylist(scoped, withList, new IndexingContext());
-        var notIn = await sut.IsVideoInPodcastPlaylist(scoped, plain, new IndexingContext());
-        var unknown = await sut.IsVideoInPodcastPlaylist(scoped, plain, new IndexingContext());
+        var result = await sut.IsVideoInPodcastPlaylist(
+            scoped, url, new IndexingContext { SkipYouTubeUrlResolving = true });
 
         // Assert
-        wide.Should().BeTrue();
-        listed.Should().BeTrue();
-        notIn.Should().BeFalse();
-        unknown.Should().BeNull();
-        membership.Verify(m => m.Contains(
-            It.IsAny<RedditPodcastPoster.PodcastServices.YouTube.Clients.IYouTubeServiceWrapper>(), playlistId, videoId),
-            Times.Exactly(2));
+        result.Should().BeFalse();
+        membership.Verify(m => m.IsVideoInPlaylist(
+            It.IsAny<RedditPodcastPoster.PodcastServices.YouTube.Clients.IYouTubeServiceWrapper>(),
+            playlistId,
+            url,
+            true), Times.Once);
     }
 }

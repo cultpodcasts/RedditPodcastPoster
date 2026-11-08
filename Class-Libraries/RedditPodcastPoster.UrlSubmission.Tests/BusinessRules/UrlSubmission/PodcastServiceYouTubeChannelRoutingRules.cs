@@ -34,6 +34,22 @@ public class PodcastServiceYouTubeChannelRoutingRules
     {
         _mocker.Use<IPodcastRepository>(new InMemoryPodcastRepository());
         _mocker.Use(NonPodcastSubmitAdapterResolverSupport.Create());
+        // Mirror YouTubePlaylistMembership.IsVideoInPlaylist short-circuits so channel-wide / malformed paths
+        // match production when the membership dependency is mocked.
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(x => x.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.Is<string?>(id => string.IsNullOrWhiteSpace(id)),
+                It.IsAny<Uri>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(true);
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(x => x.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(),
+                It.Is<string?>(id => !string.IsNullOrWhiteSpace(id) && !YouTubePlaylistIdFormat.IsValid(id)),
+                It.IsAny<Uri>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(false);
         _channelId = _fixture.CreateYouTubeChannelId();
         _videoId = _fixture.CreateYouTubeId();
         _url = new Uri($"https://www.youtube.com/watch?v={_videoId}");
@@ -72,12 +88,14 @@ public class PodcastServiceYouTubeChannelRoutingRules
 
     private void InPlaylist(string playlistId, bool? contains) =>
         _mocker.GetMock<IYouTubePlaylistMembership>()
-            .Setup(x => x.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, _videoId))
+            .Setup(x => x.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(), playlistId, It.IsAny<Uri>(), It.IsAny<bool>()))
             .ReturnsAsync(contains);
 
     private void VerifyContains(string playlistId, Times times) =>
         _mocker.GetMock<IYouTubePlaylistMembership>()
-            .Verify(x => x.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, It.IsAny<string>()), times);
+            .Verify(x => x.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(), playlistId, It.IsAny<Uri>(), It.IsAny<bool>()), times);
 
     private void ChannelClaimedBy(string? parentPlaylistId)
     {
@@ -320,7 +338,8 @@ public class PodcastServiceYouTubeChannelRoutingRules
 
         // Assert
         result.Podcast!.Id.Should().Be(bbcNews.Id);
-        VerifyContains(malformed, Times.Never());
+        // Shared helper short-circuits malformed ids (no playlistItems call); covered in YouTubePlaylistMembershipUrlRules.
+        VerifyContains(malformed, Times.Once());
     }
 
     [Fact(DisplayName =
@@ -355,7 +374,9 @@ public class PodcastServiceYouTubeChannelRoutingRules
         // Assert
         result.Podcast!.Id.Should().Be(only.Id);
         _mocker.GetMock<IYouTubePlaylistMembership>().Verify(
-            x => x.Contains(It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            x => x.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<Uri>(), It.IsAny<bool>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =
