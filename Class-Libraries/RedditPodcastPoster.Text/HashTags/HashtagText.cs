@@ -60,6 +60,7 @@ public static class HashtagText
     /// body is a valid tag (not empty, not digits/<c>_</c> only, ≤ <see cref="MaxTagLength"/>
     /// graphemes). <c>Q&amp;A</c>, <c>C++</c>, and <c>Some-Tag</c> are not permitted.
     /// </summary>
+    /// <summary>Accept filter: only X∩Bluesky-reproducible tags become HashTags (#1304 reject).</summary>
     public static bool IsPermittedHashTag(string? stored) => IsReproducedAsIs(stored);
 
     /// <summary>
