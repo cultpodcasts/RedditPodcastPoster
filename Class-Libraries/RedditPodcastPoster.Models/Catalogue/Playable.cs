@@ -110,9 +110,9 @@ public abstract class Playable : CosmosSelector, IMediaProduction, IPlayable, IP
         !string.IsNullOrWhiteSpace(TweetSkipReason);
 
     /// <summary>
-    /// Legacy Cosmos flag (<c>bluesky</c>). Populated only by deserialization of pre-migration
-    /// documents. Do not set to <c>true</c> in application code — store
-    /// <see cref="BlueskyPost"/> after a network post.
+    /// Legacy Cosmos flag (<c>bluesky</c>). May be set to <c>true</c> by a curator/manual mark via the
+    /// change API (<c>blueskyPosted: true</c>). When recording a real network post, store
+    /// <see cref="BlueskyPost"/> (AT URI) instead of setting this flag.
     /// </summary>
     [JsonPropertyName("bluesky")]
     [JsonPropertyOrder(43)]

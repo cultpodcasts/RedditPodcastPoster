@@ -263,6 +263,42 @@ public class PostStatusRules
     }
 
     [Fact(DisplayName =
+        "PATCH news report blueskyPosted=true sets the legacy flag with no social call, because a curator manual mark must not pretend a Bluesky post was created or deleted.")]
+    public async Task bluesky_posted_true_sets_flag_with_no_social_call()
+    {
+        // Arrange
+        var report = CreateReport();
+
+        // Act
+        var result = await Update(report, new NewsReportChangeRequest { BlueskyPosted = true });
+
+        // Assert
+        _savedReport!.BlueskyPosted.Should().BeTrue();
+        _savedReport.OldBlueskyPosted.Should().BeTrue();
+        _savedReport.BlueskyPost.Should().BeNull();
+        result.Outcome!.BlueskyPostDeleted.Should().BeNull();
+        _bluesky.VerifyNoOtherCalls();
+    }
+
+    [Fact(DisplayName =
+        "PATCH news report blueskyPosted=false on a Bluesky-posted report deletes the post then clears state, like unBluesky.")]
+    public async Task bluesky_posted_false_deletes_then_clears()
+    {
+        // Arrange
+        var report = CreateReport(r => r.BlueskyPost = SyntheticAtUri);
+
+        // Act
+        var result = await Update(report, new NewsReportChangeRequest { BlueskyPosted = false });
+
+        // Assert
+        _calls.Should().Equal("bluesky", "save");
+        _bluesky.Verify(b => b.RemovePost(It.Is<PodcastEpisode>(x => x.Episode.BlueskyPost == SyntheticAtUri)), Times.Once);
+        _blueskyPostAtSave.Should().BeNull();
+        _savedReport!.BlueskyPosted.Should().BeFalse();
+        result.Outcome!.BlueskyPostDeleted.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "PATCH news report unBluesky=true deletes the Bluesky post before saving and clears the Bluesky state, because the episode API deletes while the AT URI is still stored.")]
     public async Task unbluesky_deletes_then_clears()
     {

@@ -5,8 +5,9 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Persistence;
 
 /// <summary>
 /// Bluesky post state: legacy <c>bluesky</c> bool vs stored AT URI <c>blueskyPost</c>.
-/// Application code must set <see cref="Models.Episodes.Episode.BlueskyPost"/> after posting,
-/// never write <see cref="Models.Episodes.Episode.OldBlueskyPosted"/> to true.
+/// After a real network post, store <see cref="Models.Episodes.Episode.BlueskyPost"/> (do not set
+/// <see cref="Models.Episodes.Episode.OldBlueskyPosted"/> on that path). A curator/manual mark via
+/// the change API may set <c>OldBlueskyPosted</c> true without an AT URI.
 /// </summary>
 public class EpisodeBlueskyPostStateRules
 {
@@ -28,7 +29,7 @@ public class EpisodeBlueskyPostStateRules
     }
 
     [Fact(DisplayName =
-        "Plain English rule: when only legacy OldBlueskyPosted is true, then BlueskyPosted is true, because pre-migration documents remain posted.")]
+        "Plain English rule: when only legacy OldBlueskyPosted is true, then BlueskyPosted is true, because pre-migration documents and curator manual marks remain posted.")]
     public void legacy_old_bluesky_posted_means_posted()
     {
         // Arrange
@@ -39,6 +40,7 @@ public class EpisodeBlueskyPostStateRules
 
         // Assert
         posted.Should().BeTrue();
+        episode.BlueskyPost.Should().BeNull();
     }
 
     [Fact(DisplayName =

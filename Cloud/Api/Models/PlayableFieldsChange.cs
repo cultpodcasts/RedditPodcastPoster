@@ -11,6 +11,7 @@ public abstract class PlayableFieldsChange
     public string? Duration { get; set; }
     public bool? Posted { get; set; }
     public bool? Tweeted { get; set; }
+    public bool? BlueskyPosted { get; set; }
     public bool? UnBluesky { get; set; }
     public bool? Explicit { get; set; }
     public bool? Ignored { get; set; }

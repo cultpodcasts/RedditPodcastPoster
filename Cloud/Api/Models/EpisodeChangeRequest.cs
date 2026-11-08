@@ -14,8 +14,14 @@ public class EpisodeChangeRequest
     public bool? Tweeted { get; set; }
 
     /// <summary>
-    /// When true, clear Bluesky post state and delete the remote post.
-    /// Bluesky posted state is not settable via episode change — only via publish/indexer.
+    /// Same as Tweeted: true sets the legacy Bluesky posted flag (curator/manual mark; no network AT URI).
+    /// true → false deletes the Bluesky post and clears state only when the post is gone.
+    /// </summary>
+    public bool? BlueskyPosted { get; set; }
+
+    /// <summary>
+    /// Backward-compat alias for <c>blueskyPosted: false</c>: when true, delete the Bluesky post and clear
+    /// state only when the post is gone.
     /// </summary>
     public bool? UnBluesky { get; set; }
 
@@ -50,6 +56,7 @@ public class EpisodeChangeRequest
         Description != null ||
         Posted != null ||
         Tweeted != null ||
+        BlueskyPosted != null ||
         UnBluesky != null ||
         Ignored != null ||
         Removed != null ||

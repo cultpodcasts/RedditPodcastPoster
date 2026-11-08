@@ -97,9 +97,22 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             }
         }
 
-        if (episodeChangeRequest.UnBluesky == true && episode.BlueskyPosted)
+        if (episodeChangeRequest.BlueskyPosted != null)
         {
-            // Do not clear BlueskyPost here — EpisodeUpdateService deletes first, then clears only on success.
+            if (!episodeChangeRequest.BlueskyPosted.Value && episode.BlueskyPosted)
+            {
+                // Do not clear BlueskyPost here — EpisodeUpdateService deletes first, then clears only on success.
+                changeState.UnBlueskyPost = true;
+            }
+            else
+            {
+                // Curator/manual mark: set legacy flag without a network post AT URI.
+                episode.OldBlueskyPosted = episodeChangeRequest.BlueskyPosted.Value ? true : null;
+            }
+        }
+        else if (episodeChangeRequest.UnBluesky == true && episode.BlueskyPosted)
+        {
+            // Backward-compat alias for blueskyPosted: false — delete first, clear only on success.
             changeState.UnBlueskyPost = true;
         }
 

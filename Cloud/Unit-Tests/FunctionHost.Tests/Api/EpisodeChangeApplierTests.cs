@@ -341,6 +341,42 @@ public class EpisodeChangeApplierTests
     }
 
     [Fact(DisplayName =
+        "Plain English rule: when BlueskyPosted is true on an unposted episode, then set OldBlueskyPosted with no UnBlueskyPost and no AT URI, because a curator manual mark must not pretend a network post happened.")]
+    public void Apply_marks_bluesky_posted_by_hand()
+    {
+        // Arrange
+        var episode = CreateEpisode();
+        var sut = CreateSut();
+
+        // Act
+        var state = sut.Apply(episode, new EpisodeChangeRequest { BlueskyPosted = true });
+
+        // Assert
+        episode.BlueskyPosted.Should().BeTrue();
+        episode.OldBlueskyPosted.Should().BeTrue();
+        episode.BlueskyPost.Should().BeNull();
+        state.UnBlueskyPost.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when BlueskyPosted is false on an AT-URI episode, then set UnBlueskyPost but leave BlueskyPost, because delete must run before Cosmostate is cleared.")]
+    public void Apply_sets_unbluesky_post_flag_when_bluesky_posted_false()
+    {
+        // Arrange
+        const string atUri = "at://did:plc:example/app.bsky.feed.post/3k2yuhir2j2";
+        var episode = CreateEpisode(e => e.BlueskyPost = atUri);
+        var sut = CreateSut();
+
+        // Act
+        var state = sut.Apply(episode, new EpisodeChangeRequest { BlueskyPosted = false });
+
+        // Assert
+        state.UnBlueskyPost.Should().BeTrue();
+        episode.BlueskyPosted.Should().BeTrue();
+        episode.BlueskyPost.Should().Be(atUri);
+    }
+
+    [Fact(DisplayName =
         "Plain English rule: when UnBluesky is requested for an AT-URI episode, then set UnBlueskyPost but leave BlueskyPost on the episode, because delete must run before Cosmostate is cleared.")]
     public void Apply_sets_unbluesky_post_flag_and_nulls_field()
     {

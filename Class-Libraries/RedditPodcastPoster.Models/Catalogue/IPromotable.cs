@@ -27,7 +27,10 @@ public interface IPromotable
     /// </summary>
     string? TweetSkipReason { get; set; }
 
-    /// <summary>Legacy Cosmos flag (<c>bluesky</c>). Prefer <see cref="BlueskyPost"/> for new posts.</summary>
+    /// <summary>
+    /// Legacy Cosmos flag (<c>bluesky</c>). Curator/manual mark via the change API may set this true;
+    /// a real network post should store <see cref="BlueskyPost"/> instead.
+    /// </summary>
     bool? OldBlueskyPosted { get; set; }
 
     /// <summary>AT URI of the Bluesky post, when posted.</summary>
