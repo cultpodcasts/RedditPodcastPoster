@@ -1,0 +1,144 @@
+# GitHub auto-closes an issue when ANY linked PR with Closes/Fixes merges.
+# Cross-repo stacks (RPP + Api + website) often still have open companions.
+# This guard reopens the issue when open PRs that still Closes/Fixes it remain.
+# Mirrored across RedditPodcastPoster, website, and Api.
+
+name: Issue close sibling guard
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+  pull-requests: read
+  contents: read
+
+jobs:
+  reopen-if-siblings-open:
+    if: github.event.issue.state_reason != 'not_planned'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reopen when companion Closes PRs are still open
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = context.payload.issue.number;
+            const full = `${owner}/${repo}#${issueNumber}`;
+
+            // Prefer GraphQL closing-issue links (Development / Closes) — no search lag.
+            const gql = await github.graphql(`
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $number) {
+                    closedByPullRequestsReferences(first: 50) {
+                      nodes {
+                        number
+                        state
+                        url
+                        title
+                        repository { nameWithOwner }
+                      }
+                    }
+                  }
+                }
+              }
+            `, { owner, repo, number: issueNumber });
+
+            const linked = gql.repository?.issue?.closedByPullRequestsReferences?.nodes ?? [];
+            const unique = linked
+              .filter((p) => p && p.state === 'OPEN')
+              .map((p) => ({
+                repo: p.repository.nameWithOwner,
+                number: p.number,
+                url: p.url,
+                title: p.title,
+              }));
+
+            if (unique.length === 0) {
+              core.info(`No open companion Closes PRs for ${full}; leave closed.`);
+              return;
+            }
+
+            const list = unique
+              .map((p) => `- ${p.repo}#${p.number}: ${p.title} — ${p.url}`)
+              .join('\n');
+
+            await github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              state: 'open',
+              state_reason: 'reopened',
+            });
+
+            // Best-effort: put the features board card back on Ready For Review.
+            // GITHUB_TOKEN may lack project write on the user project; never fail the job.
+            try {
+              const project = await github.graphql(`
+                query {
+                  user(login: "cultpodcasts") {
+                    projectV2(number: 1) {
+                      id
+                      field(name: "Status") {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          options { id name }
+                        }
+                      }
+                      items(first: 100) {
+                        nodes {
+                          id
+                          content {
+                            ... on Issue {
+                              number
+                              repository { name }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `);
+              const p = project.user?.projectV2;
+              const item = p?.items?.nodes?.find(
+                (n) => n.content?.number === issueNumber && n.content?.repository?.name === repo
+              );
+              const rfr = p?.field?.options?.find((o) => o.name === 'Ready For Review');
+              if (p?.id && item?.id && p.field?.id && rfr?.id) {
+                await github.graphql(`
+                  mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                    updateProjectV2ItemFieldValue(input: {
+                      projectId: $project
+                      itemId: $item
+                      fieldId: $field
+                      value: { singleSelectOptionId: $option }
+                    }) { projectV2Item { id } }
+                  }
+                `, {
+                  project: p.id,
+                  item: item.id,
+                  field: p.field.id,
+                  option: rfr.id,
+                });
+                core.info('Restored project Status to Ready For Review.');
+              }
+            } catch (e) {
+              core.warning(`Could not restore project Status (non-fatal): ${e.message || e}`);
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body:
+                `Reopened automatically: GitHub closed this when a \`Closes\`/\`Fixes\` PR merged, but **open companion PR(s)** still reference it:\n\n` +
+                `${list}\n\n` +
+                `GitHub cannot wait for every linked PR. This ticket stays open until those are merged (or unlinked). ` +
+                `Keep \`Closes\` on open siblings so Development stays linked; this guard undoes premature closes.`,
+            });
+
+            core.info(`Reopened ${full}; ${unique.length} open companion PR(s).`);
