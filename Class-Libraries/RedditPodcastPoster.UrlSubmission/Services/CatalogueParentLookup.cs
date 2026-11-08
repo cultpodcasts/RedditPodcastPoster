@@ -1,6 +1,11 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.YouTube;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Services;
@@ -19,8 +24,16 @@ public interface ICatalogueParentLookup
     /// <summary>
     /// The parent whose <c>indexing</c> holds the URL's channel / show id. Many → after the podcast tie-breaks
     /// (no playlist, then the single auto-indexed one) → <see cref="AmbiguousParentNameException"/>.
+    /// Without a video URL, a channel-wide claim wins over playlist-scoped peers (same as podcasts).
     /// </summary>
     Task<CatalogueParentMatch?> FindByOwner(EpisodeUrlOwnerIds ids);
+
+    /// <summary>
+    /// Like <see cref="FindByOwner(EpisodeUrlOwnerIds)"/> for a YouTube video: a playlist-scoped parent whose
+    /// playlist contains the video wins over a channel-wide peer on the same channel. Membership that cannot be
+    /// checked fails closed. Spotify / Apple owner ids ignore <paramref name="url"/>.
+    /// </summary>
+    Task<CatalogueParentMatch?> FindByOwner(EpisodeUrlOwnerIds ids, Uri url, IndexingContext indexingContext);
 
     /// <summary>
     /// Fallback when no parent's <c>indexing</c> holds a YouTube channel id: the news organisation or TV show whose
@@ -39,6 +52,8 @@ public interface ICatalogueParentLookup
 public class CatalogueParentLookup(
     INewsOrganisationRepository newsOrganisations,
     ITvShowRepository tvShows,
+    IYouTubeServiceWrapper youTubeService,
+    IYouTubePlaylistMembership youTubePlaylistMembership,
     ILogger<CatalogueParentLookup> logger) : ICatalogueParentLookup
 {
     private const string MixedKind = "CatalogueParent";
@@ -81,7 +96,19 @@ public class CatalogueParentLookup(
         return Single(matches, name.Trim());
     }
 
-    public async Task<CatalogueParentMatch?> FindByOwner(EpisodeUrlOwnerIds ids)
+    public Task<CatalogueParentMatch?> FindByOwner(EpisodeUrlOwnerIds ids) =>
+        FindByOwnerCore(ids, url: null, indexingContext: null);
+
+    public Task<CatalogueParentMatch?> FindByOwner(
+        EpisodeUrlOwnerIds ids,
+        Uri url,
+        IndexingContext indexingContext) =>
+        FindByOwnerCore(ids, url, indexingContext);
+
+    private async Task<CatalogueParentMatch?> FindByOwnerCore(
+        EpisodeUrlOwnerIds ids,
+        Uri? url,
+        IndexingContext? indexingContext)
     {
         if (ids.IsEmpty)
         {
@@ -100,17 +127,7 @@ public class CatalogueParentLookup(
                 .Select(CatalogueParentMatch.For));
             if (matches.Count > 1)
             {
-                // Same tie-breaks as PodcastService for podcasts sharing a channel.
-                var channelWide = matches.Where(x => string.IsNullOrWhiteSpace(x.Indexing?.YouTubePlaylistId)).ToList();
-                if (channelWide.Count > 0)
-                {
-                    matches = channelWide;
-                }
-
-                if (matches.Count > 1 && matches.Count(x => x.Indexing?.IsAutoIndexed == true) == 1)
-                {
-                    matches = matches.Where(x => x.Indexing?.IsAutoIndexed == true).ToList();
-                }
+                matches = await ResolveYouTubeChannelTie(matches, channelId, url, indexingContext);
             }
 
             return Single(matches, channelId);
@@ -136,6 +153,108 @@ public class CatalogueParentLookup(
                 .GetAllBy(x => x.Indexing != null && x.Indexing.AppleId == appleId).ToListAsync())
             .Select(CatalogueParentMatch.For));
         return Single(matches, appleId.ToString());
+    }
+
+    /// <summary>
+    /// With a video URL: playlist-scoped parents that contain the video win (same idea as
+    /// <c>PodcastService.MatchYouTubeChannelOwner</c>). Without a URL: channel-wide peers win over playlist-scoped.
+    /// </summary>
+    private async Task<List<CatalogueParentMatch>> ResolveYouTubeChannelTie(
+        List<CatalogueParentMatch> matches,
+        string channelId,
+        Uri? url,
+        IndexingContext? indexingContext)
+    {
+        var channelWide = matches.Where(x => string.IsNullOrWhiteSpace(x.Indexing?.YouTubePlaylistId)).ToList();
+        var playlistScoped = matches.Where(x => !string.IsNullOrWhiteSpace(x.Indexing?.YouTubePlaylistId)).ToList();
+
+        if (url is not null && indexingContext is not null && playlistScoped.Count > 0)
+        {
+            var containing = new List<CatalogueParentMatch>();
+            var unknown = new List<CatalogueParentMatch>();
+            foreach (var candidate in playlistScoped)
+            {
+                var inPlaylist = await IsVideoInPlaylist(candidate.Indexing!.YouTubePlaylistId, url, indexingContext);
+                if (inPlaylist == true)
+                {
+                    containing.Add(candidate);
+                }
+                else if (inPlaylist is null)
+                {
+                    unknown.Add(candidate);
+                }
+            }
+
+            if (containing.Count == 1)
+            {
+                return containing;
+            }
+
+            if (containing.Count > 1)
+            {
+                return ApplyAutoIndexTieBreak(containing);
+            }
+
+            if (unknown.Count > 0)
+            {
+                var ids = string.Join(", ", unknown.Select(x => $"'{x.Parent.Id}'"));
+                var message =
+                    $"Could not check whether '{url}' is in the playlist of catalogue parent(s) {ids} on youtube-channel-id '{channelId}'. Retry, or submit with a news organisation or TV show name.";
+                logger.LogError(message);
+                throw new InvalidOperationException(message);
+            }
+        }
+
+        if (channelWide.Count > 0)
+        {
+            matches = channelWide;
+        }
+
+        return ApplyAutoIndexTieBreak(matches);
+    }
+
+    private static List<CatalogueParentMatch> ApplyAutoIndexTieBreak(List<CatalogueParentMatch> matches)
+    {
+        if (matches.Count > 1 && matches.Count(x => x.Indexing?.IsAutoIndexed == true) == 1)
+        {
+            return matches.Where(x => x.Indexing?.IsAutoIndexed == true).ToList();
+        }
+
+        return matches;
+    }
+
+    /// <summary>
+    /// True when <paramref name="playlistId"/> is blank (channel-wide), the URL's <c>list=</c> matches, or YouTube
+    /// lists the video in it. False when not in it or the stored id is malformed; null only when it could not be
+    /// checked (quota, outage).
+    /// </summary>
+    private async Task<bool?> IsVideoInPlaylist(string? playlistId, Uri url, IndexingContext indexingContext)
+    {
+        if (string.IsNullOrWhiteSpace(playlistId))
+        {
+            return true;
+        }
+
+        if (string.Equals(YouTubePlaylistIdResolver.Extract(url), playlistId, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!YouTubePlaylistIdFormat.IsValid(playlistId))
+        {
+            logger.LogWarning(
+                "Stored youtube-playlist-id '{PlaylistId}' is malformed; treating '{Url}' as not in it. Fix the stored id.",
+                playlistId, url);
+            return false;
+        }
+
+        var videoId = YouTubeIdResolver.Extract(url);
+        if (string.IsNullOrWhiteSpace(videoId) || indexingContext.SkipYouTubeUrlResolving)
+        {
+            return null;
+        }
+
+        return await youTubePlaylistMembership.Contains(youTubeService, playlistId, videoId);
     }
 
     public async Task<CatalogueParentMatch?> FindUnclaimedByYouTubeChannelTitle(string channelTitle)

@@ -11,6 +11,8 @@ using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.PodcastServices.YouTube.Clients;
+using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Factories;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -500,6 +502,96 @@ public class CatalogueParentRoutingRules
         secondChannelWide.Indexing!.IndexAllEpisodes = true;
         (await sut.FindByOwner(new EpisodeUrlOwnerIds(YouTubeChannelId: channelId)))!.Parent.Id
             .Should().Be(secondChannelWide.Id);
+    }
+
+    [Fact(DisplayName =
+        "With a video URL, a playlist-scoped parent whose playlist contains the video wins over a channel-wide peer on the same channel, because playlist membership splits shared YouTube channels.")]
+    public async Task owner_lookup_with_url_playlist_member_beats_channel_wide()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var videoId = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        AddOrganisation(i => i.YouTubeChannelId = channelId);
+        var playlistScoped = AddShow(i =>
+        {
+            i.YouTubeChannelId = channelId;
+            i.YouTubePlaylistId = playlistId;
+        });
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .ReturnsAsync(true);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var match = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId),
+            url,
+            new IndexingContext());
+
+        // Assert
+        match!.Parent.Id.Should().Be(playlistScoped.Id);
+    }
+
+    [Fact(DisplayName =
+        "With a video URL, when the playlist-scoped parent's playlist does not contain the video, the channel-wide parent keeps it.")]
+    public async Task owner_lookup_with_url_missed_playlist_falls_back_to_channel_wide()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var videoId = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        var channelWide = AddOrganisation(i => i.YouTubeChannelId = channelId);
+        AddShow(i =>
+        {
+            i.YouTubeChannelId = channelId;
+            i.YouTubePlaylistId = playlistId;
+        });
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .ReturnsAsync(false);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var match = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId),
+            url,
+            new IndexingContext());
+
+        // Assert
+        match!.Parent.Id.Should().Be(channelWide.Id);
+    }
+
+    [Fact(DisplayName =
+        "With a video URL, when playlist membership cannot be checked, owner lookup fails closed so a submit does not guess the wrong parent.")]
+    public async Task owner_lookup_with_url_unknown_membership_fails_closed()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var videoId = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        AddOrganisation(i => i.YouTubeChannelId = channelId);
+        AddShow(i =>
+        {
+            i.YouTubeChannelId = channelId;
+            i.YouTubePlaylistId = playlistId;
+        });
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), playlistId, videoId))
+            .ReturnsAsync((bool?)null);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var act = () => sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId),
+            url,
+            new IndexingContext());
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Could not check*");
     }
 
     /// <summary>

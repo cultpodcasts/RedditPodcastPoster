@@ -117,7 +117,7 @@ public class PodcastService(
             return Podcast(all.OrderBy(x => x.Id).First());
         }
 
-        var parent = await catalogueParentLookup.FindByOwner(ids);
+        var parent = await catalogueParentLookup.FindByOwner(ids, url, indexingContext);
         if (live.Length == 1 && parent == null)
         {
             return Podcast(live[0]);
