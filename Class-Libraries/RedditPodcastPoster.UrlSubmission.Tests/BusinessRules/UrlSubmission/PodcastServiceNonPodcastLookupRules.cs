@@ -109,7 +109,7 @@ public class PodcastServiceNonPodcastLookupRules
                 playlistId,
                 url,
                 true))
-            .ReturnsAsync(false);
+            .ReturnsAsync((bool?)null);
         var sut = _mocker.CreateInstance<PodcastService>();
 
         // Act
@@ -117,7 +117,7 @@ public class PodcastServiceNonPodcastLookupRules
             scoped, url, new IndexingContext { SkipYouTubeUrlResolving = true });
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().BeNull();
         membership.Verify(m => m.IsVideoInPlaylist(
             It.IsAny<RedditPodcastPoster.PodcastServices.YouTube.Clients.IYouTubeServiceWrapper>(),
             playlistId,
