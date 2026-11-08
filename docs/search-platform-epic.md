@@ -1,12 +1,18 @@
 # Search platform epic — leave Azure AI Search Free tier
 
-**Status:** Proposal / Phase 0 planning. No production, index, or code changes.
-**Date:** 2026-11-07 (all vendor limits and prices re-verified on this date).
+**Status:** Prototype + parity complete (2026-11-07/08); switchover ticketed (SP-\* on
+board). Production apihost still Azure. **Working docs for agents:**
+[`docs/search-platform/`](./search-platform/README.md) (start at
+[agent-handoff.md](./search-platform/agent-handoff.md) when a ticket is thin).
+**Date:** 2026-11-07 (vendor limits re-verified); evidence + tickets updated 2026-11-08.
 **Related:**
+[search-platform/](./search-platform/README.md) (switchover plan, engine, sync, parity, bugs),
 [search-platform-alternatives.md](./search-platform-alternatives.md) (2026-07 survey — still the wide-net reference),
 [search-index-slimming-plan.md](./search-index-slimming-plan.md) (tactical slimming, now executed),
 [catalogue-content-types-search-storage-impact.md](./catalogue-content-types-search-storage-impact.md) (contentKind growth), <!-- pragma: allowlist secret -->
 [catalogue-content-types-epic.md](./catalogue-content-types-epic.md). <!-- pragma: allowlist secret -->
+**Epic issue:** [SP-E #1312](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1312)
+· label `epic:search-platform` · board [projects/1](https://github.com/users/cultpodcasts/projects/1).
 
 ---
 
@@ -511,6 +517,8 @@ Open decisions for Phase 0:
 
 Ideas and suggestions gathered as the parity work progresses (started 2026-11-08).
 Parity first; everything here ships after cutover unless marked otherwise.
+Agent-facing copies of engine/sync/parity/bugs live under
+[search-platform/](./search-platform/README.md).
 
 **Relevance (search page, 1.5 % of traffic but the point of search):**
 
@@ -566,11 +574,17 @@ on D1 vs 23/407 disjoint on Azure — en.lucene has no ASCII folding), legacy
 
 ## 8. Switchover plan & ticket map (gated; independently workable)
 
+**Operational copy (prefer for day-to-day work):**
+[search-platform/switchover-plan.md](./search-platform/switchover-plan.md) and
+[search-platform/agent-handoff.md](./search-platform/agent-handoff.md). This section
+keeps the in-epic catalogue; the folder holds technical depth when tickets lack detail.
+
 Plan for replacing production Azure AI Search with the D1 FTS engine, ticketed so
 separate agents/people can pick work without reading the whole epic. Board target:
-**@[owner] features** (`users/{owner}/projects/1`) — add every card with
-`pwsh ./scripts/add-issue-to-features-board.ps1 -IssueUrl <url>` (REST path; sidebar
-link alone is not enough — same rule as catalogue-content-types Phase 1 gate).
+**cultpodcasts features** (`users/cultpodcasts/projects/1`) — add every card with
+`pwsh ./scripts/add-issue-to-features-board.ps1 -Owner cultpodcasts -IssueUrl <url>`
+(REST path; sidebar link alone is not enough — same rule as catalogue-content-types
+Phase 1 gate).
 
 ### 8.1 How to identify tickets under this epic
 
@@ -772,7 +786,7 @@ token to place every card on the features board. Optionally add label
    the Cloud Agent integration can open issues but cannot create labels or close issues
    as of 2026-11-08).
 
-## 7. Sources (verified 2026-11-07)
+## 9. Sources (verified 2026-11-07)
 
 - Cloudflare AI Search: [limits & pricing](https://developers.cloudflare.com/ai-search/platform/limits-pricing/) (5 metadata fields, 64-byte filterable strings, query pricing), [metadata](https://developers.cloudflare.com/ai-search/configuration/indexing/metadata/), [filtering](https://developers.cloudflare.com/ai-search/configuration/retrieval/filtering/) (arrays not indexed), [billing start 2026-12-01](https://developers.cloudflare.com/changelog/post/2026-11-02-billing-postponed-default-sync-interval/)
 - Cloudflare D1: [pricing](https://developers.cloudflare.com/d1/platform/pricing/), [limits](https://developers.cloudflare.com/d1/platform/limits/) (10 GB/db paid, 500 MB/db free, FTS5 in [supported statements](https://developers.cloudflare.com/d1/sql-api/sql-statements/))
