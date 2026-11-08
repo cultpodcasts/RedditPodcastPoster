@@ -362,7 +362,9 @@ public class PodcastKindTransferService(
 
     /// <summary>
     /// True when the episode is ignored and podcast short-episode checking would have set that from length
-    /// alone (same enforce/threshold as <c>PodcastUpdater</c> / submit <c>EpisodeFactory</c>).
+    /// alone (same enforce/threshold as <c>PodcastUpdater</c>). Submit <c>EpisodeFactory</c> differs: when
+    /// <c>BypassShortEpisodeChecking</c> is true it skips length-ignore entirely, even with an explicit
+    /// <see cref="Podcast.MinimumDuration"/>.
     /// </summary>
     private bool IsLengthDerivedIgnoredUnderPodcastRules(Podcast podcast, Episode episode)
     {
