@@ -18,6 +18,7 @@ namespace Api.Controllers;
 public class FilmController(
     IGetFilmHandler getFilmHandler,
     IPostFilmHandler postFilmHandler,
+    IDeleteFilmHandler deleteFilmHandler,
     ICatalogueRenameHandler catalogueRenameHandler,
     IPublishEpisodeHandler publishEpisodeHandler,
     IClientPrincipalFactory clientPrincipalFactory,
@@ -57,6 +58,14 @@ public class FilmController(
             postFilmHandler.Handle,
             Unauthorised,
             ct);
+
+    [Function("FilmDelete")]
+    public Task<HttpResponseData> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "film/{filmId:guid}")]
+        HttpRequestData req,
+        Guid filmId,
+        CancellationToken ct) =>
+        HandleRequest(req, ["admin"], filmId, deleteFilmHandler.Handle, Unauthorised, ct);
 
     [Function("FilmPublish")]
     public Task<HttpResponseData> Publish(

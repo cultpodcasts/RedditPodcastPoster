@@ -17,6 +17,7 @@ namespace Api.Controllers;
 public class TvShowEpisodeController(
     IGetTvShowEpisodeHandler getTvShowEpisodeHandler,
     IPostTvShowEpisodeHandler postTvShowEpisodeHandler,
+    IDeleteTvShowEpisodeHandler deleteTvShowEpisodeHandler,
     IPublishEpisodeHandler publishEpisodeHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<TvShowEpisodeController> logger,
@@ -46,6 +47,14 @@ public class TvShowEpisodeController(
             postTvShowEpisodeHandler.Handle,
             Unauthorised,
             ct);
+
+    [Function("TvShowEpisodeDelete")]
+    public Task<HttpResponseData> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "tvshowepisode/{episodeId:guid}")]
+        HttpRequestData req,
+        Guid episodeId,
+        CancellationToken ct) =>
+        HandleRequest(req, ["admin"], episodeId, deleteTvShowEpisodeHandler.Handle, Unauthorised, ct);
 
     [Function("TvShowEpisodePublish")]
     public Task<HttpResponseData> Publish(

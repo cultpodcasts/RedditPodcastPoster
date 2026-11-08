@@ -201,6 +201,29 @@ public class CataloguePlayableSearchSync(
             "Only TV episodes and news reports are indexed on demand.")
     };
 
+    /// <summary>
+    /// After a hard delete from Cosmos: remove the search document and short-link record (same cleanup as
+    /// <c>removed=true</c> on edit). Failures are logged and swallowed so the Cosmos delete is not rolled back.
+    /// </summary>
+    public async Task AfterHardDelete(
+        Guid id,
+        string parentName,
+        PodcastEpisode shortLinkTarget,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await searchIndexCleanup.DeleteSearchEntry(parentName, id, cancellationToken);
+            await DeleteShortLink(id, shortLinkTarget);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Cosmos delete succeeded for '{id}' of '{parentName}' but the search or short-link cleanup failed.",
+                id, parentName);
+        }
+    }
+
     /// <returns>The indexer state when a document was pushed; null when the step deleted (or failed before pushing).</returns>
     private async Task<EntitySearchIndexerResponse?> AfterSave(
         Guid id,

@@ -79,4 +79,42 @@ public class NewsReportService(
             return new NewsReportUpdateResult(NewsReportUpdateStatus.Failed);
         }
     }
+
+    public async Task<EpisodeDeleteResult> DeleteAsync(Guid reportId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await newsReportRepository.GetBy(item => item.Id == reportId);
+            if (report is null)
+            {
+                logger.LogWarning("Delete: missing news report '{reportId}'.", reportId);
+                return new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound);
+            }
+
+            if (report.Tweeted)
+            {
+                return new EpisodeDeleteResult(
+                    EpisodeDeleteStatus.AlreadySocial,
+                    Tweeted: true);
+            }
+
+            var shortLinkTarget = SocialPostRemovalTarget.For(report).Projection;
+            await newsReportRepository.Delete(report.NewsOrganisationId, report.Id);
+            await searchSync.AfterHardDelete(
+                report.Id,
+                report.NewsOrganisationName ?? string.Empty,
+                shortLinkTarget,
+                cancellationToken);
+
+            logger.LogWarning(
+                "Delete removed news report '{reportId}' from organisation '{organisationId}'.",
+                report.Id, report.NewsOrganisationId);
+            return new EpisodeDeleteResult(EpisodeDeleteStatus.Deleted);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete news report '{reportId}'.", reportId);
+            return new EpisodeDeleteResult(EpisodeDeleteStatus.Failed);
+        }
+    }
 }

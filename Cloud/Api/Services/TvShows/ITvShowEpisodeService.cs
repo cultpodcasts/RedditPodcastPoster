@@ -9,4 +9,6 @@ public interface ITvShowEpisodeService
     Task<TvShowEpisodeUpdateResult> UpdateAsync(
         TvShowEpisodeChangeRequestWrapper request,
         CancellationToken cancellationToken);
+
+    Task<EpisodeDeleteResult> DeleteAsync(Guid episodeId, CancellationToken cancellationToken);
 }

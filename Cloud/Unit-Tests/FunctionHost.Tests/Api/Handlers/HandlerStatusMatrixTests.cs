@@ -4,20 +4,28 @@ using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Moq.AutoMock;
 using Api.Handlers;
 using Api.Handlers.Episodes;
+using Api.Handlers.Films;
+using Api.Handlers.News;
 using Api.Handlers.People;
 using Api.Handlers.Podcasts;
 using Api.Handlers.Public;
 using Api.Handlers.Subjects;
 using Api.Handlers.SubmitUrl;
+using Api.Handlers.TvShows;
 using Api.Models;
 using Api.Services.Episodes;
+using Api.Services.Films;
+using Api.Services.News;
 using Api.Services.People;
 using Api.Services.Podcasts;
 using Api.Services.Public;
 using Api.Services.Subjects;
 using Api.Services.SubmitUrl;
+using Api.Services.TvShows;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
 using Person = RedditPodcastPoster.Models.People.Person;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
@@ -34,6 +42,8 @@ namespace FunctionHost.Tests.Api.Handlers;
 /// </summary>
 public class HandlerStatusMatrixTests
 {
+    private readonly DomainTestFixture _fixture = new();
+
     private static async Task<JsonElement> ReadJsonBodyAsync(HttpResponseData response)
     {
         response.Body.Position = 0;
@@ -49,16 +59,19 @@ public class HandlerStatusMatrixTests
     public async Task GetPersonHandler_ok_returns_200()
     {
         // Arrange
-        var person = new Person("Ada Lovelace") { Id = Guid.NewGuid() };
-        var service = new Mock<IPersonGetService>();
-        service.Setup(s => s.GetAsync("Ada", It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        var person = new Person(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        mocker.GetMock<IPersonGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PersonGetResult(PersonGetStatus.Ok, person));
-
-        var handler = new GetPersonHandler(service.Object, NullLogger<GetPersonHandler>.Instance);
+        mocker.Use(NullLogger<GetPersonHandler>.Instance);
+        var handler = mocker.CreateInstance<GetPersonHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), "Ada", CancellationToken.None);
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), person.Name, CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -66,15 +79,18 @@ public class HandlerStatusMatrixTests
     public async Task GetPersonHandler_not_found_returns_404()
     {
         // Arrange
-        var service = new Mock<IPersonGetService>();
-        service.Setup(s => s.GetAsync("missing", It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<IPersonGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PersonGetResult(PersonGetStatus.NotFound));
-
-        var handler = new GetPersonHandler(service.Object, NullLogger<GetPersonHandler>.Instance);
+        mocker.Use(NullLogger<GetPersonHandler>.Instance);
+        var handler = mocker.CreateInstance<GetPersonHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), "missing", CancellationToken.None);
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateTitle(), CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -82,15 +98,18 @@ public class HandlerStatusMatrixTests
     public async Task GetPersonHandler_failed_returns_500_with_error_body()
     {
         // Arrange
-        var service = new Mock<IPersonGetService>();
-        service.Setup(s => s.GetAsync("Ada", It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<IPersonGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PersonGetResult(PersonGetStatus.Failed));
-
-        var handler = new GetPersonHandler(service.Object, NullLogger<GetPersonHandler>.Instance);
+        mocker.Use(NullLogger<GetPersonHandler>.Instance);
+        var handler = mocker.CreateInstance<GetPersonHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), "Ada", CancellationToken.None);
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateTitle(), CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("error").GetString().Should().NotBeNullOrWhiteSpace();
@@ -102,16 +121,19 @@ public class HandlerStatusMatrixTests
     public async Task GetPodcastHandler_found_returns_200()
     {
         // Arrange
-        var podcast = new Podcast { Id = Guid.NewGuid(), Name = "Show" };
-        var service = new Mock<IPodcastGetService>();
-        service.Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        var podcast = new Podcast { Id = _fixture.CreateGuid(), Name = _fixture.CreateTitle() };
+        mocker.GetMock<IPodcastGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PodcastGetResult(PodcastGetStatus.Found, podcast));
-
-        var handler = new GetPodcastHandler(service.Object, NullLogger<GetPodcastHandler>.Instance);
+        mocker.Use(NullLogger<GetPodcastHandler>.Instance);
+        var handler = mocker.CreateInstance<GetPodcastHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
+        // Act
         var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastGetRequest(podcast.Id), CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -119,15 +141,21 @@ public class HandlerStatusMatrixTests
     public async Task GetPodcastHandler_not_found_returns_404()
     {
         // Arrange
-        var service = new Mock<IPodcastGetService>();
-        service.Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<IPodcastGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PodcastGetResult(PodcastGetStatus.NotFound));
-
-        var handler = new GetPodcastHandler(service.Object, NullLogger<GetPodcastHandler>.Instance);
+        mocker.Use(NullLogger<GetPodcastHandler>.Instance);
+        var handler = mocker.CreateInstance<GetPodcastHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastGetRequest(Guid.NewGuid()), CancellationToken.None);
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new PodcastGetRequest(_fixture.CreateGuid()),
+            CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("error").GetString().Should().NotBeNullOrWhiteSpace();
@@ -137,16 +165,22 @@ public class HandlerStatusMatrixTests
     public async Task GetPodcastHandler_conflict_with_ambiguous_returns_409()
     {
         // Arrange
-        var ambiguous = new[] { Guid.NewGuid(), Guid.NewGuid() };
-        var service = new Mock<IPodcastGetService>();
-        service.Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        var ambiguous = new[] { _fixture.CreateGuid(), _fixture.CreateGuid() };
+        mocker.GetMock<IPodcastGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PodcastGetResult(PodcastGetStatus.Conflict, AmbiguousPodcasts: ambiguous));
-
-        var handler = new GetPodcastHandler(service.Object, NullLogger<GetPodcastHandler>.Instance);
+        mocker.Use(NullLogger<GetPodcastHandler>.Instance);
+        var handler = mocker.CreateInstance<GetPodcastHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastGetRequest("show", null), CancellationToken.None);
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new PodcastGetRequest(_fixture.CreateTitle(), null),
+            CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.Conflict);
         var body = await ReadJsonBodyAsync(result);
         body.GetArrayLength().Should().Be(ambiguous.Length);
@@ -156,15 +190,21 @@ public class HandlerStatusMatrixTests
     public async Task GetPodcastHandler_failed_returns_500_with_error_body()
     {
         // Arrange
-        var service = new Mock<IPodcastGetService>();
-        service.Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<IPodcastGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<PodcastGetRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PodcastGetResult(PodcastGetStatus.Failed));
-
-        var handler = new GetPodcastHandler(service.Object, NullLogger<GetPodcastHandler>.Instance);
+        mocker.Use(NullLogger<GetPodcastHandler>.Instance);
+        var handler = mocker.CreateInstance<GetPodcastHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), new PodcastGetRequest(Guid.NewGuid()), CancellationToken.None);
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new PodcastGetRequest(_fixture.CreateGuid()),
+            CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("error").GetString().Should().NotBeNullOrWhiteSpace();
@@ -176,16 +216,20 @@ public class HandlerStatusMatrixTests
     public async Task GetSubjectHandler_ok_returns_200()
     {
         // Arrange
-        var subject = new Subject("News");
-        var service = new Mock<ISubjectGetService>();
-        service.Setup(s => s.GetAsync("News", It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        var subjectName = _fixture.CreateTitle();
+        var subject = new Subject(subjectName);
+        mocker.GetMock<ISubjectGetService>()
+            .Setup(s => s.GetAsync(subjectName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubjectGetResult(SubjectGetStatus.Ok, subject));
-
-        var handler = new GetSubjectHandler(service.Object, NullLogger<GetSubjectHandler>.Instance);
+        mocker.Use(NullLogger<GetSubjectHandler>.Instance);
+        var handler = mocker.CreateInstance<GetSubjectHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), "News", CancellationToken.None);
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), subjectName, CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -193,15 +237,18 @@ public class HandlerStatusMatrixTests
     public async Task GetSubjectHandler_not_found_returns_404()
     {
         // Arrange
-        var service = new Mock<ISubjectGetService>();
-        service.Setup(s => s.GetAsync("missing", It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<ISubjectGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubjectGetResult(SubjectGetStatus.NotFound));
-
-        var handler = new GetSubjectHandler(service.Object, NullLogger<GetSubjectHandler>.Instance);
+        mocker.Use(NullLogger<GetSubjectHandler>.Instance);
+        var handler = mocker.CreateInstance<GetSubjectHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), "missing", CancellationToken.None);
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateTitle(), CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -209,15 +256,18 @@ public class HandlerStatusMatrixTests
     public async Task GetSubjectHandler_failed_returns_500_with_error_body()
     {
         // Arrange
-        var service = new Mock<ISubjectGetService>();
-        service.Setup(s => s.GetAsync("News", It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<ISubjectGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubjectGetResult(SubjectGetStatus.Failed));
-
-        var handler = new GetSubjectHandler(service.Object, NullLogger<GetSubjectHandler>.Instance);
+        mocker.Use(NullLogger<GetSubjectHandler>.Instance);
+        var handler = mocker.CreateInstance<GetSubjectHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
-        var result = await handler.Handle(new HandlerContext(req.Object, null), "News", CancellationToken.None);
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateTitle(), CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("error").GetString().Should().NotBeNullOrWhiteSpace();
@@ -229,16 +279,19 @@ public class HandlerStatusMatrixTests
     public async Task DeleteEpisodeHandler_deleted_returns_200()
     {
         // Arrange
-        var service = new Mock<IEpisodeDeleteService>();
-        service.Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<IEpisodeDeleteService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.Deleted));
-
-        var handler = new DeleteEpisodeHandler(service.Object, NullLogger<DeleteEpisodeHandler>.Instance);
+        mocker.Use(NullLogger<DeleteEpisodeHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteEpisodeHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
-        var wrapper = new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid());
+        var wrapper = new PodcastEpisodeRequestWrapper(_fixture.CreateGuid(), _fixture.CreateGuid());
 
+        // Act
         var result = await handler.Handle(new HandlerContext(req.Object, null), wrapper, CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
@@ -246,18 +299,21 @@ public class HandlerStatusMatrixTests
     public async Task DeleteEpisodeHandler_not_found_returns_404()
     {
         // Arrange
-        var service = new Mock<IEpisodeDeleteService>();
-        service.Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<IEpisodeDeleteService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound));
-
-        var handler = new DeleteEpisodeHandler(service.Object, NullLogger<DeleteEpisodeHandler>.Instance);
+        mocker.Use(NullLogger<DeleteEpisodeHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteEpisodeHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
 
+        // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
-            new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid()),
+            new PodcastEpisodeRequestWrapper(_fixture.CreateGuid(), _fixture.CreateGuid()),
             CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -265,18 +321,207 @@ public class HandlerStatusMatrixTests
     public async Task DeleteEpisodeHandler_already_social_returns_400()
     {
         // Arrange
-        var service = new Mock<IEpisodeDeleteService>();
-        service.Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<IEpisodeDeleteService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.AlreadySocial, Posted: false, Tweeted: true));
-
-        var handler = new DeleteEpisodeHandler(service.Object, NullLogger<DeleteEpisodeHandler>.Instance);
+        mocker.Use(NullLogger<DeleteEpisodeHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteEpisodeHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
 
+        // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
-            new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid()),
+            new PodcastEpisodeRequestWrapper(_fixture.CreateGuid(), _fixture.CreateGuid()),
             CancellationToken.None);
 
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await ReadJsonBodyAsync(result);
+        body.GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
+        body.GetProperty("tweeted").GetBoolean().Should().BeTrue();
+    }
+
+    // ----- DeleteFilmHandler -----
+
+    [Fact(DisplayName = "DeleteFilmHandler maps Deleted to 200")]
+    public async Task DeleteFilmHandler_deleted_returns_200()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        mocker.GetMock<IFilmService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.Deleted));
+        mocker.Use(NullLogger<DeleteFilmHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteFilmHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
+
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateGuid(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName = "DeleteFilmHandler maps NotFound to 404")]
+    public async Task DeleteFilmHandler_not_found_returns_404()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        mocker.GetMock<IFilmService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound));
+        mocker.Use(NullLogger<DeleteFilmHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteFilmHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
+
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateGuid(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact(DisplayName = "DeleteFilmHandler maps AlreadySocial to 400 with tweeted body")]
+    public async Task DeleteFilmHandler_already_social_returns_400()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        mocker.GetMock<IFilmService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.AlreadySocial, Posted: false, Tweeted: true));
+        mocker.Use(NullLogger<DeleteFilmHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteFilmHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
+
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateGuid(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await ReadJsonBodyAsync(result);
+        body.GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
+        body.GetProperty("tweeted").GetBoolean().Should().BeTrue();
+    }
+
+    // ----- DeleteNewsReportHandler -----
+
+    [Fact(DisplayName = "DeleteNewsReportHandler maps Deleted to 200")]
+    public async Task DeleteNewsReportHandler_deleted_returns_200()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        mocker.GetMock<INewsReportService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.Deleted));
+        mocker.Use(NullLogger<DeleteNewsReportHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteNewsReportHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
+
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateGuid(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName = "DeleteNewsReportHandler maps NotFound to 404")]
+    public async Task DeleteNewsReportHandler_not_found_returns_404()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        mocker.GetMock<INewsReportService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound));
+        mocker.Use(NullLogger<DeleteNewsReportHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteNewsReportHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
+
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateGuid(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact(DisplayName = "DeleteNewsReportHandler maps AlreadySocial to 400 with tweeted body")]
+    public async Task DeleteNewsReportHandler_already_social_returns_400()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        mocker.GetMock<INewsReportService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.AlreadySocial, Posted: false, Tweeted: true));
+        mocker.Use(NullLogger<DeleteNewsReportHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteNewsReportHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
+
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateGuid(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await ReadJsonBodyAsync(result);
+        body.GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
+        body.GetProperty("tweeted").GetBoolean().Should().BeTrue();
+    }
+
+    // ----- DeleteTvShowEpisodeHandler -----
+
+    [Fact(DisplayName = "DeleteTvShowEpisodeHandler maps Deleted to 200")]
+    public async Task DeleteTvShowEpisodeHandler_deleted_returns_200()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        mocker.GetMock<ITvShowEpisodeService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.Deleted));
+        mocker.Use(NullLogger<DeleteTvShowEpisodeHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteTvShowEpisodeHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
+
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateGuid(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName = "DeleteTvShowEpisodeHandler maps NotFound to 404")]
+    public async Task DeleteTvShowEpisodeHandler_not_found_returns_404()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        mocker.GetMock<ITvShowEpisodeService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound));
+        mocker.Use(NullLogger<DeleteTvShowEpisodeHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteTvShowEpisodeHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
+
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateGuid(), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact(DisplayName = "DeleteTvShowEpisodeHandler maps AlreadySocial to 400 with tweeted body")]
+    public async Task DeleteTvShowEpisodeHandler_already_social_returns_400()
+    {
+        // Arrange
+        var mocker = new AutoMocker();
+        mocker.GetMock<ITvShowEpisodeService>()
+            .Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeDeleteResult(EpisodeDeleteStatus.AlreadySocial, Posted: false, Tweeted: true));
+        mocker.Use(NullLogger<DeleteTvShowEpisodeHandler>.Instance);
+        var handler = mocker.CreateInstance<DeleteTvShowEpisodeHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("DELETE");
+
+        // Act
+        var result = await handler.Handle(new HandlerContext(req.Object, null), _fixture.CreateGuid(), CancellationToken.None);
+
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
@@ -289,18 +534,21 @@ public class HandlerStatusMatrixTests
     public async Task PostSubmitUrlHandler_podcast_not_found_returns_404()
     {
         // Arrange
-        var service = new Mock<ISubmitUrlService>();
-        service.Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubmitUrlResult(SubmitUrlStatus.PodcastNotFound, Message: "missing"));
-
-        var handler = new PostSubmitUrlHandler(service.Object, NullLogger<PostSubmitUrlHandler>.Instance);
+        var mocker = new AutoMocker();
+        mocker.GetMock<ISubmitUrlService>()
+            .Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubmitUrlResult(SubmitUrlStatus.PodcastNotFound, Message: _fixture.CreateTitle()));
+        mocker.Use(NullLogger<PostSubmitUrlHandler>.Instance);
+        var handler = mocker.CreateInstance<PostSubmitUrlHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
 
+        // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
             new SubmitUrlRequest { Url = new Uri("https://example.com/ep") },
             CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -308,18 +556,21 @@ public class HandlerStatusMatrixTests
     public async Task PostSubmitUrlHandler_failed_returns_500()
     {
         // Arrange
-        var service = new Mock<ISubmitUrlService>();
-        service.Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SubmitUrlResult(SubmitUrlStatus.Failed, Message: "boom"));
-
-        var handler = new PostSubmitUrlHandler(service.Object, NullLogger<PostSubmitUrlHandler>.Instance);
+        var mocker = new AutoMocker();
+        mocker.GetMock<ISubmitUrlService>()
+            .Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubmitUrlResult(SubmitUrlStatus.Failed, Message: _fixture.CreateTitle()));
+        mocker.Use(NullLogger<PostSubmitUrlHandler>.Instance);
+        var handler = mocker.CreateInstance<PostSubmitUrlHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
 
+        // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
             new SubmitUrlRequest { Url = new Uri("https://example.com/ep") },
             CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
     }
 
@@ -329,18 +580,21 @@ public class HandlerStatusMatrixTests
     public async Task GetPublicEpisodeHandler_not_found_returns_404()
     {
         // Arrange
-        var service = new Mock<IPublicEpisodeGetService>();
-        service.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<IPublicEpisodeGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PublicEpisodeGetResult(PublicEpisodeGetStatus.NotFound));
-
-        var handler = new GetPublicEpisodeHandler(service.Object, NullLogger<GetPublicEpisodeHandler>.Instance);
+        mocker.Use(NullLogger<GetPublicEpisodeHandler>.Instance);
+        var handler = mocker.CreateInstance<GetPublicEpisodeHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
+        // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
-            new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid()),
+            new PodcastEpisodeRequestWrapper(_fixture.CreateGuid(), _fixture.CreateGuid()),
             CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -348,18 +602,21 @@ public class HandlerStatusMatrixTests
     public async Task GetPublicEpisodeHandler_failed_returns_500_with_error_body()
     {
         // Arrange
-        var service = new Mock<IPublicEpisodeGetService>();
-        service.Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
+        var mocker = new AutoMocker();
+        mocker.GetMock<IPublicEpisodeGetService>()
+            .Setup(s => s.GetAsync(It.IsAny<PodcastEpisodeRequestWrapper>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PublicEpisodeGetResult(PublicEpisodeGetStatus.Failed));
-
-        var handler = new GetPublicEpisodeHandler(service.Object, NullLogger<GetPublicEpisodeHandler>.Instance);
+        mocker.Use(NullLogger<GetPublicEpisodeHandler>.Instance);
+        var handler = mocker.CreateInstance<GetPublicEpisodeHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
 
+        // Act
         var result = await handler.Handle(
             new HandlerContext(req.Object, null),
-            new PodcastEpisodeRequestWrapper(Guid.NewGuid(), Guid.NewGuid()),
+            new PodcastEpisodeRequestWrapper(_fixture.CreateGuid(), _fixture.CreateGuid()),
             CancellationToken.None);
 
+        // Assert
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("error").GetString().Should().NotBeNullOrWhiteSpace();

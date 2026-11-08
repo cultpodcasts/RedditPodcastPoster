@@ -17,6 +17,7 @@ namespace Api.Controllers;
 public class NewsReportController(
     IGetNewsReportHandler getNewsReportHandler,
     IPostNewsReportHandler postNewsReportHandler,
+    IDeleteNewsReportHandler deleteNewsReportHandler,
     IPublishEpisodeHandler publishEpisodeHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<NewsReportController> logger,
@@ -46,6 +47,14 @@ public class NewsReportController(
             postNewsReportHandler.Handle,
             Unauthorised,
             ct);
+
+    [Function("NewsReportDelete")]
+    public Task<HttpResponseData> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "newsreport/{reportId:guid}")]
+        HttpRequestData req,
+        Guid reportId,
+        CancellationToken ct) =>
+        HandleRequest(req, ["admin"], reportId, deleteNewsReportHandler.Handle, Unauthorised, ct);
 
     [Function("NewsReportPublish")]
     public Task<HttpResponseData> Publish(

@@ -87,4 +87,42 @@ public class TvShowEpisodeService(
             return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Failed);
         }
     }
+
+    public async Task<EpisodeDeleteResult> DeleteAsync(Guid episodeId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var episode = await tvShowEpisodeRepository.GetBy(item => item.Id == episodeId);
+            if (episode is null)
+            {
+                logger.LogWarning("Delete: missing TV-show episode '{episodeId}'.", episodeId);
+                return new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound);
+            }
+
+            if (episode.Tweeted)
+            {
+                return new EpisodeDeleteResult(
+                    EpisodeDeleteStatus.AlreadySocial,
+                    Tweeted: true);
+            }
+
+            var shortLinkTarget = SocialPostRemovalTarget.For(episode).Projection;
+            await tvShowEpisodeRepository.Delete(episode.TvShowId, episode.Id);
+            await searchSync.AfterHardDelete(
+                episode.Id,
+                episode.TvShowName ?? string.Empty,
+                shortLinkTarget,
+                cancellationToken);
+
+            logger.LogWarning(
+                "Delete removed TV-show episode '{episodeId}' from show '{tvShowId}'.",
+                episode.Id, episode.TvShowId);
+            return new EpisodeDeleteResult(EpisodeDeleteStatus.Deleted);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete TV-show episode '{episodeId}'.", episodeId);
+            return new EpisodeDeleteResult(EpisodeDeleteStatus.Failed);
+        }
+    }
 }
