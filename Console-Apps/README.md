@@ -512,7 +512,7 @@ FilmSearchPusher
 
 | Option | Description |
 |--------|-------------|
-| `--full` | Push every film and delete `contentKind eq 'Film'` documents whose film no longer exists in Cosmos (hard deletes leave no `_ts`; each is re-read before deletion so a film created mid-run is kept), ignoring the watermark |
+| `--full` | Push every film and delete `contentKind eq 'Film'` documents whose film no longer exists in Cosmos (hard deletes leave no `_ts`; orphans are found from Cosmos live ids via `not search.in` / set difference, then each is re-read before deletion so a film created mid-run is kept), ignoring the watermark |
 | `-n, --dry-run` | Read and plan only: logs what would be pushed and deleted. No search writes, no watermark save |
 | `-b, --batch-size` | Documents per index request, 1–1000 (default `500`) |
 

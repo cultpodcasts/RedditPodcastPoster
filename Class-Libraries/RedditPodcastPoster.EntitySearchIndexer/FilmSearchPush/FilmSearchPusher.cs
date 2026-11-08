@@ -12,8 +12,10 @@ namespace RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 /// <item>Incremental run: films with Cosmos <c>_ts &gt;=</c> the saved watermark. The boundary second is re-pushed
 /// (idempotent) so a film saved later in that second is not skipped, the same <c>&gt;=</c> the pull indexers use.</item>
 /// <item>Full run: every film, plus a delete for each film document in the index whose film no longer exists in
-/// Cosmos (a hard delete leaves no <c>_ts</c> to find). A full run happens when asked for, when there is no
-/// watermark yet, or when the index holds no film documents (for example straight after a teardown).</item>
+/// Cosmos (a hard delete leaves no <c>_ts</c> to find). Orphans are found with Cosmos live ids as the source of
+/// truth (<c>not search.in</c> / set difference), not by paging every film document with unstable <c>$skip</c>.
+/// A full run happens when asked for, when there is no watermark yet, or when the index holds no film documents
+/// (for example straight after a teardown).</item>
 /// <item>A removed film's document is deleted; any other film is merge-or-uploaded with
 /// <see cref="CataloguePlayableSearchDocument.For(Film)"/>, the same document the curator edit pushes.</item>
 /// <item>The watermark advances to the highest <c>_ts</c> read only after every push and delete succeeded, so a
@@ -90,12 +92,12 @@ public sealed class FilmSearchPusher(
 
         if (full)
         {
-            var existing = films.Select(film => film.Id.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var liveFilmIds = films.Select(film => film.Id.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var orphans = new List<string>();
-            foreach (var id in (await searchIndex.GetFilmDocumentIds(cancellationToken)).Where(id => !existing.Contains(id)))
+            foreach (var id in await searchIndex.GetOrphanFilmDocumentIds(liveFilmIds, cancellationToken))
             {
                 // Re-read before deleting: a film created (for example by Move to film) after the films were read
-                // already has its document, and must not be removed as an orphan.
+                // is absent from liveFilmIds but already has its document, and must not be removed as an orphan.
                 if (Guid.TryParse(id, out var filmId) && await filmRepository.GetFilm(filmId) is null)
                 {
                     orphans.Add(id);

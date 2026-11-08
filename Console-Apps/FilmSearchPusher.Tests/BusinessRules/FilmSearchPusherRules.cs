@@ -60,8 +60,13 @@ public class FilmSearchPusherRules
         var index = _mocker.GetMock<IFilmSearchIndexGateway>();
         index.Setup(x => x.CountFilmDocuments(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _indexFilmIds.Count);
-        index.Setup(x => x.GetFilmDocumentIds(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => _indexFilmIds.ToList());
+        index.Setup(x => x.GetOrphanFilmDocumentIds(
+                It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyCollection<string> liveFilmIds, CancellationToken _) =>
+            {
+                var live = liveFilmIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                return _indexFilmIds.Where(id => !live.Contains(id)).ToList();
+            });
         index.Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) =>
             {
@@ -301,6 +306,13 @@ public class FilmSearchPusherRules
         _pushed.Select(d => d.Id).Should().Equal(kept.Id.ToString());
         _deleted.Should().Equal(orphanId);
         result.NewWatermark.Should().Be(10_000, "the watermark never moves backwards");
+        _mocker.GetMock<IFilmSearchIndexGateway>()
+            .Verify(
+                x => x.GetOrphanFilmDocumentIds(
+                    It.Is<IReadOnlyCollection<string>>(ids =>
+                        ids.Count == 1 && ids.Contains(kept.Id.ToString())),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
     }
 
     [Fact(DisplayName =
@@ -336,7 +348,10 @@ public class FilmSearchPusherRules
         // Assert
         _deleted.Should().BeEmpty();
         _mocker.GetMock<IFilmSearchIndexGateway>()
-            .Verify(x => x.GetFilmDocumentIds(It.IsAny<CancellationToken>()), Times.Never);
+            .Verify(
+                x => x.GetOrphanFilmDocumentIds(
+                    It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
     }
 
     [Fact(DisplayName =
