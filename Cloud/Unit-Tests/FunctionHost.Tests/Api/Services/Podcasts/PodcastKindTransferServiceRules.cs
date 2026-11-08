@@ -4,11 +4,13 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Podcasts;
 using Api.Services.YouTube;
+using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -52,9 +54,20 @@ public class PodcastKindTransferServiceRules
     private DateTime _now;
     private TimeSpan _clockStep = TimeSpan.Zero;
 
+    /// <summary>Global short-episode floor used when the podcast has no <see cref="Podcast.MinimumDuration"/>.</summary>
+    private static readonly TimeSpan PostingMinimumDuration = TimeSpan.FromMinutes(10);
+
     public PodcastKindTransferServiceRules()
     {
         _now = _fixture.Create<DateTime>().ToUniversalTime();
+        _mocker.Use(Options.Create(new PostingCriteria
+        {
+            MinimumDuration = PostingMinimumDuration,
+            TweetDays = 2,
+            RedditDays = 2,
+            BlueSkyDays = 2,
+            CategoriserDays = 2
+        }));
         _mocker.Use<IParentKindTransferLockStore>(_locks);
         _mocker.GetMock<TimeProvider>()
             .Setup(t => t.GetUtcNow())
@@ -403,6 +416,147 @@ public class PodcastKindTransferServiceRules
         // Assert
         _savedShow!.Indexing!.BypassShortEpisodeChecking.Should().BeFalse();
         _savedShow.Indexing.AlwaysPromoteAsHero.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Podcast→News transfer: a short Ignored episode (length under the podcast short-episode threshold used by " +
+        "indexing/submit) becomes a NewsReport with Ignored false, because news parents bypass short-episode " +
+        "checking and discovery/submit create paths that length-ignored under podcast rules share this transfer.")]
+    public async Task transfer_to_news_clears_length_derived_ignored_on_short_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.BypassShortEpisodeChecking = false);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Length = PostingMinimumDuration - TimeSpan.FromSeconds(1);
+        episode.Ignored = true;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedReport.Should().NotBeNull();
+        _savedReport!.Id.Should().Be(episode.Id);
+        _savedReport.Ignored.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Podcast→News transfer: an Ignored episode at or above the short-episode threshold stays Ignored, because " +
+        "that ignore cannot be explained by podcast length checking alone (manual, ignore-all, or other).")]
+    public async Task transfer_to_news_keeps_ignored_when_length_at_or_above_threshold()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.BypassShortEpisodeChecking = false);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Length = PostingMinimumDuration;
+        episode.Ignored = true;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedReport!.Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Podcast→News transfer: when the podcast already bypassed short-episode checking and had no MinimumDuration, " +
+        "a short Ignored episode stays Ignored, because length checking was not enforced so Ignored was not " +
+        "length-derived.")]
+    public async Task transfer_to_news_keeps_ignored_when_short_checking_was_bypassed()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.BypassShortEpisodeChecking = true;
+            p.MinimumDuration = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Length = PostingMinimumDuration - TimeSpan.FromSeconds(1);
+        episode.Ignored = true;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedReport!.Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Podcast→TV transfer leaves a short Ignored episode Ignored, because TV does not get news short-episode " +
+        "bypass defaults and must not blindly un-ignore.")]
+    public async Task transfer_to_tv_keeps_length_ignored_on_short_episode()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.BypassShortEpisodeChecking = false);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Length = PostingMinimumDuration - TimeSpan.FromSeconds(1);
+        episode.Ignored = true;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.TvShow },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        _savedTvEpisode.Should().NotBeNull();
+        _savedTvEpisode!.Ignored.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Podcast→News transfer uses the podcast's own MinimumDuration as the short-episode threshold when set, so a " +
+        "report shorter than that floor is un-ignored even when above the global posting minimum.")]
+    public async Task transfer_to_news_uses_podcast_minimum_duration_threshold()
+    {
+        // Arrange
+        var podcastMinimum = PostingMinimumDuration + TimeSpan.FromMinutes(5);
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.BypassShortEpisodeChecking = true;
+            p.MinimumDuration = podcastMinimum;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.Length = PostingMinimumDuration + TimeSpan.FromMinutes(1);
+        episode.Ignored = true;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<PodcastKindTransferService>();
+
+        // Act
+        var result = await sut.TransferAsync(
+            podcast.Id,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        episode.Length.Should().BeLessThan(podcastMinimum);
+        episode.Length.Should().BeGreaterThan(PostingMinimumDuration);
+        _savedReport!.Ignored.Should().BeFalse();
     }
 
     [Fact(DisplayName =
