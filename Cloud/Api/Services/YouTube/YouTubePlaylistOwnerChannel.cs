@@ -47,4 +47,27 @@ public static class YouTubePlaylistOwnerChannel
 
         return playlistCheck.OwnerChannelId.Trim();
     }
+
+    /// <summary>
+    /// Persist <c>youTubePlaylistOwnerChannelId</c> from a Valid playlist Check: clear when the effective playlist
+    /// is blank; set from Check when Valid; otherwise leave the stored owner unchanged (e.g. unchanged playlist
+    /// that already has an owner, or soft fill that did not return Valid).
+    /// </summary>
+    public static void PersistFromCheck(
+        string? effectivePlaylistId,
+        YouTubePlaylistValidation? playlistCheck,
+        Action clearOwner,
+        Action<string> setOwner)
+    {
+        if (string.IsNullOrWhiteSpace(effectivePlaylistId))
+        {
+            clearOwner();
+            return;
+        }
+
+        if (OwnerFromValidCheck(playlistCheck) is { } playlistOwner)
+        {
+            setOwner(playlistOwner);
+        }
+    }
 }

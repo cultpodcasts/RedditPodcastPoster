@@ -27,7 +27,7 @@ public class PodcastEditYouTubeChannelRules
     {
         _mocker.Use(System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(SearchClient)) as SearchClient);
         _mocker.GetMock<IYouTubePlaylistGuard>()
-            .Setup(g => g.Check(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Setup(g => g.Check(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((YouTubePlaylistValidation?)null);
     }
 

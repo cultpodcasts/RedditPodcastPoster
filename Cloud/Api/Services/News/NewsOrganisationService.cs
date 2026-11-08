@@ -74,6 +74,7 @@ public class NewsOrganisationService(
             var playlistCheck = await youTubePlaylistGuard.Check(
                 organisation.Indexing?.YouTubePlaylistId,
                 request.Change.YouTubePlaylistId,
+                organisation.Indexing?.YouTubePlaylistOwnerChannelId,
                 cancellationToken);
             if (playlistCheck is { IsAllowed: false } refused)
             {
@@ -136,18 +137,21 @@ public class NewsOrganisationService(
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(organisation.Indexing?.YouTubePlaylistId))
-            {
-                if (organisation.Indexing != null)
+            YouTubePlaylistOwnerChannel.PersistFromCheck(
+                organisation.Indexing?.YouTubePlaylistId,
+                playlistCheck,
+                () =>
                 {
-                    organisation.Indexing.YouTubePlaylistOwnerChannelId = null;
-                }
-            }
-            else if (YouTubePlaylistOwnerChannel.OwnerFromValidCheck(playlistCheck) is { } playlistOwner)
-            {
-                organisation.Indexing ??= new CatalogueIndexingSource();
-                organisation.Indexing.YouTubePlaylistOwnerChannelId = playlistOwner;
-            }
+                    if (organisation.Indexing != null)
+                    {
+                        organisation.Indexing.YouTubePlaylistOwnerChannelId = null;
+                    }
+                },
+                owner =>
+                {
+                    organisation.Indexing ??= new CatalogueIndexingSource();
+                    organisation.Indexing.YouTubePlaylistOwnerChannelId = owner;
+                });
 
             await newsOrganisationRepository.Save(organisation);
 

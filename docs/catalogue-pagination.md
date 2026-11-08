@@ -449,9 +449,11 @@ and **1h**, so the daily walk is due after 23h and start-time jitter cannot slip
 is a `ReleasedSince` window. Otherwise it runs the normal full walk (`not-opted-in`, `skip-youtube`,
 `channel-not-playlist-owner`, `playlist-changed`, `full-walk-due`, `no-window`, …).
 
-`youTubePlaylistOwnerChannelId` is written on podcast / TV / news playlist save from the Valid
-playlist Check (`OwnerChannelId`); cleared when the playlist id is cleared. Legacy parents without
-it keep the previous uploads-head behaviour until the next playlist save.
+`youTubePlaylistOwnerChannelId` is written from a Valid playlist Check (`OwnerChannelId`) when the
+playlist id **changes**, or when a non-blank playlist remains and the stored owner is still blank
+(fill-when-owner-blank — one Validate so legacy foreign-playlist parents pick up the skip without
+mutating the playlist id). Cleared when the playlist id is cleared. Unchanged playlists that already
+have an owner do not re-Validate.
 
 **Opt-in:** only the hourly Cloud indexer (`Cloud/Indexer/Activities/Indexer.cs`) sets
 `UseYouTubeIndexingHints`. Api "index podcast" (curator re-index) and the Index console app

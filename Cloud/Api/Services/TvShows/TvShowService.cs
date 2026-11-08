@@ -82,6 +82,7 @@ public class TvShowService(
             var playlistCheck = await youTubePlaylistGuard.Check(
                 show.Indexing?.YouTubePlaylistId,
                 request.Change.YouTubePlaylistId,
+                show.Indexing?.YouTubePlaylistOwnerChannelId,
                 cancellationToken);
             if (playlistCheck is { IsAllowed: false } refused)
             {
@@ -144,18 +145,21 @@ public class TvShowService(
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(show.Indexing?.YouTubePlaylistId))
-            {
-                if (show.Indexing != null)
+            YouTubePlaylistOwnerChannel.PersistFromCheck(
+                show.Indexing?.YouTubePlaylistId,
+                playlistCheck,
+                () =>
                 {
-                    show.Indexing.YouTubePlaylistOwnerChannelId = null;
-                }
-            }
-            else if (YouTubePlaylistOwnerChannel.OwnerFromValidCheck(playlistCheck) is { } playlistOwner)
-            {
-                show.Indexing ??= new CatalogueIndexingSource();
-                show.Indexing.YouTubePlaylistOwnerChannelId = playlistOwner;
-            }
+                    if (show.Indexing != null)
+                    {
+                        show.Indexing.YouTubePlaylistOwnerChannelId = null;
+                    }
+                },
+                owner =>
+                {
+                    show.Indexing ??= new CatalogueIndexingSource();
+                    show.Indexing.YouTubePlaylistOwnerChannelId = owner;
+                });
 
             await tvShowRepository.Save(show);
 

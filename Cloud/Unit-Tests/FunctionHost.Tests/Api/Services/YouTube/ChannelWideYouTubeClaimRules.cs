@@ -48,7 +48,7 @@ public class ChannelWideYouTubeClaimRules
         _mocker.Use(NullLogger<PodcastUpdateService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<IYouTubePlaylistGuard>()
-            .Setup(g => g.Check(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Setup(g => g.Check(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((YouTubePlaylistValidation?)null);
         _mocker.GetMock<IYouTubePlaylistGuard>()
             .Setup(g => g.CheckChannelAgainstPlaylist(
