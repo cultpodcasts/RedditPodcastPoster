@@ -365,7 +365,10 @@ public class PodcastServiceYouTubeChannelRoutingRules
         // Arrange
         var only = await AddPodcast(string.Empty);
         _mocker.GetMock<ICatalogueParentLookup>()
-            .Setup(x => x.FindByOwner(It.IsAny<EpisodeUrlOwnerIds>()))
+            .Setup(x => x.FindByOwner(
+                It.IsAny<EpisodeUrlOwnerIds>(),
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>()))
             .ThrowsAsync(new AmbiguousParentNameException(
                 "CatalogueParent", _channelId, [_fixture.CreateGuid(), _fixture.CreateGuid()]));
         var sut = _mocker.CreateInstance<PodcastService>();
@@ -388,7 +391,10 @@ public class PodcastServiceYouTubeChannelRoutingRules
         await AddPodcast(playlist);
         InPlaylist(playlist, false);
         _mocker.GetMock<ICatalogueParentLookup>()
-            .Setup(x => x.FindByOwner(It.IsAny<EpisodeUrlOwnerIds>()))
+            .Setup(x => x.FindByOwner(
+                It.IsAny<EpisodeUrlOwnerIds>(),
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>()))
             .ThrowsAsync(new AmbiguousParentNameException(
                 "CatalogueParent", _channelId, [_fixture.CreateGuid(), _fixture.CreateGuid()]));
         var sut = _mocker.CreateInstance<PodcastService>();
@@ -414,7 +420,10 @@ public class PodcastServiceYouTubeChannelRoutingRules
         InPlaylist(playlistB, false);
         var parentIds = new[] { _fixture.CreateGuid(), _fixture.CreateGuid() };
         _mocker.GetMock<ICatalogueParentLookup>()
-            .Setup(x => x.FindByOwner(It.IsAny<EpisodeUrlOwnerIds>()))
+            .Setup(x => x.FindByOwner(
+                It.IsAny<EpisodeUrlOwnerIds>(),
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>()))
             .ThrowsAsync(new AmbiguousParentNameException("CatalogueParent", _channelId, parentIds));
         var sut = _mocker.CreateInstance<PodcastService>();
 
