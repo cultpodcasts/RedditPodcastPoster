@@ -1,5 +1,5 @@
-using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Subjects.HashTags;
+using RedditPodcastPoster.Text.HashTags;
 
 namespace RedditPodcastPoster.Subjects.Extensions;
 
@@ -11,6 +11,7 @@ public static class HashTagExtensions
             .Select(x => x.Split(" "))
             .SelectMany(x => x)
             .Distinct()
+            .Where(HashtagText.IsPermittedHashTag)
             .Select(x => new HashTag(x!, null));
     }
 
@@ -18,6 +19,7 @@ public static class HashTagExtensions
     {
         return hashTags.Split(" ")
             .Distinct()
+            .Where(HashtagText.IsPermittedHashTag)
             .Select(x => new HashTag(x!, null));
     }
 
@@ -27,11 +29,8 @@ public static class HashTagExtensions
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())
             .Distinct()
-            .Select(x => new HashTag(x, (string?)
-                $"#{x
-                    .Replace(" ", string.Empty)
-                    .Replace(".", string.Empty)
-                    .Replace("'", string.Empty)
-                    .Replace("-", string.Empty)}"));
+            .Select(tag => (Tag: tag, Body: HashtagText.ToEnrichmentHashtagBody(tag)))
+            .Where(x => x.Body is not null)
+            .Select(x => new HashTag(x.Tag, $"#{x.Body}"));
     }
 }

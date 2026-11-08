@@ -15,6 +15,7 @@ using RedditPodcastPoster.BBC.Matching;
 using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
+using RedditPodcastPoster.Text.HashTags;
 
 namespace Api.Services.Episodes;
 
@@ -48,9 +49,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
 
         if (episodeChangeRequest.HashTag != null)
         {
-            episode.HashTag = string.IsNullOrWhiteSpace(episodeChangeRequest.HashTag)
-                ? null
-                : episodeChangeRequest.HashTag.Trim();
+            episode.HashTag = HashtagText.FilterPermittedStoredHashTagField(episodeChangeRequest.HashTag);
         }
 
         if (episodeChangeRequest.Release != null)

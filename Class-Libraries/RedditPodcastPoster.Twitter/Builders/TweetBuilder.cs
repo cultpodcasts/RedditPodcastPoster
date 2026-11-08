@@ -59,9 +59,9 @@ public class TweetBuilder(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
-                // Multi-word enrichment tags: MatchingText holds the compacted form
-                // ("Alpha Beta" → "#AlphaBeta"). Non-whitespace stored tags still gate on Tag
-                // so Some-Tag is not rewritten as #SomeTag.
+                // Multi-word enrichment tags: MatchingText holds the compacted permitted form
+                // ("Alpha Beta" → "#AlphaBeta"). Invalid tags (&, +, -) are filtered at accept
+                // (ToHashTags / FromEnrichmentHashTagsToHashTags) and must not be rewritten here.
                 var tagText = HashtagText.GetTitleEnrichmentTagText(hashtag.Tag, hashtag.MatchingText);
                 if (tagText is null)
                 {

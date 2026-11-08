@@ -1,6 +1,7 @@
 using Api.Models;
 using Api.Services.Episodes;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Text.HashTags;
 
 namespace Api.Services.Catalogue;
 
@@ -54,7 +55,7 @@ public static class PublisherChangeApplier
         {
             publisher.EnrichmentHashTags = change.EnrichmentHashTags.Length == 0
                 ? null
-                : change.EnrichmentHashTags.Select(x => x.Trim()).ToArray();
+                : HashtagText.FilterPermittedEnrichmentHashTags(change.EnrichmentHashTags);
         }
 
         if (change.SearchTerms != null)

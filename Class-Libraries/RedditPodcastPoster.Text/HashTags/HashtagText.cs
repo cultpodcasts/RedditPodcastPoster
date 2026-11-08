@@ -5,10 +5,12 @@ using System.Text;
 namespace RedditPodcastPoster.Text.HashTags;
 
 /// <summary>
-/// Characters a hashtag body can hold on both Bluesky and X. <see cref="ToTagText"/> is the text
-/// written after <c>#</c>. <see cref="IsReproducedAsIs"/> is false when that drops or changes a
-/// character, so a stored tag such as <c>Q&amp;A</c> or <c>Some-Tag</c> is not written as
-/// <c>QA</c> or <c>SomeTag</c>.
+/// Characters a hashtag body can hold on both Bluesky and X (letters, digits, combining marks,
+/// and <c>_</c>). That intersection is the only permitted stored HashTag body:
+/// <c>&amp;</c>, <c>+</c>, <c>-</c>, apostrophe, space, emoji and other punctuation are not
+/// permitted. <see cref="ToTagText"/> is the text written after <c>#</c>.
+/// <see cref="IsPermittedHashTag"/> / <see cref="IsReproducedAsIs"/> are false when writing
+/// would drop or change a character.
 /// </summary>
 public static class HashtagText
 {
@@ -21,7 +23,8 @@ public static class HashtagText
     /// and trailing <c>_</c> is trimmed. The first remaining body rune must be a letter, digit or
     /// <c>_</c> — a combining mark or letter/other number straight after <c>#</c> yields
     /// <c>null</c>. Also returns <c>null</c> when what is left can't be a hashtag (empty, digits
-    /// and <c>_</c> only, or over <see cref="MaxTagLength"/>).
+    /// and <c>_</c> only, or over <see cref="MaxTagLength"/>). Prefer
+    /// <see cref="IsPermittedHashTag"/> at accept paths so tags that need stripping are never stored.
     /// </summary>
     public static string? ToTagText(string? hashTag)
     {
@@ -52,8 +55,16 @@ public static class HashtagText
     }
 
     /// <summary>
+    /// True when the value is a permitted HashTag on both X and Bluesky: after an optional leading
+    /// <c>#</c>/<c>＃</c>, every character is a letter, digit, combining mark, or <c>_</c>, and the
+    /// body is a valid tag (not empty, not digits/<c>_</c> only, ≤ <see cref="MaxTagLength"/>
+    /// graphemes). <c>Q&amp;A</c>, <c>C++</c>, and <c>Some-Tag</c> are not permitted.
+    /// </summary>
+    public static bool IsPermittedHashTag(string? stored) => IsReproducedAsIs(stored);
+
+    /// <summary>
     /// True when the stored tag can be written after <c>#</c> with the same characters.
-    /// <c>Q&amp;A</c> is not: the characters a tag can hold leave <c>QA</c>, which is a different tag.
+    /// Same rule as <see cref="IsPermittedHashTag"/>.
     /// </summary>
     public static bool IsReproducedAsIs(string? stored)
     {
@@ -80,20 +91,88 @@ public static class HashtagText
     }
 
     /// <summary>
+    /// Compacted hashtag body for an enrichment phrase: optional leading hash marks and all
+    /// whitespace are removed. Returns <c>null</c> when the compacted body is not a permitted
+    /// platform hashtag (e.g. <c>Some-Tag</c>, <c>Q&amp;A</c>). Multi-word phrases such as
+    /// <c>Alpha Beta</c> compact to <c>AlphaBeta</c>.
+    /// </summary>
+    public static string? ToEnrichmentHashtagBody(string? enrichmentTag)
+    {
+        if (string.IsNullOrWhiteSpace(enrichmentTag))
+        {
+            return null;
+        }
+
+        var body = enrichmentTag.Trim();
+        var index = 0;
+        while (index < body.Length && IsHashMark(body[index]))
+        {
+            index++;
+        }
+
+        body = body[index..];
+        if (body.Length == 0)
+        {
+            return null;
+        }
+
+        var compacted = string.Concat(body.Where(static c => !char.IsWhiteSpace(c)));
+        return IsPermittedHashTag(compacted) ? compacted : null;
+    }
+
+    /// <summary>
+    /// Keeps only space-delimited tokens that are <see cref="IsPermittedHashTag"/>; returns
+    /// <c>null</c> when none remain (or the input is blank).
+    /// </summary>
+    public static string? FilterPermittedStoredHashTagField(string? hashTag)
+    {
+        if (string.IsNullOrWhiteSpace(hashTag))
+        {
+            return null;
+        }
+
+        var permitted = hashTag
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(IsPermittedHashTag)
+            .ToArray();
+        return permitted.Length == 0 ? null : string.Join(' ', permitted);
+    }
+
+    /// <summary>
+    /// Keeps enrichment phrases whose compacted body is a permitted platform hashtag; returns
+    /// <c>null</c> when none remain.
+    /// </summary>
+    public static string[]? FilterPermittedEnrichmentHashTags(IEnumerable<string>? enrichmentHashTags)
+    {
+        if (enrichmentHashTags is null)
+        {
+            return null;
+        }
+
+        var permitted = enrichmentHashTags
+            .Where(static x => !string.IsNullOrWhiteSpace(x))
+            .Select(static x => x.Trim())
+            .Where(static x => ToEnrichmentHashtagBody(x) is not null)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        return permitted.Length == 0 ? null : permitted;
+    }
+
+    /// <summary>
     /// Text written after <c>#</c> when enriching a title with this hashtag, or <c>null</c> when
     /// enrichment must be skipped.
     /// Enrichment multi-word tags keep the phrase on <paramref name="tag"/> and the compacted
-    /// hashtag on <paramref name="matchingText"/> (e.g. <c>Alpha Beta</c> / <c>#AlphaBeta</c>).
-    /// Gate those on <paramref name="matchingText"/> so spaces do not block enrichment.
-    /// Tags without whitespace still gate on the stored <paramref name="tag"/> so
-    /// <c>Some-Tag</c> is not rewritten as <c>#SomeTag</c>.
+    /// permitted hashtag on <paramref name="matchingText"/> (e.g. <c>Alpha Beta</c> /
+    /// <c>#AlphaBeta</c>). Gate those on <paramref name="matchingText"/> so spaces on the phrase
+    /// do not block enrichment. Tags without whitespace gate on the stored <paramref name="tag"/>,
+    /// which must already be a permitted platform hashtag.
     /// </summary>
     public static string? GetTitleEnrichmentTagText(string tag, string? matchingText)
     {
         var writtenForm = matchingText != null && tag.Any(char.IsWhiteSpace)
             ? matchingText
             : tag;
-        return IsReproducedAsIs(writtenForm) ? ToTagText(writtenForm) : null;
+        return IsPermittedHashTag(writtenForm) ? ToTagText(writtenForm) : null;
     }
 
     internal static bool IsHashMark(char c) => c is '#' or '＃';

@@ -3,6 +3,7 @@ using DomainPodcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 using Api.Models;
 using Api.Services.Episodes;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
+using RedditPodcastPoster.Text.HashTags;
 
 namespace Api.Services.Podcasts;
 
@@ -151,12 +152,14 @@ public class PodcastChangeApplier(ILogger<PodcastChangeApplier> logger)
         {
             podcast.EnrichmentHashTags = !podcastChangeRequest.EnrichmentHashTags.Any()
                 ? null
-                : podcastChangeRequest.EnrichmentHashTags.Select(x => x.Trim()).ToArray();
+                : HashtagText.FilterPermittedEnrichmentHashTags(podcastChangeRequest.EnrichmentHashTags);
         }
 
         if (podcastChangeRequest.HashTag != null)
         {
-            podcast.HashTag = podcastChangeRequest.HashTag == string.Empty ? null : podcastChangeRequest.HashTag.Trim();
+            podcast.HashTag = podcastChangeRequest.HashTag == string.Empty
+                ? null
+                : HashtagText.FilterPermittedStoredHashTagField(podcastChangeRequest.HashTag);
         }
 
         if (podcastChangeRequest.TitleRegex != null)

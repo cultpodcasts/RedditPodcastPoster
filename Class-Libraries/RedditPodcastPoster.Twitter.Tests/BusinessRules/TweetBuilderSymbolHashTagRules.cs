@@ -42,7 +42,7 @@ public class TweetBuilderSymbolHashTagRules
     }
 
     [Theory(DisplayName =
-        "TweetBuilder: a stored tag that either platform would shorten is left out of the post, because the shortened tag is not the stored tag.")]
+        "TweetBuilder: a stored tag that is not permitted on both X and Bluesky is left out of the post, because ToHashTags / IsPermittedHashTag filter those tokens.")]
     [InlineData("Notes on C++ today", "C++")]
     [InlineData("Community LGBTQ+ meetup notes", "LGBTQ+")]
     [InlineData("The Q&A hour starts now", "Q&A")]
@@ -106,7 +106,7 @@ public class TweetBuilderSymbolHashTagRules
     }
 
     [Fact(DisplayName =
-        "TweetBuilder: an enrichment tag stored as Some-Tag is left out of the tweet, because writing #SomeTag drops the dash and that shortened tag is not the stored tag.")]
+        "TweetBuilder: an enrichment tag stored as Some-Tag is left out of the tweet, because dash is not permitted in a HashTag on X and Bluesky so the tag is filtered out.")]
     public async Task enrichment_tag_that_shortens_the_stored_text_is_left_out()
     {
         // Arrange
