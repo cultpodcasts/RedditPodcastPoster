@@ -53,9 +53,9 @@ before the episode is deleted, so nothing is lost; re-send after adding the fiel
 
 1. Add the trailer (id = episode id) to the film and save it with an ETag-guarded replace. Before that add, films
    are queried across partitions for `trailers[].id` equal to the episode id. If another film already holds it
-   (an earlier attach saved the film, then stopped), the attach is a 400 and nothing is written. Re-sending to
-   the film that already holds the trailer still resumes. If another write saved the film since it was read,
-   re-read and add again (3 attempts); otherwise 500, episode kept.
+   (an earlier attach saved the film, then stopped), the attach is a 409 with that film's id and nothing is
+   written. Re-sending to the film that already holds the trailer still resumes. If another write saved the film
+   since it was read, re-read and add again (3 attempts); otherwise 500, episode kept.
 2. Push the film search document. Failure: 500 with `failureIndexing`, episode kept.
 3. Delete the episode search document. Failure: 500 with `failureIndexing`, episode kept.
 4. Re-read the film. If a concurrent write dropped the trailer, 500 with `failureIndexing` and the episode kept
@@ -68,8 +68,8 @@ never drops a trailer whose episode row is already gone. A film deleted after th
 not re-created.
 
 Re-sending resumes an interrupted attach without adding the trailer twice; after a completed attach a re-send is
-accepted again. A removed episode, a removed film, an episode with no link, the film's own id, or an episode that
-is already a trailer of another film is a 400.
+accepted again. A removed episode, a removed film, an episode with no link, or the film's own id is a 400. An
+episode that is already a trailer of another film is a 409 (body `filmId` is that film).
 
 Old trailer short links keep working: the Shortner KV record for the episode key now holds the film path. After a
 film rename the record still holds the old name in the path; the short id still resolves to the film.
