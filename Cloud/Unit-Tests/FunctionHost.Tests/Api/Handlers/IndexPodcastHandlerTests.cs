@@ -24,6 +24,9 @@ public class IndexPodcastHandlerTests
         _mocker.GetMock<IPodcastIndexService>()
             .Setup(s => s.IndexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _result);
+        _mocker.GetMock<IPodcastIndexService>()
+            .Setup(s => s.IndexBacklogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _result);
         _ctx = _mocker.GetMock<IHandlerContext>();
     }
 
@@ -67,5 +70,49 @@ public class IndexPodcastHandlerTests
             It.IsAny<CancellationToken>()), Times.Once);
         _ctx.Verify(x => x.InternalError(It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
         CatalogueIndexRejection.TimedOutMessage.Should().NotContain("was saved");
+    }
+
+    [Fact(DisplayName =
+        "When the controller routes backlog index, the handler calls IndexBacklogAsync so Azure walks the full catalogue.")]
+    public async Task backlog_route_calls_index_backlog_async()
+    {
+        // Arrange
+        _result = new PodcastIndexResult(PodcastIndexStatus.AlreadyRunning);
+        var podcastName = _fixture.CreateTitle();
+
+        // Act
+        var sut = _mocker.CreateInstance<IndexPodcastHandler>();
+        await sut.HandleBacklog(_ctx.Object, podcastName, CancellationToken.None);
+
+        // Assert
+        _mocker.GetMock<IPodcastIndexService>().Verify(
+            s => s.IndexBacklogAsync(podcastName, It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mocker.GetMock<IPodcastIndexService>().Verify(
+            s => s.IndexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _ctx.Verify(c => c.Query(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the controller routes default hub Index, the handler calls IndexAsync so ReleasedDaysAgo lookback stays.")]
+    public async Task default_route_calls_index_async()
+    {
+        // Arrange
+        _result = new PodcastIndexResult(PodcastIndexStatus.AlreadyRunning);
+        var podcastName = _fixture.CreateTitle();
+
+        // Act
+        var sut = _mocker.CreateInstance<IndexPodcastHandler>();
+        await sut.Handle(_ctx.Object, podcastName, CancellationToken.None);
+
+        // Assert
+        _mocker.GetMock<IPodcastIndexService>().Verify(
+            s => s.IndexAsync(podcastName, It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mocker.GetMock<IPodcastIndexService>().Verify(
+            s => s.IndexBacklogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _ctx.Verify(c => c.Query(It.IsAny<string>()), Times.Never);
     }
 }

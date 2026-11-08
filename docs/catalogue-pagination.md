@@ -55,6 +55,14 @@ delay. Spotify episode matching does not read the floor. Name-search with no `Re
 does not paginate the show, even when the request carries an episode release: a single-episode
 match must not download the catalogue. An Apple published-before ceiling is a separate change.
 
+**Curator hub Index:** default `POST podcast/index/{name}` keeps `ReleasedSince` from
+`indexer__ReleasedDaysAgo` (prod: 2). `POST podcast/index/{name}/backlog` sets
+`ReleasedSince` to the documented cold-start floor (`CuratorIndexingContext.BacklogReleasedSince`,
+Unix epoch UTC) so `PodcastUpdater` accepts the context while newest-first provider pagination
+still walks essentially the full catalogue (stops only before that floor; Cosmos loads episodes
+on/after it). Do **not** leave backlog `ReleasedSince` null — `PodcastUpdater.Update` throws.
+The same on-demand HTTP budget still applies — a long walk may return 504 TimedOut.
+
 ### Episode lookup planner (single-episode FindEpisode, Spotify + Apple)
 
 A single-episode lookup is planned by size and flow, and both platforms run the SAME plan through the shared

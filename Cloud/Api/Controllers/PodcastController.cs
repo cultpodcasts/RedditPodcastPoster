@@ -59,6 +59,24 @@ public class PodcastController(
             Unauthorised,
             ct);
 
+    /// <summary>
+    /// Curator cold-start / backlog index: uses the far-past <c>ReleasedSince</c> floor so providers walk essentially the full catalogue.
+    /// Default hub Index stays on <see cref="Index"/>.
+    /// </summary>
+    [Function("PodcastIndexBacklog")]
+    public Task<HttpResponseData> IndexBacklog(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/index/{podcastName}/backlog")]
+        HttpRequestData req,
+        string podcastName,
+        CancellationToken ct
+    ) => HandleRequest(
+            req,
+            ["curate"],
+            PodcastRouteNameNormalizer.Normalize(podcastName),
+            indexPodcastHandler.HandleBacklog,
+            Unauthorised,
+            ct);
+
     [Function("PodcastGet")]
     public Task<HttpResponseData> GetByIdentifier(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/{podcastIdentifier}")]

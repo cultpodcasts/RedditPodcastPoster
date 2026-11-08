@@ -8,4 +8,9 @@ public interface IIndexPodcastHandler
         IHandlerContext ctx,
         string podcastName,
         CancellationToken c);
+
+    Task<HttpResponseData> HandleBacklog(
+        IHandlerContext ctx,
+        string podcastName,
+        CancellationToken c);
 }
