@@ -564,6 +564,214 @@ on D1 vs 23/407 disjoint on Azure — en.lucene has no ASCII folding), legacy
   signal: demand the catalogue lacks) through the api Worker's existing structured-log
   pattern.
 
+## 8. Switchover plan & ticket map (gated; independently workable)
+
+Plan for replacing production Azure AI Search with the D1 FTS engine, ticketed so
+separate agents/people can pick work without reading the whole epic. Board target:
+**@[owner] features** (`users/{owner}/projects/1`) — add every card with
+`pwsh ./scripts/add-issue-to-features-board.ps1 -IssueUrl <url>` (REST path; sidebar
+link alone is not enough — same rule as catalogue-content-types Phase 1 gate).
+
+### 8.1 How to identify tickets under this epic
+
+Every ticket is findable without the board:
+
+| Mechanism | Convention |
+|-----------|------------|
+| **Stable ID** | `SP-E` (epic), `SP-G0`…`SP-G5` (gates), `SP-{gate}.{n}` (work) — never reuse |
+| **Title prefix** | `[search-platform] SP-… — …` |
+| **GitHub search** | `is:issue in:title [search-platform]` or `is:issue in:title SP-G3` |
+| **Epic body** | Parent epic lists every child as a task checkbox with full URL |
+| **Child body header** | Required block (below) — agents parse this first |
+| **Label (when creatable)** | `epic:search-platform` on Api / website / RedditPodcastPoster; gates also `search-platform-gate` |
+
+**Required child-issue header** (copy into every work ticket):
+
+```markdown
+## Epic linkage
+- **Epic:** SP-E — <url of epic issue>
+- **Stable ID:** SP-3.2
+- **Gate:** G3 (blocked until SP-G2 is Done)
+- **Repo:** cultpodcasts/api
+- **Independently workable:** yes | no (if no: blocked by SP-…)
+- **Board:** @[owner] features → Todo
+```
+
+**Independently workable** means: an agent can open only that issue + the linked files and
+complete it without inventing scope. Cross-repo work splits into one ticket per repo
+(e.g. Worker route + .NET client = two tickets under the same gate, linked `blocked-by` /
+`blocks`).
+
+### 8.2 Gated milestones
+
+Gates are **hard**. Work under Gate N may start only when Gate N−1's gate ticket is Done.
+Gate tickets themselves are checklists of the work tickets they require.
+
+```mermaid
+flowchart LR
+  G0[G0 Parity sign-off] --> G1[G1 Production engine]
+  G1 --> G2[G2 Sync path]
+  G2 --> G3[G3 Dual-run soak]
+  G3 --> G4[G4 Cutover]
+  G4 --> G5[G5 Retire Azure + unlock enhancements]
+```
+
+| Gate | Intent | Exit criterion (must be true) |
+|------|--------|-------------------------------|
+| **G0** | Freeze parity baseline | Harness green; week log-replay 0 in-corpus misses; shape nits listed; intentional divergences documented (§4C / §4C.1 / §4C.2) |
+| **G1** | Production-ready search Worker | Dedicated D1 (or confirmed `apiDB`); Sessions API reads; service binding from `api`; admin upsert/delete route; secrets parity planned; shape nits fixed; proxy error-forwarding shipped |
+| **G2** | Backend drips into D1 | `SearchIndexerService` dual-writes Azure + D1; weekly reconcile + shadow rebuild path; drift threshold defined; read replication `mode: auto` |
+| **G3** | Prove live equivalence | Shadow traffic (or sampled dual-query) drift-free for agreed soak window; overload/latency SLOs held under real load |
+| **G4** | Swap `apihost` | Preview cutover → soak → production cutover; rollback = flip `apihost` back; stale-client `podcastName` tolerated |
+| **G5** | Decommission + unlock §6A | Azure index + hourly indexer retired; description-size cap raised; guests indexed; enhancements backlog unblocked |
+
+### 8.3 Ticket catalogue
+
+Create these as GitHub issues (titles exact). Home repo defaults to
+`cultpodcasts/RedditPodcastPoster` unless **Repo** says otherwise. After create: paste
+URLs into SP-E, then board-add every URL.
+
+#### Epic
+
+| ID | Title | Repo |
+|----|-------|------|
+| **SP-E** | `[search-platform] SP-E — Epic: Replace Azure AI Search with Cloudflare D1 FTS` | RedditPodcastPoster |
+
+#### Gate 0 — Parity sign-off (mostly evidence already in §4C.*)
+
+| ID | Title | Independently workable | Notes |
+|----|-------|------------------------|-------|
+| **SP-G0** | `[search-platform] SP-G0 — GATE 0: Parity sign-off` | checklist | Closes when children Done |
+| SP-0.1 | `[search-platform] SP-0.1 — Record parity baseline & intentional divergences in epic` | yes | Doc-only; cite harness + week replay artefacts |
+| SP-0.2 | `[search-platform] SP-0.2 — Fix Azure-shaped response nits (podcastName omit, release ms, @odata.context)` | yes | **Repo: api** (`search-demo` → production engine) |
+| SP-0.3 | `[search-platform] SP-0.3 — Decision: full-description recall vs strict-content soak mode` | yes | Product decision ticket; blocks G4 messaging |
+
+#### Gate 1 — Production engine
+
+| ID | Title | Independently workable | Notes |
+|----|-------|------------------------|-------|
+| **SP-G1** | `[search-platform] SP-G1 — GATE 1: Production search engine ready` | checklist | |
+| SP-1.1 | `[search-platform] SP-1.1 — Dedicated search D1 database + wrangler bindings (preview + prod)` | yes | **Repo: api**; secrets parity section required |
+| SP-1.2 | `[search-platform] SP-1.2 — Sessions API read path + enable read_replication mode=auto` | yes | **Repo: api**; depends on SP-1.1 |
+| SP-1.3 | `[search-platform] SP-1.3 — Service binding api Worker → search Worker (no public hostname)` | yes | **Repo: api**; Bot Fight Mode finding §4C.1 |
+| SP-1.4 | `[search-platform] SP-1.4 — Admin upsert/delete route (auth + batch + modified_at guard)` | yes | **Repo: api** |
+| SP-1.5 | `[search-platform] SP-1.5 — Forward Azure/upstream search errors (status + body) from /search proxy` | yes | **Repo: api** `src/search.ts` — production bug |
+| SP-1.6 | `[search-platform] SP-1.6 — Drop empty-body-400 legacyName latch once proxy forwards named errors` | yes | **Repo: website**; blocked by SP-1.5 |
+| SP-1.7 | `[search-platform] SP-1.7 — Deterministic secondary sort by id on release/rank pages` | yes | **Repo: api** |
+| SP-1.8 | `[search-platform] SP-1.8 — bm25 per-column weights tuned against harness top-10` | yes | **Repo: api**; can slip to post-G4 if G0 accepts rank approx |
+
+#### Gate 2 — Sync path (drip + weekly reset)
+
+| ID | Title | Independently workable | Notes |
+|----|-------|------------------------|-------|
+| **SP-G2** | `[search-platform] SP-G2 — GATE 2: Sync path live` | checklist | |
+| SP-2.1 | `[search-platform] SP-2.1 — Retarget SearchIndexerService dual-write to D1 admin route` | yes | RPP; blocked by SP-1.4 |
+| SP-2.2 | `[search-platform] SP-2.2 — Weekly reconcile timer (Cosmos ↔ D1 id inventory, drift threshold)` | yes | RPP Indexer |
+| SP-2.3 | `[search-platform] SP-2.3 — Shadow rebuild + transactional rename swap (weekly reset path)` | yes | **Repo: api** (+ orchestrator cron/Workflow) |
+| SP-2.4 | `[search-platform] SP-2.4 — Optional: Queues consumer for burst upserts during reconcile` | yes | Only if SP-2.2 volume needs it; else close as wontfix |
+
+#### Gate 3 — Dual-run soak
+
+| ID | Title | Independently workable | Notes |
+|----|-------|------------------------|-------|
+| **SP-G3** | `[search-platform] SP-G3 — GATE 3: Dual-run soak green` | checklist | |
+| SP-3.1 | `[search-platform] SP-3.1 — Shadow-query sampler (Azure vs D1) wired into api Worker logs` | yes | **Repo: api** |
+| SP-3.2 | `[search-platform] SP-3.2 — Soak window + SLO dashboard (latency, overload, drift)` | yes | Ops; define numbers in ticket |
+| SP-3.3 | `[search-platform] SP-3.3 — Load-test browse + free-text against replicated D1` | yes | Uses Sessions API; gate on no 503 storm |
+
+#### Gate 4 — Cutover
+
+| ID | Title | Independently workable | Notes |
+|----|-------|------------------------|-------|
+| **SP-G4** | `[search-platform] SP-G4 — GATE 4: Cutover complete` | checklist | |
+| SP-4.1 | `[search-platform] SP-4.1 — Preview apihost flip to D1 engine + soak` | yes | **Repo: api**; no production deploy without explicit ask |
+| SP-4.2 | `[search-platform] SP-4.2 — Production apihost flip + rollback runbook` | yes | **Repo: api**; blocked by SP-4.1 |
+| SP-4.3 | `[search-platform] SP-4.3 — Stale-client podcastName alias (or accept D1 field map)` | yes | Prefer engine map; document |
+
+#### Gate 5 — Retire + unlock enhancements
+
+| ID | Title | Independently workable | Notes |
+|----|-------|------------------------|-------|
+| **SP-G5** | `[search-platform] SP-G5 — GATE 5: Azure retired; §6A unlocked` | checklist | |
+| SP-5.1 | `[search-platform] SP-5.1 — Retire Azure Search index + hourly Cosmos indexer` | yes | RPP |
+| SP-5.2 | `[search-platform] SP-5.2 — Raise DescriptionSize; index guests; drop cap-driven slimming` | yes | RPP |
+| SP-5.3 | `[search-platform] SP-5.3 — Enhancements: autosuggest enrichment from D1 vocabulary` | yes | Builds on existing R2 suggestions pipeline |
+| SP-5.4 | `[search-platform] SP-5.4 — Enhancements: spell-correct / did-you-mean via fts5vocab` | yes | Post-cutover; §6A |
+| SP-5.5 | `[search-platform] SP-5.5 — Enhancements: recency blend + proximity boost` | yes | Post-cutover; §6A |
+
+### 8.4 Board & agent rules
+
+1. **Every SP-* issue must be a visible card in Todo** on the features board before the
+   gate that contains it can be marked In Progress. Use
+   `add-issue-to-features-board.ps1` (REST); verify exit 0.
+2. **One agent ↔ one SP-* ticket** unless the ticket says otherwise. Do not expand into
+   neighbour IDs without a new ticket.
+3. **No production `wrangler deploy` / website Pages deploy / Azure Function production
+   deploy** from an agent unless the user names that exact deploy in the conversation
+   (existing hard rules).
+4. **CatalogueMigrate `--apply` remains refused** in this checkout — unrelated, but do
+   not conflate search rebuild with catalogue migrate.
+5. When creating further tickets under this epic, mint the next free `SP-{gate}.{n}` ID
+   and add it to SP-E's checklist in the same PR/commit that opens the issue.
+
+### 8.5 Issued tickets (2026-11-08)
+
+Created under the Cloud Agent identity. Titles carry `[search-platform]` + stable ID.
+Bodies include the Epic linkage header. **Label create / issue edit / Projects write
+are not available to this integration** — run
+`/opt/cursor/artifacts/sp-board-add.ps1` (or
+`pwsh ./scripts/add-issue-to-features-board.ps1 -IssueUrl …`) with a human/cp-backlog
+token to place every card on the features board. Optionally add label
+`epic:search-platform` the same way. Close probe issue #1311 if still open.
+
+| ID | Issue |
+|----|-------|
+| `SP-E` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1312 |
+| `SP-0.1` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1319 |
+| `SP-0.2` | https://github.com/cultpodcasts/Api/issues/218 |
+| `SP-0.3` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1320 |
+| `SP-1.1` | https://github.com/cultpodcasts/Api/issues/219 |
+| `SP-1.2` | https://github.com/cultpodcasts/Api/issues/220 |
+| `SP-1.3` | https://github.com/cultpodcasts/Api/issues/221 |
+| `SP-1.4` | https://github.com/cultpodcasts/Api/issues/222 |
+| `SP-1.5` | https://github.com/cultpodcasts/Api/issues/223 |
+| `SP-1.6` | https://github.com/cultpodcasts/website/issues/639 |
+| `SP-1.7` | https://github.com/cultpodcasts/Api/issues/224 |
+| `SP-1.8` | https://github.com/cultpodcasts/Api/issues/225 |
+| `SP-2.1` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1321 |
+| `SP-2.2` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1322 |
+| `SP-2.3` | https://github.com/cultpodcasts/Api/issues/226 |
+| `SP-2.4` | https://github.com/cultpodcasts/Api/issues/227 |
+| `SP-3.1` | https://github.com/cultpodcasts/Api/issues/228 |
+| `SP-3.2` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1323 |
+| `SP-3.3` | https://github.com/cultpodcasts/Api/issues/229 |
+| `SP-4.1` | https://github.com/cultpodcasts/Api/issues/230 |
+| `SP-4.2` | https://github.com/cultpodcasts/Api/issues/231 |
+| `SP-4.3` | https://github.com/cultpodcasts/Api/issues/232 |
+| `SP-5.1` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1324 |
+| `SP-5.2` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1325 |
+| `SP-5.3` | https://github.com/cultpodcasts/Api/issues/233 |
+| `SP-5.4` | https://github.com/cultpodcasts/Api/issues/234 |
+| `SP-5.5` | https://github.com/cultpodcasts/Api/issues/235 |
+| `SP-G0` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1313 |
+| `SP-G1` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1314 |
+| `SP-G2` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1315 |
+| `SP-G3` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1316 |
+| `SP-G4` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1317 |
+| `SP-G5` | https://github.com/cultpodcasts/RedditPodcastPoster/issues/1318 |
+
+### 8.6 Create order
+
+
+1. Open **SP-E**; body = this §8 ticket catalogue as checklists (URLs filled after step 2).
+2. Open all **SP-G\*** gate issues; each body lists its `SP-{g}.*` children.
+3. Open work issues (SP-0.1 … SP-5.5); each includes the Epic linkage header.
+4. Edit SP-E / SP-G\* bodies to link child URLs.
+5. Board-add every issue URL.
+6. Optional: create label `epic:search-platform` (needs a token with `labels` write —
+   the Cloud Agent integration can open issues but cannot create labels or close issues
+   as of 2026-11-08).
+
 ## 7. Sources (verified 2026-11-07)
 
 - Cloudflare AI Search: [limits & pricing](https://developers.cloudflare.com/ai-search/platform/limits-pricing/) (5 metadata fields, 64-byte filterable strings, query pricing), [metadata](https://developers.cloudflare.com/ai-search/configuration/indexing/metadata/), [filtering](https://developers.cloudflare.com/ai-search/configuration/retrieval/filtering/) (arrays not indexed), [billing start 2026-12-01](https://developers.cloudflare.com/changelog/post/2026-11-02-billing-postponed-default-sync-interval/)
