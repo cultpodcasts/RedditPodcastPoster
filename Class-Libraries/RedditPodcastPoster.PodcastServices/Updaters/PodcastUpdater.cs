@@ -45,6 +45,7 @@ public class PodcastUpdater(
     IUrlMembershipLookup urlMembershipLookup,
     ITvShowRepository tvShowRepository,
     INewsOrganisationRepository newsOrganisationRepository,
+    TimeProvider timeProvider,
     ILogger<PodcastUpdater> logger)
     : IPodcastUpdater
 {
@@ -260,7 +261,7 @@ public class PodcastUpdater(
 
             if (podcast.AlwaysPromoteAsHero == true)
             {
-                var utcNow = DateTime.UtcNow;
+                var utcNow = timeProvider.GetUtcNow().UtcDateTime;
                 var cutoff = HeroAutoPromoteSelector.GetCutoff(utcNow);
                 var heroIds = new List<Guid>();
                 foreach (var added in mergeResult.AddedEpisodes)
@@ -379,7 +380,7 @@ public class PodcastUpdater(
 
         if (indexSucceeded)
         {
-            podcast.LastIndexed = DateTime.UtcNow;
+            podcast.LastIndexed = timeProvider.GetUtcNow().UtcDateTime;
             podcastChanged = true;
         }
 
@@ -612,7 +613,7 @@ public class PodcastUpdater(
         return context;
     }
 
-    private static bool EpisodeInIndexingScope(
+    private bool EpisodeInIndexingScope(
         Episode episode,
         Podcast podcast,
         TimeSpan youTubePublishingDelay,
@@ -626,7 +627,7 @@ public class PodcastUpdater(
         return ReduceToSinceIncorporatingPublishDelay(episode, youTubePublishingDelay, releasedSince);
     }
 
-    private static bool ReduceToSinceIncorporatingPublishDelay(
+    private bool ReduceToSinceIncorporatingPublishDelay(
         Episode episode,
         TimeSpan youTubePublishingDelay,
         DateTime releasedSince)
@@ -634,7 +635,7 @@ public class PodcastUpdater(
         var cutoff = episode.ReleaseUtc + youTubePublishingDelay;
         if (youTubePublishingDelay < TimeSpan.Zero)
         {
-            var hasReleasedOnYouTube = DateTime.UtcNow >= cutoff;
+            var hasReleasedOnYouTube = timeProvider.GetUtcNow().UtcDateTime >= cutoff;
             return episode.ReleaseUtc >= releasedSince && hasReleasedOnYouTube;
         }
 

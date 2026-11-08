@@ -86,7 +86,10 @@ public class PodcastServiceYouTubeChannelRoutingRules
             Indexing = new CatalogueIndexingSource { YouTubeChannelId = _channelId, YouTubePlaylistId = parentPlaylistId }
         };
         _mocker.GetMock<ICatalogueParentLookup>()
-            .Setup(x => x.FindByOwner(It.Is<EpisodeUrlOwnerIds>(ids => ids.YouTubeChannelId == _channelId)))
+            .Setup(x => x.FindByOwner(
+                It.Is<EpisodeUrlOwnerIds>(ids => ids.YouTubeChannelId == _channelId),
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>()))
             .ReturnsAsync(CatalogueParentMatch.For(organisation));
     }
 
@@ -460,7 +463,9 @@ public class PodcastServiceYouTubeChannelRoutingRules
         route.Podcast!.Id.Should().Be(owner.Id);
         route.Parent.Should().BeNull();
         VerifyContains(playlist, Times.Once());
-        _mocker.GetMock<ICatalogueParentLookup>().Verify(x => x.FindByOwner(It.IsAny<EpisodeUrlOwnerIds>()), Times.AtMostOnce);
+        _mocker.GetMock<ICatalogueParentLookup>().Verify(
+            x => x.FindByOwner(It.IsAny<EpisodeUrlOwnerIds>(), It.IsAny<Uri>(), It.IsAny<IndexingContext>()),
+            Times.AtMostOnce);
     }
 
     [Fact(DisplayName =

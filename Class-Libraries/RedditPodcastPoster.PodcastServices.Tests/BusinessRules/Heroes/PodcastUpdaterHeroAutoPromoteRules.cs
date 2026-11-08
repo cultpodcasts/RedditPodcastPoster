@@ -1,8 +1,10 @@
 using FluentAssertions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
 
@@ -10,26 +12,27 @@ namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Heroes;
 
 public class PodcastUpdaterHeroAutoPromoteRules
 {
-    private static readonly DateTime ReleasedSince = DomainTestFixture.UtcDateDaysAgo(400);
-
     private readonly DomainTestFixture _fixture = new();
+    private readonly FakeTimeProvider _clock = new(
+        new DateTimeOffset(DomainTestFixture.UtcToday.AddHours(12), TimeSpan.Zero));
 
     [Fact(DisplayName =
         "Indexing a flagged podcast promotes newly added recent episodes as heroes and skips ones outside the week window.")]
     public async Task flagged_podcast_promotes_only_recent_added_episodes()
     {
         // Arrange
-        var harness = new PodcastUpdaterTestHarness();
+        var harness = new PodcastUpdaterTestHarness(timeProvider: _clock);
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.AlwaysPromoteAsHero = true;
         harness.PodcastRepository.Seed(podcast);
 
+        var recentRelease = _clock.GetUtcNow().UtcDateTime.Date.AddDays(-1);
         var recent = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcDateDaysAgo(1))
+            .WithRelease(recentRelease)
             .WithDuration(PodcastUpdaterTestHarness.DefaultPostingCriteria.MinimumDuration + TimeSpan.FromMinutes(5))
             .WithDescription(_fixture.Create<string>()));
         var old = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcDateDaysAgo(30))
+            .WithRelease(OutsideWeekWindowReleaseRelativeTo(_clock))
             .WithDescription(_fixture.Create<string>()));
 
         harness.EpisodeProvider
@@ -43,7 +46,7 @@ public class PodcastUpdaterHeroAutoPromoteRules
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
-            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSinceRelativeTo(_clock)));
 
         // Assert
         harness.EpisodeRepository.SavedEpisodes.Select(x => x.Id)
@@ -60,13 +63,13 @@ public class PodcastUpdaterHeroAutoPromoteRules
     public async Task flagged_podcast_with_only_old_episodes_does_not_promote()
     {
         // Arrange
-        var harness = new PodcastUpdaterTestHarness();
+        var harness = new PodcastUpdaterTestHarness(timeProvider: _clock);
         var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         podcast.AlwaysPromoteAsHero = true;
         harness.PodcastRepository.Seed(podcast);
 
         var old = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(DomainTestFixture.UtcDateDaysAgo(30))
+            .WithRelease(OutsideWeekWindowReleaseRelativeTo(_clock))
             .WithDescription(_fixture.Create<string>()));
 
         harness.EpisodeProvider
@@ -80,7 +83,7 @@ public class PodcastUpdaterHeroAutoPromoteRules
         await harness.Updater.Update(
             podcast,
             enrichOnly: false,
-            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSinceRelativeTo(_clock)));
 
         // Assert
         harness.EpisodeRepository.SavedEpisodes.Should().ContainSingle();
@@ -88,4 +91,10 @@ public class PodcastUpdaterHeroAutoPromoteRules
             x => x.PromoteAsync(It.IsAny<IReadOnlyList<Guid>>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
+
+    private static DateTime ReleasedSinceRelativeTo(TimeProvider clock) =>
+        clock.GetUtcNow().UtcDateTime.Date.AddDays(-400);
+
+    private static DateTime OutsideWeekWindowReleaseRelativeTo(TimeProvider clock) =>
+        clock.GetUtcNow().UtcDateTime.Date.AddDays(-(HeroAutoPromoteSelector.WeekWindow.Days + 1));
 }

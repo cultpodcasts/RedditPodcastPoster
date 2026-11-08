@@ -10,8 +10,11 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 /// by the delay, which can land on the previous calendar day (Oct 2026: video at 04:00 UTC − 7h = 21:00 the day
 /// before, audio at 09:00–13:00 UTC on the video's day). Audio that shares a calendar day with the unshifted
 /// YouTube publish, and that the delay-adjusted one-day window already admits, counts as same-day — but only with
-/// near-exact lengths and a positive delay that crossed midnight backwards. Negative cases sit in the risky
-/// 00:00–07:00 UTC window on the audio's day, where the raw publish and the shifted probe fall on different days.
+/// near-exact lengths and a positive delay that crossed midnight backwards. When the raw YouTube day is after the
+/// probe day, same-day credit is only via that raw-publish-day qualification — probe-day-alone matching is
+/// withheld (#1144), so a next-day early-UTC video does not take the previous day's audio. Negative cases also sit
+/// in the risky 00:00–07:00 UTC window on the audio's day, where the raw publish and the shifted probe fall on
+/// different days.
 /// </summary>
 public class CatalogueMatchScorerYouTubePublishDayRules
 {
@@ -227,10 +230,10 @@ public class CatalogueMatchScorerYouTubePublishDayRules
     }
 
     [Fact(DisplayName =
-        "When a daily show's previous-day audio (same day as the shifted probe) and the raw-publish-day audio both score " +
-        "the threshold with equal length gaps, SelectBestMatch prefers the raw-publish-day audio regardless of order, " +
-        "because closeness to the shifted probe usually points at the previous day's episode.")]
-    public void Select_best_match_tie_prefers_raw_publish_day_audio_over_shifted_probe_day()
+        "When a daily show's previous-day audio (same day as the shifted probe) only scores the weak in-window " +
+        "release and the raw-publish-day audio meets the threshold, SelectBestMatch prefers the raw-publish-day " +
+        "audio regardless of order, because the midnight-crossing delay must not treat previous-day audio as same-day.")]
+    public void Select_best_match_prefers_raw_publish_day_audio_over_shifted_probe_day()
     {
         // Arrange
         var youTubePublished = DomainTestFixture.UtcAtTime(-5, new TimeSpan(4, 0, 9));
@@ -251,9 +254,38 @@ public class CatalogueMatchScorerYouTubePublishDayRules
 
         // Assert
         CatalogueMatchScorer.Score(probe, previousDay, youTubePublished: youTubePublished)
-            .Should().Be(CatalogueMatchScorer.Score(probe, rawPublishDay, youTubePublished: youTubePublished));
+            .Should().BeLessThan(CatalogueMatchScorer.MatchThreshold);
+        CatalogueMatchScorer.Score(probe, rawPublishDay, youTubePublished: youTubePublished)
+            .Should().Be(CatalogueMatchScorer.MatchThreshold);
         previousFirst.Should().BeSameAs(rawPublishDay);
         rawFirst.Should().BeSameAs(rawPublishDay);
+    }
+
+    [Fact(DisplayName =
+        "When a YouTube-only video is published at 04:00 UTC the day after an audio episode and lengths are near-exact, " +
+        "the delay-shifted probe lands on the audio's calendar day but same-day credit is withheld, so the score stays " +
+        "below the threshold and that next-day video does not take the previous day's audio.")]
+    public void Early_utc_next_day_youtube_only_against_previous_day_audio_stays_below_threshold()
+    {
+        // Arrange
+        var youTubePublished = DomainTestFixture.UtcAtTime(-7, new TimeSpan(4, 0, 0));
+        var youTubeLength = new TimeSpan(1, 0, 51);
+        var probe = CreateProbe(youTubePublished - PublishingDelay, youTubeLength);
+        var previousDayAudio = CreateApple(
+            DomainTestFixture.UtcAtTime(-8, new TimeSpan(13, 0, 0)),
+            youTubeLength + TimeSpan.FromSeconds(5));
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, previousDayAudio, youTubePublished: youTubePublished);
+
+        // Assert
+        DateOnly.FromDateTime(probe.ReleaseUtc).Should().Be(DateOnly.FromDateTime(previousDayAudio.ReleaseUtc));
+        DateOnly.FromDateTime(youTubePublished).Should().BeAfter(DateOnly.FromDateTime(probe.ReleaseUtc));
+        score.Should().Be(
+            CatalogueMatchScorer.DurationWithinBandPoints +
+            CatalogueMatchScorer.NearExactDurationPoints +
+            CatalogueMatchScorer.WeakInWindowReleasePoints);
+        score.Should().BeLessThan(CatalogueMatchScorer.MatchThreshold);
     }
 
     [Fact(DisplayName =

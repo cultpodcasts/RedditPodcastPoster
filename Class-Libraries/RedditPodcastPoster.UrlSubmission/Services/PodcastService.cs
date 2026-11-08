@@ -123,7 +123,7 @@ public class PodcastService(
         AmbiguousParentNameException? ambiguousParents = null;
         try
         {
-            parent = await catalogueParentLookup.FindByOwner(ids);
+            parent = await catalogueParentLookup.FindByOwner(ids, url, indexingContext);
         }
         catch (AmbiguousParentNameException ex)
         {
