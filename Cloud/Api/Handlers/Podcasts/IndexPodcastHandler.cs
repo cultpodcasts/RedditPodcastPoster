@@ -17,7 +17,8 @@ public class IndexPodcastHandler(
         string podcastName,
         CancellationToken c)
     {
-        var result = await podcastIndexService.IndexAsync(podcastName, c);
+        var backlog = IsTruthy(ctx.Query("backlog"));
+        var result = await podcastIndexService.IndexAsync(podcastName, c, backlog);
 
         return result.Status switch
         {
@@ -56,4 +57,11 @@ public class IndexPodcastHandler(
         logger.LogError("Podcast index failed with unexpected status.");
         return await ctx.InternalError(ApiErrorResponse.Failure("Unable to index podcast"), c);
     }
+
+    /// <summary>Query <c>backlog</c>: true / 1 / yes (case-insensitive).</summary>
+    internal static bool IsTruthy(string? value) =>
+        value is not null &&
+        (value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+         value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
+         value.Equals("yes", StringComparison.OrdinalIgnoreCase));
 }

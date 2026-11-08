@@ -18,12 +18,19 @@ public class PodcastIndexService(
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
 
-    public async Task<PodcastIndexResult> IndexAsync(string podcastName, CancellationToken c)
+    public async Task<PodcastIndexResult> IndexAsync(
+        string podcastName,
+        CancellationToken c,
+        bool backlog = false)
     {
         try
         {
-            logger.LogInformation("{method}: Index podcast '{podcastName}'.", nameof(IndexAsync), podcastName);
-            return await IndexPodcast(c, () => indexer.Index(podcastName, CreateIndexingContext()));
+            logger.LogInformation(
+                "{method}: Index podcast '{podcastName}' (backlog={backlog}).",
+                nameof(IndexAsync),
+                podcastName,
+                backlog);
+            return await IndexPodcast(c, () => indexer.Index(podcastName, CreateIndexingContext(backlog)));
         }
         catch (Exception ex)
         {
@@ -32,7 +39,8 @@ public class PodcastIndexService(
         }
     }
 
-    private IndexingContext CreateIndexingContext() => CuratorIndexingContext.Create(_indexerOptions);
+    private IndexingContext CreateIndexingContext(bool backlog) =>
+        CuratorIndexingContext.Create(_indexerOptions, backlog);
 
     private async Task<PodcastIndexResult> IndexPodcast(
         CancellationToken c,
