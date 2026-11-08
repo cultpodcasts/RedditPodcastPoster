@@ -11,8 +11,14 @@ public interface IFilmSearchIndexGateway
     /// <summary>Number of documents in the index whose <c>contentKind</c> is <c>Film</c>.</summary>
     Task<long> CountFilmDocuments(CancellationToken cancellationToken);
 
-    /// <summary>Ids of every document in the index whose <c>contentKind</c> is <c>Film</c>.</summary>
-    Task<IReadOnlyList<string>> GetFilmDocumentIds(CancellationToken cancellationToken);
+    /// <summary>
+    /// Ids of film documents in the index that are not in <paramref name="liveFilmIds"/> (Cosmos is the
+    /// source of truth). Implemented with <c>not search.in</c> when the live set fits one filter; otherwise
+    /// a <c>release</c>-ordered film-id scan and client set difference.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetOrphanFilmDocumentIds(
+        IReadOnlyCollection<string> liveFilmIds,
+        CancellationToken cancellationToken);
 
     /// <summary>Merge-or-upload, the same write the pull indexer and the curator edit use.</summary>
     /// <returns>Keys that failed (empty when every document succeeded).</returns>
