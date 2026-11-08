@@ -28,7 +28,6 @@ public class IndexPodcastHandlerTests
                 It.IsAny<bool>()))
             .ReturnsAsync(() => _result);
         _ctx = _mocker.GetMock<IHandlerContext>();
-        _ctx.Setup(c => c.Query(It.IsAny<string>())).Returns((string?)null);
     }
 
     [Fact(DisplayName =
@@ -41,7 +40,7 @@ public class IndexPodcastHandlerTests
 
         // Act
         var sut = _mocker.CreateInstance<IndexPodcastHandler>();
-        await sut.Handle(_ctx.Object, _fixture.CreateTitle(), CancellationToken.None);
+        await sut.Handle(_ctx.Object, _fixture.CreateTitle(), backlog: false, CancellationToken.None);
 
         // Assert
         _ctx.Verify(x => x.Conflict(
@@ -61,7 +60,7 @@ public class IndexPodcastHandlerTests
 
         // Act
         var sut = _mocker.CreateInstance<IndexPodcastHandler>();
-        await sut.Handle(_ctx.Object, _fixture.CreateTitle(), CancellationToken.None);
+        await sut.Handle(_ctx.Object, _fixture.CreateTitle(), backlog: false, CancellationToken.None);
 
         // Assert
         _ctx.Verify(x => x.Json(HttpStatusCode.GatewayTimeout,
@@ -74,40 +73,40 @@ public class IndexPodcastHandlerTests
     }
 
     [Fact(DisplayName =
-        "When Query(backlog) is true, the handler passes backlog: true to IndexAsync so Azure walks the full catalogue.")]
-    public async Task backlog_query_true_passes_backlog_to_index_service()
+        "When the controller routes backlog index, the handler passes backlog: true to IndexAsync so Azure walks the full catalogue.")]
+    public async Task backlog_true_passes_backlog_to_index_service()
     {
         // Arrange
         _result = new PodcastIndexResult(PodcastIndexStatus.AlreadyRunning);
         var podcastName = _fixture.CreateTitle();
-        _ctx.Setup(c => c.Query("backlog")).Returns("true");
 
         // Act
         var sut = _mocker.CreateInstance<IndexPodcastHandler>();
-        await sut.Handle(_ctx.Object, podcastName, CancellationToken.None);
+        await sut.Handle(_ctx.Object, podcastName, backlog: true, CancellationToken.None);
 
         // Assert
         _mocker.GetMock<IPodcastIndexService>().Verify(
             s => s.IndexAsync(podcastName, It.IsAny<CancellationToken>(), true),
             Times.Once);
+        _ctx.Verify(c => c.Query(It.IsAny<string>()), Times.Never);
     }
 
     [Fact(DisplayName =
-        "When Query(backlog) is absent, the handler passes backlog: false so hub Index keeps the short ReleasedDaysAgo lookback.")]
-    public async Task absent_backlog_query_passes_false_to_index_service()
+        "When the controller routes default hub Index, the handler passes backlog: false so ReleasedDaysAgo lookback stays.")]
+    public async Task backlog_false_passes_false_to_index_service()
     {
         // Arrange
         _result = new PodcastIndexResult(PodcastIndexStatus.AlreadyRunning);
         var podcastName = _fixture.CreateTitle();
-        _ctx.Setup(c => c.Query("backlog")).Returns((string?)null);
 
         // Act
         var sut = _mocker.CreateInstance<IndexPodcastHandler>();
-        await sut.Handle(_ctx.Object, podcastName, CancellationToken.None);
+        await sut.Handle(_ctx.Object, podcastName, backlog: false, CancellationToken.None);
 
         // Assert
         _mocker.GetMock<IPodcastIndexService>().Verify(
             s => s.IndexAsync(podcastName, It.IsAny<CancellationToken>(), false),
             Times.Once);
+        _ctx.Verify(c => c.Query(It.IsAny<string>()), Times.Never);
     }
 }

@@ -7,5 +7,6 @@ public interface IIndexPodcastHandler
     Task<HttpResponseData> Handle(
         IHandlerContext ctx,
         string podcastName,
+        bool backlog,
         CancellationToken c);
 }

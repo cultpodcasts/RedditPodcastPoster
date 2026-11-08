@@ -56,7 +56,7 @@ does not paginate the show, even when the request carries an episode release: a 
 match must not download the catalogue. An Apple published-before ceiling is a separate change.
 
 **Curator hub Index:** default `POST podcast/index/{name}` keeps `ReleasedSince` from
-`indexer__ReleasedDaysAgo` (prod: 2). `POST podcast/index/{name}?backlog=true` clears
+`indexer__ReleasedDaysAgo` (prod: 2). `POST podcast/index/{name}/backlog` clears
 `ReleasedSince` so provider pagination walks the full catalogue (cold-start / backlog recovery).
 The same on-demand HTTP budget still applies — a long walk may return 504 TimedOut.
 
