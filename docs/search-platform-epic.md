@@ -474,6 +474,15 @@ search tolerates the seconds of replica lag. Sequential consistency within a ses
 free with `withSession(first-unconstrained)`; nothing in the search path needs
 read-your-writes.
 
+**Geography (2026-11-08).** The primary lives in one region — our demo DB is `WEUR`,
+`read_replication.mode: disabled`, `jurisdiction: null`. Enabling replication
+(`mode: "auto"`) makes Cloudflare place a read replica in **every** supported region
+(ENAM, WNAM, WEUR, EEUR, APAC, OC) automatically; no per-region provisioning, no extra
+storage/compute charge. Reads via Sessions API route to the nearest replica; writes
+always go to the primary. A jurisdiction constraint (EU / FedRAMP) would pin replicas
+inside that jurisdiction — we have none set, so global replication is available. Without
+Sessions API the replicas exist but are unused (every query still hits the primary).
+
 ## 6. Phase sketch (D1 path)
 
 | Phase | Work | Gate |
