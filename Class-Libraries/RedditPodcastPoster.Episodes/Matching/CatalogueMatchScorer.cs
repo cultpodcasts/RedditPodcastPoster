@@ -46,8 +46,10 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// (see <see cref="QualifiesForRawPublishDayCredit"/>): lengths must be
 /// <see cref="NearExactDurationTolerance"/>-near, and the raw publish must be later than the probe and on a
 /// later calendar day (a positive delay that crossed midnight backwards). Short clips, merely in-band lengths
-/// and negative delays get nothing new. On a score tie, <see cref="SelectBestMatch"/> prefers the row that
-/// earned that credit over closeness to the shifted probe.
+/// and negative delays get nothing new. When that midnight-crossing delay applies, same-day credit is
+/// <em>only</em> via raw-publish-day qualification — matching the probe's calendar day alone must not upgrade
+/// previous-day audio against a next-day YouTube-only video (#1144). On a score tie,
+/// <see cref="SelectBestMatch"/> prefers the row that earned that credit over closeness to the shifted probe.
 /// </summary>
 public static class CatalogueMatchScorer
 {
@@ -342,6 +344,19 @@ public static class CatalogueMatchScorer
             {
                 var probeDate = DateOnly.FromDateTime(probeRelease);
                 var catalogueDate = DateOnly.FromDateTime(catalogueItem.ReleaseUtc);
+                // Positive delay crossed midnight backwards: do not treat probe-day audio as same-day
+                // (that would attach a next-day YouTube-only video to the previous day's episode — #1144).
+                var rawPublishDayAfterProbe = youTubePublished is { } published &&
+                    published != DateTime.MinValue &&
+                    DateOnly.FromDateTime(published) > probeDate;
+                if (rawPublishDayAfterProbe)
+                {
+                    return QualifiesForRawPublishDayCredit(
+                        probeRelease, catalogueItem, youTubePublished, durationNearExact)
+                        ? SameCalendarDayReleasePoints
+                        : WeakInWindowReleasePoints;
+                }
+
                 return probeDate == catalogueDate ||
                        QualifiesForRawPublishDayCredit(probeRelease, catalogueItem, youTubePublished, durationNearExact)
                     ? SameCalendarDayReleasePoints
