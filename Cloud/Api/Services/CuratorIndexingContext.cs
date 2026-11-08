@@ -9,13 +9,17 @@ namespace Api.Services;
 /// may read large playlists from the uploads head; a curator index always walks them in full).
 /// </summary>
 /// <remarks>
-/// Default mode uses <see cref="IndexerOptions.ReleasedDaysAgo"/> (prod: 2). Backlog / cold-start mode
-/// (<paramref name="backlog"/>) clears <see cref="IndexingContext.ReleasedSince"/> so provider pagination walks the
-/// full catalogue (docs/catalogue-pagination.md). Same on-demand HTTP budget still applies — a long walk may 504
-/// TimedOut (cultpodcasts/RedditPodcastPoster#1310).
+/// Default mode uses <see cref="IndexerOptions.ReleasedDaysAgo"/> (prod: 2). When <c>backlog</c> is true, clears
+/// <see cref="IndexingContext.ReleasedSince"/> so provider pagination walks the full catalogue
+/// (docs/catalogue-pagination.md). Same on-demand HTTP budget still applies — a long walk may 504 TimedOut
+/// (cultpodcasts/RedditPodcastPoster#1310).
 /// </remarks>
 public static class CuratorIndexingContext
 {
+    /// <param name="backlog">
+    /// When true, clear <see cref="IndexingContext.ReleasedSince"/> for a full-catalogue walk. Default false keeps
+    /// the short lookback from <see cref="IndexerOptions.ReleasedDaysAgo"/>.
+    /// </param>
     public static IndexingContext Create(IndexerOptions indexerOptions, bool backlog = false)
     {
         if (!backlog && indexerOptions.ReleasedDaysAgo == null)
@@ -24,7 +28,7 @@ public static class CuratorIndexingContext
         }
 
         var baseline = backlog
-            ? new IndexingContext(ReleasedSince: null, SkipYouTubeUrlResolving: indexerOptions.ByPassYouTube)
+            ? new IndexingContext(ReleasedSince: null)
             : indexerOptions.ToIndexingContext();
 
         return baseline with

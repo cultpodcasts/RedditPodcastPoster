@@ -18,7 +18,9 @@ public class IndexPodcastBacklogQueryRules
     [InlineData("Yes", true)]
     public void backlog_query_truthiness(string? value, bool expected)
     {
-        // Arrange / Act
+        // Arrange
+
+        // Act
         var actual = IndexPodcastHandler.IsTruthy(value);
 
         // Assert
