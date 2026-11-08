@@ -17,9 +17,11 @@ public static class HashtagText
     /// <summary>
     /// Returns the text to write after <c>#</c> so a facet can link the whole tag: a leading
     /// <c>#</c> or <c>＃</c> is dropped, every character the tag body can't hold (dash, apostrophe,
-    /// <c>&amp;</c>, <c>+</c>, space, emoji…) is removed, and trailing <c>_</c> is trimmed.
-    /// Returns <c>null</c> when what is left can't be a hashtag (empty, digits and <c>_</c> only,
-    /// or over <see cref="MaxTagLength"/>).
+    /// <c>&amp;</c>, <c>+</c>, space, emoji, BMP and supplementary variation selectors…) is removed,
+    /// and trailing <c>_</c> is trimmed. The first remaining body rune must be a letter, digit or
+    /// <c>_</c> — a combining mark or letter/other number straight after <c>#</c> yields
+    /// <c>null</c>. Also returns <c>null</c> when what is left can't be a hashtag (empty, digits
+    /// and <c>_</c> only, or over <see cref="MaxTagLength"/>).
     /// </summary>
     public static string? ToTagText(string? hashTag)
     {
@@ -83,8 +85,8 @@ public static class HashtagText
     // read as whole runes so letters outside the BMP count. Anything else ends it: dashes,
     // apostrophes, quotes, punctuation, symbols and emoji, whitespace, and invisible breaks such as
     // ZWNJ/ZWJ. Variation selectors (U+FE00–U+FE0F and supplementary U+E0100–U+E01EF) also end it.
-    // The first body character must be a letter, digit or '_' — a combining mark straight after '#'
-    // is not a tag (#1084).
+    // First-body rejection (letter/digit/_ only) is in IsValidTag / IsTagBodyStartRune, not here —
+    // Mn/Mc are valid continuations after a legal start.
     internal static bool TryReadTagRune(string text, int index, out int width)
     {
         if (Rune.DecodeFromUtf16(text.AsSpan(index), out var rune, out width) != OperationStatus.Done)
@@ -111,6 +113,8 @@ public static class HashtagText
             UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark;
     }
 
+    // First body rune must be a letter, digit or '_' (#1084) — combining marks / Nl/No after '#'
+    // are not a tag. Continuation Mn/Mc after a legal start are accepted by TryReadTagRune.
     internal static bool IsValidTag(string tag)
     {
         if (tag.Length == 0 ||

@@ -202,7 +202,8 @@ public class HashtagScannerRules
     }
 
     [Theory(DisplayName =
-        "A stored hashtag with nothing linkable left (empty, digits or '_' only, or emoji or dashes only) has no tag text, so it is not written.")]
+        "A stored hashtag with nothing linkable left (empty, digits or '_' only, emoji or dashes only, " +
+        "or a first body rune that is a combining mark or letter/other number) has no tag text, so it is not written.")]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("#")]
@@ -210,6 +211,8 @@ public class HashtagScannerRules
     [InlineData("#_")]
     [InlineData("#🙏")]
     [InlineData("#-—")]
+    [InlineData("#\u0301Cult")]
+    [InlineData("#Ⅻ")]
     public void stored_hashtag_with_nothing_linkable_has_no_tag_text(string? stored)
     {
         // Arrange
