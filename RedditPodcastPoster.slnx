@@ -277,6 +277,8 @@
     <Project Path="Console-Apps/NewsOrganisationDefaultsBackfill.Tests/NewsOrganisationDefaultsBackfill.Tests.csproj" />
     <Project Path="Console-Apps/UnusableFileKeyAudit/UnusableFileKeyAudit.csproj" />
     <Project Path="Console-Apps/UnusableFileKeyAudit.Tests/UnusableFileKeyAudit.Tests.csproj" />
+    <Project Path="Console-Apps/StoredHashtagAudit/StoredHashtagAudit.csproj" />
+    <Project Path="Console-Apps/StoredHashtagAudit.Tests/StoredHashtagAudit.Tests.csproj" />
     <Project Path="Console-Apps/EpisodeServiceBackfill/EpisodeServiceBackfill.csproj" />
     <Project Path="Console-Apps/EpisodeServiceBackfill.Tests/EpisodeServiceBackfill.Tests.csproj" />
 

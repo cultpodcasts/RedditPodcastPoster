@@ -392,6 +392,18 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 | `-l, --list` | Log sample unusable rows (id, name, fileKey) |
 | `--sample-limit` | Max samples per kind when listing (default 50; `0` = unlimited) |
 
+### StoredHashtagAudit
+
+**Purpose:** Read-only count of subject / podcast / TV show / news organisation / film / episode / TV-episode / news-report rows whose stored `HashTag` fails `HashtagText.IsReproducedAsIs` (hyphen, ampersand, apostrophe, etc.). Use the totals to decide whether a consent-gated cleanup is needed after the Bluesky facet boundary fix (#1082). Posting already omits non-reproducible tags. Never writes Cosmos.
+
+**Run:** `dotnet run --project Console-Apps/StoredHashtagAudit --` · PATH: `StoredHashtagAudit`
+
+| Option | Description |
+|--------|-------------|
+| `-k, --kind` | `all` (default), `subject`, `podcast`, `tvshow`, `news`, `film`, `episode`, `tvshowepisode`, or `newsreport` |
+| `-l, --list` | Log sample non-reproducible rows (id, name/title, stored, ToTagText) |
+| `--sample-limit` | Max samples per kind when listing (default 50; `0` = unlimited) |
+
 ### SeedTitleCasingRules
 
 **Purpose:** Seed a per-language `TitleCasingRules` document (default `en`) from static lower-case words + legacy LookUps KnownTerms. Dry-run unless `--apply`. Do not run `--apply` against production without explicit approval.
