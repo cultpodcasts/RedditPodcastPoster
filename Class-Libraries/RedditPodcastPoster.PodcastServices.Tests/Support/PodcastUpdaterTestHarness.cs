@@ -44,7 +44,8 @@ internal sealed class PodcastUpdaterTestHarness
         SaveCallRecorder = saveCallRecorder ?? new SaveCallRecorder();
         EpisodeRepository = new InMemoryEpisodeRepository(SaveCallRecorder);
         PodcastRepository = new InMemoryPodcastRepository();
-        Time = timeProvider ?? new FakeTimeProvider(DateTimeOffset.UtcNow);
+        Time = timeProvider ?? new FakeTimeProvider(
+            new DateTimeOffset(DomainTestFixture.UtcToday.AddHours(12), TimeSpan.Zero));
 
         EliminationTermsProvider.Setup(x => x.GetEliminationTerms()).Returns(new EliminationTerms());
         _mocker.GetMock<IAsyncInstance<IEliminationTermsProvider>>()
