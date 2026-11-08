@@ -174,8 +174,10 @@ var logging= {
     APPLICATIONINSIGHTS_SAMPLING_PERCENTAGE: '25'
 }
 
+// Warning-level MemoryProbe.* traces (working-set / private bytes) for Flex SKU headroom (#1278).
+// Keep instanceMemoryMB at 2048 until App Insights shows peak private/working-set safely under 512 MiB.
 var memoryProbe = {
-    memoryProbe__Enabled: 'false'
+    memoryProbe__Enabled: 'true'
 }
 
 var api= {
@@ -861,8 +863,7 @@ module discoveryFunction 'function.bicep' = {
     runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: false
-    // 512: same GB·s cut as api-infra (#1278). Revisit if discover scorer OOMs.
-    instanceMemoryMB: 512
+    instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Discovery: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'

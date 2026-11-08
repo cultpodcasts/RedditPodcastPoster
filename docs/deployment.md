@@ -124,7 +124,33 @@ Flex bills **On Demand Execution Time** (GB·s × memory) after the monthly free
 | Mid-month Functions £ jump (~£0.20+/day) with Monitor flat | Grant exhausted — Execution Time metering |
 | 1st of month Functions £ reset to ~0 while GB·s continue | New month / grant reset — not a deploy that “fixed” a runaway |
 
-`instanceMemoryMB` is **512 / 2048 / 4096** only. GB·s scale with memory for the same wall clock. Do **not** drop memory without headroom evidence — `memoryProbe__Enabled` is currently **`false`** in bicep, so production has no `MemoryProbe.*` working-set traces to justify a cut. Enable the probe, soak, then reconsider 512. Cutting memory does not change Azure Monitor’s ~£0.12/day baseline.
+`instanceMemoryMB` is **512 / 2048 / 4096** only. GB·s scale with memory for the same wall clock. Do **not** drop memory without headroom evidence from `MemoryProbe.Complete` (Warning) traces — peak `working-set-bytes` / `private-bytes` must sit comfortably under **512 MiB** (≈536 870 912) on api + discover before any SKU cut. `memoryProbe__Enabled` is **`true`** in bicep so those traces land in App Insights (sampled with other Warning telemetry). Cutting memory does not change Azure Monitor’s ~£0.12/day baseline.
+
+### Headroom KQL (after provision enables the probe)
+
+Workspace: `loganalytics-infra`. Replace app role / window as needed.
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(7d)
+| where AppRoleName in ("api-infra", "discover-infra")
+| where Message startswith "MemoryProbe.Complete"
+| extend
+    workingSet = tolong(extract(@"working-set-bytes='(\d+)'", 1, Message)),
+    privateBytes = tolong(extract(@"private-bytes='(\d+)'", 1, Message)),
+    functionName = extract(@"function-name='([^']+)'", 1, Message)
+| summarize
+    samples = count(),
+    p50_ws = percentile(workingSet, 50),
+    p95_ws = percentile(workingSet, 95),
+    max_ws = max(workingSet),
+    p95_private = percentile(privateBytes, 95),
+    max_private = max(privateBytes)
+  by AppRoleName, functionName
+| order by AppRoleName, max_private desc
+```
+
+Only consider `instanceMemoryMB: 512` when **max** (and p95) private/working-set leave clear margin under 512 MiB across hot paths — not from cost GB·s alone.
 
 ## Flex Consumption activation
 
