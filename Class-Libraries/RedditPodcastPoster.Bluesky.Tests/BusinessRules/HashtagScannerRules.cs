@@ -48,7 +48,9 @@ public class HashtagScannerRules
     }
 
     [Theory(DisplayName =
-        "A hashtag ends at the first character that is not a letter, digit, combining mark or underscore, so a dash, apostrophe, quote, punctuation or emoji straight after an inserted tag is not linked as part of it.")]
+        "A hashtag ends at the first character that is not a letter, digit, combining mark or underscore — including " +
+        "dash, apostrophe, emoji, ZWNJ/ZWJ, BMP and supplementary variation selectors, and letter/other numbers " +
+        "(Ⅻ, ²) — so those characters after an inserted tag are not linked as part of it.")]
     [InlineData("Escaped a #Cult—and spoke up", "Cult")]
     [InlineData("Escaped a #Cult–and spoke up", "Cult")]
     [InlineData("Escaped a #Cult-and spoke up", "Cult")]
@@ -63,7 +65,11 @@ public class HashtagScannerRules
     [InlineData("Escaped a #Cult/Sect", "Cult")]
     [InlineData("Escaped a #Cult🙏and spoke up", "Cult")]
     [InlineData("Escaped a #Cult\u200Dand spoke up", "Cult")]
+    [InlineData("Escaped a #Cult\u200Cand spoke up", "Cult")]
     [InlineData("Escaped a #Cult\uFE0Fand spoke up", "Cult")]
+    [InlineData("Escaped a #Cult\U000E0100and spoke up", "Cult")]
+    [InlineData("Escaped a #CultⅫmore", "Cult")]
+    [InlineData("Escaped a #Cult²and spoke up", "Cult")]
     public void hashtag_ends_at_first_non_word_character(string text, string expectedTag)
     {
         // Arrange
@@ -100,7 +106,8 @@ public class HashtagScannerRules
     }
 
     [Theory(DisplayName =
-        "A '#' inside a word, a URL, after other punctuation, or followed only by digits or punctuation is not a hashtag.")]
+        "A '#' inside a word, a URL, after other punctuation, followed only by digits or punctuation, or followed by a " +
+        "combining mark before any letter or digit, is not a hashtag.")]
     [InlineData("Opus#Dei")]
     [InlineData("https://example.com/#section")]
     [InlineData("Let's#Cult")]
@@ -109,6 +116,9 @@ public class HashtagScannerRules
     [InlineData("a #")]
     [InlineData("a #,")]
     [InlineData("a #\uFE0F")]
+    [InlineData("a #\u0301")]
+    [InlineData("a #\u0301Cult")]
+    [InlineData("a #Ⅻ")]
     [InlineData("a ##")]
     [InlineData("a #—and")]
     [InlineData("a #_")]
@@ -192,7 +202,8 @@ public class HashtagScannerRules
     }
 
     [Theory(DisplayName =
-        "A stored hashtag with nothing linkable left (empty, digits or '_' only, or emoji or dashes only) has no tag text, so it is not written.")]
+        "A stored hashtag with nothing linkable left (empty, digits or '_' only, emoji or dashes only, " +
+        "or a first body rune that is a combining mark or letter/other number) has no tag text, so it is not written.")]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("#")]
@@ -200,6 +211,8 @@ public class HashtagScannerRules
     [InlineData("#_")]
     [InlineData("#🙏")]
     [InlineData("#-—")]
+    [InlineData("#\u0301Cult")]
+    [InlineData("#Ⅻ")]
     public void stored_hashtag_with_nothing_linkable_has_no_tag_text(string? stored)
     {
         // Arrange

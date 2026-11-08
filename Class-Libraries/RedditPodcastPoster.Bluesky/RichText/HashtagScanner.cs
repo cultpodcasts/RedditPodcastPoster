@@ -12,16 +12,18 @@ public readonly record struct HashtagToken(string Tag, long ByteStart, long Byte
 /// <c>#</c>, so <c>"#OpusDei, …"</c> and <c>(#Cult)</c> link. A <c>#</c> inside a word or URL
 /// (<c>a#b</c>, <c>/#x</c>) is not a hashtag.
 /// <para>
-/// The tag body is a run of letters, digits, combining marks and <c>_</c>, and it ends at the first
-/// other character. This deliberately differs from Bluesky's app rule, which only ends a tag at
-/// whitespace and trims trailing punctuation: that rule links <c>#Cult—and</c>, <c>#Cult's</c>
-/// and <c>#Cult🙏</c> whole. Our tags are inserted into titles as whole words, so the facet must
-/// cover only the inserted tag. The characters a tag can hold live in <see cref="HashtagText"/>,
-/// which <see cref="Find"/> uses so Bluesky and X share one definition.
-/// <see cref="HashtagText.IsReproducedAsIs"/> is false when writing the tag drops or changes a
-/// character, and the post factories then leave the stored tag out: <c>Q&amp;A</c> must not be
-/// written as <c>QA</c>. A tag still needs one character that is not a digit or <c>_</c>, and at
-/// most 64 characters.
+/// The tag body starts with a letter, digit or <c>_</c>, then continues through letters, digits,
+/// combining marks and <c>_</c>, and ends at the first other character — including BMP and
+/// supplementary variation selectors (U+FE00–FE0F, U+E0100–E01EF). A combining mark or letter/other
+/// number straight after <c>#</c> is not a tag. This deliberately differs from Bluesky's app rule,
+/// which only ends a tag at whitespace and trims trailing punctuation: that rule links
+/// <c>#Cult—and</c>, <c>#Cult's</c> and <c>#Cult🙏</c> whole. Our tags are inserted into titles as
+/// whole words, so the facet must cover only the inserted tag. The characters a tag can hold live
+/// in <see cref="HashtagText"/>, which <see cref="Find"/> uses so Bluesky and X share one
+/// definition. <see cref="HashtagText.IsReproducedAsIs"/> is false when writing the tag drops or
+/// changes a character, and the post factories then leave the stored tag out: <c>Q&amp;A</c> must
+/// not be written as <c>QA</c>. A tag still needs one character that is not a digit or <c>_</c>,
+/// and at most 64 characters.
 /// </para>
 /// </summary>
 public static class HashtagScanner
