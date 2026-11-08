@@ -7,9 +7,11 @@ namespace RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 /// kind transfer and on a rename that sets the key. The key is never empty: a name with no usable Latin slug (for
 /// example Korean only, or emoji only) falls back to a usable fallback slug, then to a slug built from the id. The key
 /// is unique (ignoring case) among the other stored items of the same kind, using the <c>_2</c>, <c>_3</c> suffix.
-/// Nothing is reserved until the item is saved, so concurrent creates can race (see issue #1165).
+/// The chosen key is claimed in <c>FileKeyClaims</c> (via <see cref="IFileKeyClaimStore"/>) until the item is saved.
+/// A create that is never saved releases that claim when this allocator is disposed. Another owner's claim moves on
+/// to the next suffix (issue #1165).
 /// </summary>
-public interface IFileKeyAllocator
+public interface IFileKeyAllocator : IAsyncDisposable
 {
     /// <summary>
     /// A new key for item <paramref name="id"/> of <paramref name="kind"/> called <paramref name="name"/>.
@@ -31,4 +33,10 @@ public interface IFileKeyAllocator
     /// placeholder key is repaired and a good key is never changed.
     /// </summary>
     Task<string> RepairIfUnusable(FileKeyKind kind, string name, Guid id, string? currentKey);
+
+    /// <summary>
+    /// Deletes the claim for <paramref name="fileKey"/> held by <paramref name="ownerId"/>, including one a save
+    /// already kept. Used when that item is removed (a kind-transfer compensation). A missing claim is success.
+    /// </summary>
+    Task Release(string fileKey, Guid ownerId);
 }

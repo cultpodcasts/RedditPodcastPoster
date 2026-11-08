@@ -38,7 +38,6 @@ public class TolerantYouTubePlaylistServiceSkipRules
                 playlistId,
                 indexingContext,
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(null, Failure: YouTubePlaylistFetchFailure.Skipped));
         var sut = _mocker.CreateInstance<TolerantYouTubePlaylistService>();
@@ -67,7 +66,6 @@ public class TolerantYouTubePlaylistServiceSkipRules
                 It.IsAny<IYouTubeServiceWrapper>(),
                 playlistId,
                 indexingContext,
-                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(items));

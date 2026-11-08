@@ -1,24 +1,10 @@
-using RedditPodcastPoster.EpisodeLookup.Extensions;
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using CommandLine;
 using EnrichExistingEpisodesFromPodcastServices;
-using iTunesSearch.Library;
-using RedditPodcastPoster.Catalogue.Extensions;
-using RedditPodcastPoster.SocialPosting.Extensions;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.EntitySearchIndexer.Extensions;
-using RedditPodcastPoster.Episodes.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.PodcastServices.Apple.Extensions;
-using RedditPodcastPoster.PodcastServices.Extensions;
-using RedditPodcastPoster.PodcastServices.Spotify.Extensions;
-using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
-using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
-using RedditPodcastPoster.Text.Extensions;
-using RedditPodcastPoster.UrlSubmission.Extensions;
 using RedditPodcastPoster.Configuration;
 
 if (VersionInfo.TryHandleVersionRequest(args))
@@ -36,22 +22,7 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
-builder.Services
-    .AddLogging()
-    .AddEpisodesDomain().AddEpisodeLookup()
-    .AddRepositories()
-    .AddScoped<EnrichPodcastEpisodesProcessor>()
-    .AddUrlSubmission()
-    .AddCatalogueServices()
-    .AddSocialPostingServices()
-    .AddSpotifyServices()
-    .AddYouTubeServices(ApplicationUsage.Cli)
-    .AddAppleServices()
-    .AddRemoteClient()
-    .AddTextSanitiser()
-    .AddScoped(s => new iTunesSearchManager())
-    .AddEpisodeSearchIndexerService()
-    .AddHttpClient();
+builder.Services.AddEnrichExistingEpisodesConsoleServices();
 
 using var host = builder.Build();
 

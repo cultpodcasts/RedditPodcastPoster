@@ -154,6 +154,34 @@ public class PodcastKindTransferEnqueueServiceRules
     }
 
     [Fact(DisplayName =
+        "Enqueue writes a new Queued job when the existing Queued job is older than the transfer lock window " +
+        "and no lock is held, because the worker never started and the podcast is still there.")]
+    public async Task enqueue_requeues_when_queued_job_is_stale()
+    {
+        // Arrange
+        var podcastId = _podcast!.Id;
+        _existingJob = new ParentKindTransferJob
+        {
+            PodcastId = podcastId,
+            TargetKind = CatalogueParentKind.NewsOrganisation,
+            Phase = ParentKindTransferJobPhase.Queued,
+            EnqueuedUtc = _now - PodcastKindTransferService.LockStaleAfter
+        };
+        var sut = _mocker.CreateInstance<PodcastKindTransferEnqueueService>();
+
+        // Act
+        var result = await sut.EnqueueAsync(
+            podcastId,
+            new PodcastKindTransferRequest { TargetKind = CatalogueParentKind.NewsOrganisation },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferEnqueueStatus.Queued);
+        _enqueued.Should().ContainSingle(m => m.PodcastId == podcastId);
+        _savedJobs.Should().ContainSingle(j => j.Phase == ParentKindTransferJobPhase.Queued);
+    }
+
+    [Fact(DisplayName =
         "When the queue send fails after the Queued job was saved, enqueue compensates by marking the job Failed " +
         "and returns Failed, so GET does not poll Queued forever with no message.")]
     public async Task enqueue_compensates_to_failed_when_queue_send_fails()

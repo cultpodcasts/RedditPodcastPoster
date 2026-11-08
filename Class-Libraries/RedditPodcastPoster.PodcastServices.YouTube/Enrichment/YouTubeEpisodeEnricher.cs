@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 using RedditPodcastPoster.Episodes.Adapters;
@@ -183,9 +182,7 @@ public class YouTubeEpisodeEnricher(
                         request.Podcast.DescriptionRegex,
                         request.Episode.Title,
                         request.Podcast.Name,
-                        // Token-free patterns keep the options this enricher has always used (none), so existing
-                        // podcasts' YouTube descriptions are unchanged; token patterns use Podcast.DescriptionFlags.
-                        RegexOptions.None))
+                        Podcast.DescriptionFlags))
                 : rawDescription;
             EnrichmentApplicator.ApplyDescription(request.Episode, description);
         }

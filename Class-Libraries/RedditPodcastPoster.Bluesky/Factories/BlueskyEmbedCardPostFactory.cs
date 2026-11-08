@@ -16,6 +16,7 @@ using RedditPodcastPoster.Subjects.HashTags;
 using RedditPodcastPoster.Subjects.Extensions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Text.Enrichers;
+using RedditPodcastPoster.Text.HashTags;
 using RedditPodcastPoster.Text.Sanitisers;
 
 namespace RedditPodcastPoster.Bluesky.Factories;
@@ -62,14 +63,14 @@ public class BlueskyEmbedCardPostFactory(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
-                // Write the tag in the form the facet scanner links whole ("#Some-Tag" -> "#SomeTag"),
-                // so the linked tag always matches the text in the post.
-                var tagText = HashtagScanner.ToTagText(hashtag.MatchingText ?? hashtag.Tag);
-                if (tagText == null)
+                // Decide from the stored tag. MatchingText can already be a shortened
+                // form (Some-Tag → #SomeTag). The text written after '#' must be that stored body.
+                if (!HashtagText.IsReproducedAsIs(hashtag.Tag))
                 {
                     continue;
                 }
 
+                var tagText = HashtagText.ToTagText(hashtag.Tag)!;
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
@@ -77,7 +78,7 @@ public class BlueskyEmbedCardPostFactory(
                         tagText);
                 if (addedHashTag)
                 {
-                    hashtagsAdded.Add(hashtag.MatchingText ?? hashtag.Tag);
+                    hashtagsAdded.Add(hashtag.Tag);
                 }
             }
         }
@@ -117,36 +118,13 @@ public class BlueskyEmbedCardPostFactory(
 
         postBuilder.AppendLine(SocialPostKindTemplate.ReleaseLine(podcastEpisode));
 
-        // Bluesky tags are case-insensitive, and two stored tags can write the same tag text ("#Some-Tag" and
-        // "#SomeTag"), so an end-of-post tag is skipped when the title or an earlier end tag already links it.
-        var linkedTags = new HashSet<string>(
-            HashtagScanner.Find(episodeTitle).Select(x => x.Tag), StringComparer.OrdinalIgnoreCase);
-        var endHashTags = string.Join(" ",
-            episodeHashtags
-                .Where(x => x.MatchingText == null)
-                .Select(x => x.Tag)
-                .Distinct()
-                .Where(x => !hashtagsAdded.Contains(x))
-                .Select(HashtagScanner.ToTagText)
-                .OfType<string>()
-                .Where(linkedTags.Add)
-                .Select(x => $"#{x}"));
-        if (!string.IsNullOrWhiteSpace(endHashTags))
-        {
-            postBuilder.AppendLine(endHashTags);
-        }
-
         var shortUrlOnly = hasShareImage && _blueskyOptions.ShortUrlOnlyWhenShareImage;
         var includeShortInText = shortUrlOnly
             || (_blueskyOptions.WithEpisodeUrl &&
                 (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||
                  podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any()));
-        if (shortUrl != null && includeShortInText)
-        {
-            postBuilder.AppendLine($"{shortUrl.AbsoluteUri}");
-        }
 
-        // Short URL is already in postBuilder when includeShortInText. Extra 26 was for dual-link
+        // Short URL is already in the skeleton when includeShortInText. Extra 26 was for dual-link
         // budgeting; short-URL-only share-image posts skip it and allow a longer title.
         var reserveSecondUrlBudget = !shortUrlOnly
             && _blueskyOptions.WithEpisodeUrl
@@ -154,22 +132,63 @@ public class BlueskyEmbedCardPostFactory(
                  podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
         // The title is wrapped as "{title}" plus a line break, so those characters count against the limit too (#1097).
         var titleWrapperLength = 2 + Environment.NewLine.Length;
-        var permittedTitleLength = MaxPostLength -
-                                   (postBuilder.Length + titleWrapperLength + (reserveSecondUrlBudget ? 26 : 0));
+        var preamble = postBuilder.ToString();
+        var enrichedTitle = episodeTitle;
 
-        if (episodeTitle.Length > permittedTitleLength)
+        // Choose the end line from the exact title string that will be posted. Accept that candidate
+        // only when it fits the budget just computed. Otherwise cut the original enriched title to the
+        // budget and try the shorter string. The uncut title is posted only when the end line was
+        // selected from it, so a cut that looks like a shorter tag cannot bring the uncut title back
+        // with that tag linked nowhere.
+        var candidate = enrichedTitle;
+        var accepted = false;
+        for (var attempt = 0; attempt < 8; attempt++)
         {
-            var min = Math.Min(episodeTitle.Length, permittedTitleLength - 1);
+            var endHashTags = SelectEndHashTags(candidate, episodeHashtags);
+            postBuilder.Clear();
+            postBuilder.Append(preamble);
+            if (!string.IsNullOrWhiteSpace(endHashTags))
+            {
+                postBuilder.AppendLine(endHashTags);
+            }
+
+            if (shortUrl != null && includeShortInText)
+            {
+                postBuilder.AppendLine($"{shortUrl.AbsoluteUri}");
+            }
+
+            var permittedTitleLength = MaxPostLength -
+                                       (postBuilder.Length + titleWrapperLength + (reserveSecondUrlBudget ? 26 : 0));
+            if (candidate.Length <= permittedTitleLength)
+            {
+                episodeTitle = candidate;
+                accepted = true;
+                break;
+            }
+
+            var min = Math.Min(enrichedTitle.Length, permittedTitleLength - 1);
             // Check the minimum on what the whole-text-element cut keeps, which can be shorter than the budget
             // when a long grapheme cluster straddles the cut.
-            var truncatedTitle = BlueskyEmbedText.TruncateToWholeTextElements(episodeTitle, min);
+            var truncatedTitle = BlueskyEmbedText.TruncateToWholeTextElements(enrichedTitle, min);
             if (truncatedTitle.Length < MinTitleLength)
             {
                 throw new InvalidOperationException(
-                    $"Unable to form tweet body from '\"{episodeTitle}\"{Environment.NewLine}{postBuilder}', calculated title-length: {truncatedTitle.Length} which is less than {MinTitleLength}.");
+                    $"Unable to form tweet body from '\"{enrichedTitle}\"{Environment.NewLine}{postBuilder}', calculated title-length: {truncatedTitle.Length} which is less than {MinTitleLength}.");
             }
 
-            episodeTitle = truncatedTitle + "…";
+            var shortened = truncatedTitle + "…";
+            if (shortened == candidate)
+            {
+                break;
+            }
+
+            candidate = shortened;
+        }
+
+        if (!accepted)
+        {
+            throw new InvalidOperationException(
+                $"Unable to form tweet body from '\"{candidate}\"{Environment.NewLine}{postBuilder}' because the end hashtags were chosen from a different title.");
         }
 
         postBuilder.Insert(0, $"\"{episodeTitle}\"{Environment.NewLine}");
@@ -194,5 +213,25 @@ public class BlueskyEmbedCardPostFactory(
 
         var tweet = postBuilder.ToString();
         return new BlueskyEmbedCardPost(tweet, url, urlPodcastService, platformUrl);
+    }
+
+    /// <summary>
+    /// Tags already linked in <paramref name="title"/> stay off the end line. Bluesky treats tags as
+    /// case-insensitive, and a tag that cannot be written unchanged is left out.
+    /// </summary>
+    private static string SelectEndHashTags(string title, IEnumerable<HashTag> episodeHashtags)
+    {
+        var linkedTags = new HashSet<string>(
+            HashtagScanner.Find(title).Select(x => x.Tag), StringComparer.OrdinalIgnoreCase);
+        return string.Join(" ",
+            episodeHashtags
+                .Where(x => x.MatchingText == null)
+                .Select(x => x.Tag)
+                .Distinct()
+                .Where(HashtagText.IsReproducedAsIs)
+                .Select(HashtagText.ToTagText)
+                .OfType<string>()
+                .Where(linkedTags.Add)
+                .Select(x => $"#{x}"));
     }
 }

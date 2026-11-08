@@ -49,7 +49,6 @@ public class CachedTolerantYouTubePlaylistServiceRules
                 playlistId,
                 It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(),
-                It.IsAny<bool>(),
                 It.IsAny<PlaylistOrder?>()))
             .ReturnsAsync(new GetPlaylistVideoSnippetsResponse(items));
         var sut = _mocker.CreateInstance<CachedTolerantYouTubePlaylistService>();

@@ -56,7 +56,7 @@ public class YouTubeEpisodeProviderMembersOnlyRules
             CreatePlaylistItem(MembersOnlyVideoId, "Fictional Members-Only Bonus Episode")
         };
         _mocker.GetMock<IYouTubeChannelVideosService>()
-            .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>()))
+            .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new GetChannelVideosResponse(
                 new Google.Apis.YouTube.v3.Data.Channel
                 {
@@ -118,7 +118,7 @@ public class YouTubeEpisodeProviderMembersOnlyRules
             .Returns("test forces uploads-playlist path");
 
         _mocker.GetMock<IYouTubeChannelVideosService>()
-            .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>()))
+            .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new GetChannelVideosResponse(
                 new Google.Apis.YouTube.v3.Data.Channel
                 {

@@ -8,6 +8,7 @@ using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -38,6 +39,7 @@ public class FileKeyRules
         Filterable<ITvShowRepository, TvShow>(_shows);
         Filterable<INewsOrganisationRepository, NewsOrganisation>(_organisations);
         Filterable<IFilmRepository, Film>(_films);
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
     }
 
     private IFileKeyAllocator Allocator => _mocker.CreateInstance<FileKeyAllocator>();

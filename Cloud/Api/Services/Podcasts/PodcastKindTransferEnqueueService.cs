@@ -48,10 +48,12 @@ public class PodcastKindTransferEnqueueService(
                 PodcastKindTransferEnqueueStatus.AlreadyRunning, podcastId, marker.TargetKind);
         }
 
-        // Refuse a second POST while a Queued job is waiting. Stuck Running (no fresh lock) is allowed
-        // so curators can re-enqueue after GET surfaces Failed for a dead worker.
+        // Refuse a second POST while a fresh Queued job is waiting. A Queued job older than the
+        // transfer lock window never reached the worker (the host poisoned the message). Stuck
+        // Running with no fresh lock is the same recovery: curators can re-enqueue.
         var existingJob = await jobStore.Get(podcastId);
-        if (existingJob is { Phase: ParentKindTransferJobPhase.Queued })
+        if (existingJob is { Phase: ParentKindTransferJobPhase.Queued } &&
+            now - existingJob.EnqueuedUtc < PodcastKindTransferService.LockStaleAfter)
         {
             return new PodcastKindTransferEnqueueResult(
                 PodcastKindTransferEnqueueStatus.AlreadyRunning, podcastId, existingJob.TargetKind,

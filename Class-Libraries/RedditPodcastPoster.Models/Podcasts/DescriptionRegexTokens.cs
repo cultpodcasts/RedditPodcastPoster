@@ -109,9 +109,8 @@ public static partial class DescriptionRegexTokens
 
     /// <summary>
     /// As <see cref="Create(string?, string?, string?)" />, but a pattern WITHOUT tokens is compiled with
-    /// <paramref name="tokenFreeOptions" />. Only for callers that historically compiled the description regex
-    /// with other options and must keep behaving exactly as before for existing (token-free) patterns. A pattern
-    /// with tokens always uses <see cref="Podcast.DescriptionFlags" />.
+    /// <paramref name="tokenFreeOptions" />. Production callers pass <see cref="Podcast.DescriptionFlags" />.
+    /// A pattern with tokens always uses <see cref="Podcast.DescriptionFlags" />.
     /// </summary>
     public static Regex? Create(
         string? pattern,

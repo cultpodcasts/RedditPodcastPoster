@@ -37,7 +37,7 @@ public class PodcastKindTransferStatusService(
         if (job is not null)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return FromJob(job);
+            return FromJob(job, now);
         }
 
         var podcast = await podcastRepository.GetPodcast(podcastId);
@@ -72,8 +72,10 @@ public class PodcastKindTransferStatusService(
     /// <summary>
     /// Maps a LookUps job when no fresh lock is held. Job phase Running without a live marker is never
     /// authoritative Running (worker likely crashed) — surface Failed so the curator can re-enqueue.
+    /// A Queued job older than <see cref="PodcastKindTransferService.LockStaleAfter"/> never started
+    /// (the queue host poisoned the message). The podcast row is still there.
     /// </summary>
-    private static PodcastKindTransferJobStatusResult FromJob(ParentKindTransferJob job)
+    private static PodcastKindTransferJobStatusResult FromJob(ParentKindTransferJob job, DateTime now)
     {
         if (job.Phase == ParentKindTransferJobPhase.Running)
         {
@@ -87,6 +89,17 @@ public class PodcastKindTransferStatusService(
                 job.EnqueuedUtc,
                 job.StartedUtc,
                 job.CompletedUtc);
+        }
+
+        if (job.Phase == ParentKindTransferJobPhase.Queued &&
+            now - job.EnqueuedUtc >= PodcastKindTransferService.LockStaleAfter)
+        {
+            return new PodcastKindTransferJobStatusResult(
+                PodcastKindTransferJobQueryStatus.Failed,
+                job.PodcastId,
+                job.TargetKind,
+                FailureReason: "The transfer was queued but the worker never started. The podcast was not moved.",
+                EnqueuedUtc: job.EnqueuedUtc);
         }
 
         return new(

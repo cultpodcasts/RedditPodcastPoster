@@ -40,6 +40,7 @@ internal static class FunctionHostTestSupport
             ["cosmosdb:DiscoveryContainer"] = "Discovery",
             ["cosmosdb:DiscoverySubmissionsContainer"] = "DiscoverySubmissions",
             ["cosmosdb:LookUpsContainer"] = "LookUps",
+            ["cosmosdb:FileKeyClaimsContainer"] = "FileKeyClaims",
             ["cosmosdb:TitleCasingRulesContainer"] = "TitleCasingRules",
             ["cosmosdb:PushSubscriptionsContainer"] = "PushSubscriptions",
             ["discover:DynamicLookbackOverlap"] = "00:10:00",
@@ -174,6 +175,7 @@ internal static class FunctionHostTestSupport
         mockContainerFactory.Setup(x => x.CreateDiscoveryContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateDiscoverySubmissionsContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateLookUpsContainer()).Returns(mockContainer.Object);
+        mockContainerFactory.Setup(x => x.CreateFileKeyClaimsContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreateTitleCasingRulesContainer()).Returns(mockContainer.Object);
         mockContainerFactory.Setup(x => x.CreatePushSubscriptionsContainer()).Returns(mockContainer.Object);
 

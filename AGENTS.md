@@ -8,6 +8,14 @@ Azure `HandleRequest` checks JWT **`permissions`** / OAuth **`scope`** via `Clie
 - Discovery curation: [`docs/discovery-curation-api.md`](docs/discovery-curation-api.md)
 - **Planned epic (not scheduled):** [`docs/catalogue-content-types-epic.md`](docs/catalogue-content-types-epic.md) — separate TvShow/TvShowEpisode, **Film** (made-as-film one-off, cinema or TV; no parent), NewsOrganisation/NewsReport containers + unified search `contentKind` (`Episode | TvShowEpisode | Film | NewsReport`). Phase 0 sign-off 2026-09-23: [ADRs](./docs/adr/README.md), [search storage impact](./docs/catalogue-content-types-search-storage-impact.md). Do not use product name Movie.
 
+## Provision latch (HARD)
+
+After a failed Actions **provision** (`run_provision` / `Infrastructure/**` apply), repo variable `PROVISION_LATCH` blocks later **package-only** deploys until provision succeeds. Do **not** `bypass_provision_latch` or `gh variable delete PROVISION_LATCH` unless the user explicitly requests that break-glass in the current conversation. Prefer Run workflow with `run_provision=true`.
+
+**Local Function deploys also circumvent the latch.** Do **not** run `scripts/deploy-*.ps1` or honour **deploy functions & clis** as a workaround for a latch-blocked / failed Actions package-only run unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete (unapplied bicep). Prefer `run_provision=true` to clear the latch. Detail: [`docs/deployment.md`](docs/deployment.md) § Provision latch.
+
+Authoritative: [`docs/deployment.md`](docs/deployment.md) § Provision latch · [`.cursor/rules/production-deploy-truth.mdc`](.cursor/rules/production-deploy-truth.mdc).
+
 ## Catalogue migrate / playable-services CLIs (HARD)
 
 1. **This checkout:** `CatalogueMigrateIdentify --apply` always exits 2. `CatalogueMigrate` has a writer (#1049). `--apply` / `--rollback --apply` write only with the exact `--consent` phrase, otherwise they exit 2. Never weaken that gate. News apply is allowlist-only (S-008). `CataloguePlayableServicesBackfill --apply` likewise writes only with its exact `--consent` phrase (else exit 2).
@@ -74,7 +82,7 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - YouTube episode images are chosen only by `YouTubeThumbnailResolver` (success status + taller than the 90px placeholder) and are never cleared; recent `maxresdefault`/`hq720` images are re-checked hourly by the Indexer `YouTubeThumbnailRecheck` activity. See [docs/youtube-thumbnails.md](docs/youtube-thumbnails.md).
 - Search documents store compact service identifiers and short key names. The UI reconstructs URLs. Call the type `CompactSearchRecord`. Do not add `V2` or `Legacy` names.
 - Do not add Episode members for compact IDs. Use the existing Spotify, YouTube, and Apple IDs. Derive the Apple episode slug from the Apple URL.
-- Cosmos container name is `LookUps` (not `knownTerms`). `KnownTerms` and elimination terms are items in `LookUps`. Infrastructure includes a `PushSubscriptions` container.
+- Cosmos container name is `LookUps` (not `knownTerms`). `KnownTerms` and elimination terms are items in `LookUps`. Short-lived file-key leases live in `FileKeyClaims`, not LookUps. Infrastructure includes a `PushSubscriptions` container.
 - Use detached `Podcast` / `Episode` models and the `PodcastEpisode` pair. Canonical repositories are the split-container implementations in `RedditPodcastPoster.Persistence`. Do not reintroduce `Persistence.Legacy` or embedded-container repositories.
 - Episode ID is globally unique. Azure Search indexing does not use soft-delete.
 - Date-times are UTC. An unspecified-kind `DateTime` is UTC (`UtcDateTimes.ToUtc`). Never convert `DateTime` to `DateTimeOffset` implicitly or with `new DateTimeOffset(dateTime)`: both read unspecified as host-local time (#1191, #1194). Use `UtcDateTimes.ToUtcOffset`. The API writes every date-time as ISO-8601 with `Z` (contract: `FunctionHost.Tests` `UtcJsonDtoContractRules`); the only exception is the discovery schedule's UK-local `slotStartUk`. Date-only releases stay at midnight UTC on that date.

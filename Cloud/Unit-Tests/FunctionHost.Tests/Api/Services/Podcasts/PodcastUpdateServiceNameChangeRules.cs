@@ -35,6 +35,7 @@ public class PodcastUpdateServiceNameChangeRules
             .Returns(() => AsyncEnumerable.Empty<Episode>());
         _mocker.GetMock<ILogger<PodcastChangeApplier>>();
         _mocker.GetMock<ILogger<PodcastUpdateService>>();
+        _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
         _mocker.Use<IFileKeyAllocator>(_mocker.CreateInstance<FileKeyAllocator>());
     }
 

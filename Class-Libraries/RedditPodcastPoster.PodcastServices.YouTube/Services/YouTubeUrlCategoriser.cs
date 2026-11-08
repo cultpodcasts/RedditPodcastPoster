@@ -426,7 +426,6 @@ public class YouTubeUrlCategoriser(
         var response = await youTubePlaylistService.GetPlaylistVideoSnippets(
             playlistId,
             playlistContext,
-            expensivePlaylist: matchingPodcast.HasExpensiveYouTubePlaylistQuery(),
             // An arbitrary-order playlist cannot stop at the band floor; the uploads playlist is always newest-first.
             playlistOrder: playlistId.Source == YouTubePlaylistIdSource.PodcastEntity
                 ? matchingPodcast.YouTubePlaylistOrder

@@ -55,7 +55,6 @@ public class YouTubeItemResolver(
         var latestPlaylistItems = await youTubePlaylistService.GetPlaylistVideoSnippets(
             playlistId,
             indexingContext, true,
-            indexingContext.RunExpensiveYouTubePlaylistPagination(request.Podcast),
             request.Podcast.YouTubePlaylistOrder);
         if (latestPlaylistItems.Result == null)
         {

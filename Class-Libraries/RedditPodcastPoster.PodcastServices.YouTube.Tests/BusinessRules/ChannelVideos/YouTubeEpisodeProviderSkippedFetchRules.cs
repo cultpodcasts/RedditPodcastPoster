@@ -80,7 +80,7 @@ public class YouTubeEpisodeProviderSkippedFetchRules
             .Setup(x => x.GetUploadsPlaylistReason(It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>()))
             .Returns(_fixture.CreateTitle());
         _mocker.GetMock<IYouTubeChannelVideosService>()
-            .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>(), It.IsAny<bool>()))
+            .Setup(x => x.GetChannelVideos(It.IsAny<YouTubeChannelId>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(new GetChannelVideosResponse(null, null, failure));
         return _mocker.CreateInstance<YouTubeEpisodeProvider>();
     }

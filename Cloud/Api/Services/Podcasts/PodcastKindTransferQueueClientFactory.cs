@@ -19,7 +19,7 @@ public static class PodcastKindTransferQueueClientFactory
         var connection = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
         if (IsStorageConnectionString(connection))
         {
-            return new QueueClient(connection, queueName);
+            return new QueueClient(connection, queueName, TriggerCompatibleOptions());
         }
 
         var accountName = Environment.GetEnvironmentVariable("AzureWebJobsStorage__accountName");
@@ -39,8 +39,17 @@ public static class PodcastKindTransferQueueClientFactory
 
         return new QueueClient(
             new Uri($"https://{accountName}.queue.core.windows.net/{queueName}"),
-            credential);
+            credential,
+            TriggerCompatibleOptions());
     }
+
+    /// <summary>
+    /// The queue trigger decodes Base64 (host.json <c>extensions.queues.messageEncoding</c>).
+    /// <see cref="QueueClient"/> defaults to raw text, and the host then poisons the message
+    /// without running the function.
+    /// </summary>
+    internal static QueueClientOptions TriggerCompatibleOptions() =>
+        new() { MessageEncoding = QueueMessageEncoding.Base64 };
 
     internal static bool IsStorageConnectionString(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&

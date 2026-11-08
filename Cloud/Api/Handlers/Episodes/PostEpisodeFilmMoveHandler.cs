@@ -33,7 +33,8 @@ public class PostEpisodeFilmMoveHandler(
             EpisodeFilmMoveStatus.BadRequest =>
                 await ctx.BadRequest(ApiErrorResponse.Failure(result.Error ?? "Invalid request"), cancellationToken),
             EpisodeFilmMoveStatus.Failed =>
-                await ctx.InternalError(ApiErrorResponse.Failure("Unable to move episode to film"), cancellationToken),
+                // Include ToDto so failureIndexing reaches the client (docs/film-trailers.md).
+                await ctx.InternalError(result.ToDto(), cancellationToken),
             _ => await LogAndFail(ctx, cancellationToken)
         };
     }

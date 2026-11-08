@@ -4,10 +4,21 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      run_provision:
+        description: 'Run bicep provision (Cosmos, functions, budget, …) even if Infrastructure/** did not change'
+        type: boolean
+        default: false
+      bypass_provision_latch:
+        description: 'Break-glass only: allow *-deploy this run while PROVISION_LATCH is set. Does NOT clear the latch. Agents must never set this without explicit user approval in the current conversation.'
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
   contents: read
+  # variables: write is only on the provision job (sets/clears PROVISION_LATCH)
 
 env:  
   DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
@@ -40,7 +51,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      infrastructure_changed: ${{ steps.changes.outputs.infrastructure }}
+      # Paths-filter hit, or manual "Run workflow" on main with run_provision=true.
+      # Authoritative gate for provision steps / archive-infrastructure (do not re-export the raw filter).
+      run_provision: ${{ steps.changes.outputs.infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_provision == 'true') }}
     strategy:
       matrix:
         project:
@@ -101,62 +114,61 @@ jobs:
     needs: build
     steps:
     - uses: actions/checkout@v7
-    - uses: dorny/paths-filter@v4
-      id: changes
-      with:
-        filters: |
-          infrastructure:
-          - ./Infrastructure/**
+      if: needs.build.outputs.run_provision == 'true'
     - name: Archive bicep artifacts
-      if: steps.changes.outputs.infrastructure == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       uses: actions/upload-artifact@v7
       with:
         name: ${{ env.artifactInfrastructure }}
         path: Infrastructure
         include-hidden-files: true
 
+  # Intentionally no job-level `if: run_provision`. When run_provision is false, steps
+  # skip and this job still succeeds (empty no-op). *-deploy requires
+  # needs.provision.result == 'success'; a job-level skip would block package-only deploys.
+  #
+  # PROVISION_LATCH (repo Actions variable): when a run_provision attempt fails, the latch
+  # is set so later package-only deploys cannot ship code that depends on unapplied bicep
+  # (FileKeyClaims / #1295→#1299 incident). Cleared only by a successful run_provision.
+  # See docs/deployment.md § Provision latch. Bypass: workflow_dispatch bypass_provision_latch
+  # (this run only; latch stays) or `gh variable delete PROVISION_LATCH` (human break-glass).
   provision:
     runs-on: ubuntu-latest
     needs: [build, test, archive-infrastructure]
     if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
     continue-on-error: false
+    permissions:
+      id-token: write
+      contents: read
+      variables: write
+    outputs:
+      # Same-run gate for *-deploy (vars context may not refresh after we clear the latch).
+      deploy_allowed: ${{ steps.provision_latch.outputs.deploy_allowed }}
     steps:
     - name: Download bicep artifact
       uses: actions/download-artifact@v8
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
           name: ${{ env.artifactInfrastructure }}
           path: Infrastructure
     - name: Display structure of downloaded files
       run: ls -R -a .
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
     
     - name: Azure Login
       uses: Azure/login@v3.1.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
 
-    - name: Functions Budget (Deploy Bicep)
-      id: bicepfunctionsbudgetdeploy
-      uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
-      with:
-        type: deployment
-        operation: create
-        name: bicep-functions-budget-${{ github.run_number }}
-        location: ${{ env.location }}
-        scope: subscription
-        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-        template-file: ./Infrastructure/functions-budget-subscription.bicep
-        parameters: '{"enableAlerts":true, "suffix":"${{ env.suffix }}", "deploymentResourceGroupName":"${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}", "monthlyFunctionsBudgetAmount":${{ env.MONTHLY_FUNCTIONS_BUDGET_AMOUNT }}, "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
-
+    # Critical resources first. Budget is last: a budget-only failure must not
+    # skip Cosmos/functions, but still fails this job so *-deploy does not run.
     - name: Cosmos DB (Deploy Bicep)
       id: bicepcosmosdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -169,7 +181,7 @@ jobs:
     - name: Cosmos DB diagnostics (Deploy Bicep)
       id: bicepcosmosdiagnosticsdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -182,7 +194,7 @@ jobs:
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -195,7 +207,7 @@ jobs:
     - name: Application-Insights (Deploy Bicep)
       id: bicepappinsightsdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -208,7 +220,7 @@ jobs:
     - name: Functions (Deploy Bicep)
       id: bicepfunctionsdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.infrastructure_changed == 'true'
+      if: needs.build.outputs.run_provision == 'true'
       with:
         type: deployment
         operation: create
@@ -221,7 +233,7 @@ jobs:
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
 
     - name: Set Function State
-      if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.infrastructure_changed == 'true' }}
+      if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.run_provision == 'true' }}
       uses: Azure/cli@v3.0.0
       with:
         azcliversion: latest
@@ -230,10 +242,78 @@ jobs:
           az functionapp ${{ env.functionState }} --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
           az functionapp ${{ env.functionState }} --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
 
+    # After Cosmos/functions. Must succeed for provision to pass (no continue-on-error).
+    - name: Functions Budget (Deploy Bicep)
+      id: bicepfunctionsbudgetdeploy
+      uses: azure/bicep-deploy@v2.5.0
+      if: needs.build.outputs.run_provision == 'true'
+      with:
+        type: deployment
+        operation: create
+        name: bicep-functions-budget-${{ github.run_number }}
+        location: ${{ env.location }}
+        scope: subscription
+        subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+        template-file: ./Infrastructure/functions-budget-subscription.bicep
+        parameters: '{"enableAlerts":true, "suffix":"${{ env.suffix }}", "deploymentResourceGroupName":"${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}", "monthlyFunctionsBudgetAmount":${{ env.MONTHLY_FUNCTIONS_BUDGET_AMOUNT }}, "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
+
+    - name: Provision latch (set / clear / gate)
+      id: provision_latch
+      if: always()
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RUN_PROVISION: ${{ needs.build.outputs.run_provision }}
+        BYPASS_LATCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.bypass_provision_latch == 'true' }}
+        LATCH_VALUE: ${{ vars.PROVISION_LATCH }}
+      run: |
+        set -euo pipefail
+        REPO="${{ github.repository }}"
+        RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        JOB_OK="${{ job.status }}"
+
+        latch_blocked=false
+        if [[ -n "${LATCH_VALUE}" && "${LATCH_VALUE}" == blocked* ]]; then
+          latch_blocked=true
+        fi
+
+        if [[ "${RUN_PROVISION}" == "true" ]]; then
+          if [[ "${JOB_OK}" == "success" ]]; then
+            # Same-run deploys use deploy_allowed=true after successful bicep even if
+            # the cross-run latch variable cannot be deleted (permissions / API).
+            echo "deploy_allowed=true" >> "$GITHUB_OUTPUT"
+            gh variable delete PROVISION_LATCH --repo "$REPO" 2>/dev/null || true
+            if gh variable list --repo "$REPO" --json name -q '.[].name' 2>/dev/null | grep -qx 'PROVISION_LATCH'; then
+              echo "::warning::PROVISION_LATCH still present after delete attempt — cross-run latch NOT cleared (this run may still deploy via deploy_allowed). Retry delete or run_provision when permissions allow."
+            else
+              echo "Cleared PROVISION_LATCH after successful provision (absent or deleted)."
+            fi
+          else
+            BODY="blocked|${{ github.sha }}|${{ github.run_id }}|${RUN_URL}"
+            gh variable set PROVISION_LATCH --repo "$REPO" --body "$BODY"
+            echo "Set PROVISION_LATCH=$BODY"
+            echo "deploy_allowed=false" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+        fi
+
+        # Package-only run (bicep skipped): honour existing latch.
+        if [[ "${latch_blocked}" == "true" ]]; then
+          if [[ "${BYPASS_LATCH}" == "true" ]]; then
+            echo "PROVISION_LATCH is set; bypass_provision_latch=true — allowing *-deploy this run only (latch NOT cleared)."
+            echo "deploy_allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::PROVISION_LATCH is set (${LATCH_VALUE}). Package deploy blocked until a successful run_provision clears it, or break-glass bypass_provision_latch / gh variable delete PROVISION_LATCH. See docs/deployment.md § Provision latch."
+            echo "deploy_allowed=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+        else
+          echo "deploy_allowed=true" >> "$GITHUB_OUTPUT"
+        fi
+
   api-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
+    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -264,7 +344,7 @@ jobs:
   discover-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
+    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -295,7 +375,7 @@ jobs:
   indexer-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
+    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false

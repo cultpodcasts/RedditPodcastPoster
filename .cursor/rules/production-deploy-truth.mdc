@@ -5,16 +5,20 @@ alwaysApply: true
 
 # Production deploy truth (HARD GUARDRAIL)
 
-**Normal path:** merge a PR into `main` → GitHub Actions **Provision and Deploy** ([`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)) builds and deploys `api-infra`, `discover-infra`, and `indexer-infra`. Do **not** offer or run local `scripts/deploy-*.ps1` after a merge unless Actions failed or the user asked for the fallback.
+**Normal path:** merge a PR into `main` → GitHub Actions **Provision and Deploy** ([`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)) builds and deploys `api-infra`, `discover-infra`, and `indexer-infra`. Do **not** offer or run local `scripts/deploy-*.ps1` after a merge unless Actions failed **for a reason other than the provision latch** or the user asked for the fallback.
 
-**Fallback path:** local `scripts/deploy-*.ps1` (blob upload + restart) when Actions is unavailable, or when the user says **deploy functions & clis** / an explicit named script deploy. See [interim-deployment.md](../../docs/interim-deployment.md).
+**Fallback path:** local `scripts/deploy-*.ps1` (blob upload + restart) when Actions is unavailable, or when the user says **deploy functions & clis** / an explicit named script deploy. See [interim-deployment.md](../../docs/interim-deployment.md). **Never** use local Function deploy scripts (or **deploy functions & clis**) as a workaround for `PROVISION_LATCH` / a latch-blocked package-only Actions run unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete. Prefer `run_provision=true` to clear the latch — see [docs/deployment.md](../../docs/deployment.md) § Provision latch.
+
+**Manual provision retry (Actions):** on `main`, Actions → **Provision and Deploy** → **Run workflow** with `run_provision=true` re-runs Bicep (Cosmos/functions/budget) even when the commit did not touch `Infrastructure/**` — e.g. after a failed provision that blocked FileKeyClaims. Detail: [docs/deployment.md](../../docs/deployment.md). `*-deploy` jobs require `needs.provision.result == 'success'` **and** `needs.provision.outputs.deploy_allowed == 'true'` (package deploy does not run on provision failure; same-run gate because `vars.PROVISION_LATCH` can be stale after a clear in the same workflow).
+
+**Provision latch (`PROVISION_LATCH`) — HARD:** A failed `run_provision` sets the repo Actions variable `PROVISION_LATCH`. While it is set, **package-only** deploys are blocked so dependent code cannot ship without applied bicep (incident: #1295 fail → #1299 packages). Cleared only by a **successful** `run_provision`. Break-glass: `bypass_provision_latch` on workflow_dispatch (this run only; latch stays) or `gh variable delete PROVISION_LATCH`. **Agents must never bypass or delete the latch unless the user explicitly asks in the current conversation.** Local `deploy-*.ps1` / **deploy functions & clis** also circumvent the Actions latch — same HARD: do not use them to work around a latch unless the user explicitly asks **and** acknowledges incomplete infra. Full table: [docs/deployment.md](../../docs/deployment.md) § Provision latch.
 
 ## After a PR merges to `main`
 
 1. Treat the merge as **deploy triggered**, not as proof the new code is live.
 2. **MUST** confirm the matching `deploy.yml` run for that commit finished with the relevant `*-deploy` jobs successful (`api-deploy` / `discover-deploy` / `indexer-deploy`).
 3. If the run is still in progress, say **"deploy in progress — Actions not finished"** — not "live" and not "failed".
-4. If the run failed, say **"deploy failed"** (cite the job) — do **not** assume prod has the merge; offer fallback scripts only if the user wants them.
+4. If the run failed, say **"deploy failed"** (cite the job) — do **not** assume prod has the merge. If the failure is the provision latch / `deploy_allowed`, prefer `run_provision=true` — do **not** offer local `deploy-*.ps1` as a workaround unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete. For other Actions failures, offer fallback scripts only if the user wants them.
 5. Do **not** recommend a manual Function deploy solely because a PR merged.
 
 ```powershell

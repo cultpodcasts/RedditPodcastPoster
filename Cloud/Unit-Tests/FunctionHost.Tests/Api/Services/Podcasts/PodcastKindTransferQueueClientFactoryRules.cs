@@ -1,3 +1,4 @@
+using Azure.Storage.Queues;
 using FluentAssertions;
 using Api.Services.Podcasts;
 using Xunit;
@@ -22,5 +23,17 @@ public class PodcastKindTransferQueueClientFactoryRules
 
         // Assert
         result.Should().Be(expected);
+    }
+
+    [Fact(DisplayName =
+        "The kind-transfer queue client encodes messages as Base64, because the queue trigger decodes Base64 " +
+        "and a raw JSON body is poisoned before the worker runs.")]
+    public void queue_client_uses_base64_for_the_trigger()
+    {
+        // Arrange / Act
+        var options = PodcastKindTransferQueueClientFactory.TriggerCompatibleOptions();
+
+        // Assert
+        options.MessageEncoding.Should().Be(QueueMessageEncoding.Base64);
     }
 }

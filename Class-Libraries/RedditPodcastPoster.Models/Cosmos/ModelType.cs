@@ -92,5 +92,8 @@ public enum ModelType
     ParentIndexingLock = 29,
 
     [JsonPropertyName(nameof(ParentKindTransferJob))]
-    ParentKindTransferJob = 30
+    ParentKindTransferJob = 30,
+
+    [JsonPropertyName(nameof(FileKeyClaim))]
+    FileKeyClaim = 31
 }

@@ -117,6 +117,31 @@ public class PodcastKindTransferStatusServiceRules
     }
 
     [Fact(DisplayName =
+        "Status is Failed when a Queued job is older than the transfer lock window and no lock is held, " +
+        "because the worker never started and the podcast was not moved.")]
+    public async Task stale_queued_job_is_failed()
+    {
+        // Arrange
+        var podcastId = _podcast!.Id;
+        _job = new ParentKindTransferJob
+        {
+            PodcastId = podcastId,
+            TargetKind = CatalogueParentKind.NewsOrganisation,
+            Phase = ParentKindTransferJobPhase.Queued,
+            EnqueuedUtc = _now - PodcastKindTransferService.LockStaleAfter
+        };
+        var sut = _mocker.CreateInstance<PodcastKindTransferStatusService>();
+
+        // Act
+        var result = await sut.GetAsync(podcastId, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferJobQueryStatus.Failed);
+        result.FailureReason.Should().Be(
+            "The transfer was queued but the worker never started. The podcast was not moved.");
+    }
+
+    [Fact(DisplayName =
         "Status is Completed when the podcast is gone, no job remains, and a same-id news organisation exists, " +
         "so clients can still learn the transfer finished after job documents age out.")]
     public async Task dest_parent_without_podcast_is_completed()

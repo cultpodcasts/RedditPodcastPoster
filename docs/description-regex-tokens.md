@@ -53,17 +53,15 @@ All description regexes are built by `DescriptionRegexTokens.Create` (`RedditPod
 
 ## Token-free patterns
 
-Patterns without tokens are compiled exactly as written with the options each caller has always used, so
-existing podcasts behave exactly as before. In particular the YouTube episode enricher has historically
-compiled the description regex with **no** options (everything else uses `IgnoreCase | Singleline`); it keeps
-doing so for token-free patterns. Token patterns always use `IgnoreCase | Singleline` everywhere.
+Patterns without tokens are compiled with `Podcast.DescriptionFlags` (`IgnoreCase | Singleline`), including
+the YouTube episode enricher. A token-free pattern can still be compiled with other options through the
+`tokenFreeOptions` parameter, and a pattern that contains tokens always uses `IgnoreCase | Singleline`.
 
 ## Match timeout
 
 Every description regex is compiled with `DescriptionRegexTokens.MatchTimeout` (2 seconds). If a match times out
 (catastrophic backtracking) it is treated as no match and the description is left unchanged, instead of the
-exception failing indexing/publishing. This is the only behaviour change for token-free patterns and only affects
-pathological patterns that previously could hang.
+exception failing indexing/publishing.
 
 ## Validation
 
