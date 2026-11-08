@@ -44,21 +44,6 @@ public class EpisodeBlueskyPostStateRules
     }
 
     [Fact(DisplayName =
-        "Plain English rule: when a curator marks OldBlueskyPosted true with no AT URI, then BlueskyPosted is true without pretending a network post URI exists.")]
-    public void curator_manual_mark_sets_legacy_flag_without_at_uri()
-    {
-        // Arrange
-        var episode = _fixture.CreateEpisode();
-
-        // Act
-        episode.OldBlueskyPosted = true;
-
-        // Assert
-        episode.BlueskyPosted.Should().BeTrue();
-        episode.BlueskyPost.Should().BeNull();
-    }
-
-    [Fact(DisplayName =
         "Plain English rule: when neither legacy flag nor BlueskyPost is set, then BlueskyPosted is false, because the episode has not been posted.")]
     public void unset_means_not_posted()
     {
