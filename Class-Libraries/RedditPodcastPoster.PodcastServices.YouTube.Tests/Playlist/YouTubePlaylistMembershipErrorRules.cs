@@ -79,6 +79,39 @@ public class YouTubePlaylistMembershipErrorRules
             YouTubeQuotaOperation.PlaylistItemsList, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact(DisplayName =
+        "A 403 playlistItemsNotAccessible (private / inaccessible playlist) means the video is not in the playlist (false), not unknown, because that reason is permanent for the stored id.")]
+    public async Task private_playlist_items_not_accessible_is_false()
+    {
+        // Arrange
+        const string body =
+            "{\"error\":{\"code\":403,\"message\":\"The playlist items request is not accessible.\",\"errors\":[{\"reason\":\"playlistItemsNotAccessible\",\"domain\":\"youtube.playlistItem\",\"message\":\"The playlist items request is not accessible.\"}]}}";
+
+        // Act
+        var result = await ContainsWhenYouTubeAnswers(HttpStatusCode.Forbidden, body);
+
+        // Assert
+        result.Should().BeFalse();
+        _mocker.GetMock<IYouTubeQuotaUsageTracker>().Verify(x => x.RecordQuotaHitAsync(It.IsAny<Application>(),
+            It.IsAny<ApplicationUsage>(), YouTubeQuotaOperation.PlaylistItemsList, It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A non-quota 403 that is not playlistItemsNotAccessible stays unknown (null), so routing fails closed rather than treating an unexpected forbid as a miss.")]
+    public async Task other_forbidden_is_unknown()
+    {
+        // Arrange
+        const string body =
+            "{\"error\":{\"code\":403,\"message\":\"Access Not Configured.\",\"errors\":[{\"reason\":\"accessNotConfigured\"}]}}";
+
+        // Act
+        var result = await ContainsWhenYouTubeAnswers(HttpStatusCode.Forbidden, body);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
     [Fact(DisplayName = "A YouTube outage (5xx) is still unknown (null), so routing fails closed.")]
     public async Task outage_is_unknown()
     {

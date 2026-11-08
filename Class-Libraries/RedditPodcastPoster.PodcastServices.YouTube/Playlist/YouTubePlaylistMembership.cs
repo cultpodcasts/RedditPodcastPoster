@@ -12,8 +12,9 @@ public interface IYouTubePlaylistMembership
     /// <summary>
     /// Whether <paramref name="videoId"/> is an item of <paramref name="playlistId"/>: one
     /// <c>playlistItems.list</c> call filtered by <c>videoId</c> (1 quota unit). False when YouTube says the
-    /// playlist does not exist or rejects its id (404 / 400), so a dead playlist reads as "not in it". Null only
-    /// when it could not be checked (quota, 5xx, network).
+    /// playlist does not exist, rejects its id (404 / 400), or the items are inaccessible
+    /// (<c>playlistItemsNotAccessible</c>), so a dead or private playlist reads as "not in it". Null only when it
+    /// could not be checked (quota, other 403s, 5xx, network).
     /// </summary>
     Task<bool?> Contains(IYouTubeServiceWrapper youTubeService, string playlistId, string videoId);
 
@@ -33,6 +34,8 @@ public class YouTubePlaylistMembership(
     IYouTubeQuotaUsageTracker quotaUsageTracker,
     ILogger<YouTubePlaylistMembership> logger) : IYouTubePlaylistMembership
 {
+    private const string PlaylistItemsNotAccessibleReason = "playlistItemsNotAccessible";
+
     public Task<bool?> IsVideoInPlaylist(
         IYouTubeServiceWrapper youTubeService,
         string? playlistId,
@@ -93,6 +96,19 @@ public class YouTubePlaylistMembership(
                 YouTubeQuotaOperation.PlaylistItemsList);
             return null;
         }
+        catch (GoogleApiException ex) when (ex.HttpStatusCode == HttpStatusCode.Forbidden &&
+                                            HasErrorReason(ex, PlaylistItemsNotAccessibleReason))
+        {
+            logger.LogWarning(ex,
+                "YouTube reports playlist '{PlaylistId}' items as inaccessible ({Reason}); treating video '{VideoId}' as not in it. Fix or remove the stored id.",
+                playlistId, PlaylistItemsNotAccessibleReason, videoId);
+            await quotaUsageTracker.RecordQuotaConsumedAsync(
+                youTubeService.CurrentApplication,
+                youTubeService.Usage,
+                YouTubeQuotaOperation.PlaylistItemsList,
+                YouTubeQuotaCosts.PlaylistItemsList);
+            return false;
+        }
         catch (GoogleApiException ex) when (ex.HttpStatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest)
         {
             logger.LogWarning(ex,
@@ -112,4 +128,7 @@ public class YouTubePlaylistMembership(
             return null;
         }
     }
+
+    private static bool HasErrorReason(GoogleApiException ex, string reason) =>
+        ex.Error?.Errors?.Any(e => string.Equals(e.Reason, reason, StringComparison.Ordinal)) == true;
 }
