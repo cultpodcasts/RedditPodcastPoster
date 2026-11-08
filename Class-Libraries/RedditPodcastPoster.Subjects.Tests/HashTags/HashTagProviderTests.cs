@@ -15,22 +15,46 @@ public class HashTagProviderTests
 
     private HashTagProvider Sut => _mocker.CreateInstance<HashTagProvider>();
 
-    [Theory]
+    [Theory(DisplayName =
+        "GetHashTags: a permitted enrichment phrase becomes a HashTag with MatchingText compacted by removing whitespace only, because that body is the X and Bluesky hashtag.")]
     [InlineData("Term A", "#TermA")]
-    [InlineData("Term's A", "#TermsA")]
-    [InlineData("Term-A", "#TermA")]
-    public async Task GetHashTags_WithEnrichmentHashTag_IsCorrect(string enrichmentHashTag, string expected)
+    [InlineData("Alpha Beta", "#AlphaBeta")]
+    public async Task GetHashTags_WithPermittedEnrichmentHashTag_IsCorrect(string enrichmentHashTag, string expected)
     {
-        // arrange
+        // Arrange
         var subject = new Subject(_fixture.Create<string>())
         {
             EnrichmentHashTags = [enrichmentHashTag]
         };
         _mocker.GetMock<ISubjectRepository>().Setup(x => x.GetByName(It.IsAny<string>()))
             .ReturnsAsync(subject);
-        // act
+
+        // Act
         var result = await Sut.GetHashTags([_fixture.Create<string>()]);
-        // assert
+
+        // Assert
         result.Should().BeEquivalentTo([new HashTag(enrichmentHashTag, expected)]);
+    }
+
+    [Theory(DisplayName =
+        "GetHashTags: enrichment phrases that compact to a body with disallowed characters are not returned as HashTags, because those tags are not permitted on X and Bluesky.")]
+    [InlineData("Term-A")]
+    [InlineData("Term's A")]
+    [InlineData("Q&A")]
+    public async Task GetHashTags_WithNonPermittedEnrichmentHashTag_IsEmpty(string enrichmentHashTag)
+    {
+        // Arrange
+        var subject = new Subject(_fixture.Create<string>())
+        {
+            EnrichmentHashTags = [enrichmentHashTag]
+        };
+        _mocker.GetMock<ISubjectRepository>().Setup(x => x.GetByName(It.IsAny<string>()))
+            .ReturnsAsync(subject);
+
+        // Act
+        var result = await Sut.GetHashTags([_fixture.Create<string>()]);
+
+        // Assert
+        result.Should().BeEmpty();
     }
 }

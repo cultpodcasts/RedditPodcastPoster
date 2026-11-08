@@ -3,6 +3,7 @@ using Api.Models;
 using Api.Services.Episodes;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Text.HashTags;
 
 namespace Api.Services.Catalogue;
 
@@ -163,7 +164,7 @@ public static class PlayableChangeApplier
     public static string? NormaliseSearchTerms(string searchTerms) =>
         string.IsNullOrWhiteSpace(searchTerms) ? null : searchTerms;
 
-    /// <summary>"" clears; trimmed.</summary>
+    /// <summary>"" clears; keeps only tokens permitted on both X and Bluesky.</summary>
     public static string? NormaliseHashTag(string hashTag) =>
-        string.IsNullOrWhiteSpace(hashTag) ? null : hashTag.Trim();
+        HashtagText.FilterPermittedStoredHashTagField(hashTag);
 }

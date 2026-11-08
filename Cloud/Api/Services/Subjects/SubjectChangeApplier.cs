@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Subject = RedditPodcastPoster.Models.Subjects.Subject;
 using Api.Models;
 using RedditPodcastPoster.Models.Subjects;
+using RedditPodcastPoster.Text.HashTags;
 
 namespace Api.Services.Subjects;
 
@@ -29,12 +30,14 @@ public class SubjectChangeApplier(ILogger<SubjectChangeApplier> logger)
         {
             subject.EnrichmentHashTags = !change.EnrichmentHashTags.Any()
                 ? null
-                : change.EnrichmentHashTags.Select(x => x.Trim()).ToArray();
+                : HashtagText.FilterPermittedEnrichmentHashTags(change.EnrichmentHashTags);
         }
 
         if (change.HashTag != null)
         {
-            subject.HashTag = change.HashTag == string.Empty ? null : change.HashTag.Trim();
+            subject.HashTag = change.HashTag == string.Empty
+                ? null
+                : HashtagText.FilterPermittedStoredHashTagField(change.HashTag);
         }
 
         if (change.RedditFlairTemplateId != null)

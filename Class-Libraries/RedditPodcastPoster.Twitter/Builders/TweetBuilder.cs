@@ -59,14 +59,15 @@ public class TweetBuilder(
         {
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
-                // Decide from the stored tag. MatchingText can already be a shortened
-                // form (Some-Tag → #SomeTag). The text written after '#' must be that stored body.
-                if (!HashtagText.IsReproducedAsIs(hashtag.Tag))
+                // Multi-word enrichment tags: MatchingText holds the compacted permitted form
+                // ("Alpha Beta" → "#AlphaBeta"). Invalid tags (&, +, -) are filtered at accept
+                // (ToHashTags / FromEnrichmentHashTagsToHashTags) and must not be rewritten here.
+                var tagText = HashtagText.GetTitleEnrichmentTagText(hashtag.Tag, hashtag.MatchingText);
+                if (tagText is null)
                 {
                     continue;
                 }
 
-                var tagText = HashtagText.ToTagText(hashtag.Tag)!;
                 (episodeTitle, var addedHashTag) =
                     hashTagEnricher.AddHashTag(
                         episodeTitle,
