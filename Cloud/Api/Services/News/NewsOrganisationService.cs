@@ -136,6 +136,19 @@ public class NewsOrganisationService(
                 }
             }
 
+            if (string.IsNullOrWhiteSpace(organisation.Indexing?.YouTubePlaylistId))
+            {
+                if (organisation.Indexing != null)
+                {
+                    organisation.Indexing.YouTubePlaylistOwnerChannelId = null;
+                }
+            }
+            else if (YouTubePlaylistOwnerChannel.OwnerFromValidCheck(playlistCheck) is { } playlistOwner)
+            {
+                organisation.Indexing ??= new CatalogueIndexingSource();
+                organisation.Indexing.YouTubePlaylistOwnerChannelId = playlistOwner;
+            }
+
             await newsOrganisationRepository.Save(organisation);
 
             if (!request.Change.ChangesChildProjection)

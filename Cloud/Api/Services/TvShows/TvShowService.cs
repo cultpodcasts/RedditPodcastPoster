@@ -144,6 +144,19 @@ public class TvShowService(
                 }
             }
 
+            if (string.IsNullOrWhiteSpace(show.Indexing?.YouTubePlaylistId))
+            {
+                if (show.Indexing != null)
+                {
+                    show.Indexing.YouTubePlaylistOwnerChannelId = null;
+                }
+            }
+            else if (YouTubePlaylistOwnerChannel.OwnerFromValidCheck(playlistCheck) is { } playlistOwner)
+            {
+                show.Indexing ??= new CatalogueIndexingSource();
+                show.Indexing.YouTubePlaylistOwnerChannelId = playlistOwner;
+            }
+
             await tvShowRepository.Save(show);
 
             if (!request.Change.ChangesChildProjection)

@@ -101,4 +101,41 @@ public class YouTubePlaylistOwnerChannelRules
         // Assert
         derived.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "OwnerFromValidCheck returns the trimmed owner from a Valid Check so youTubePlaylistOwnerChannelId can be " +
+        "persisted for the uploads-head skip (#1183).")]
+    public void owner_from_valid_check_returns_trimmed_owner()
+    {
+        // Arrange
+        var ownerChannelId = _fixture.CreateYouTubeChannelId();
+        var check = new YouTubePlaylistValidation(
+            YouTubePlaylistValidationStatus.Valid,
+            _fixture.CreateYouTubePlaylistId(),
+            $"  {ownerChannelId}  ");
+
+        // Act
+        var owner = YouTubePlaylistOwnerChannel.OwnerFromValidCheck(check);
+
+        // Assert
+        owner.Should().Be(ownerChannelId);
+    }
+
+    [Fact(DisplayName =
+        "OwnerFromValidCheck returns null when Check is not Valid, so a failed playlist lookup does not clear or invent " +
+        "a stored playlist owner.")]
+    public void owner_from_non_valid_check_is_null()
+    {
+        // Arrange
+        var check = new YouTubePlaylistValidation(
+            YouTubePlaylistValidationStatus.PlaylistNotFound,
+            _fixture.CreateYouTubePlaylistId(),
+            _fixture.CreateYouTubeChannelId());
+
+        // Act
+        var owner = YouTubePlaylistOwnerChannel.OwnerFromValidCheck(check);
+
+        // Assert
+        owner.Should().BeNull();
+    }
 }

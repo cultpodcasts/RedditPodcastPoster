@@ -27,6 +27,7 @@ public static class YouTubeIndexingHintsPlanner
     public const string NoWindow = "no-window";
     public const string SkipYouTube = "skip-youtube";
     public const string NotOptedIn = "not-opted-in";
+    public const string ChannelNotPlaylistOwner = "channel-not-playlist-owner";
     public const string HintsUsable = "hints-usable";
 
     /// <summary>
@@ -51,6 +52,19 @@ public static class YouTubeIndexingHintsPlanner
         if (!indexingContext.UseYouTubeIndexingHints)
         {
             return (YouTubePlaylistDiscoveryPlan.FullWalk, NotOptedIn);
+        }
+
+        // Parent channel ≠ playlist owner (e.g. BBC World Service channel + BBC News Entertainment playlist):
+        // the UU uploads head cannot explain playlist growth — skip it and walk (#1183).
+        if (settings.UsesYouTubePlaylist() &&
+            !string.IsNullOrWhiteSpace(settings.YouTubePlaylistOwnerChannelId) &&
+            !string.IsNullOrWhiteSpace(settings.YouTubeChannelId) &&
+            !string.Equals(
+                settings.YouTubePlaylistOwnerChannelId.Trim(),
+                settings.YouTubeChannelId.Trim(),
+                StringComparison.Ordinal))
+        {
+            return (YouTubePlaylistDiscoveryPlan.FullWalk, ChannelNotPlaylistOwner);
         }
 
         if (settings.YouTubeIndexingHints == null)

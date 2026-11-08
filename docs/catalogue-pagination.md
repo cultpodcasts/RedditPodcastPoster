@@ -441,11 +441,17 @@ podcasts through `PodcastUpdater` (a hints-only change still saves), parents thr
 `/indexing/youTubeIndexingHints` patch. Curator saves load and save the stored hints unchanged.
 
 `YouTubeIndexingHintsPlanner` picks **uploads-head** only when the caller opted in
-(`IndexingContext.UseYouTubeIndexingHints`), the hints match the playlist, `playlistItemCount` >
+(`IndexingContext.UseYouTubeIndexingHints`), the stored `youTubePlaylistOwnerChannelId` is blank or
+equals `youTubeChannelId` (otherwise `channel-not-playlist-owner` — the channel UU playlist cannot
+explain growth of a foreign playlist; #1183), the hints match the playlist, `playlistItemCount` >
 threshold, `lastFullWalk` is younger than `FullWalkInterval` less `FullWalkSlack` (defaults **24h**
 and **1h**, so the daily walk is due after 23h and start-time jitter cannot slip it a pass) and there
 is a `ReleasedSince` window. Otherwise it runs the normal full walk (`not-opted-in`, `skip-youtube`,
-`playlist-changed`, `full-walk-due`, `no-window`, …).
+`channel-not-playlist-owner`, `playlist-changed`, `full-walk-due`, `no-window`, …).
+
+`youTubePlaylistOwnerChannelId` is written on podcast / TV / news playlist save from the Valid
+playlist Check (`OwnerChannelId`); cleared when the playlist id is cleared. Legacy parents without
+it keep the previous uploads-head behaviour until the next playlist save.
 
 **Opt-in:** only the hourly Cloud indexer (`Cloud/Indexer/Activities/Indexer.cs`) sets
 `UseYouTubeIndexingHints`. Api "index podcast" (curator re-index) and the Index console app

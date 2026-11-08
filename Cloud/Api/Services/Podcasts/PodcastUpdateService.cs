@@ -122,6 +122,15 @@ public class PodcastUpdateService(
             {
                 podcast.YouTubeChannelId = derivedOwner;
             }
+
+            if (string.IsNullOrWhiteSpace(podcast.YouTubePlaylistId))
+            {
+                podcast.YouTubePlaylistOwnerChannelId = null;
+            }
+            else if (YouTubePlaylistOwnerChannel.OwnerFromValidCheck(playlistCheck) is { } playlistOwner)
+            {
+                podcast.YouTubePlaylistOwnerChannelId = playlistOwner;
+            }
             var nameChanged = false;
             if (podcastChangeRequestWrapper.AllowNameChange &&
                 !string.IsNullOrWhiteSpace(podcastChangeRequestWrapper.Podcast.Name))
