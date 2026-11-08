@@ -7,6 +7,15 @@ Azure `HandleRequest` checks JWT **`permissions`** / OAuth **`scope`** via `Clie
 - Cross-repo map: [`website/cultpodcasts/docs/auth0-roles-and-permissions.md`](../../website/cultpodcasts/docs/auth0-roles-and-permissions.md)
 - Discovery curation: [`docs/discovery-curation-api.md`](docs/discovery-curation-api.md)
 - **Planned epic (not scheduled):** [`docs/catalogue-content-types-epic.md`](docs/catalogue-content-types-epic.md) — separate TvShow/TvShowEpisode, **Film** (made-as-film one-off, cinema or TV; no parent), NewsOrganisation/NewsReport containers + unified search `contentKind` (`Episode | TvShowEpisode | Film | NewsReport`). Phase 0 sign-off 2026-09-23: [ADRs](./docs/adr/README.md), [search storage impact](./docs/catalogue-content-types-search-storage-impact.md). Do not use product name Movie.
+- **Search platform epic (in progress):** replace Azure AI Search Free with D1 FTS — start at [`docs/search-platform/README.md`](docs/search-platform/README.md) / [`agent-handoff.md`](docs/search-platform/agent-handoff.md) when an `SP-*` ticket is thin. Parent narrative: [`docs/search-platform-epic.md`](docs/search-platform-epic.md). Board label `epic:search-platform`; epic issue SP-E. No production `apihost` cutover or Worker deploys unless explicitly asked.
+
+## Provision latch (HARD)
+
+After a failed Actions **provision** (`run_provision` / `Infrastructure/**` apply), repo variable `PROVISION_LATCH` blocks later **package-only** deploys until provision succeeds. Do **not** `bypass_provision_latch` or `gh variable delete PROVISION_LATCH` unless the user explicitly requests that break-glass in the current conversation. Prefer Run workflow with `run_provision=true`.
+
+**Local Function deploys also circumvent the latch.** Do **not** run `scripts/deploy-*.ps1` or honour **deploy functions & clis** as a workaround for a latch-blocked / failed Actions package-only run unless the user explicitly asks for that break-glass **and** acknowledges infra may be incomplete (unapplied bicep). Prefer `run_provision=true` to clear the latch. Detail: [`docs/deployment.md`](docs/deployment.md) § Provision latch.
+
+Authoritative: [`docs/deployment.md`](docs/deployment.md) § Provision latch · [`.cursor/rules/production-deploy-truth.mdc`](.cursor/rules/production-deploy-truth.mdc).
 
 ## Catalogue migrate / playable-services CLIs (HARD)
 
