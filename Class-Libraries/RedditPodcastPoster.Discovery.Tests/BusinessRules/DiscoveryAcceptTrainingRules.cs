@@ -277,6 +277,27 @@ public class DiscoveryAcceptTrainingRules
     }
 
     [Fact(DisplayName =
+        "A training CSV without an autoHidden column fails closed when filtering hidden rejects, because a missing column would treat every reject as a curator label.")]
+    public void missing_auto_hidden_header_fails_closed_when_filtering()
+    {
+        // Arrange
+        var headerWithoutAutoHidden = TrainingCsv.ToHeaderIndex(
+            ["state", "discoveryBegan", "showName", "episodeName", "episodeDescription"]);
+
+        // Act
+        var filter = () => TrainingCsvReader.RequireAutoHiddenHeaderWhenFiltering(
+            headerWithoutAutoHidden, includeHiddenRejects: false);
+        var includeAll = () => TrainingCsvReader.RequireAutoHiddenHeaderWhenFiltering(
+            headerWithoutAutoHidden, includeHiddenRejects: true);
+
+        // Assert
+        filter.Should().Throw<InvalidOperationException>()
+            .WithMessage("*autoHidden*")
+            .WithMessage("*DiscoveryTrainingExport*");
+        includeAll.Should().NotThrow();
+    }
+
+    [Fact(DisplayName =
         "Auto-hidden rejects and a max-row cap are counted apart, because one skipped total would hide whether rows were filtered or truncated.")]
     public void auto_hidden_skips_and_max_rows_are_separate()
     {

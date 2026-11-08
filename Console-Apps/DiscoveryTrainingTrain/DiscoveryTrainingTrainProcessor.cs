@@ -31,6 +31,10 @@ public class DiscoveryTrainingTrainProcessor
 
         Console.WriteLine($"Loading labeled rows from {csvPath}...");
 
+        TrainingCsvReader.RequireAutoHiddenHeaderWhenFiltering(
+            TrainingCsv.ReadHeader(csvPath),
+            request.IncludeHiddenRejects);
+
         var labeled = TrainingCsvReader.ReadLabeledRows(csvPath)
             .OrderBy(x => x.DiscoveryBegan)
             .ToList();

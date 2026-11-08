@@ -70,14 +70,32 @@ if (-not $account) {
 }
 
 $modelDirectory = Resolve-Path $ModelDirectory
+$manifestPath = Join-Path $modelDirectory 'discovery-accept.manifest.json'
+if (-not (Test-Path $manifestPath)) {
+    throw "Required model file not found: $manifestPath"
+}
+
+$newManifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+$featureVersion = 1
+if ($null -ne $newManifest.FeatureVersion) {
+    $featureVersion = [int]$newManifest.FeatureVersion
+}
+
 $requiredFiles = @(
     'discovery-accept.model.zip',
     'discovery-accept.manifest.json',
     'model.onnx',
-    'vocab.txt',
-    'show-accept-rates.csv'
+    'vocab.txt'
 )
-$optionalFiles = @('training-metrics.txt')
+# Feature version 2+ needs show-accept-rates.csv (RequiresShowAcceptRates). Version 1 may omit it.
+$optionalFiles = [System.Collections.Generic.List[string]]::new()
+$optionalFiles.Add('training-metrics.txt')
+if ($featureVersion -ge 2) {
+    $requiredFiles += 'show-accept-rates.csv'
+}
+else {
+    $optionalFiles.Insert(0, 'show-accept-rates.csv')
+}
 
 foreach ($file in $requiredFiles) {
     $path = Join-Path $modelDirectory $file
@@ -92,9 +110,7 @@ Write-Host "Storage account: $StorageAccount"
 Write-Host "Container: $Container"
 Write-Host "Prefix: $prefix"
 Write-Host "Source: $modelDirectory"
-
-$newManifest = Get-Content (Join-Path $modelDirectory 'discovery-accept.manifest.json') -Raw | ConvertFrom-Json
-Write-Host "New model version: $($newManifest.ModelVersion) (trained $($newManifest.TrainedAt))"
+Write-Host "New model version: $($newManifest.ModelVersion) (trained $($newManifest.TrainedAt), feature version $featureVersion)"
 
 $bundleFiles = $requiredFiles + $optionalFiles
 

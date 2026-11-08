@@ -61,6 +61,27 @@ public static class TrainingCsvReader
     public static bool IsCuratorLabel(TrainingCsvRow row) => row.Accepted || !row.AutoHidden;
 
     /// <summary>
+    /// Filtering auto-hidden rejects needs the <c>autoHidden</c> column. Without it every reject looks like a
+    /// curator label and training quietly includes scorer self-rejects.
+    /// </summary>
+    public static void RequireAutoHiddenHeaderWhenFiltering(
+        IReadOnlyDictionary<string, int> header,
+        bool includeHiddenRejects)
+    {
+        if (includeHiddenRejects)
+        {
+            return;
+        }
+
+        if (!header.ContainsKey("autoHidden"))
+        {
+            throw new InvalidOperationException(
+                "Training CSV is missing the autoHidden column; without it every reject looks like a curator " +
+                "label. Re-run DiscoveryTrainingExport, or pass --include-hidden-rejects to train without filtering.");
+        }
+    }
+
+    /// <summary>
     /// Curator labels only, unless <paramref name="includeHiddenRejects"/> is set, then an optional row cap.
     /// Auto-hidden skips and max-row truncation are counted separately.
     /// </summary>
