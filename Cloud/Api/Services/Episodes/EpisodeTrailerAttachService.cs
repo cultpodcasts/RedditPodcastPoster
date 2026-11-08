@@ -19,7 +19,7 @@ namespace Api.Services.Episodes;
 /// <list type="number">
 /// <item>Add a <see cref="FilmTrailer"/> (id = episode id) to the film and save it, ETag-guarded (re-read on a conflict).
 /// Before the add, films are queried across partitions for that id in <c>trailers[].id</c>. Another film that already
-/// holds it rejects the attach and the episode stays, so one episode cannot be a trailer of two films.</item>
+/// holds it returns 409 naming that film and the episode stays, so one episode cannot be a trailer of two films.</item>
 /// <item>Push the film's search document (its <c>trailers</c> list). On failure the episode is kept.</item>
 /// <item>Delete the episode's search document. On failure the episode is kept.</item>
 /// <item>Re-read the film. If it was deleted, best-effort re-upload the episode search document and stop with the episode kept. If it no longer holds the trailer (a concurrent write dropped it), stop with the episode kept.</item>
@@ -199,12 +199,12 @@ public class EpisodeTrailerAttachService(
             }
 
             var otherFilmId = await OtherFilmHoldingTrailer(filmId, trailer.Id);
-            if (otherFilmId is not null)
+            if (otherFilmId is Guid holdingFilmId)
             {
                 logger.LogWarning(
                     "{method}: Episode '{episodeId}' is already a trailer of film '{otherFilmId}'; refusing to attach it to film '{filmId}'.",
-                    nameof(AddTrailer), trailer.Id, otherFilmId, filmId);
-                return (null, BadRequest("This episode is already a trailer of another film"));
+                    nameof(AddTrailer), trailer.Id, holdingFilmId, filmId);
+                return (null, Conflict(holdingFilmId, "This episode is already a trailer of another film"));
             }
 
             latest.Trailers ??= [];
@@ -275,6 +275,9 @@ public class EpisodeTrailerAttachService(
 
     private static EpisodeTrailerAttachResult BadRequest(string error) =>
         new(EpisodeTrailerAttachStatus.BadRequest, Error: error);
+
+    private static EpisodeTrailerAttachResult Conflict(Guid holdingFilmId, string error) =>
+        new(EpisodeTrailerAttachStatus.Conflict, holdingFilmId, Error: error);
 
     private static EpisodeTrailerAttachResult Failed(Film film) =>
         new(EpisodeTrailerAttachStatus.Failed, film.Id, film.Name, FailureIndexing: true);

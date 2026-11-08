@@ -35,6 +35,8 @@ public class PostEpisodeTrailerAttachHandler(
                     cancellationToken),
             EpisodeTrailerAttachStatus.BadRequest =>
                 await ctx.BadRequest(ApiErrorResponse.Failure(result.Error ?? "Invalid request"), cancellationToken),
+            EpisodeTrailerAttachStatus.Conflict =>
+                await ctx.Conflict(result.ToDto(), cancellationToken),
             EpisodeTrailerAttachStatus.Failed =>
                 // Include ToDto so failureIndexing reaches the client (docs/film-trailers.md steps 2–4).
                 await ctx.InternalError(result.ToDto(), cancellationToken),

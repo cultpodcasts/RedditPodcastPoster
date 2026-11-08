@@ -284,7 +284,7 @@ public class EpisodeTrailerAttachServiceRules
     }
 
     [Fact(DisplayName =
-        "Attaching an episode that is already a trailer of another film is rejected, the second film is left unchanged, and the episode row stays, because one episode cannot be a trailer of two films.")]
+        "Attaching an episode that is already a trailer of another film is a Conflict naming that film, the second film is left unchanged, and the episode row stays, because one episode cannot be a trailer of two films.")]
     public async Task episode_already_a_trailer_of_another_film_is_rejected()
     {
         // Arrange
@@ -298,7 +298,8 @@ public class EpisodeTrailerAttachServiceRules
         var result = await Attach(podcast.Id, episode.Id, target.Id);
 
         // Assert
-        result.Status.Should().Be(EpisodeTrailerAttachStatus.BadRequest);
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Conflict);
+        result.FilmId.Should().Be(holding.Id);
         result.Error.Should().Be("This episode is already a trailer of another film");
         Stored(target.Id)!.Trailers.Should().BeNull();
         Stored(holding.Id)!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
