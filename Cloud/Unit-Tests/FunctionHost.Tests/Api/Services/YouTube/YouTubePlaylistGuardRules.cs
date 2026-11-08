@@ -25,21 +25,60 @@ public class YouTubePlaylistGuardRules
         _validator.Setup(v => v.Validate(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string? p, CancellationToken _) => new YouTubePlaylistValidation(status, p, ownerChannelId));
 
-    [Theory(DisplayName = "An edit that leaves the playlist as it is (absent, or re-sent unchanged) is not checked.")]
+    [Theory(DisplayName =
+        "An edit that leaves the playlist as it is (absent, or re-sent unchanged) is not checked when the playlist owner channel is already stored.")]
     [InlineData(null)]
     [InlineData(Playlist)]
     [InlineData(" " + Playlist + " ")]
-    public async Task unchanged_playlist_is_not_checked(string? requestedPlaylist)
+    public async Task unchanged_playlist_with_owner_is_not_checked(string? requestedPlaylist)
     {
         // Arrange
         var guard = Guard();
 
         // Act
-        var refused = await guard.Check(Playlist, requestedPlaylist, CancellationToken.None);
+        var refused = await guard.Check(Playlist, requestedPlaylist, OwnerChannel, CancellationToken.None);
 
         // Assert
         refused.Should().BeNull();
         _validator.VerifyNoOtherCalls();
+    }
+
+    [Theory(DisplayName =
+        "When a non-blank playlist remains and youTubePlaylistOwnerChannelId is blank, Check Validates once so the owner can be filled (#1183).")]
+    [InlineData(null)]
+    [InlineData(Playlist)]
+    [InlineData(" " + Playlist + " ")]
+    public async Task unchanged_playlist_with_blank_owner_is_validated_for_fill(string? requestedPlaylist)
+    {
+        // Arrange
+        ValidatorReturns(YouTubePlaylistValidationStatus.Valid, OwnerChannel);
+
+        // Act
+        var result = await Guard().Check(Playlist, requestedPlaylist, currentPlaylistOwnerChannelId: null, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Status.Should().Be(YouTubePlaylistValidationStatus.Valid);
+        result.OwnerChannelId.Should().Be(OwnerChannel);
+        _validator.Verify(v => v.Validate(Playlist, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory(DisplayName =
+        "Fill-when-owner-blank is soft: a failed Validate on an unchanged playlist returns null so unrelated edits are not blocked.")]
+    [InlineData(YouTubePlaylistValidationStatus.PlaylistNotFound)]
+    [InlineData(YouTubePlaylistValidationStatus.InvalidPlaylistId)]
+    [InlineData(YouTubePlaylistValidationStatus.LookupFailed)]
+    public async Task fill_when_owner_blank_failed_validate_does_not_refuse(YouTubePlaylistValidationStatus status)
+    {
+        // Arrange
+        ValidatorReturns(status);
+
+        // Act
+        var result = await Guard().Check(Playlist, null, currentPlaylistOwnerChannelId: null, CancellationToken.None);
+
+        // Assert
+        result.Should().BeNull();
+        _validator.Verify(v => v.Validate(Playlist, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Theory(DisplayName = "Clearing the playlist is allowed without a YouTube call.")]
@@ -48,7 +87,7 @@ public class YouTubePlaylistGuardRules
     public async Task clearing_playlist_is_not_checked(string requestedPlaylist)
     {
         // Act
-        var refused = await Guard().Check(Playlist, requestedPlaylist, CancellationToken.None);
+        var refused = await Guard().Check(Playlist, requestedPlaylist, OwnerChannel, CancellationToken.None);
 
         // Assert
         refused.Should().BeNull();
@@ -64,7 +103,7 @@ public class YouTubePlaylistGuardRules
         ValidatorReturns(YouTubePlaylistValidationStatus.Valid, ownerChannelId);
 
         // Act
-        var result = await Guard().Check(Playlist, $" {OtherPlaylist} ", CancellationToken.None);
+        var result = await Guard().Check(Playlist, $" {OtherPlaylist} ", OwnerChannel, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -82,7 +121,7 @@ public class YouTubePlaylistGuardRules
         ValidatorReturns(YouTubePlaylistValidationStatus.Valid, OwnerChannel);
 
         // Act
-        var result = await Guard().Check(null, Playlist, CancellationToken.None);
+        var result = await Guard().Check(null, Playlist, currentPlaylistOwnerChannelId: null, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -101,7 +140,7 @@ public class YouTubePlaylistGuardRules
         ValidatorReturns(status);
 
         // Act
-        var refused = await Guard().Check(Playlist, OtherPlaylist, CancellationToken.None);
+        var refused = await Guard().Check(Playlist, OtherPlaylist, OwnerChannel, CancellationToken.None);
 
         // Assert
         refused.Should().NotBeNull();

@@ -19,6 +19,7 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     private string? _spotifyId;
     private string? _youTubeChannelId;
     private string? _youTubePlaylistId;
+    private string? _youTubePlaylistOwnerChannelId;
     private string? _titleRegex;
     private string? _descriptionRegex;
     private string? _episodeMatchRegex;
@@ -88,6 +89,18 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     {
         get => _youTubePlaylistId;
         set => _youTubePlaylistId = NullIfBlank(value);
+    }
+
+    /// <summary>
+    /// Channel that owns <see cref="YouTubePlaylistId"/> (playlists.list at playlist save). Used to skip the
+    /// uploads-head hint when the parent channel does not own the playlist (#1183).
+    /// </summary>
+    [JsonPropertyName("youTubePlaylistOwnerChannelId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? YouTubePlaylistOwnerChannelId
+    {
+        get => _youTubePlaylistOwnerChannelId;
+        set => _youTubePlaylistOwnerChannelId = NullIfBlank(value);
     }
 
     [JsonPropertyName("youTubePlaylistIdHistory")]
@@ -178,6 +191,7 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
         AppleEpisodeCount = podcast.AppleEpisodeCount;
         YouTubeChannelId = podcast.YouTubeChannelId;
         YouTubePlaylistId = podcast.YouTubePlaylistId;
+        YouTubePlaylistOwnerChannelId = podcast.YouTubePlaylistOwnerChannelId;
         YouTubePlaylistIdHistory = CloneHistory(podcast.YouTubePlaylistIdHistory);
         YouTubePlaylistOrder = podcast.YouTubePlaylistOrder;
         YouTubePublicationOffset = podcast.YouTubePublicationOffset;
@@ -236,6 +250,7 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
             AppleEpisodeCount = AppleEpisodeCount,
             YouTubeChannelId = YouTubeChannelId ?? string.Empty,
             YouTubePlaylistId = YouTubePlaylistId ?? string.Empty,
+            YouTubePlaylistOwnerChannelId = YouTubePlaylistOwnerChannelId,
             YouTubePlaylistIdHistory = CloneHistory(YouTubePlaylistIdHistory),
             YouTubePlaylistOrder = YouTubePlaylistOrder,
             YouTubePublicationOffset = YouTubePublicationOffset,

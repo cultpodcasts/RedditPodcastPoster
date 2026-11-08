@@ -101,4 +101,104 @@ public class YouTubePlaylistOwnerChannelRules
         // Assert
         derived.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "OwnerFromValidCheck returns the trimmed owner from a Valid Check so youTubePlaylistOwnerChannelId can be " +
+        "persisted for the uploads-head skip (#1183).")]
+    public void owner_from_valid_check_returns_trimmed_owner()
+    {
+        // Arrange
+        var ownerChannelId = _fixture.CreateYouTubeChannelId();
+        var check = new YouTubePlaylistValidation(
+            YouTubePlaylistValidationStatus.Valid,
+            _fixture.CreateYouTubePlaylistId(),
+            $"  {ownerChannelId}  ");
+
+        // Act
+        var owner = YouTubePlaylistOwnerChannel.OwnerFromValidCheck(check);
+
+        // Assert
+        owner.Should().Be(ownerChannelId);
+    }
+
+    [Fact(DisplayName =
+        "OwnerFromValidCheck returns null when Check is not Valid, so a failed playlist lookup does not clear or invent " +
+        "a stored playlist owner.")]
+    public void owner_from_non_valid_check_is_null()
+    {
+        // Arrange
+        var check = new YouTubePlaylistValidation(
+            YouTubePlaylistValidationStatus.PlaylistNotFound,
+            _fixture.CreateYouTubePlaylistId(),
+            _fixture.CreateYouTubeChannelId());
+
+        // Act
+        var owner = YouTubePlaylistOwnerChannel.OwnerFromValidCheck(check);
+
+        // Assert
+        owner.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PersistFromCheck clears the stored playlist owner when the effective playlist is blank.")]
+    public void persist_from_check_clears_when_playlist_blank()
+    {
+        // Arrange
+        string? storedOwner = _fixture.CreateYouTubeChannelId();
+        var check = new YouTubePlaylistValidation(
+            YouTubePlaylistValidationStatus.Valid,
+            _fixture.CreateYouTubePlaylistId(),
+            _fixture.CreateYouTubeChannelId());
+
+        // Act
+        YouTubePlaylistOwnerChannel.PersistFromCheck(
+            effectivePlaylistId: null,
+            check,
+            () => storedOwner = null,
+            owner => storedOwner = owner);
+
+        // Assert
+        storedOwner.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PersistFromCheck sets youTubePlaylistOwnerChannelId from a Valid Check when a non-blank playlist remains.")]
+    public void persist_from_check_sets_owner_from_valid_check()
+    {
+        // Arrange
+        string? storedOwner = null;
+        var ownerChannelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var check = new YouTubePlaylistValidation(
+            YouTubePlaylistValidationStatus.Valid, playlistId, ownerChannelId);
+
+        // Act
+        YouTubePlaylistOwnerChannel.PersistFromCheck(
+            playlistId,
+            check,
+            () => storedOwner = null,
+            owner => storedOwner = owner);
+
+        // Assert
+        storedOwner.Should().Be(ownerChannelId);
+    }
+
+    [Fact(DisplayName =
+        "PersistFromCheck leaves a stored playlist owner unchanged when Check is null (unchanged playlist that already had an owner).")]
+    public void persist_from_check_leaves_owner_when_check_null()
+    {
+        // Arrange
+        var existingOwner = _fixture.CreateYouTubeChannelId();
+        string? storedOwner = existingOwner;
+
+        // Act
+        YouTubePlaylistOwnerChannel.PersistFromCheck(
+            _fixture.CreateYouTubePlaylistId(),
+            playlistCheck: null,
+            () => storedOwner = null,
+            owner => storedOwner = owner);
+
+        // Assert
+        storedOwner.Should().Be(existingOwner);
+    }
 }

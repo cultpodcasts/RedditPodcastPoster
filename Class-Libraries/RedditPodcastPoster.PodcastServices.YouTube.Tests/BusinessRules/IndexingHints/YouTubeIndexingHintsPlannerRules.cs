@@ -116,6 +116,39 @@ public class YouTubeIndexingHintsPlannerRules
     }
 
     [Fact(DisplayName =
+        "When the stored playlist owner channel differs from the parent YouTube channel, the pass walks the playlist " +
+        "in full and never plans uploads-head, because the channel UU playlist cannot explain growth of a foreign " +
+        "playlist (#1183).")]
+    public void foreign_playlist_owner_skips_uploads_head()
+    {
+        // Arrange
+        _podcast.YouTubePlaylistOwnerChannelId = _fixture.CreateYouTubeChannelId();
+
+        // Act
+        var (plan, reason) = YouTubeIndexingHintsPlanner.Plan(_podcast, _context, _options, _now);
+
+        // Assert
+        plan.Should().Be(YouTubePlaylistDiscoveryPlan.FullWalk);
+        reason.Should().Be(YouTubeIndexingHintsPlanner.ChannelNotPlaylistOwner);
+    }
+
+    [Fact(DisplayName =
+        "When the stored playlist owner equals the parent YouTube channel, fresh hints still use uploads-head, " +
+        "because the channel uploads are the right hint for a same-owner playlist.")]
+    public void same_playlist_owner_still_uses_uploads_head()
+    {
+        // Arrange
+        _podcast.YouTubePlaylistOwnerChannelId = _podcast.YouTubeChannelId;
+
+        // Act
+        var (plan, reason) = YouTubeIndexingHintsPlanner.Plan(_podcast, _context, _options, _now);
+
+        // Assert
+        plan.Should().Be(YouTubePlaylistDiscoveryPlan.UploadsHead);
+        reason.Should().Be(YouTubeIndexingHintsPlanner.HintsUsable);
+    }
+
+    [Fact(DisplayName =
         "A complete full walk of a large playlist records the walk's start, the count and the playlist id, and keeps " +
         "the uploads watermark, because the next passes check uploads from there.")]
     public void complete_walk_records_hints()

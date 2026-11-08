@@ -7,23 +7,39 @@ public class YouTubePlaylistGuard(IYouTubePlaylistValidator validator) : IYouTub
     public async Task<YouTubePlaylistValidation?> Check(
         string? currentPlaylistId,
         string? requestedPlaylistId,
+        string? currentPlaylistOwnerChannelId,
         CancellationToken cancellationToken)
     {
-        if (requestedPlaylistId == null)
+        // Post-request playlist: null request → leave stored; whitespace/"" → clear; else requested id.
+        var effectivePlaylistId = requestedPlaylistId != null
+            ? Normalise(requestedPlaylistId)
+            : Normalise(currentPlaylistId);
+
+        if (effectivePlaylistId.Length == 0)
         {
+            // Clearing the playlist needs no check.
             return null;
         }
 
-        var playlistId = Normalise(requestedPlaylistId);
-        if (playlistId.Length == 0 || string.Equals(playlistId, Normalise(currentPlaylistId), StringComparison.Ordinal))
+        var currentNormalised = Normalise(currentPlaylistId);
+        var playlistIdChanged = !string.Equals(effectivePlaylistId, currentNormalised, StringComparison.Ordinal);
+
+        if (playlistIdChanged)
         {
-            // Clearing the playlist, or re-sending the stored one, needs no check.
-            return null;
+            // New non-blank playlist id: Valid (with OwnerChannelId) or a refusal that blocks the save.
+            return await validator.Validate(effectivePlaylistId, cancellationToken);
         }
 
-        // Return Valid (with OwnerChannelId) so callers can persist the owner onto a blank parent channel
-        // without a second playlists.list. Refusals keep the previous shape.
-        return await validator.Validate(playlistId, cancellationToken);
+        // Unchanged non-blank playlist: Validate once when owner is missing so legacy foreign-playlist parents
+        // can persist youTubePlaylistOwnerChannelId (#1183). Soft — a failed lookup does not block the save.
+        if (string.IsNullOrWhiteSpace(currentPlaylistOwnerChannelId))
+        {
+            var fill = await validator.Validate(effectivePlaylistId, cancellationToken);
+            return fill.Status == YouTubePlaylistValidationStatus.Valid ? fill : null;
+        }
+
+        // Re-sending / omitting a playlist that already has an owner needs no check.
+        return null;
     }
 
     public async Task<YouTubePlaylistValidation?> CheckChannelAgainstPlaylist(

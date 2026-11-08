@@ -12,6 +12,12 @@ public interface IYouTubeIndexingSettings
 
     string? YouTubePlaylistId { get; }
 
+    /// <summary>
+    /// Channel that owns <see cref="YouTubePlaylistId"/> (from playlists.list at playlist save). When set and
+    /// different from <see cref="YouTubeChannelId"/>, the uploads-head hint is skipped (#1183).
+    /// </summary>
+    string? YouTubePlaylistOwnerChannelId { get; set; }
+
     PlaylistOrder? YouTubePlaylistOrder { get; }
 
     bool? YouTubePlaylistQueryIsExpensive { get; set; }
