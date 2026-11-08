@@ -27,11 +27,15 @@ public static class YouTubeIndexingHintsPlanner
     public const string NoWindow = "no-window";
     public const string SkipYouTube = "skip-youtube";
     public const string NotOptedIn = "not-opted-in";
+    public const string ChannelNotPlaylistOwner = "channel-not-playlist-owner";
     public const string HintsUsable = "hints-usable";
 
     /// <summary>
     /// Uploads-head only when every condition holds: YouTube is not skipped, the caller opted in
-    /// (<see cref="IndexingContext.UseYouTubeIndexingHints"/>, the hourly indexer only), hints exist for the current
+    /// (<see cref="IndexingContext.UseYouTubeIndexingHints"/>, the hourly indexer only), stored
+    /// <see cref="IYouTubeIndexingSettings.YouTubePlaylistOwnerChannelId"/> is blank or equals
+    /// <see cref="IYouTubeIndexingSettings.YouTubeChannelId"/> (otherwise <see cref="ChannelNotPlaylistOwner"/> —
+    /// the channel UU playlist cannot explain growth of a foreign playlist; #1183), hints exist for the current
     /// playlist, the stored count is above <see cref="YouTubeIndexingHintsOptions.UploadsHeadMinimumPlaylistItems"/>,
     /// the last full walk is younger than <see cref="YouTubeIndexingHintsOptions.FullWalkInterval"/> less
     /// <see cref="YouTubeIndexingHintsOptions.FullWalkSlack"/>, and the pass has a date window. Otherwise a full walk
@@ -51,6 +55,19 @@ public static class YouTubeIndexingHintsPlanner
         if (!indexingContext.UseYouTubeIndexingHints)
         {
             return (YouTubePlaylistDiscoveryPlan.FullWalk, NotOptedIn);
+        }
+
+        // Parent channel ≠ playlist owner (e.g. BBC World Service channel + BBC News Entertainment playlist):
+        // the UU uploads head cannot explain playlist growth — skip it and walk (#1183).
+        if (settings.UsesYouTubePlaylist() &&
+            !string.IsNullOrWhiteSpace(settings.YouTubePlaylistOwnerChannelId) &&
+            !string.IsNullOrWhiteSpace(settings.YouTubeChannelId) &&
+            !string.Equals(
+                settings.YouTubePlaylistOwnerChannelId.Trim(),
+                settings.YouTubeChannelId.Trim(),
+                StringComparison.Ordinal))
+        {
+            return (YouTubePlaylistDiscoveryPlan.FullWalk, ChannelNotPlaylistOwner);
         }
 
         if (settings.YouTubeIndexingHints == null)

@@ -100,6 +100,15 @@ public class Podcast : Publisher, IYouTubeIndexingSettings, IHasYouTubeIndexingS
     public string YouTubePlaylistId { get; set; } = string.Empty;
 
     /// <summary>
+    /// Channel that owns <see cref="YouTubePlaylistId"/> (playlists.list at playlist save). Used to skip the
+    /// uploads-head hint when the parent channel does not own the playlist (#1183). Omitted when null/blank.
+    /// </summary>
+    [JsonPropertyName("youTubePlaylistOwnerChannelId")]
+    [JsonPropertyOrder(142)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string? YouTubePlaylistOwnerChannelId { get; set; }
+
+    /// <summary>
     /// Former YouTube playlist ids (id + UTC replaced-at), newest last. Populated when
     /// <see cref="YouTubePlaylistId"/> changes through the playlist-id change helper.
     /// </summary>

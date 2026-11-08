@@ -35,7 +35,7 @@ public class ParentEditPlaylistValidationRules
 
     private void GuardRefuses(YouTubePlaylistValidationStatus status) =>
         _mocker.GetMock<IYouTubePlaylistGuard>()
-            .Setup(g => g.Check(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .Setup(g => g.Check(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new YouTubePlaylistValidation(status, "PLsyntheticplaylist0001"));
 
     [Theory(DisplayName =
@@ -72,7 +72,7 @@ public class ParentEditPlaylistValidationRules
         podcast.YouTubePlaylistId.Should().Be(playlistId);
         _mocker.GetMock<IPodcastRepository>().Verify(r => r.Save(It.IsAny<Podcast>()), Times.Never);
         _mocker.GetMock<IYouTubePlaylistGuard>().Verify(g =>
-            g.Check(playlistId, requested, It.IsAny<CancellationToken>()), Times.Once);
+            g.Check(playlistId, requested, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Theory(DisplayName =
@@ -113,7 +113,7 @@ public class ParentEditPlaylistValidationRules
         organisation.Indexing.YouTubePlaylistId.Should().BeNull();
         _mocker.GetMock<INewsOrganisationRepository>().Verify(r => r.Save(It.IsAny<NewsOrganisation>()), Times.Never);
         _mocker.GetMock<IYouTubePlaylistGuard>().Verify(g =>
-            g.Check(null, requestedPlaylist, It.IsAny<CancellationToken>()), Times.Once);
+            g.Check(null, requestedPlaylist, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Theory(DisplayName =
@@ -146,6 +146,6 @@ public class ParentEditPlaylistValidationRules
         show.Indexing!.YouTubePlaylistId.Should().Be(playlistId);
         _mocker.GetMock<ITvShowRepository>().Verify(r => r.Save(It.IsAny<TvShow>()), Times.Never);
         _mocker.GetMock<IYouTubePlaylistGuard>().Verify(g =>
-            g.Check(playlistId, requestedPlaylist, It.IsAny<CancellationToken>()), Times.Once);
+            g.Check(playlistId, requestedPlaylist, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

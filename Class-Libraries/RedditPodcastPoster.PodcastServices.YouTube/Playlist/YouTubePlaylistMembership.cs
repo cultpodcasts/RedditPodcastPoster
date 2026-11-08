@@ -3,6 +3,7 @@ using Google;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
 using RedditPodcastPoster.PodcastServices.YouTube.Quota;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 
@@ -16,6 +17,17 @@ public interface IYouTubePlaylistMembership
     /// could not be checked (quota, other 403s, 5xx, network).
     /// </summary>
     Task<bool?> Contains(IYouTubeServiceWrapper youTubeService, string playlistId, string videoId);
+
+    /// <summary>
+    /// True when <paramref name="playlistId"/> is blank (channel-wide), the URL's <c>list=</c> matches, or
+    /// <see cref="Contains"/> lists the video. False when not in it or the stored id is malformed; null only when
+    /// it could not be checked (skip resolving, missing video id, quota, outage).
+    /// </summary>
+    Task<bool?> IsVideoInPlaylist(
+        IYouTubeServiceWrapper youTubeService,
+        string? playlistId,
+        Uri url,
+        bool skipYouTubeUrlResolving);
 }
 
 public class YouTubePlaylistMembership(
@@ -23,6 +35,39 @@ public class YouTubePlaylistMembership(
     ILogger<YouTubePlaylistMembership> logger) : IYouTubePlaylistMembership
 {
     private const string PlaylistItemsNotAccessibleReason = "playlistItemsNotAccessible";
+
+    public Task<bool?> IsVideoInPlaylist(
+        IYouTubeServiceWrapper youTubeService,
+        string? playlistId,
+        Uri url,
+        bool skipYouTubeUrlResolving)
+    {
+        if (string.IsNullOrWhiteSpace(playlistId))
+        {
+            return Task.FromResult<bool?>(true);
+        }
+
+        if (string.Equals(YouTubePlaylistIdResolver.Extract(url), playlistId, StringComparison.Ordinal))
+        {
+            return Task.FromResult<bool?>(true);
+        }
+
+        if (!YouTubePlaylistIdFormat.IsValid(playlistId))
+        {
+            logger.LogWarning(
+                "Stored youtube-playlist-id '{PlaylistId}' is malformed; treating '{Url}' as not in it. Fix the stored id.",
+                playlistId, url);
+            return Task.FromResult<bool?>(false);
+        }
+
+        var videoId = YouTubeIdResolver.Extract(url);
+        if (string.IsNullOrWhiteSpace(videoId) || skipYouTubeUrlResolving)
+        {
+            return Task.FromResult<bool?>(null);
+        }
+
+        return Contains(youTubeService, playlistId, videoId);
+    }
 
     public async Task<bool?> Contains(IYouTubeServiceWrapper youTubeService, string playlistId, string videoId)
     {

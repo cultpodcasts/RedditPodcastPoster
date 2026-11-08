@@ -65,6 +65,7 @@ public class PodcastUpdateService(
             var playlistCheck = await youTubePlaylistGuard.Check(
                 podcast.YouTubePlaylistId,
                 podcastChangeRequestWrapper.Podcast.YouTubePlaylistId,
+                podcast.YouTubePlaylistOwnerChannelId,
                 c);
             if (playlistCheck is { IsAllowed: false } refusedPlaylist)
             {
@@ -122,6 +123,12 @@ public class PodcastUpdateService(
             {
                 podcast.YouTubeChannelId = derivedOwner;
             }
+
+            YouTubePlaylistOwnerChannel.PersistFromCheck(
+                podcast.YouTubePlaylistId,
+                playlistCheck,
+                () => podcast.YouTubePlaylistOwnerChannelId = null,
+                owner => podcast.YouTubePlaylistOwnerChannelId = owner);
             var nameChanged = false;
             if (podcastChangeRequestWrapper.AllowNameChange &&
                 !string.IsNullOrWhiteSpace(podcastChangeRequestWrapper.Podcast.Name))

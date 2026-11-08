@@ -42,42 +42,8 @@ public class PodcastService(
     }
 
     public Task<bool?> IsVideoInPodcastPlaylist(Podcast podcast, Uri url, IndexingContext indexingContext) =>
-        IsVideoInPlaylist(podcast.YouTubePlaylistId, url, indexingContext);
-
-    /// <summary>
-    /// True when <paramref name="playlistId"/> is blank (null and empty are the same: channel-wide), the URL's
-    /// <c>list=</c> is the playlist, or YouTube lists the video in it. False when not in it, when the stored id is
-    /// malformed (no API call), or when YouTube says the playlist does not exist; null only when it could not be
-    /// checked (quota, outage).
-    /// </summary>
-    private async Task<bool?> IsVideoInPlaylist(string? playlistId, Uri url, IndexingContext indexingContext)
-    {
-        if (string.IsNullOrWhiteSpace(playlistId))
-        {
-            return true;
-        }
-
-        if (string.Equals(YouTubePlaylistIdResolver.Extract(url), playlistId, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        if (!YouTubePlaylistIdFormat.IsValid(playlistId))
-        {
-            logger.LogWarning(
-                "Stored youtube-playlist-id '{PlaylistId}' is malformed; treating '{Url}' as not in it. Fix the stored id.",
-                playlistId, url);
-            return false;
-        }
-
-        var videoId = YouTubeIdResolver.Extract(url);
-        if (string.IsNullOrWhiteSpace(videoId) || indexingContext.SkipYouTubeUrlResolving)
-        {
-            return null;
-        }
-
-        return await youTubePlaylistMembership.Contains(youTubeService, playlistId, videoId);
-    }
+        youTubePlaylistMembership.IsVideoInPlaylist(
+            youTubeService, podcast.YouTubePlaylistId, url, indexingContext.SkipYouTubeUrlResolving);
 
     /// <summary>
     /// The single decision point for which podcast, news organisation or TV show owns a YouTube video, from the
@@ -152,7 +118,8 @@ public class PodcastService(
         var unknown = new List<Podcast>();
         foreach (var candidate in playlistPodcasts)
         {
-            var inPlaylist = await IsVideoInPlaylist(candidate.YouTubePlaylistId, url, indexingContext);
+            var inPlaylist = await youTubePlaylistMembership.IsVideoInPlaylist(
+                youTubeService, candidate.YouTubePlaylistId, url, indexingContext.SkipYouTubeUrlResolving);
             if (inPlaylist == true)
             {
                 containing.Add(candidate);
@@ -182,7 +149,8 @@ public class PodcastService(
 
         var parentClaims = parent == null
             ? false
-            : await IsVideoInPlaylist(parent.Indexing?.YouTubePlaylistId, url, indexingContext);
+            : await youTubePlaylistMembership.IsVideoInPlaylist(
+                youTubeService, parent.Indexing?.YouTubePlaylistId, url, indexingContext.SkipYouTubeUrlResolving);
         if (parentClaims == null)
         {
             throw FailClosed(

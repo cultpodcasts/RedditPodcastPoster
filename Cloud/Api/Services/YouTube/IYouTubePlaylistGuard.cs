@@ -17,15 +17,22 @@ namespace Api.Services.YouTube;
 public interface IYouTubePlaylistGuard
 {
     /// <summary>
-    /// Null when no playlist check ran (request leaves the playlist unchanged, clears it, or re-sends the stored id) —
-    /// the save may go ahead and no owner was fetched. When the request sets a new non-blank playlist id: a
-    /// <see cref="YouTubePlaylistValidationStatus.Valid"/> result (with <c>OwnerChannelId</c> when YouTube returned one)
-    /// means the save may go ahead and callers may persist that owner onto a blank parent channel; otherwise the
-    /// refused validation (invalid id, playlist not found, or a retryable lookup failure).
+    /// Null when no playlist check ran — the save may go ahead and no owner was fetched. Runs a
+    /// <see cref="IYouTubePlaylistValidator.Validate"/> when:
+    /// <list type="bullet">
+    /// <item>the request sets a new non-blank playlist id (refusal blocks the save), or</item>
+    /// <item>a non-blank playlist remains after the request and
+    /// <paramref name="currentPlaylistOwnerChannelId"/> is blank (fill-when-owner-blank for #1183; only a Valid
+    /// result is returned — a failed lookup does not block an unrelated edit).</item>
+    /// </list>
+    /// Clearing the playlist, or leaving an unchanged playlist that already has an owner, costs no quota.
+    /// A <see cref="YouTubePlaylistValidationStatus.Valid"/> result carries <c>OwnerChannelId</c> for callers to
+    /// persist onto a blank parent channel and/or <c>youTubePlaylistOwnerChannelId</c>.
     /// </summary>
     Task<YouTubePlaylistValidation?> Check(
         string? currentPlaylistId,
         string? requestedPlaylistId,
+        string? currentPlaylistOwnerChannelId,
         CancellationToken cancellationToken);
 
     /// <summary>
