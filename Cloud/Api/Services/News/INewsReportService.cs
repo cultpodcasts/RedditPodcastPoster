@@ -9,4 +9,6 @@ public interface INewsReportService
     Task<NewsReportUpdateResult> UpdateAsync(
         NewsReportChangeRequestWrapper request,
         CancellationToken cancellationToken);
+
+    Task<EpisodeDeleteResult> DeleteAsync(Guid reportId, CancellationToken cancellationToken);
 }

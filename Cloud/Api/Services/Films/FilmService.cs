@@ -145,6 +145,38 @@ public class FilmService(
         }
     }
 
+    public async Task<EpisodeDeleteResult> DeleteAsync(Guid filmId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var film = await filmRepository.GetFilm(filmId);
+            if (film is null)
+            {
+                logger.LogWarning("Delete: missing film '{filmId}'.", filmId);
+                return new EpisodeDeleteResult(EpisodeDeleteStatus.NotFound);
+            }
+
+            if (film.Tweeted)
+            {
+                return new EpisodeDeleteResult(
+                    EpisodeDeleteStatus.AlreadySocial,
+                    Tweeted: true);
+            }
+
+            var shortLinkTarget = CatalogueParentKindMapper.ToPostProjection(film);
+            await filmRepository.Delete(film.Id);
+            await searchSync.AfterHardDelete(film.Id, film.Name, shortLinkTarget, cancellationToken);
+
+            logger.LogWarning("Delete removed film '{filmId}' ('{name}').", film.Id, film.Name);
+            return new EpisodeDeleteResult(EpisodeDeleteStatus.Deleted);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete film '{filmId}'.", filmId);
+            return new EpisodeDeleteResult(EpisodeDeleteStatus.Failed);
+        }
+    }
+
     private const int MaxSaveAttempts = FilmDocumentUpdate.MaxAttempts;
 
     private const string StaleTrailersMessage =

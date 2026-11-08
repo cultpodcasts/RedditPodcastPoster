@@ -9,4 +9,6 @@ public interface IFilmService
     Task<FilmUpdateResult> UpdateAsync(
         FilmChangeRequestWrapper request,
         CancellationToken cancellationToken);
+
+    Task<EpisodeDeleteResult> DeleteAsync(Guid filmId, CancellationToken cancellationToken);
 }

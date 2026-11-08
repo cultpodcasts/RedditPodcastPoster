@@ -116,7 +116,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostTvShowHandler, PostTvShowHandler>()
             .AddScoped<ITvShowEpisodeService, TvShowEpisodeService>()
             .AddScoped<IGetTvShowEpisodeHandler, GetTvShowEpisodeHandler>()
-            .AddScoped<IPostTvShowEpisodeHandler, PostTvShowEpisodeHandler>();
+            .AddScoped<IPostTvShowEpisodeHandler, PostTvShowEpisodeHandler>()
+            .AddScoped<IDeleteTvShowEpisodeHandler, DeleteTvShowEpisodeHandler>();
 
     /// <summary>Shared by the news, TV and film editors (post-status retraction, rename). Safe to call more than once.</summary>
     private static IServiceCollection AddCatalogueEditing(this IServiceCollection services)
@@ -145,14 +146,16 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostNewsOrganisationHandler, PostNewsOrganisationHandler>()
             .AddScoped<INewsReportService, NewsReportService>()
             .AddScoped<IGetNewsReportHandler, GetNewsReportHandler>()
-            .AddScoped<IPostNewsReportHandler, PostNewsReportHandler>();
+            .AddScoped<IPostNewsReportHandler, PostNewsReportHandler>()
+            .AddScoped<IDeleteNewsReportHandler, DeleteNewsReportHandler>();
 
     public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
         services
             .AddCatalogueEditing()
             .AddScoped<IFilmService, FilmService>()
             .AddScoped<IGetFilmHandler, GetFilmHandler>()
-            .AddScoped<IPostFilmHandler, PostFilmHandler>();
+            .AddScoped<IPostFilmHandler, PostFilmHandler>()
+            .AddScoped<IDeleteFilmHandler, DeleteFilmHandler>();
 
     public static IServiceCollection AddApiPeople(this IServiceCollection services) =>
         services
