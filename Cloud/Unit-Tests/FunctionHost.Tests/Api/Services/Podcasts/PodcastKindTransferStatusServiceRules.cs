@@ -23,8 +23,8 @@ public class PodcastKindTransferStatusServiceRules
     private DateTime _now;
     private Podcast? _podcast;
     private ParentKindTransferJob? _job;
-    private TvShow? _tvShow = null;
-    private NewsOrganisation? _news = null;
+    private TvShow? _tvShow;
+    private NewsOrganisation? _news;
 
     public PodcastKindTransferStatusServiceRules()
     {
@@ -93,6 +93,27 @@ public class PodcastKindTransferStatusServiceRules
 
         // Assert
         result.Status.Should().Be(PodcastKindTransferJobQueryStatus.Queued);
+    }
+
+    [Fact(DisplayName =
+        "Status is Completed when the podcast is gone, no job remains, and a same-id TV show exists, " +
+        "so clients can still learn the transfer finished after job documents age out.")]
+    public async Task dest_tv_show_without_podcast_is_completed()
+    {
+        // Arrange
+        var podcastId = _fixture.CreateGuid();
+        _podcast = null;
+        _job = null;
+        _tvShow = _fixture.Create<TvShow>();
+        _tvShow.Id = podcastId;
+        var sut = _mocker.CreateInstance<PodcastKindTransferStatusService>();
+
+        // Act
+        var result = await sut.GetAsync(podcastId, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferJobQueryStatus.Completed);
+        result.TargetKind.Should().Be(CatalogueParentKind.TvShow);
     }
 
     [Fact(DisplayName =
