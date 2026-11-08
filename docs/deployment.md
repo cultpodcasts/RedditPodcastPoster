@@ -114,6 +114,18 @@ When not using saved JSON or explicit parameters, `deploy-function-local.ps1` st
 
 **Do not** revert to `Compress-Archive` for function app packages.
 
+## Flex Consumption cost (free grant vs GB·s)
+
+Flex bills **On Demand Execution Time** (GB·s × memory) after the monthly free grant is exhausted. Measured pattern for `AutomatedInfra` (#1278, Oct 2026):
+
+| Signal | Meaning |
+|--------|---------|
+| Early-month Functions £ ≈ 0 while GB·s are high | Still inside the free grant |
+| Mid-month Functions £ jump (~£0.20+/day) with Monitor flat | Grant exhausted — Execution Time metering |
+| 1st of month Functions £ reset to ~0 while GB·s continue | New month / grant reset — not a deploy that “fixed” a runaway |
+
+`instanceMemoryMB` is **512 / 2048 / 4096** only. GB·s scale with memory for the same wall clock. Prefer lower memory on short HTTP apps (`api-infra`, `discover-infra`) and keep `indexer-infra` at **2048** until a memory soak proves 512 safe for Durable orchestrations. Cutting memory does not change Azure Monitor’s ~£0.12/day baseline.
+
 ## Flex Consumption activation
 
 After uploading to the bicep deployment container, restart the function app:

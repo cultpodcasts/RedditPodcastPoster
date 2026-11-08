@@ -838,7 +838,8 @@ module apiFunction 'function.bicep' = {
     runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: true
-    instanceMemoryMB: 2048
+    // 512: cuts Flex GB·s vs 2048 for HTTP work (#1278 free-grant overage). Indexer stays 2048.
+    instanceMemoryMB: 512
     appSettings: union({
         Logging__LogLevel__Api: 'Information'
         // Explicit: OptionsValidationException if missing after code that binds TitleCasingRules.
@@ -861,7 +862,8 @@ module discoveryFunction 'function.bicep' = {
     runtimeVersion: '10.0'
     suffix: suffix
     publicNetworkAccess: false
-    instanceMemoryMB: 2048
+    // 512: same GB·s cut as api-infra (#1278). Revisit if discover scorer OOMs.
+    instanceMemoryMB: 512
     appSettings: union({
         Logging__LogLevel__Discovery: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
