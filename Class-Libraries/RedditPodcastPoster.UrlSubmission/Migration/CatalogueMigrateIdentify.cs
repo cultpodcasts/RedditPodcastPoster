@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -7,14 +6,14 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 namespace RedditPodcastPoster.UrlSubmission.Migration;
 
 /// <summary>
-/// Dry-run identify for corpus migrate (Build 5). Apply is GATE 5 and needs
-/// <see cref="RedditPodcastPoster.Models.Catalogue.CatalogueNewsOrganisationAllowlist"/> for News (S-008).
+/// Dry-run identify for corpus migrate (Build 5). Apply is GATE 5. News apply needs a
+/// curator-named podcast (<c>--podcast-id</c>, S-008); identify heuristics only find candidates.
 /// Apply batches in GATE 5 are still News then Film then TV (S-007).
 /// Mixed classified kinds (News plus Episode/Film/TV) stay Episode and need a curator.
 /// Homogeneous News still requires every classified URL to be News.
 /// Podcast-level dry-run: two or more stored BBC iPlayer episode URLs (TV, count not All),
-/// curator-named TV programmes (canonical show name, many platform services),
-/// with YouTube-only episodes (S-008 heuristic).
+/// then YouTube-only publishers whose names look like news organisations (S-008 heuristic).
+/// No hard-coded curator name lists: they were retired in #1359.
 /// Film still needs --podcast-id / scrape flags.
 /// </summary>
 public static class CatalogueMigrateIdentify
@@ -34,7 +33,7 @@ public static class CatalogueMigrateIdentify
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.Episode,
-                RequiresAllowlist: false,
+                RequiresPodcastId: false,
                 RequiresCurator: true);
         }
 
@@ -42,7 +41,7 @@ public static class CatalogueMigrateIdentify
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.NewsReport,
-                RequiresAllowlist: true,
+                RequiresPodcastId: true,
                 RequiresCurator: requiresCurator);
         }
 
@@ -50,7 +49,7 @@ public static class CatalogueMigrateIdentify
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.TvShowEpisode,
-                RequiresAllowlist: false,
+                RequiresPodcastId: false,
                 RequiresCurator: requiresCurator);
         }
 
@@ -58,13 +57,13 @@ public static class CatalogueMigrateIdentify
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.Film,
-                RequiresAllowlist: false,
+                RequiresPodcastId: false,
                 RequiresCurator: requiresCurator);
         }
 
         return new CatalogueMigrateSuggestion(
             SubmitClassification.Episode,
-            RequiresAllowlist: false,
+            RequiresPodcastId: false,
             RequiresCurator: requiresCurator);
     }
 
@@ -74,12 +73,10 @@ public static class CatalogueMigrateIdentify
     /// ids are TV. YouTube-only publishers whose names look like news organisations
     /// (four-letter call sign, a News word, a newspaper masthead, 24/7, France 24 /
     /// Jazeera / Euronews, or ABC/NBC/CBS/FOX plus a channel number)
-    /// with YouTube-only active episodes are News + allowlist (S-008 dry-run).
+    /// with YouTube-only active episodes are News candidates that need <c>--podcast-id</c> to apply (S-008 dry-run).
     /// US stations often brand as ABC7 / FOX 5; newspapers and rolling-news
-    /// channels (Manila Times, ANC 24/7) are not US-only. TV is checked
-    /// before the news-name heuristic: iPlayer series, then curator-named TV
-    /// programmes (canonical show name; episode services hold every platform),
-    /// then news. Curator stay-podcast names (partisan/advocacy/satire) stay Episode.
+    /// channels (Manila Times, ANC 24/7) are not US-only. The iPlayer TV series check
+    /// runs before the news-name heuristic.
     /// </summary>
     public static CatalogueMigrateSuggestion FromPodcast(Podcast podcast, IEnumerable<Episode> episodes)
     {
@@ -96,15 +93,7 @@ public static class CatalogueMigrateIdentify
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.TvShowEpisode,
-                RequiresAllowlist: false,
-                RequiresCurator: false);
-        }
-
-        if (IsNamedTvShow(podcast, active))
-        {
-            return new CatalogueMigrateSuggestion(
-                SubmitClassification.TvShowEpisode,
-                RequiresAllowlist: false,
+                RequiresPodcastId: false,
                 RequiresCurator: false);
         }
 
@@ -112,7 +101,7 @@ public static class CatalogueMigrateIdentify
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.NewsReport,
-                RequiresAllowlist: true,
+                RequiresPodcastId: true,
                 RequiresCurator: false);
         }
 
@@ -133,7 +122,7 @@ public static class CatalogueMigrateIdentify
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.Episode,
-                RequiresAllowlist: false,
+                RequiresPodcastId: false,
                 RequiresCurator: false);
         }
 
@@ -141,7 +130,7 @@ public static class CatalogueMigrateIdentify
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.Episode,
-                RequiresAllowlist: false,
+                RequiresPodcastId: false,
                 RequiresCurator: true);
         }
 
@@ -172,13 +161,12 @@ public static class CatalogueMigrateIdentify
             return false;
         }
 
-        return LooksLikeNewsOrganisationName(podcast.Name)
-               || CatalogueNewsOrganisationChannelAliases.IsExtraChannel(podcast.Name);
+        return LooksLikeNewsOrganisationName(podcast.Name);
     }
 
     /// <summary>
-    /// Dry-run name heuristic only. Apply still needs
-    /// <see cref="CatalogueNewsOrganisationAllowlist"/> (S-008). Four-letter call signs
+    /// Dry-run name heuristic only. Apply still needs a curator-named podcast
+    /// (<c>--podcast-id</c>, S-008). Four-letter call signs
     /// are one US pattern; many affiliates publish as ABC7, FOX 5, or “… News”.
     /// Newspapers (Times, Herald, …) and rolling-news names (24/7, France 24)
     /// are outlets worldwide, not only US TV.
@@ -191,9 +179,7 @@ public static class CatalogueMigrateIdentify
             return false;
         }
 
-        if (PublisherNameSaysPodcast(trimmed)
-            || PublisherStaysPodcast(trimmed)
-            || PublisherIsTvShow(trimmed))
+        if (PublisherNameSaysPodcast(trimmed))
         {
             return false;
         }
@@ -212,67 +198,6 @@ public static class CatalogueMigrateIdentify
 
     private static bool PublisherNameSaysPodcast(string name) =>
         NameSaysPodcast.IsMatch(name);
-
-    private static bool PublisherStaysPodcast(string name) =>
-        StayPodcastPublisherNames.Contains(name);
-
-    private static bool PublisherIsTvShow(string name) =>
-        CatalogueTvShowCanonicalNames.IsPublisherName(name);
-
-    /// <summary>
-    /// Curator-named TV programmes. Platform ids on the old podcast row do not
-    /// decide kind: a TvShowEpisode canonical page holds many <c>services</c>.
-    /// </summary>
-    public static bool IsNamedTvShow(Podcast podcast, IReadOnlyList<Episode> episodes)
-    {
-        ArgumentNullException.ThrowIfNull(podcast);
-        ArgumentNullException.ThrowIfNull(episodes);
-        if (episodes.Count == 0)
-        {
-            return false;
-        }
-
-        return PublisherIsTvShow(podcast.Name?.Trim() ?? string.Empty);
-    }
-
-    /// <summary>
-    /// Curator: partisan, advocacy, news-satire, news-commentary, or one-person host channels stay
-    /// podcasts even when the name or YouTube About looks like a news organisation.
-    /// News Central TV, BreakThrough News, Newsmax, Democracy Now!, Redacted,
-    /// Le Média, and Law&amp;Crime are outlets and are not on this list.
-    /// </summary>
-    public static readonly IReadOnlySet<string> StayPodcastPublisherNames =
-        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Crime News AEOR",
-            "Daily Caller News",
-            "NIUS",
-            "MAGNO NEWS",
-            "HW News English",
-            "MintPress News",
-            "Andy Ngo",
-            "Ari Melber, Journalist & Attorney",
-            "XENU TV",
-            "Owen Report",
-            "Nancy Mace",
-            // Curator review 22 Oct 2026: news-commentary podcasts that stay podcasts.
-            "Fayn",
-            "Mail News",
-            "Re: News",
-            "Rob Wolchek-Investigative News Reporter",
-            "Daily Cast News",
-            "Touch Breaking News",
-            "On Demand News",
-            "National and World News",
-            "Times Radio Tech"
-        };
-
-    /// <summary>
-    /// Cosmo publisher names whose items are TV programmes (canonical show names live on
-    /// <see cref="CatalogueTvShowCanonicalNames"/>).
-    /// </summary>
-    public static IEnumerable<string> TvShowPublisherNames =>
-        CatalogueTvShowCanonicalNames.PublisherNames;
 
     private static readonly Regex NameSaysPodcast = new(
         @"\bpodcasts?\b",
@@ -413,5 +338,5 @@ public static class CatalogueMigrateIdentify
 
 public sealed record CatalogueMigrateSuggestion(
     string ContentKind,
-    bool RequiresAllowlist,
+    bool RequiresPodcastId,
     bool RequiresCurator);

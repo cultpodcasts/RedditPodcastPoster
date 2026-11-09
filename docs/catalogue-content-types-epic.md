@@ -22,7 +22,7 @@
 | **TvShow** | Traditional multi-episode **series** (BBC iPlayer, Netflix series, etc.). **Not** YouTube entertainment “shows”. |
 | **TvShowEpisode** | One episode of a TvShow. Own Cosmos container. |
 | **Film** | Standalone work **made as a film** (one-off). Premiere venue irrelevant — cinema or one-off TV. Examples: *Going Clear*, *My Scientology Movie*, *A Very British Cult*. Standalone playable — **no parent**. Product name is **Film**, not Movie. |
-| **NewsOrganisation** | News outlet (e.g. BBC News, Sky News, 4-letter TV news stations). Extra YouTube channels of the same outlet: [channel aliases](./catalogue-news-organisation-channel-aliases.md). |
+| **NewsOrganisation** | News outlet (e.g. BBC News, Sky News, 4-letter TV news stations). An extra YouTube channel of the same outlet keeps its own podcast name (the channel-alias map was retired in #1359). |
 | **NewsReport** | One report belonging to a NewsOrganisation. Own Cosmos container. |
 | **`contentKind`** | Search/API facet on the **playable instance**: `Episode \| TvShowEpisode \| Film \| NewsReport`. |
 | **`shortId`** | URL-safe base64url payload: Podcast = 16-byte GUID; Film/TV/News = ASCII `f`\|`t`\|`n` + 16-byte GUID (same encoding on **routes and shortener**). See OPEN-003. |
@@ -63,7 +63,7 @@ Today **all ingestible URLs** that are not Spotify / Apple / YouTube podcast-ser
 | **S-005** | When `contentKind` filter **omitted**: return **all kinds**. Website cards **must** branch by `contentKind` from the first non-podcast docs. |
 | **S-006** | Migrate **preserves playable GUID**; search **swap** (`contentKind` + parent fields). Id **fallback**: resolve by GUID across playable containers / search if kind/route unknown. |
 | **S-007** | Migration order: **News → Film → TV**. |
-| **S-008** | News-station identify: **allowlist-only** for `--apply`; heuristics for **dry-run candidate discovery** only. |
+| **S-008** | News-station identify: **curator-named only** for `--apply`; heuristics for **dry-run candidate discovery** only. The name allowlist was replaced by `--podcast-id` in #1359. |
 | **S-009** | Single-episode → **Film**; miniseries / anthology / finite or ongoing series → **TvShow** + **TvShowEpisode**s (OPEN-006). |
 | **S-010** | Public routes: Film as S-003; TV `/tv/{tv-show-slug}` and `/tv/{tv-show-slug}/{shortId}`; News `/news/{news-org-slug}` and `/news/{news-org-slug}/{shortId}`; podcast paths unchanged; migrated rows **redirect** old episode URL → new kind route. |
 

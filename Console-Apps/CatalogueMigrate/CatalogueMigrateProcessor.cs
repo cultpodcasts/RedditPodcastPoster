@@ -14,8 +14,8 @@ public sealed record CatalogueMigratePlanLine(
     int PlayableCount,
     int RemovedPlayableCount,
     int SearchDocumentCount,
-    bool RequiresAllowlist,
-    bool OnAllowlist,
+    bool RequiresPodcastId,
+    bool Targeted,
     bool Accepted,
     string? BlockReason);
 
@@ -410,20 +410,20 @@ public class CatalogueMigrateProcessor(
             unit.MoveEpisodes.Count,
             unit.RemovedEpisodeCount,
             unit.SearchEpisodes.Count,
-            unit.Plan.RequiresAllowlist,
-            unit.OnAllowlist,
+            unit.Plan.RequiresPodcastId,
+            unit.Targeted,
             unit.ApplyEligible,
             unit.ApplyBlockReason);
         logger.LogInformation(
-            "Catalogue migrate plan {PodcastId} {Kind} parent={ParentId} playables={PlayableCount} removed={RemovedCount} searchDocuments={SearchDocumentCount} allowlist={RequiresAllowlist} onAllowlist={OnAllowlist} apply={ApplyEligible} block={BlockReason}",
+            "Catalogue migrate plan {PodcastId} {Kind} parent={ParentId} playables={PlayableCount} removed={RemovedCount} searchDocuments={SearchDocumentCount} requiresPodcastId={RequiresPodcastId} targeted={Targeted} apply={ApplyEligible} block={BlockReason}",
             line.PodcastId,
             line.Kind,
             line.ParentId,
             line.PlayableCount,
             line.RemovedPlayableCount,
             line.SearchDocumentCount,
-            line.RequiresAllowlist,
-            line.OnAllowlist,
+            line.RequiresPodcastId,
+            line.Targeted,
             line.Accepted,
             line.BlockReason);
         return line;

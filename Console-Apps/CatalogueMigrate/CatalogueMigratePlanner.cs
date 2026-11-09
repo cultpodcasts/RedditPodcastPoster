@@ -16,7 +16,7 @@ public sealed record CatalogueMigrateUnit(
     CatalogueMigrateMovePlan Plan,
     IReadOnlyList<Episode> MoveEpisodes,
     IReadOnlyList<Episode> SearchEpisodes,
-    bool OnAllowlist,
+    bool Targeted,
     string? ApplyBlockReason)
 {
     public bool ApplyEligible => Plan.Accepted && ApplyBlockReason is null;
@@ -27,8 +27,12 @@ public sealed record CatalogueMigrateUnit(
 
 public static class CatalogueMigratePlanner
 {
-    public const string NotOnAllowlist =
-        "S-008: publisher is not on CatalogueNewsOrganisationAllowlist, so News apply is refused.";
+    /// <summary>
+    /// S-008: News apply moves only a podcast a curator names with <c>--podcast-id</c>. The hard-coded
+    /// 299-name allowlist was retired (#1359); identify heuristics still find candidates in a dry-run scan.
+    /// </summary>
+    public const string NewsRequiresPodcastId =
+        "S-008: News apply moves only a curator-named podcast. Re-run with --podcast-id for this podcast.";
 
     public const string PartialNews =
         "Only some episodes are News. A curator must split this podcast before News apply.";
@@ -88,7 +92,6 @@ public static class CatalogueMigratePlanner
         var active = allEpisodes.Where(episode => !episode.Removed).ToList();
         var suggestion = Identify.FromPodcast(podcast, active);
         var planEpisodes = (IReadOnlyList<Episode>) active;
-        var onAllowlist = CatalogueNewsOrganisationAllowlist.Contains(podcast.Name);
         string? block = null;
 
         switch (kind)
@@ -107,9 +110,9 @@ public static class CatalogueMigratePlanner
                     return null;
                 }
 
-                if (!onAllowlist)
+                if (!targeted)
                 {
-                    block = NotOnAllowlist;
+                    block = NewsRequiresPodcastId;
                 }
                 else if (planEpisodes.Count != active.Count)
                 {
@@ -150,7 +153,7 @@ public static class CatalogueMigratePlanner
             plan,
             MoveEpisodes: allEpisodes,
             SearchEpisodes: planEpisodes,
-            onAllowlist,
+            targeted,
             block);
     }
 

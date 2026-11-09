@@ -349,15 +349,15 @@ public class CatalogueMigrateProcessorRules
     }
 
     [Fact(DisplayName =
-        "Catalogue migrate: when a publisher is a curator TV programme, then TvShowEpisode dry-run plans one move " +
-        "and NewsReport dry-run plans zero, because those rows are a TV show with a canonical episode page, not a news desk.")]
-    public async Task tv_scan_plans_youtube_tv_publisher_and_news_scan_skips_it()
+        "Catalogue migrate: when a YouTube-only publisher has no stored iPlayer series, then an untargeted TvShowEpisode " +
+        "dry-run plans zero and a --podcast-id TvShowEpisode dry-run plans one, because there is no curator TV-programme " +
+        "name list: a curator names a TV podcast with --podcast-id.")]
+    public async Task tv_scan_needs_iplayer_series_or_podcast_id()
     {
         // Arrange
-        var name = CatalogueTvShowCanonicalNames.PublisherNames.First();
         var podcast = _fixture.CreatePodcast(p =>
         {
-            p.Name = name;
+            p.Name = _fixture.CreateTitle();
             p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
             p.SpotifyId = string.Empty;
             p.AppleId = null;
@@ -368,41 +368,31 @@ public class CatalogueMigrateProcessorRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var tv = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.TvShowEpisode });
-        var news = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+        var scan = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.TvShowEpisode });
+        var targeted = await sut.Run(new CatalogueMigrateRequest
+        {
+            Kind = SubmitClassification.TvShowEpisode,
+            PodcastId = podcast.Id
+        });
 
         // Assert
-        tv.ExitCode.Should().Be(0);
-        tv.PlannedCount.Should().Be(1);
-        tv.SearchDocumentCount.Should().Be(1);
-        news.ExitCode.Should().Be(0);
-        news.PlannedCount.Should().Be(0);
-        news.SearchDocumentCount.Should().Be(0);
+        scan.ExitCode.Should().Be(0);
+        scan.PlannedCount.Should().Be(0);
+        targeted.ExitCode.Should().Be(0);
+        targeted.PlannedCount.Should().Be(1);
+        targeted.SearchDocumentCount.Should().Be(1);
         _podcasts.SavedPodcasts.Should().BeEmpty();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
-    private string CreateFourLetterName()
-    {
-        var seed = _fixture.Create<int>() & int.MaxValue;
-        for (var attempt = 0; attempt < 8; attempt++)
+    private string CreateFourLetterName() =>
+        string.Create(4, _fixture.Create<int>(), static (span, value) =>
         {
-            var name = string.Create(4, seed + attempt, static (span, value) =>
+            var n = value;
+            for (var i = 0; i < span.Length; i++)
             {
-                var n = value;
-                for (var i = 0; i < span.Length; i++)
-                {
-                    span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
-                    n = HashCode.Combine(n, i);
-                }
-            });
-            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name)
-                && !CatalogueNewsOrganisationAllowlist.Contains(name))
-            {
-                return name;
+                span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n % 26)];
+                n = HashCode.Combine(n, i);
             }
-        }
-
-        return "WXYZ";
-    }
+        });
 }

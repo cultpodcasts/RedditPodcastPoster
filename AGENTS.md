@@ -19,7 +19,7 @@ Authoritative: [`docs/deployment.md`](docs/deployment.md) § Provision latch · 
 
 ## Catalogue migrate / playable-services CLIs (HARD)
 
-1. **This checkout:** `CatalogueMigrateIdentify --apply` always exits 2. `CatalogueMigrate` has a writer (#1049). `--apply` / `--rollback --apply` write only with the exact `--consent` phrase, otherwise they exit 2. Never weaken that gate. News apply is allowlist-only (S-008). `CataloguePlayableServicesBackfill --apply` likewise writes only with its exact `--consent` phrase (else exit 2).
+1. **This checkout:** `CatalogueMigrateIdentify --apply` always exits 2. `CatalogueMigrate` has a writer (#1049). `--apply` / `--rollback --apply` write only with the exact `--consent` phrase, otherwise they exit 2. Never weaken that gate. News apply moves only a curator-named podcast (`--podcast-id`, S-008). `CataloguePlayableServicesBackfill --apply` likewise writes only with its exact `--consent` phrase (else exit 2).
 2. **Agents never pass `--apply` or `--consent`** to `CatalogueMigrateIdentify`, `CatalogueMigrate`, or `CataloguePlayableServicesBackfill`. The human runs apply and types the phrase. GATE 5 / “continue” / deploy / merge is **not** consent. Checklist: [`docs/catalogue-run/definition-of-done.md`](docs/catalogue-run/definition-of-done.md).
 
 Rule: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](.cursor/rules/catalogue-migrate-cli-dry-run.mdc).

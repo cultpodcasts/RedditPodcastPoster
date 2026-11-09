@@ -41,7 +41,7 @@ public static class CatalogueMigrateMover
             SourcePodcastId: podcast.Id,
             DestParentId: organisation.Id,
             DestPlayableIds: reports.Select(report => report.Id).ToArray(),
-            RequiresAllowlist: true,
+            RequiresPodcastId: true,
             RejectReason: null);
     }
 
@@ -57,7 +57,7 @@ public static class CatalogueMigrateMover
             SourcePodcastId: podcast.Id,
             DestParentId: show.Id,
             DestPlayableIds: playables.Select(playable => playable.Id).ToArray(),
-            RequiresAllowlist: false,
+            RequiresPodcastId: false,
             RejectReason: null);
     }
 
@@ -78,7 +78,7 @@ public static class CatalogueMigrateMover
             SourcePodcastId: podcast.Id,
             DestParentId: null,
             DestPlayableIds: [film.Id],
-            RequiresAllowlist: false,
+            RequiresPodcastId: false,
             RejectReason: null);
     }
 }
@@ -89,7 +89,7 @@ public sealed record CatalogueMigrateMovePlan(
     Guid SourcePodcastId,
     Guid? DestParentId,
     Guid[] DestPlayableIds,
-    bool RequiresAllowlist,
+    bool RequiresPodcastId,
     string? RejectReason)
 {
     public static CatalogueMigrateMovePlan Rejected(string contentKind, Guid sourcePodcastId, string reason) =>
@@ -99,6 +99,6 @@ public sealed record CatalogueMigrateMovePlan(
             SourcePodcastId: sourcePodcastId,
             DestParentId: null,
             DestPlayableIds: [],
-            RequiresAllowlist: contentKind == SubmitClassification.NewsReport,
+            RequiresPodcastId: contentKind == SubmitClassification.NewsReport,
             RejectReason: reason);
 }

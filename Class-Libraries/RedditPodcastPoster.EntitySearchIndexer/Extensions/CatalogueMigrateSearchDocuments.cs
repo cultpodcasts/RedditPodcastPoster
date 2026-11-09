@@ -45,19 +45,11 @@ public static class CatalogueMigrateSearchDocuments
             var record = new PodcastEpisode(podcast, episode)
                 .ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
             record.ContentKind = contentKind;
-            if (contentKind == SearchContentKind.Film)
-            {
-                record.SeriesName = null;
-            }
-            else if (contentKind == SearchContentKind.TvShowEpisode)
-            {
-                record.SeriesName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
-            }
-            else
-            {
-                // Extra YouTube channels of an outlet are parented onto the canonical organisation name.
-                record.SeriesName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(podcast.Name);
-            }
+            // A film has no parent. A TV show or news organisation keeps the podcast's own name,
+            // the same name CatalogueParentKindMapper gives the new parent.
+            record.SeriesName = contentKind == SearchContentKind.Film
+                ? null
+                : CatalogueParentKindMapper.ParentName(podcast);
 
             documents.Add(record);
         }

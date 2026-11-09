@@ -116,14 +116,13 @@ public class CatalogueParentKindMapperRules
     }
 
     [Fact(DisplayName =
-        "Mapping a curator TV publisher uses the canonical show name as the TvShow name and file key, " +
-        "because the public hub is the programme, not the channel we found it on.")]
-    public void tv_show_uses_canonical_programme_name()
+        "Mapping a podcast to a TV show names the show and its file key after the podcast's own trimmed name, " +
+        "because no curator rename list applies once the migration-era lists are retired.")]
+    public void tv_show_keeps_podcast_name()
     {
         // Arrange
-        var publisherName = CatalogueTvShowCanonicalNames.PublisherNames.First();
-        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(publisherName);
-        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+        var name = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p => p.Name = $"  {name}  ");
 
         // Act
         var show = CatalogueParentKindMapper.ToTvShow(podcast);
@@ -131,10 +130,9 @@ public class CatalogueParentKindMapperRules
         var playable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
 
         // Assert
-        show.Name.Should().Be(showName);
-        show.FileKey.Should().Be(FileKeyFactory.GetTvShowFileKey(showName));
-        playable.TvShowName.Should().Be(showName);
-        playable.Services.Should().NotBeNull();
+        show.Name.Should().Be(name);
+        show.FileKey.Should().Be(FileKeyFactory.GetTvShowFileKey(name));
+        playable.TvShowName.Should().Be(name);
     }
 
     [Fact(DisplayName =
@@ -155,14 +153,13 @@ public class CatalogueParentKindMapperRules
     }
 
     [Fact(DisplayName =
-        "Mapping an extra YouTube channel of a news organisation uses the canonical organisation name, " +
-        "because one outlet can have several YouTube channels and must not mint a second parent name.")]
-    public void extra_news_channel_uses_canonical_organisation_name()
+        "Mapping a podcast to a news organisation names the organisation and its file key after the podcast's own " +
+        "trimmed name, because no curator channel-alias list applies once the migration-era lists are retired.")]
+    public void news_organisation_keeps_podcast_name()
     {
         // Arrange
-        var channelName = CatalogueNewsOrganisationChannelAliases.ExtraChannelPublisherNames.First();
-        var organisationName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(channelName);
-        var podcast = _fixture.CreatePodcast(p => p.Name = channelName);
+        var name = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p => p.Name = $"  {name}  ");
 
         // Act
         var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
@@ -171,10 +168,9 @@ public class CatalogueParentKindMapperRules
 
         // Assert
         organisation.Id.Should().Be(podcast.Id);
-        organisation.Name.Should().Be(organisationName);
-        organisation.FileKey.Should().Be(FileKeyFactory.GetNewsOrganisationFileKey(organisationName));
-        report.Id.Should().Be(episode.Id);
-        report.NewsOrganisationName.Should().Be(organisationName);
+        organisation.Name.Should().Be(name);
+        organisation.FileKey.Should().Be(FileKeyFactory.GetNewsOrganisationFileKey(name));
+        report.NewsOrganisationName.Should().Be(name);
     }
 
     [Fact(DisplayName =
