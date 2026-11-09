@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport;
@@ -112,6 +113,23 @@ public class CatalogueParentRoutingRules
         return show;
     }
 
+    private void VerifyTitleRouteChannelIdWarning(string channelId) =>
+        _mocker.GetMock<ILogger<EpisodeUrlRouter>>().Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => IsTitleRouteChannelIdWarning(v!.ToString(), channelId)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+
+    private static bool IsTitleRouteChannelIdWarning(string? text, string channelId) =>
+        text is not null
+        && text.Contains(channelId, StringComparison.Ordinal)
+        && text.Contains("read-only", StringComparison.OrdinalIgnoreCase)
+        && text.Contains("admin API", StringComparison.OrdinalIgnoreCase)
+        && !text.Contains("set youTubeChannelId on", StringComparison.Ordinal);
+
     private void VerifyRoutedTo(Guid parentId, Times times) =>
         _mocker.GetMock<ICatalogueParentSubmitter>().Verify(
             s => s.Submit(
@@ -178,7 +196,30 @@ public class CatalogueParentRoutingRules
         VerifyRoutedTo(organisation.Id, Times.Once());
         VerifyRoutedTo(show.Id, Times.Once());
         VerifyNoPodcastPipeline();
-        organisation.Indexing.Should().BeNull("the fallback only routes; the curator sets the channel id");
+        organisation.Indexing.Should().BeNull("the fallback only routes; it does not persist the channel id");
+    }
+
+    [Fact(DisplayName =
+        "When an unclaimed parent is matched by channel title, the warning names the missing youTubeChannelId and " +
+        "does not tell curators to set it in the website (field is read-only; persist via admin API).")]
+    public async Task title_route_warning_does_not_direct_curators_to_website()
+    {
+        // Arrange
+        var name = "Synthetic Outlet " + _fixture.CreateTitle();
+        var organisation = AddOrganisation(name: name);
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var url = YouTubeUrl();
+        OwnerIs(url, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId, YouTubeChannelTitle: name));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(organisation.Id, Times.Once());
+        organisation.Indexing.Should().BeNull();
+        VerifyTitleRouteChannelIdWarning(channelId);
     }
 
     [Fact(DisplayName =
