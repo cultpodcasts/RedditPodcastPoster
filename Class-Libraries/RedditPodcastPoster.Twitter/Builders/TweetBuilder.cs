@@ -34,6 +34,25 @@ public class TweetBuilder(
     : ITweetBuilder
 {
     private const int MinTitleLength = 10;
+
+    /// <summary>
+    /// Soft character budget for the tweet body before the primary platform URL is appended.
+    /// X's limit is 280; each http(s) link is counted as a 23-character t.co URL, so
+    /// 280 − 23 = 257 leaves room for one link. When a second (short) site URL will also be
+    /// appended, reserve another <see cref="SecondUrlReserve"/> characters.
+    /// </summary>
+    public const int CharacterBudgetBeforePrimaryUrl = 257;
+
+    /// <summary>X counts each http(s) URL as this many characters (t.co wrapping).</summary>
+    public const int TcoUrlCharacterWeight = 23;
+
+    /// <summary>
+    /// Extra reserve when a short URL will follow the primary link: one t.co
+    /// (<see cref="TcoUrlCharacterWeight"/>) plus a small separator allowance for the newline
+    /// before the short URL (kept at 26 to match the long-standing title-trim budget).
+    /// </summary>
+    public const int SecondUrlReserve = TcoUrlCharacterWeight + 3;
+
     public const string LengthFormat = @"\[h\:mm\:ss\]";
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
@@ -128,14 +147,16 @@ public class TweetBuilder(
             tweetBuilder.AppendLine(endHashTags);
         }
 
-        // 257 already budgets one t.co URL. Extra 26 only when a second (short) URL will also be appended.
-        // Share-image short-URL-only posts need no second-URL reserve (gated by ShortUrlOnlyWhenShareImage).
+        // CharacterBudgetBeforePrimaryUrl already budgets one t.co URL. SecondUrlReserve only when a
+        // second (short) URL will also be appended. Share-image short-URL-only posts need no second-URL
+        // reserve (gated by ShortUrlOnlyWhenShareImage).
         var shortUrlOnly = hasShareImage && _twitterOptions.ShortUrlOnlyWhenShareImage;
         var reserveSecondUrl = !shortUrlOnly
             && _twitterOptions.WithEpisodeUrl
             && (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||
                 podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
-        var permittedTitleLength = 257 - (tweetBuilder.Length + (reserveSecondUrl ? 26 : 0));
+        var permittedTitleLength = CharacterBudgetBeforePrimaryUrl -
+                                   (tweetBuilder.Length + (reserveSecondUrl ? SecondUrlReserve : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {

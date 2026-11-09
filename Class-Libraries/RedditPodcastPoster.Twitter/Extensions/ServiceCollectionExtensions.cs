@@ -35,8 +35,11 @@ public static class ServiceCollectionExtensions
         services.AddXOAuth2TokenServices();
         services.AddTwitterOptionsValidation(validateOnStart: true);
         services.AddTransient<TwitterAuthenticationHandler>();
+        // Auth is inner so each Polly retry re-signs (OAuth 1.0a nonce/timestamp). Policy is outer and
+        // only retries GET/DELETE on transient/5xx — never POST create (see XApiSafeRetryPolicy).
         services.AddHttpClient<ITwitterClient, TwitterClient>(ConfigureXApiClient)
-            .AddHttpMessageHandler<TwitterAuthenticationHandler>();
+            .AddHttpMessageHandler<TwitterAuthenticationHandler>()
+            .AddPolicyHandler(XApiSafeRetryPolicy.ForRequest);
         return services;
     }
 
