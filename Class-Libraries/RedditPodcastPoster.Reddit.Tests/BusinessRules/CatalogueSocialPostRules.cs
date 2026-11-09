@@ -172,6 +172,9 @@ public class CatalogueSocialPostRules
 
     /// <summary>
     /// YouTube-authority news report still inside (or not subject to) a publishing delay window.
+    /// Release is wall-clock relative to <see cref="DateTime.UtcNow"/> (not <c>UtcDaysAgo(0)</c>):
+    /// a midnight-based release of today−2h plus a 1-day delay expires at ~22:00 UTC and flakes
+    /// after that (CI failure at 23:02 UTC on run 42713443340). Matches PodcastExtensionsTests.
     /// </summary>
     private (NewsOrganisation Organisation, NewsReport Report) CreateYouTubeNewsReportWithPublishingOffset(
         long youTubePublicationOffsetTicks)
@@ -188,8 +191,8 @@ public class CatalogueSocialPostRules
         organisation.LatestReleased = DomainTestFixture.UtcDaysAgo(0);
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(
             podcast,
-            release: DomainTestFixture.UtcDaysAgo(0).AddHours(-2),
-            length: _fixture.CreateDuration(),
+            release: DateTime.UtcNow.AddHours(-2),
+            length: TimeSpan.FromMinutes(30),
             title: _fixture.CreateTitle());
         episode.Subjects = [];
         episode.Guests = null;
