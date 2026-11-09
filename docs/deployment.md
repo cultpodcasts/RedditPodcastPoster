@@ -21,7 +21,7 @@ Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-di
 
 | Step | CI (`deploy.yml`) | Local (`deploy-*.ps1` → `deploy-function-local.ps1`) |
 |------|-------------------|-------------------------------------|
-| Publish | `dotnet publish -c Release -r linux-x64 <Cloud/...> -o output/<name>` | Same (`-c Release -r linux-x64` → `scripts/.deploy-local/<name>`) |
+| Publish | `dotnet build -m:1` then `dotnet publish --no-build` (`-c Release -r linux-x64`, `SkipEnsureDependencyInjectionBuilt`) — avoids MSB4018 deps.json races on shared Class-Libraries | Same (`-c Release -r linux-x64` → `scripts/.deploy-local/<name>`; optional `-SingleNodeMsBuild`) |
 | Package | Folder artifact (Linux paths; `include-hidden-files: true` for `.azurefunctions/`) | `New-LinuxFunctionAppZip` — forward-slash zip (Windows and Linux) |
 | Deploy | `Azure/functions-action@v1` → `package: output/<name>` → `*-infra` | Upload `released-package.zip` to bicep deployment container → `az functionapp restart` |
 | App settings | Bicep only | **Never changed** by deploy scripts |
@@ -88,7 +88,7 @@ az login
 
 Each wrapper resolves Azure target details (resource group, app name, storage account, deployment container) then forwards to `deploy-function-local.ps1` with the matching `-FunctionName`. Other parameters (`-SkipPackaging`, `-NoRestore`, `-DeploymentMode`, etc.) pass through unchanged.
 
-Publish uses parallel MSBuild by default (normal `dotnet publish` speed) and retries up to 3 times on failure, which covers occasional CS2012 locks on shared `Class-Libraries/*/obj/Release` from the ProjectReference graph. Pass `-SingleNodeMsBuild` on `deploy-function-local.ps1` if locks persist.
+Publish uses parallel MSBuild by default (normal `dotnet publish` speed) and retries up to 3 times on failure, which covers occasional CS2012 / MSB4018 (`GenerateDepsFile` deps.json) locks on shared `Class-Libraries/*/bin|obj/Release` from the ProjectReference graph. Pass `-SingleNodeMsBuild` on `deploy-function-local.ps1` if locks persist. Actions CI avoids the race with single-node `dotnet build` then `publish --no-build` (see table above).
 
 ### Saved JSON config (per app)
 
