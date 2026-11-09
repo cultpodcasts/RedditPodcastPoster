@@ -2,7 +2,12 @@ using System.Net;
 using AutoFixture;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
+using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Social;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Twitter.Clients;
 using RedditPodcastPoster.Twitter.Configuration;
 using RedditPodcastPoster.Twitter.Models;
@@ -12,18 +17,29 @@ namespace RedditPodcastPoster.Twitter.Tests;
 
 public class TwitterClientRules
 {
-    private readonly Fixture _fixture = new();
+    private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly ScriptedHttpHandler _x = new();
     private readonly TwitterOptions _options = new();
+    private readonly FakeTimeProvider _time;
     private readonly string _tweet;
+    private XApiRateLimitState? _storedRateLimit;
 
     public TwitterClientRules()
     {
+        _time = new FakeTimeProvider(new DateTimeOffset(DomainTestFixture.UtcToday.AddHours(12), TimeSpan.Zero));
         _options.TwitterId = _fixture.Create<long>();
         _tweet = _fixture.Create<string>();
         _mocker.Use(Options.Create(_options));
         _mocker.Use(new HttpClient(_x) {BaseAddress = _options.ApiBaseAddress});
+        _mocker.Use<TimeProvider>(_time);
+        _mocker.GetMock<IXApiRateLimitStore>()
+            .Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _storedRateLimit);
+        _mocker.GetMock<IXApiRateLimitStore>()
+            .Setup(x => x.SaveAsync(It.IsAny<XApiRateLimitState>(), It.IsAny<CancellationToken>()))
+            .Callback<XApiRateLimitState, CancellationToken>((state, _) => _storedRateLimit = state)
+            .Returns(Task.CompletedTask);
     }
 
     [Fact(DisplayName = "A post goes to POST https://api.x.com/2/tweets with the text as JSON.")]
@@ -89,11 +105,13 @@ public class TwitterClientRules
 
         // Assert
         result.TweetSendStatus.Should().Be(TweetSendStatus.TooManyRequests);
+        _storedRateLimit.Should().NotBeNull();
+        _storedRateLimit!.RateLimitResetUtc.Should().Be(DomainTestFixture.UtcToday.AddHours(13));
     }
 
     [Fact(DisplayName =
-        "A 403 usage-capped problem with no rate-limit headers is reported as TooManyRequests rather than throwing.")]
-    public async Task usage_capped_is_too_many_requests()
+        "A 403 usage-capped problem with no rate-limit headers is reported as PaymentRequired and persists a usage-cap skip until the next UTC month, distinct from a short rate-limit window.")]
+    public async Task usage_capped_is_payment_required()
     {
         // Arrange
         _x.Respond(HttpStatusCode.Forbidden,
@@ -104,7 +122,52 @@ public class TwitterClientRules
         var result = await sut.Send(_tweet);
 
         // Assert
+        result.TweetSendStatus.Should().Be(TweetSendStatus.PaymentRequired);
+        _storedRateLimit.Should().NotBeNull();
+        _storedRateLimit!.UsageCappedUntilUtc.Should().Be(
+            XApiRateLimitPolicy.UsageCapSkipUntilUtc(_time.GetUtcNow().UtcDateTime));
+        _storedRateLimit.RateLimitResetUtc.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When LookUps says X is still rate-limited, then Send does not call the API and returns TooManyRequests, because the do-not-retry-before window must survive worker recycle.")]
+    public async Task send_skips_while_rate_limit_window_active()
+    {
+        // Arrange
+        _storedRateLimit = new XApiRateLimitState
+        {
+            RateLimitResetUtc = _time.GetUtcNow().UtcDateTime.AddMinutes(30)
+        };
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var result = await sut.Send(_tweet);
+
+        // Assert
         result.TweetSendStatus.Should().Be(TweetSendStatus.TooManyRequests);
+        _x.Requests.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A 429 on GetTimelineSince persists x-rate-limit-reset into LookUps, because timeline reads used to ignore the reset header.")]
+    public async Task timeline_persists_rate_limit_reset()
+    {
+        // Arrange
+        var reset = _time.GetUtcNow().UtcDateTime.AddMinutes(12);
+        _x.Respond(HttpStatusCode.TooManyRequests, "{\"title\":\"Too Many Requests\",\"status\":429}",
+            new Dictionary<string, string>
+            {
+                ["x-rate-limit-reset"] = new DateTimeOffset(reset).ToUnixTimeSeconds().ToString()
+            });
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var result = await sut.GetTimelineSince(_time.GetUtcNow().AddDays(-1), null, null);
+
+        // Assert
+        result.State.Should().Be(GetTweetsState.TooManyRequests);
+        _storedRateLimit.Should().NotBeNull();
+        _storedRateLimit!.RateLimitResetUtc.Should().Be(reset);
     }
 
     [Fact(DisplayName = "A non-JSON error body is a plain failure rather than an exception.")]

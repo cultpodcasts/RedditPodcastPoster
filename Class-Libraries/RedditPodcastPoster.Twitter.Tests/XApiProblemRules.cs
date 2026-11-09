@@ -29,9 +29,25 @@ public class XApiProblemRules
 
         // Assert
         problem.IsDuplicateContent.Should().BeFalse();
+        problem.IsUsageCapped.Should().BeFalse();
         problem.IsRateOrUsageLimited.Should().BeFalse();
         problem.IsResourceNotFound.Should().BeFalse();
         problem.Summary().Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A usage-capped problem type is recognised as usage-capped (and therefore rate-or-usage-limited), so the client can persist a longer skip than a short rate-limit window.")]
+    public void usage_capped_type_is_recognised()
+    {
+        // Arrange
+        var body = $"{{\"title\":\"UsageCapExceeded\",\"type\":\"{XApiProblem.UsageCappedType}\",\"status\":429}}";
+
+        // Act
+        var problem = XApiProblem.Parse(body);
+
+        // Assert
+        problem.IsUsageCapped.Should().BeTrue();
+        problem.IsRateOrUsageLimited.Should().BeTrue();
     }
 
     [Theory(DisplayName =

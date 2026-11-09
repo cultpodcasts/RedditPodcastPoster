@@ -95,5 +95,8 @@ public enum ModelType
     ParentKindTransferJob = 30,
 
     [JsonPropertyName(nameof(FileKeyClaim))]
-    FileKeyClaim = 31
+    FileKeyClaim = 31,
+
+    [JsonPropertyName(nameof(XApiRateLimitState))]
+    XApiRateLimitState = 32
 }

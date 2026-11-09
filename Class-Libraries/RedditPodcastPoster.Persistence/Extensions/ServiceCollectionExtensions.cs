@@ -148,6 +148,9 @@ public static class ServiceCollectionExtensions
                     new XOAuth2TokenStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
                         s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<XOAuth2TokenStore>>()))
+                .AddSingleton<IXApiRateLimitStore>(s =>
+                    new XApiRateLimitStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
                 .AddSingleton<IValidateOptions<CosmosDbSettings>, CosmosDbSettingsValidator>();
             services.AddOptions<CosmosDbSettings>().ValidateOnStart();
