@@ -292,7 +292,7 @@ Reuse Episode **`services` map** on TvShowEpisode, Film, and NewsReport ([episod
 
 | Mis-filed as | Target | Identify |
 |--------------|--------|----------|
-| News-station YouTube Podcast (+ episodes) | NewsOrganisation + NewsReports | **Allowlist** for apply; heuristics for dry-run only (S-008) |
+| News-station YouTube Podcast (+ episodes) | NewsOrganisation + NewsReports | **Curator-named** (`--podcast-id`) for apply; heuristics for dry-run only (S-008) |
 | One-off film (cinema or TV) Podcast/Episode | Film | Streaming film / one-off URLs + curator review |
 | Series-shaped Podcast/Episodes | TvShow + TvShowEpisodes | Series URLs / metadata |
 

@@ -6,7 +6,7 @@ Commands are PowerShell from the RedditPodcastPoster repo root on Jon's machine,
 
 ## A. Code (on PR #1049 unless noted)
 
-- [x] Identify: newspapers (name heuristic), channel programmes, and the TMDB/TheTVDB authority preview (dry-run). Named TV curator list removed in #1359.
+- [x] Identify: news-name heuristics (call sign / News word / US affiliate / 24/7), channel programmes, and the TMDB/TheTVDB authority preview (dry-run). Named TV / newspaper masthead / international brand lists removed in #1359.
 - [x] S-008 allowlist, frozen 2 Oct 2026. Retired in #1359: News apply now needs `--podcast-id`.
 - [x] `CatalogueMigrate` writer. It runs News → Film → TV, keeps ids, swaps search, writes evidence per batch, can resume, and has a rollback. The consent gate and the S-008 apply gate are in place. Auto-indexed podcasts move to News and TV (Film refuses).
 - [ ] Website and Api Worker follow-ups, listed in the PR description (consumer audit).
