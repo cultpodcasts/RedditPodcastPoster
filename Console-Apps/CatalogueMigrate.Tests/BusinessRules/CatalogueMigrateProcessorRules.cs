@@ -126,8 +126,8 @@ public class CatalogueMigrateProcessorRules
 
     [Fact(DisplayName =
         "Catalogue migrate: when a podcast has a BBC news episode and a Spotify episode, then News dry-run " +
-        "does not increment PlannedCount, because mixed shows are not an accepted station move.")]
-    public async Task mixed_bbc_news_and_spotify_is_not_planned()
+        "plans the line with PartialNews, because a mixed show must be split before News apply.")]
+    public async Task mixed_bbc_news_and_spotify_reports_partial_news()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
@@ -152,16 +152,18 @@ public class CatalogueMigrateProcessorRules
 
         // Assert
         result.ExitCode.Should().Be(0);
-        result.PlannedCount.Should().Be(0);
-        result.SearchDocumentCount.Should().Be(0);
+        result.PlannedCount.Should().Be(1);
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.PartialNews);
+        result.PlanLines.Single().Targeted.Should().BeFalse();
+        result.SearchDocumentCount.Should().Be(1);
         _podcasts.SavedPodcasts.Should().BeEmpty();
         _episodes.SavedEpisodes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "Catalogue migrate: when --podcast-id News is mixed BBC news and Spotify, then dry-run still does not plan, " +
-        "because targeted News does not skip mixed-show identify.")]
-    public async Task podcast_id_news_mixed_is_not_planned()
+        "Catalogue migrate: when --podcast-id News is mixed BBC news and Spotify, then dry-run still reports PartialNews, " +
+        "because targeted News does not skip the split gate.")]
+    public async Task podcast_id_news_mixed_reports_partial_news()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
@@ -190,8 +192,10 @@ public class CatalogueMigrateProcessorRules
 
         // Assert
         result.ExitCode.Should().Be(0);
-        result.PlannedCount.Should().Be(0);
-        result.SearchDocumentCount.Should().Be(0);
+        result.PlannedCount.Should().Be(1);
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.PartialNews);
+        result.PlanLines.Single().Targeted.Should().BeTrue();
+        result.SearchDocumentCount.Should().Be(1);
     }
 
     [Fact(DisplayName =

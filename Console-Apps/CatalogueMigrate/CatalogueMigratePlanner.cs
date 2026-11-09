@@ -97,29 +97,36 @@ public static class CatalogueMigratePlanner
         switch (kind)
         {
             case SubmitClassification.NewsReport:
-                if (suggestion.ContentKind != SubmitClassification.NewsReport || suggestion.RequiresCurator)
+            {
+                var youTubeOnlyNews = Identify.IsYouTubeOnlyNewsOrganisation(podcast, active);
+                var newsEpisodes = active.Where(Identify.IsNewsReportEpisode).ToList();
+                var acceptedNews = suggestion.ContentKind == SubmitClassification.NewsReport &&
+                                   !suggestion.RequiresCurator;
+                // Identify marks mixed news/non-news as RequiresCurator Episode, which used to drop the
+                // podcast from the News scan. Plan those with PartialNews so an untargeted scan shows
+                // the split reason instead of a blank line or only NewsRequiresPodcastId.
+                var mixedNews = newsEpisodes.Count > 0 && newsEpisodes.Count != active.Count;
+                if (!acceptedNews && !mixedNews)
                 {
                     return null;
                 }
 
-                planEpisodes = Identify.IsYouTubeOnlyNewsOrganisation(podcast, active)
-                    ? active
-                    : active.Where(Identify.IsNewsReportEpisode).ToList();
+                planEpisodes = youTubeOnlyNews ? active : newsEpisodes;
                 if (planEpisodes.Count == 0)
                 {
                     return null;
                 }
 
-                if (!targeted)
-                {
-                    block = NewsRequiresPodcastId;
-                }
-                else if (planEpisodes.Count != active.Count)
+                // Prefer PartialNews over the untargeted S-008 gate so a scan shows the useful reason.
+                // NewsRequiresPodcastId is applied last in CatalogueMigrateProcessor after playlist /
+                // duplicate-parent checks, so those reasons can surface on an untargeted scan too.
+                if (planEpisodes.Count != active.Count)
                 {
                     block = PartialNews;
                 }
 
                 break;
+            }
             case SubmitClassification.TvShowEpisode when !targeted:
                 if (suggestion.ContentKind != SubmitClassification.TvShowEpisode)
                 {

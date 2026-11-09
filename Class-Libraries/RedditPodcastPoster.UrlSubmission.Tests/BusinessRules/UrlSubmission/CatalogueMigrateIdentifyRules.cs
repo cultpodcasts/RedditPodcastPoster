@@ -311,56 +311,6 @@ public class CatalogueMigrateIdentifyRules
         result.RequiresPodcastId.Should().BeTrue();
     }
 
-    public static TheoryData<string> NewspaperMastheadRows() =>
-        ["Times", "Tribune", "Herald", "Gazette", "Chronicle"];
-
-    [Theory(DisplayName =
-        "A YouTube-only publisher whose name contains a newspaper masthead word is a NewsReport candidate that needs a curator --podcast-id, " +
-        "because papers such as a city Times or Herald are news organisations worldwide, not only US TV call signs.")]
-    [MemberData(nameof(NewspaperMastheadRows))]
-    public void youtube_only_newspaper_masthead_name_is_a_news_organisation_candidate(string masthead)
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p =>
-        {
-            p.Name = $"{_fixture.CreateTitle()} {masthead}";
-            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            p.SpotifyId = string.Empty;
-            p.AppleId = null;
-        });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-
-        // Act
-        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
-
-        // Assert
-        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresPodcastId.Should().BeTrue();
-    }
-
-    [Fact(DisplayName =
-        "A YouTube-only publisher whose name uses End Times as prophecy language stays Episode, " +
-        "because that is not a newspaper masthead.")]
-    public void youtube_only_end_times_name_is_not_a_news_organisation()
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p =>
-        {
-            p.Name = $"{_fixture.CreateTitle()} End Times";
-            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            p.SpotifyId = string.Empty;
-            p.AppleId = null;
-        });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-
-        // Act
-        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
-
-        // Assert
-        result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresPodcastId.Should().BeFalse();
-    }
-
     [Fact(DisplayName =
         "A YouTube-only publisher whose name includes 24/7 is a NewsReport candidate that needs a curator --podcast-id, " +
         "because rolling-news channels outside the US brand that way rather than with a News word.")]
@@ -385,30 +335,7 @@ public class CatalogueMigrateIdentifyRules
     }
 
     [Fact(DisplayName =
-        "A YouTube-only publisher whose name is an international news brand without the word News is a NewsReport candidate that needs a curator --podcast-id, " +
-        "because outlets such as France 24 are news organisations worldwide.")]
-    public void youtube_only_international_news_brand_is_a_news_organisation_candidate()
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p =>
-        {
-            p.Name = $"France 24 {_fixture.CreateTitle()}";
-            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            p.SpotifyId = string.Empty;
-            p.AppleId = null;
-        });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-
-        // Act
-        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
-
-        // Assert
-        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresPodcastId.Should().BeTrue();
-    }
-
-    [Fact(DisplayName =
-        "A YouTube-only publisher whose name has no News word, newspaper masthead, 24/7 mark, or US affiliate channel number stays Episode, " +
+        "A YouTube-only publisher whose name has no News word, 24/7 mark, or US affiliate channel number stays Episode, " +
         "because entertainment YouTube channels must not become NewsOrganisation from the name heuristic.")]
     public void youtube_only_entertainment_name_is_not_a_news_organisation()
     {

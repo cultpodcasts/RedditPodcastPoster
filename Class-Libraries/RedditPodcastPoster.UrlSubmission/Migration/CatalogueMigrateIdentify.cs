@@ -8,7 +8,7 @@ namespace RedditPodcastPoster.UrlSubmission.Migration;
 /// <summary>
 /// Dry-run identify for corpus migrate (Build 5). Apply is GATE 5. News apply needs a
 /// curator-named podcast (<c>--podcast-id</c>, S-008); identify heuristics only find candidates.
-/// Apply batches in GATE 5 are still News then Film then TV (S-007).
+/// Apply runs in GATE 5 are still News then Film then TV (S-007).
 /// Mixed classified kinds (News plus Episode/Film/TV) stay Episode and need a curator.
 /// Homogeneous News still requires every classified URL to be News.
 /// Podcast-level dry-run: two or more stored BBC iPlayer episode URLs (TV, count not All),
@@ -71,12 +71,11 @@ public static class CatalogueMigrateIdentify
     /// Stored-corpus identify from the publisher row plus episodes, without scraping.
     /// URL rules run first. Two or more BBC iPlayer episode URLs with no Spotify/Apple publisher
     /// ids are TV. YouTube-only publishers whose names look like news organisations
-    /// (four-letter call sign, a News word, a newspaper masthead, 24/7, France 24 /
-    /// Jazeera / Euronews, or ABC/NBC/CBS/FOX plus a channel number)
+    /// (four-letter call sign, a News word, 24/7, or ABC/NBC/CBS/FOX plus a channel number)
     /// with YouTube-only active episodes are News candidates that need <c>--podcast-id</c> to apply (S-008 dry-run).
-    /// US stations often brand as ABC7 / FOX 5; newspapers and rolling-news
-    /// channels (Manila Times, ANC 24/7) are not US-only. The iPlayer TV series check
-    /// runs before the news-name heuristic.
+    /// US stations often brand as ABC7 / FOX 5; rolling-news channels (ANC 24/7) are not US-only.
+    /// Newspaper masthead and international brand name lists were retired in #1359.
+    /// The iPlayer TV series check runs before the news-name heuristic.
     /// </summary>
     public static CatalogueMigrateSuggestion FromPodcast(Podcast podcast, IEnumerable<Episode> episodes)
     {
@@ -168,8 +167,8 @@ public static class CatalogueMigrateIdentify
     /// Dry-run name heuristic only. Apply still needs a curator-named podcast
     /// (<c>--podcast-id</c>, S-008). Four-letter call signs
     /// are one US pattern; many affiliates publish as ABC7, FOX 5, or “… News”.
-    /// Newspapers (Times, Herald, …) and rolling-news names (24/7, France 24)
-    /// are outlets worldwide, not only US TV.
+    /// Rolling-news names (24/7) are outlets worldwide, not only US TV.
+    /// Newspaper masthead and international brand lists were retired in #1359.
     /// </summary>
     public static bool LooksLikeNewsOrganisationName(string? name)
     {
@@ -191,9 +190,7 @@ public static class CatalogueMigrateIdentify
 
         return NewsWordInName.IsMatch(trimmed)
                || UsAffiliateChannelNumber.IsMatch(trimmed)
-               || NewspaperMastheadInName.IsMatch(trimmed)
-               || RoundTheClockNewsInName.IsMatch(trimmed)
-               || InternationalNewsBrandInName.IsMatch(trimmed);
+               || RoundTheClockNewsInName.IsMatch(trimmed);
     }
 
     private static bool PublisherNameSaysPodcast(string name) =>
@@ -211,16 +208,8 @@ public static class CatalogueMigrateIdentify
         @"\b(?:abc|nbc|cbs|fox)\s*-?\s*\d+\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-    private static readonly Regex NewspaperMastheadInName = new(
-        @"(?<!end\s)\btimes\b|\b(?:tribune|herald|gazette|chronicle|inquirer|bulletin|telegraph|guardian|observer|sentinel|examiner|enquirer)\b",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
     private static readonly Regex RoundTheClockNewsInName = new(
         @"24\s*[/–-]\s*7",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
-    private static readonly Regex InternationalNewsBrandInName = new(
-        @"\b(?:jazeera|france\s*24|euronews)\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     public static bool IsStoredIplayerSeries(Podcast podcast, IReadOnlyList<Episode> episodes)

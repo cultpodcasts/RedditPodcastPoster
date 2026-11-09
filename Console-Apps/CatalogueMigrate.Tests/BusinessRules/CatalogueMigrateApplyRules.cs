@@ -186,6 +186,63 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
+        "Catalogue migrate: when an untargeted News scan finds a podcast that is only partly News, then the plan line " +
+        "reports PartialNews rather than NewsRequiresPodcastId, because the scan should surface the more useful block.")]
+    public async Task untargeted_partial_news_reports_partial_news_not_podcast_id_gate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var newsEpisode = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            newsEpisode,
+            "bbcSounds",
+            new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}"),
+            image: null);
+        var spotifyEpisode = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            spotifyEpisode,
+            ServiceKeys.Spotify,
+            new Uri($"https://open.spotify.com/episode/{_fixture.CreateGuid():N}"),
+            image: null);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(newsEpisode, spotifyEpisode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
+        result.AppliedCount.Should().Be(0);
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.PartialNews);
+        result.PlanLines.Single().Targeted.Should().BeFalse();
+        _destination.NewsOrganisations.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when an untargeted News scan finds a duplicate parent name, then the plan line reports " +
+        "ParentNameExists rather than NewsRequiresPodcastId, because the more useful block is shown first.")]
+    public async Task untargeted_news_duplicate_parent_name_reports_parent_name_exists()
+    {
+        // Arrange
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
+        var existing = CatalogueParentKindMapper.ToNewsOrganisation(_fixture.CreatePodcast(p => p.Name = podcast.Name));
+        _destination.NewsOrganisations[existing.Id] = existing;
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+
+        // Assert
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.ParentNameExists);
+        result.PlanLines.Single().Targeted.Should().BeFalse();
+        result.AppliedCount.Should().Be(0);
+        _destination.NewsOrganisations.Keys.Should().Equal(existing.Id);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
         "Catalogue migrate: dry-run plan lines are identical to the apply plan lines for the same corpus, " +
         "because the dry-run is the reviewed apply plan.")]
     public async Task dry_run_plan_equals_apply_plan()

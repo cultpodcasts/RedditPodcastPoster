@@ -158,6 +158,8 @@ public class CatalogueMigrateProcessor(
                     unit = BlockWhileIndexerMayBeRunning(unit);
                 }
 
+                unit = BlockUntargetedNews(unit);
+
                 if (unit.ApplyEligible && request.Limit is { } limit && eligibleCount >= limit)
                 {
                     logger.LogInformation("Catalogue migrate --limit {Limit} reached. Re-run to continue.", limit);
@@ -347,8 +349,22 @@ public class CatalogueMigrateProcessor(
     }
 
     /// <summary>
+    /// S-008: News apply moves only a curator-named podcast. Applied last so PartialNews, service-id,
+    /// playlist-ownership and duplicate-parent reasons win on an untargeted scan.
+    /// </summary>
+    private static CatalogueMigrateUnit BlockUntargetedNews(CatalogueMigrateUnit unit)
+    {
+        if (unit.Kind != SubmitClassification.NewsReport || unit.Targeted || unit.ApplyBlockReason is not null)
+        {
+            return unit;
+        }
+
+        return unit with { ApplyBlockReason = CatalogueMigratePlanner.NewsRequiresPodcastId };
+    }
+
+    /// <summary>
     /// Blocks a News / TV move whose destination name or fileKey already belongs to another parent of that kind
-    /// (a channel alias or canonical TV name, or an outlet already moved by change-kind). Apply would otherwise
+    /// (a same-named parent, or one already moved by change-kind). Apply would otherwise
     /// create a second parent with the same name and fileKey instead of attaching to the existing one.
     /// </summary>
     private async Task<CatalogueMigrateUnit> BlockDuplicateParent(CatalogueMigrateUnit unit)
