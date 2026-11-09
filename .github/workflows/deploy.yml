@@ -293,11 +293,15 @@ jobs:
             # Same-run deploys use deploy_allowed=true after successful bicep even if
             # the cross-run latch variable cannot be deleted (permissions / API).
             echo "deploy_allowed=true" >> "$GITHUB_OUTPUT"
-            gh variable delete PROVISION_LATCH --repo "$REPO" 2>/dev/null || true
-            if gh variable list --repo "$REPO" --json name -q '.[].name' 2>/dev/null | grep -qx 'PROVISION_LATCH'; then
-              echo "::warning::PROVISION_LATCH still present after delete attempt — cross-run latch NOT cleared (this run may still deploy via deploy_allowed). Retry delete or run_provision when permissions allow."
+            if [[ -z "${VARIABLES_TOKEN:-}" ]]; then
+              echo "::warning::Skipping PROVISION_LATCH delete — VARIABLES_TOKEN not set. Same-run deploy_allowed=true; cross-run latch may still be set. See docs/deployment.md § Provision latch."
             else
-              echo "Cleared PROVISION_LATCH after successful provision (absent or deleted)."
+              gh variable delete PROVISION_LATCH --repo "$REPO" 2>/dev/null || true
+              if gh variable list --repo "$REPO" --json name -q '.[].name' 2>/dev/null | grep -qx 'PROVISION_LATCH'; then
+                echo "::warning::PROVISION_LATCH still present after delete attempt — cross-run latch NOT cleared (this run may still deploy via deploy_allowed). Retry delete or run_provision when permissions allow."
+              else
+                echo "Cleared PROVISION_LATCH after successful provision (absent or deleted)."
+              fi
             fi
           else
             BODY="blocked|${{ github.sha }}|${{ github.run_id }}|${RUN_URL}"
