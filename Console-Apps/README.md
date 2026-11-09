@@ -672,6 +672,8 @@ The TV show, news and film files differ from the podcast file on purpose:
 - **The baseline:** the previous publish's file with the same file key and the same id or, for a file that is moved first (a rename, or a podcast that became a TV show or news organisation), the file it is moved from. A file with a different id is not used, and a new file has no baseline. This applies to podcast episodes, TV show episodes and news reports; a film is a single item with no previous text of its own.
 - **Reading:** the texts are read once, together with the baseline files at the start of the run, and are only ever read. A file that cannot be read at all (locked, no access) stops the run before anything is planned or changed, like any unreadable file in the folder (exit code 2); a file that is not JSON of the expected shape has no id, so the plan treats it as an unexplained removal (see the list below) that must be accepted knowingly.
 
+**Catalogue read:** each parent kind is loaded once with a full `GetAll()` (not a slim `GetAllBy` projection). Cosmos LINQ projections of id/fileKey/name/removed are valid when expressed as member-init into a mutable type (#1042), but the file build still needs the parent bodies; measured projected+full RU was higher than one full read, so the publisher keeps the single full read.
+
 **The output folder is the baseline.** Run the publisher in the folder that holds the previous publish (the PublicDatabase checkout) and do not clear it first. Before touching any file it reads every top-level `*.json` there, reads the catalogue once, checks every file key and id, and plans the whole run:
 
 - a file whose item is still published under the same key and id is replaced in place;

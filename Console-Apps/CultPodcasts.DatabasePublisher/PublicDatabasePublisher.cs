@@ -244,6 +244,15 @@ public class PublicDatabasePublisher(
                 new RemainingTimeColumn(),
                 new SpinnerColumn());
 
+    /// <summary>
+    /// Full parent documents once. A projected inventory of id/fileKey/name/removed via
+    /// <c>GetAllBy(selector, projection)</c> is valid against Cosmos (member-init only; see
+    /// <see cref="IFilterableRepository{TEntity}"/>), but the staged file build still needs the
+    /// parent bodies. Decisive production measurement (podcasts, ~6435 rows): projected+full was
+    /// ~1.37× one full read (~138+370 vs ~370 RU). Tiny kinds (tv-show/film, 2–8 rows) showed
+    /// higher ratios (~3×) dominated by Cosmos per-query RU floors — corroboration only, not
+    /// the decision driver. Two reads do not beat one full read.
+    /// </summary>
     private async Task<Catalogue> ReadCatalogueAsync(ProgressTask progress)
     {
         var podcasts = await podcastRepository.GetAll().ToListAsync();
