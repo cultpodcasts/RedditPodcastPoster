@@ -6,7 +6,6 @@ using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Discovery.Providers;
 using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Models.Discovery;
-using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -80,13 +79,7 @@ public class DiscoveryProcessor(
         if (request.Since.HasValue)
         {
             // Unspecified means UTC (#1212 / #1219) — never ToUniversalTime on CLI args.
-            since = UtcDateTimes.ToUtc(request.Since.Value);
-            if (since > DateTime.UtcNow)
-            {
-                throw new InvalidOperationException(
-                    $"'{nameof(request)}.{nameof(request.Since)}' is in the future. ");
-            }
-
+            since = DiscoverCliSince.Resolve(request.Since.Value);
             searchSince = DateTime.UtcNow.Subtract(since).ToString();
         }
         else if (!string.IsNullOrWhiteSpace(request.SearchWindow))

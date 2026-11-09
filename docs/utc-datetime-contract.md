@@ -21,12 +21,12 @@ A date-only release is **midnight UTC on that calendar date** (`…T00:00:00Z`).
 
 | Hop | Mechanism | Key paths |
 |-----|-----------|-----------|
-| RPP HTTP JSON | `AddUtcJsonDateTimes()` converters | `Cloud/Api/Extensions/UtcJsonServiceCollectionExtensions.cs`, `UtcDateTimeConverter` / `UtcDateTimeOffsetConverter` |
+| RPP HTTP JSON | `AddUtcJsonDateTimes()` converters | [`Cloud/Api/Extensions/UtcJsonServiceCollectionExtensions.cs`](../Cloud/Api/Extensions/UtcJsonServiceCollectionExtensions.cs), `UtcDateTimeConverter` / `UtcDateTimeOffsetConverter` |
 | RPP Cosmos | Same converters on persistence options | `JsonSerializerOptionsProvider` |
-| RPP readers | `UtcDateTimes.ToUtc` / `ToUtcOffset` | `Class-Libraries/RedditPodcastPoster.Models/Serialization/UtcDateTimes.cs` |
-| Api Worker OpenAPI | `isoDateTime` requires trailing `Z`; `isoDateTimeLocalOffset` for `slotStartUk` | `Api/src/openapiSchemas.ts` |
-| Api Worker comparisons | `toISOString()` / instant parse (hero CAS) | `Api/src/heroCurationLogic.ts` (#200) |
-| Website | `JsonDateInterceptor` (zone-less → UTC); keep `slotStartUk` as text | `website/cultpodcasts/src/app/json-date.interceptor.ts` |
+| RPP readers | `UtcDateTimes.ToUtc` / `ToUtcOffset` | [`Class-Libraries/RedditPodcastPoster.Models/Serialization/UtcDateTimes.cs`](../Class-Libraries/RedditPodcastPoster.Models/Serialization/UtcDateTimes.cs) |
+| Api Worker OpenAPI | `isoDateTime` requires trailing `Z`; `isoDateTimeLocalOffset` for `slotStartUk` | Sibling [cultpodcasts/Api](https://github.com/cultpodcasts/Api) `src/openapiSchemas.ts` |
+| Api Worker comparisons | `toISOString()` / instant parse (hero CAS) | Sibling [cultpodcasts/Api](https://github.com/cultpodcasts/Api) `src/heroCurationLogic.ts` ([#200](https://github.com/cultpodcasts/Api/pull/200)) |
+| Website | `JsonDateInterceptor` (zone-less → UTC); keep `slotStartUk` as text | Sibling [cultpodcasts/website](https://github.com/cultpodcasts/website) `cultpodcasts/src/app/json-date.interceptor.ts` |
 
 ## Merged sub-work (already on main)
 
@@ -43,8 +43,8 @@ A date-only release is **midnight UTC on that calendar date** (`…T00:00:00Z`).
 | Item | Status |
 |------|--------|
 | HTTP DTO outliers | None remaining under `UtcJsonDtoContractRules` scan |
-| Discover CLI `request.Since` | Fixed: `UtcDateTimes.ToUtc` (was `ToUniversalTime`) |
-| `TweetManager` timeline bounds | Hardened: `UtcDateTimes.ToUtc` / `ToUtcOffset` |
+| Discover CLI `request.Since` | Fixed: `DiscoverCliSince.Resolve` → `UtcDateTimes.ToUtc` (was `ToUniversalTime`) |
+| `TweetManager` timeline bounds | Hardened: `UtcDateTimes.ToUtc` / `ToUtcOffset` (Unspecified asserted in `TweetIdRules`) |
 
 ## Test matrix (do not delete without replacing)
 
@@ -56,8 +56,10 @@ A date-only release is **midnight UTC on that calendar date** (`…T00:00:00Z`).
 | `RedditPodcastPoster.Persistence.Tests` `UtcDateTimeSerializationRules` | Cosmos round-trip |
 | `CatalogueDtoFormatReleaseRules` | Catalogue release wire shapes |
 | Discovery / Spotify / Apple #1219 BusinessRules | Indexing lookback uses UTC-as-unspecified |
-| Api `openapi-schemas.spec.ts` / `openapi-auth.spec.ts` | Worker rejects non-`Z` proxied instants |
-| website `json-date.interceptor.spec.ts` | Zone-less + `slotStartUk` keep-as-text |
+| `TweetIdRules` `timeline_start` / `timeline_end` | Tweet timeline bounds treat Unspecified `ReleaseUtc` as UTC |
+| `DiscoverCliSinceUtcRules` | Discover CLI `-t`/`--since` Unspecified-as-UTC (+ future reject) |
+| Api (sibling) `openapi-schemas.spec.ts` / `openapi-auth.spec.ts` | Worker rejects non-`Z` proxied instants |
+| website (sibling) `json-date.interceptor.spec.ts` | Zone-less + `slotStartUk` keep-as-text |
 
 ## Agent rule of thumb
 
