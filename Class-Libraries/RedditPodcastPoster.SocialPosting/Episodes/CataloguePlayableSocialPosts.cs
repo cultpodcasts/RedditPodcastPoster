@@ -151,10 +151,13 @@ public class CataloguePlayableSocialPosts(
             var filtered = await filter(podcast, group.Select(x => x.Episode), numberOfDays);
             foreach (var item in filtered)
             {
-                if (contentKindByEpisodeId.TryGetValue(item.Episode.Id, out var contentKind))
+                if (!contentKindByEpisodeId.TryGetValue(item.Episode.Id, out var contentKind))
                 {
-                    ready.Add(item with { ContentKind = contentKind });
+                    throw new InvalidOperationException(
+                        $"Catalogue filter returned episode '{item.Episode.Id}' with no ContentKind among the candidates; Update requires ContentKind.");
                 }
+
+                ready.Add(item with { ContentKind = contentKind });
             }
         }
 
