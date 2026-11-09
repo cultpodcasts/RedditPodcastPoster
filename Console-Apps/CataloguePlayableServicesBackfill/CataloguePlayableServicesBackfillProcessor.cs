@@ -42,6 +42,14 @@ public sealed record CataloguePlayableServicesBackfillRunResult(
 
     /// <summary>Apply found the document changed since the scan (ETag / field mismatch); nothing written.</summary>
     public int SkippedConflict { get; init; }
+
+    /// <summary>
+    /// Identical films queued for search upload because <c>--repush-search</c> was set (Cosmos already matched).
+    /// </summary>
+    public int SearchRepushQueued { get; init; }
+
+    /// <summary>Search documents that failed to upload after a successful Cosmos write (or a search re-push).</summary>
+    public int FailedSearchUploads { get; init; }
 }
 
 /// <summary>
@@ -55,6 +63,8 @@ public sealed record CataloguePlayableServicesBackfillRunResult(
 /// one edited mid-run is skipped as a conflict. Films use the ETag-guarded <see cref="IFilmRepository.Update"/>.
 /// Search documents are pushed in batches of <see cref="SearchBatchSize"/> (films have no search pull, so the
 /// push is required for them; news/TV are re-pulled anyway because the write bumps <c>_ts</c>).
+/// After a failed film search batch, Cosmos already matches so a plain re-run reports Identical and skips the
+/// push; <c>--repush-search</c> queues those Identical films for upload again (optionally limited with <c>--ids</c>).
 /// </para>
 /// </summary>
 public class CataloguePlayableServicesBackfillProcessor(
@@ -410,10 +420,12 @@ public class CataloguePlayableServicesBackfillProcessor(
         CountYouTube(youTube, counters, kind, id);
         if (!carry.HasChanges && !youTube.Changed)
         {
-            if (youTube.Outcome == CatalogueYouTubeIdSyncOutcome.SkippedUnparseable)
+            // One JSONL row when both skipped-unparseable and --repush-search apply (searchRepush wins the flag).
+            var searchRepush = TryQueueFilmSearchRepush(request, item, counters, pendingSearch);
+            if (youTube.Outcome == CatalogueYouTubeIdSyncOutcome.SkippedUnparseable || searchRepush)
             {
                 await WriteChange(changeLog, kind, id, parentId, backupPath, string.Empty, [], applied: false,
-                    youTube, skipped: null, cancellationToken);
+                    youTube, skipped: null, searchRepush: searchRepush, cancellationToken);
             }
 
             counters.Identical++;
@@ -445,7 +457,7 @@ public class CataloguePlayableServicesBackfillProcessor(
         if (!request.Apply)
         {
             await WriteChange(changeLog, kind, id, parentId, backupPath, publicPath, changes, applied: false,
-                youTube, skipped: null, cancellationToken);
+                youTube, skipped: null, searchRepush: false, cancellationToken);
             return;
         }
 
@@ -502,7 +514,35 @@ public class CataloguePlayableServicesBackfillProcessor(
                 WriteOutcome.Conflict => SkippedConflict,
                 _ => null
             },
+            searchRepush: false,
             cancellationToken);
+    }
+
+    /// <summary>
+    /// After a Cosmos write succeeded but search upload failed, a plain re-run sees the film as Identical and
+    /// would never push again. <c>--repush-search</c> queues the live film search document without rewriting Cosmos.
+    /// </summary>
+    private static bool TryQueueFilmSearchRepush(
+        CataloguePlayableServicesBackfillRequest request,
+        PlayableAdapter item,
+        Counters counters,
+        List<EpisodeSearchRecord> pendingSearch)
+    {
+        if (!request.RepushSearch ||
+            item.Kind != PlayableKind.Film ||
+            item.Target is not Film film ||
+            CataloguePlayableSearchIndexEligibility.ShouldExcludeFromSearch(film))
+        {
+            return false;
+        }
+
+        counters.SearchRepushQueued++;
+        if (request.Apply)
+        {
+            pendingSearch.Add(CataloguePlayableSearchDocument.For(film));
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -572,9 +612,11 @@ public class CataloguePlayableServicesBackfillProcessor(
             logger.LogError(ex, "Search upload of {Count} documents threw.", batch.Count);
         }
 
+        counters.FailedSearchUploads += batch.Count;
+        var ids = string.Join(", ", batch.Select(d => d.Id));
         logger.LogError(
-            "Cosmos writes succeeded but the search upload of {Count} documents failed; the search pull re-reads news/TV on the next run (films need a re-run).",
-            batch.Count);
+            "Search upload of {Count} documents failed (ids: {Ids}). News/TV are re-pulled on the next indexer run; films stay Identical in Cosmos — re-run with --repush-search (and optionally --ids) plus --apply/--consent.",
+            batch.Count, ids);
     }
 
     private async Task WriteChange(
@@ -588,6 +630,7 @@ public class CataloguePlayableServicesBackfillProcessor(
         bool applied,
         CatalogueYouTubeIdSyncResult youTube,
         string? skipped,
+        bool searchRepush,
         CancellationToken cancellationToken) =>
         await changeLog.WriteAsync(new ChangeLogRecord
         {
@@ -600,7 +643,8 @@ public class CataloguePlayableServicesBackfillProcessor(
             Applied = applied,
             Utc = timeProvider.GetUtcNow(),
             YouTubeIdOutcome = OutcomeWire(youTube),
-            Skipped = skipped
+            Skipped = skipped,
+            SearchRepush = searchRepush
         }, cancellationToken);
 
     private void LogProgress(int scanned, int progressEvery)
@@ -617,11 +661,11 @@ public class CataloguePlayableServicesBackfillProcessor(
     private CataloguePlayableServicesBackfillRunResult Finish(Counters c)
     {
         logger.LogInformation(
-            "CataloguePlayableServicesBackfill done. Scanned={Scanned} Identical={Identical} MissingTruth={MissingTruth} Discrepancies={Discrepancies} YouTubeIdFilled={Filled} YouTubeIdOverwritten={Overwritten} YouTubeIdCleared={Cleared} YouTubeIdSkippedUnparseable={SkippedUnparseable} Applied={Applied} SkippedNotFound={SkippedNotFound} SkippedConflict={SkippedConflict} SearchUploaded={SearchUploaded} FailedWrites={FailedWrites}",
+            "CataloguePlayableServicesBackfill done. Scanned={Scanned} Identical={Identical} MissingTruth={MissingTruth} Discrepancies={Discrepancies} YouTubeIdFilled={Filled} YouTubeIdOverwritten={Overwritten} YouTubeIdCleared={Cleared} YouTubeIdSkippedUnparseable={SkippedUnparseable} Applied={Applied} SkippedNotFound={SkippedNotFound} SkippedConflict={SkippedConflict} SearchUploaded={SearchUploaded} SearchRepushQueued={SearchRepushQueued} FailedWrites={FailedWrites} FailedSearchUploads={FailedSearchUploads}",
             c.Scanned, c.Identical, c.MissingTruth, c.Discrepancies, c.YouTubeIdFilled, c.YouTubeIdOverwritten,
             0, c.YouTubeIdSkippedUnparseable, c.Applied, c.SkippedNotFound, c.SkippedConflict,
-            c.SearchUploaded, c.FailedWrites);
-        var exitCode = c.FailedWrites > 0 ? ExitFailed : ExitOk;
+            c.SearchUploaded, c.SearchRepushQueued, c.FailedWrites, c.FailedSearchUploads);
+        var exitCode = c.FailedWrites > 0 || c.FailedSearchUploads > 0 ? ExitFailed : ExitOk;
         return new CataloguePlayableServicesBackfillRunResult(
             exitCode, c.Scanned, c.Identical, c.MissingTruth, c.Discrepancies, c.Applied, c.SearchUploaded,
             c.FailedWrites)
@@ -632,7 +676,9 @@ public class CataloguePlayableServicesBackfillProcessor(
             YouTubeIdCleared = 0,
             YouTubeIdSkippedUnparseable = c.YouTubeIdSkippedUnparseable,
             SkippedNotFound = c.SkippedNotFound,
-            SkippedConflict = c.SkippedConflict
+            SkippedConflict = c.SkippedConflict,
+            SearchRepushQueued = c.SearchRepushQueued,
+            FailedSearchUploads = c.FailedSearchUploads
         };
     }
 
@@ -647,7 +693,9 @@ public class CataloguePlayableServicesBackfillProcessor(
         public int Discrepancies;
         public int Applied;
         public int SearchUploaded;
+        public int SearchRepushQueued;
         public int FailedWrites;
+        public int FailedSearchUploads;
         public int YouTubeIdFilled;
         public int YouTubeIdOverwritten;
         public int YouTubeIdSkippedUnparseable;
