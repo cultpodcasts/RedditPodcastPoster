@@ -228,6 +228,22 @@ public class HomepagePublisherCatalogueRules
     }
 
     [Fact(DisplayName =
+        "Homepage: a news report's parent title regex is case-insensitive, like a podcast episode's, so an outlet " +
+        "suffix pattern still strips a title whose suffix casing differs (#1378).")]
+    public async Task catalogue_title_regex_ignores_case()
+    {
+        // Arrange
+        GivenCatalogue(Item("NewsReport", "Synthetic Desk", "Synthetic headline", DateTime.UtcNow.AddHours(-1)));
+
+        // Act
+        await Sut().PublishHomepage();
+
+        // Assert
+        _titleRegexes.Should().Contain(x =>
+            x != null && x.ToString() == "^Synthetic " && x.Options.HasFlag(RegexOptions.IgnoreCase));
+    }
+
+    [Fact(DisplayName =
         "Homepage: when the episode count and total duration refresh, they include news reports, TV show " +
         "episodes and films as well as podcast episodes, and the sum is saved to the homepage cache.")]
     public async Task refreshed_totals_include_catalogue_playables()

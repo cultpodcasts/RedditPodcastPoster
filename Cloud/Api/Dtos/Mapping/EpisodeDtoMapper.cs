@@ -45,9 +45,9 @@ public class EpisodeDtoMapper(
             .SelectMany(s => s.KnownTerms ?? Array.Empty<string>())
             .ToArray();
 
-        var titleRegex = string.IsNullOrWhiteSpace(podcast.TitleRegex)
-            ? null
-            : new Regex(podcast.TitleRegex, RegexOptions.IgnoreCase);
+        // A news report / TV episode arrives as a post projection whose transient podcast carries the parent's
+        // indexing.titleRegex, so this is the display path for every kind (#1378).
+        var titleRegex = DomainPodcast.CreateTitleRegex(podcast.TitleRegex);
 
         var descriptionRegex = DescriptionRegexTokens.Create(podcast.DescriptionRegex, episode.Title, podcast.Name);
 

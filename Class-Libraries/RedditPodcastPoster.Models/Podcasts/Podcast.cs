@@ -14,6 +14,15 @@ public class Podcast : Publisher, IYouTubeIndexingSettings, IHasYouTubeIndexingS
     [JsonIgnore]
     public static readonly RegexOptions TitleFlags = RegexOptions.IgnoreCase;
 
+    /// <summary>
+    /// The one way to build a parent's display title regex: a podcast's <see cref="TitleRegex"/>, or a news
+    /// organisation's or TV show's <c>indexing.titleRegex</c> carried on a post projection. Always uses
+    /// <see cref="TitleFlags"/> (case-insensitive), so a pattern such as <c>\| 7NEWS</c> still matches a title the
+    /// source or an earlier step cased as <c>| 7News</c> (#1378). Null when the pattern is null or blank.
+    /// </summary>
+    public static Regex? CreateTitleRegex(string? pattern) =>
+        string.IsNullOrWhiteSpace(pattern) ? null : new Regex(pattern, TitleFlags);
+
     [JsonIgnore]
     public static readonly RegexOptions EpisodeMatchFlags = RegexOptions.Compiled;
 

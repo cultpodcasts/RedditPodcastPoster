@@ -307,11 +307,9 @@ public class HomepagePublisher(
     private async Task<PodcastResult> Sanitise(PodcastResult podcastResult)
     {
         var rawEpisodeTitle = podcastResult.EpisodeTitle;
-        Regex? titleRegex = null;
-        if (!string.IsNullOrWhiteSpace(podcastResult.TitleRegex))
-        {
-            titleRegex = new Regex(podcastResult.TitleRegex);
-        }
+        // Case-insensitive like every other title-regex site (Podcast.TitleFlags), so a news organisation's
+        // "\| 7NEWS" suffix pattern still strips "| 7News" (#1378).
+        var titleRegex = Podcast.CreateTitleRegex(podcastResult.TitleRegex);
 
         var subjectKnownTerms = (podcastResult.Subjects ?? [])
             .Select(x => _subjects.SingleOrDefault(y => y.Name == x))
