@@ -83,16 +83,22 @@ public class TweetBuilder(
         var podcastName = textSanitiser.SanitisePodcastName(postModel);
 
         var tweetBuilder = new StringBuilder();
-        var (twitterHandles, _) = await personGuestHandleResolver.Resolve(podcastEpisode.Episode);
-        var guestHandlesToAppend = SocialHandleDeduplicator.Deduplicate(
-            twitterHandles,
-            alreadyTagged: [podcastEpisode.Podcast.TwitterHandle]);
+        string[] guestHandlesToAppend = [];
+        if (_twitterOptions.IncludeAtMentions)
+        {
+            var (twitterHandles, _) = await personGuestHandleResolver.Resolve(podcastEpisode.Episode);
+            guestHandlesToAppend = SocialHandleDeduplicator.Deduplicate(
+                twitterHandles,
+                alreadyTagged: [podcastEpisode.Podcast.TwitterHandle]);
+        }
+
         var guestHandles = guestHandlesToAppend.Length > 0
             ? " " + string.Join(" ", guestHandlesToAppend)
             : string.Empty;
         if (SocialPostKindTemplate.HasParentLine(podcastEpisode))
         {
-            if (!string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
+            if (_twitterOptions.IncludeAtMentions
+                && !string.IsNullOrWhiteSpace(podcastEpisode.Podcast.TwitterHandle))
             {
                 tweetBuilder.AppendLine($"{podcastName} {podcastEpisode.Podcast.TwitterHandle}{guestHandles}");
             }
@@ -101,7 +107,7 @@ public class TweetBuilder(
                 tweetBuilder.AppendLine($"{podcastName}{guestHandles}");
             }
         }
-        else
+        else if (_twitterOptions.IncludeAtMentions)
         {
             // Film: no parent name; the film's own handle and guests still get tagged.
             var filmHandles = string.Join(" ",
