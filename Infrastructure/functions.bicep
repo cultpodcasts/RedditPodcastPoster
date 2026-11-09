@@ -68,14 +68,19 @@ param thetvdbApiKey string
 param textanalyticsApiKey string
 @secure()
 param textanalyticsEndPoint string
+@description('X OAuth 1.0a access token. Deploy-time Key Vault secret Twitter-AccessToken via functions.bicepparam az.getSecret (literal app setting at runtime — same pattern as other secrets).')
 @secure()
 param twitterAccessToken string
+@description('X OAuth 1.0a access token secret. Key Vault secret Twitter-AccessTokenSecret.')
 @secure()
 param twitterAccessTokenSecret string
+@description('X OAuth 1.0a API key (consumer key). Key Vault secret Twitter-ConsumerKey.')
 @secure()
 param twitterConsumerKey string
+@description('X OAuth 1.0a API key secret (consumer secret). Key Vault secret Twitter-ConsumerSecret.')
 @secure()
 param twitterConsumerSecret string
+@description('X user id for timeline reads. Key Vault secret Twitter-TwitterId.')
 @secure()
 param twitterTwitterId string
 @description('X auth. functions.bicepparam sets OAuth2. The default OAuth1 remains if that param is omitted. Set OAuth2 only after XOAuth2Authorize --execute has saved a token pair (issue #1201).')
