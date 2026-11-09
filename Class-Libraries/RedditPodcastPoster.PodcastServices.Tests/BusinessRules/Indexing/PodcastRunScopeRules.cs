@@ -94,6 +94,72 @@ public class PodcastRunScopeRules
     }
 
     [Fact(DisplayName =
+        "When an outer run's handle is disposed before an inner run's, the inner run stays current, and disposing the " +
+        "inner handle afterwards leaves no run current instead of bringing back the outer run, because an " +
+        "out-of-order disposal must never hand a stale (possibly cancelled) token to whatever runs next.")]
+    public void out_of_order_disposal_never_restores_a_closed_run()
+    {
+        // Arrange
+        using var inner = new CancellationTokenSource();
+        var outerScope = new PodcastRunScope(_budget.Token);
+        var innerScope = new PodcastRunScope(inner.Token);
+        var outerHandle = PodcastRunScope.Enter(outerScope);
+        var innerHandle = PodcastRunScope.Enter(innerScope);
+
+        // Act
+        outerHandle.Dispose();
+        var afterOuterDisposed = PodcastRunScope.Current;
+        innerHandle.Dispose();
+        var afterInnerDisposed = PodcastRunScope.Current;
+
+        // Assert
+        afterOuterDisposed.Should().BeSameAs(innerScope);
+        afterInnerDisposed.Should().BeSameAs(PodcastRunScope.None);
+    }
+
+    [Fact(DisplayName =
+        "When a middle run's handle is disposed out of order, disposing the innermost run falls back to the nearest " +
+        "enclosing run that is still open, because the outer podcast's budget must keep applying to its own flow.")]
+    public void out_of_order_disposal_falls_back_to_the_nearest_open_run()
+    {
+        // Arrange
+        using var middle = new CancellationTokenSource();
+        using var inner = new CancellationTokenSource();
+        var outerScope = new PodcastRunScope(_budget.Token);
+        using var outerHandle = PodcastRunScope.Enter(outerScope);
+        var middleHandle = PodcastRunScope.Enter(new PodcastRunScope(middle.Token));
+        var innerHandle = PodcastRunScope.Enter(new PodcastRunScope(inner.Token));
+
+        // Act
+        middleHandle.Dispose();
+        innerHandle.Dispose();
+        var afterInnerDisposed = PodcastRunScope.Current;
+
+        // Assert
+        afterInnerDisposed.Should().BeSameAs(outerScope);
+    }
+
+    [Fact(DisplayName =
+        "Disposing a run's handle twice changes nothing the second time, because a repeated dispose must not undo a " +
+        "run that was entered after it.")]
+    public void disposing_a_run_twice_is_harmless()
+    {
+        // Arrange
+        using var next = new CancellationTokenSource();
+        var nextScope = new PodcastRunScope(next.Token);
+        var firstHandle = PodcastRunScope.Enter(new PodcastRunScope(_budget.Token));
+        firstHandle.Dispose();
+        using var nextHandle = PodcastRunScope.Enter(nextScope);
+
+        // Act
+        firstHandle.Dispose();
+        var current = PodcastRunScope.Current;
+
+        // Assert
+        current.Should().BeSameAs(nextScope);
+    }
+
+    [Fact(DisplayName =
         "An update that is still running after the loop has left its run keeps its own (cancelled) budget token, while " +
         "the loop is back outside any run, because an abandoned update must keep observing its cut-off and must not " +
         "hand its token to the next podcast.")]
