@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -54,6 +55,13 @@ public sealed class XApiProblem
     public bool IsRateOrUsageLimited =>
         IsUsageCapped ||
         Messages().Any(m => m.Contains("too many requests", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// HTTP status and/or problem that should persist a LookUps skip window: 429, bare 402 (credits gone,
+    /// empty/non-matching body), or a recognised rate/usage problem type.
+    /// </summary>
+    public bool IsLimitOrUsageResponse(HttpStatusCode status) =>
+        status is HttpStatusCode.TooManyRequests or HttpStatusCode.PaymentRequired || IsRateOrUsageLimited;
 
     /// <summary>
     /// X reports the post (or other resource) as gone: a <c>resource-not-found</c> problem type

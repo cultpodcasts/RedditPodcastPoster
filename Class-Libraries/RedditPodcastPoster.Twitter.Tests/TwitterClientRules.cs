@@ -149,6 +149,27 @@ public class TwitterClientRules
     }
 
     [Fact(DisplayName =
+        "When LookUps says X is still usage-capped, then Send does not call the API and returns PaymentRequired, because Tweeter.StopsRun and the credits log line key off that status.")]
+    public async Task send_skips_while_usage_cap_window_active()
+    {
+        // Arrange
+        var now = _time.GetUtcNow().UtcDateTime;
+        _storedRateLimit = new XApiRateLimitState
+        {
+            UsageCappedUntilUtc = now.AddDays(10),
+            UpdatedUtc = now
+        };
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var result = await sut.Send(_tweet);
+
+        // Assert
+        result.TweetSendStatus.Should().Be(TweetSendStatus.PaymentRequired);
+        _x.Requests.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "A 429 on GetTimelineSince persists x-rate-limit-reset into LookUps, because timeline reads used to ignore the reset header.")]
     public async Task timeline_persists_rate_limit_reset()
     {
@@ -168,6 +189,45 @@ public class TwitterClientRules
         result.State.Should().Be(GetTweetsState.TooManyRequests);
         _storedRateLimit.Should().NotBeNull();
         _storedRateLimit!.RateLimitResetUtc.Should().Be(reset);
+    }
+
+    [Fact(DisplayName =
+        "A bare HTTP 402 on GetTimelineSince persists a usage-cap skip into LookUps and returns TooManyRequests, because empty-body credits-gone must not fall through to Other.")]
+    public async Task timeline_bare_402_persists_usage_cap()
+    {
+        // Arrange
+        _x.Respond(HttpStatusCode.PaymentRequired, string.Empty);
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var result = await sut.GetTimelineSince(_time.GetUtcNow().AddDays(-1), null, null);
+
+        // Assert
+        result.State.Should().Be(GetTweetsState.TooManyRequests);
+        _storedRateLimit.Should().NotBeNull();
+        _storedRateLimit!.UsageCappedUntilUtc.Should().Be(
+            XApiRateLimitPolicy.UsageCapSkipUntilUtc(_time.GetUtcNow().UtcDateTime));
+        _storedRateLimit.RateLimitResetUtc.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A bare HTTP 402 on DeleteTweetById persists a usage-cap skip into LookUps and returns TooManyRequests, so later hourly runs skip X instead of retrying deletes.")]
+    public async Task delete_bare_402_persists_usage_cap()
+    {
+        // Arrange
+        var tweetId = _fixture.Create<long>().ToString();
+        _x.Respond(HttpStatusCode.PaymentRequired, string.Empty);
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var state = await sut.DeleteTweetById(tweetId);
+
+        // Assert
+        state.Should().Be(DeleteTweetState.TooManyRequests);
+        _storedRateLimit.Should().NotBeNull();
+        _storedRateLimit!.UsageCappedUntilUtc.Should().Be(
+            XApiRateLimitPolicy.UsageCapSkipUntilUtc(_time.GetUtcNow().UtcDateTime));
+        _x.Requests.Should().ContainSingle();
     }
 
     [Fact(DisplayName = "A non-JSON error body is a plain failure rather than an exception.")]

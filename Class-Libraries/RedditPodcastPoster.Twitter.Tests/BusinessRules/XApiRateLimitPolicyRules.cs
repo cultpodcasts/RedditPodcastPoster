@@ -54,7 +54,7 @@ public class XApiRateLimitPolicyRules
     }
 
     [Fact(DisplayName =
-        "When UsageCappedUntilUtc is still in the future, then X is skipped as usage-capped even if a rate-limit reset is also set, because depleted credits are a longer block than a short rate window.")]
+        "When UsageCappedUntilUtc is still in the future and UpdatedUtc is today, then X is skipped as usage-capped even if a rate-limit reset is also set, because depleted credits are a longer block than a short rate window.")]
     public void usage_cap_takes_precedence_over_rate_limit()
     {
         // Arrange
@@ -62,7 +62,8 @@ public class XApiRateLimitPolicyRules
         var state = new XApiRateLimitState
         {
             RateLimitResetUtc = now.AddMinutes(5),
-            UsageCappedUntilUtc = now.AddDays(2)
+            UsageCappedUntilUtc = now.AddDays(2),
+            UpdatedUtc = now
         };
 
         // Act
@@ -70,6 +71,25 @@ public class XApiRateLimitPolicyRules
 
         // Assert
         skip.Should().Be(XApiSkipReason.UsageCapped);
+    }
+
+    [Fact(DisplayName =
+        "When UsageCappedUntilUtc is still in the future but UpdatedUtc is on a prior UTC day, then X is not skipped, because one probe per day lets a false or short-lived usage-cap clear mid-window on success.")]
+    public void usage_cap_allows_one_probe_per_utc_day()
+    {
+        // Arrange
+        var now = DomainTestFixture.UtcAtTime(0, TimeSpan.FromHours(12));
+        var state = new XApiRateLimitState
+        {
+            UsageCappedUntilUtc = now.AddDays(20),
+            UpdatedUtc = now.AddDays(-1)
+        };
+
+        // Act
+        var skip = XApiRateLimitPolicy.GetActiveSkip(state, now);
+
+        // Assert
+        skip.Should().BeNull();
     }
 
     [Fact(DisplayName =

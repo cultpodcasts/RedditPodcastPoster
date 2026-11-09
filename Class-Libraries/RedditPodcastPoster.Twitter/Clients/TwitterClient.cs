@@ -156,7 +156,7 @@ public class TwitterClient(
         }
 
         var problem = XApiProblem.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        if (response.StatusCode == HttpStatusCode.TooManyRequests || problem.IsRateOrUsageLimited)
+        if (problem.IsLimitOrUsageResponse(response.StatusCode))
         {
             await PersistLimitFromResponse(response, problem, cancellationToken);
             var resetUtc = XApiRateLimitPolicy.TryParseResetUtc(
@@ -197,7 +197,7 @@ public class TwitterClient(
         using var response = await httpClient.SendAsync(deleteTweetRequest, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var problem = XApiProblem.Parse(body);
-        if (response.StatusCode == HttpStatusCode.TooManyRequests || problem.IsRateOrUsageLimited)
+        if (problem.IsLimitOrUsageResponse(response.StatusCode))
         {
             await PersistLimitFromResponse(response, problem, cancellationToken);
         }

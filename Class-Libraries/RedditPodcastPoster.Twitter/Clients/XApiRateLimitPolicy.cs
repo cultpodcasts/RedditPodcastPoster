@@ -13,8 +13,9 @@ public static class XApiRateLimitPolicy
     public const string UsageCappedReason = "usage-capped";
 
     /// <summary>
-    /// When usage is capped without a reset header, skip until the start of the next UTC calendar month
-    /// (typical monthly credit window). A successful call clears the marker earlier if credits return.
+    /// Outer bound when usage is capped without a reset header: start of the next UTC calendar month
+    /// (typical monthly credit window). <see cref="GetActiveSkip"/> still allows one probe per UTC day
+    /// so a false or short-lived cap can clear mid-window on success; a renewed 402 re-applies the cap.
     /// </summary>
     public static DateTime UsageCapSkipUntilUtc(DateTime nowUtc)
     {
@@ -44,7 +45,11 @@ public static class XApiRateLimitPolicy
         return null;
     }
 
-    /// <summary>Active skip, if any. Usage-capped takes precedence over a concurrent rate-limit window.</summary>
+    /// <summary>
+    /// Active skip, if any. Usage-capped takes precedence over a concurrent rate-limit window, except that
+    /// a usage-cap allows one probe call per UTC calendar day (when <see cref="XApiRateLimitState.UpdatedUtc"/>
+    /// is on a prior day) so credits returning mid-month can clear via a successful response.
+    /// </summary>
     public static XApiSkipReason? GetActiveSkip(XApiRateLimitState? state, DateTime nowUtc)
     {
         if (state is null)
@@ -55,6 +60,12 @@ public static class XApiRateLimitPolicy
         var now = UtcDateTimes.ToUtc(nowUtc);
         if (state.UsageCappedUntilUtc.HasValue && UtcDateTimes.ToUtc(state.UsageCappedUntilUtc.Value) > now)
         {
+            if (state.UpdatedUtc.HasValue &&
+                UtcDateTimes.ToUtc(state.UpdatedUtc.Value).Date < now.Date)
+            {
+                return null;
+            }
+
             return XApiSkipReason.UsageCapped;
         }
 
