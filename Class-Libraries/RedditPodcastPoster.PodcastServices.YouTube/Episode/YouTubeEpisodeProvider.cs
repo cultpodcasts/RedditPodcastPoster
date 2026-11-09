@@ -191,10 +191,10 @@ public class YouTubeEpisodeProvider(
         Google.Apis.YouTube.v3.Data.Video videoDetails,
         IndexingContext? indexingContext)
     {
-        indexingContext?.ReportStage("youtube-thumbnail", $"video-id={videoDetails.Id}");
+        PodcastRunScope.Current.ReportStage("youtube-thumbnail", $"video-id={videoDetails.Id}");
         var image = await youTubeThumbnailResolver.GetImageUrlAsync(
             videoDetails,
-            indexingContext?.CancellationToken ?? CancellationToken.None);
+            PodcastRunScope.Current.CancellationToken);
         var candidate = youTubeEpisodeAdapter.Adapt(
             playlistItemSnippet.ToCatalogueInput(videoDetails, image));
         var isExplicit = videoDetails.ContentDetails.ContentRating.YtRating == "ytAgeRestricted";
@@ -312,7 +312,7 @@ public class YouTubeEpisodeProvider(
                 return new GetPlaylistEpisodesResponse(reducedResults, KnownSkipped: knownSkipped);
             }
             catch (Exception e) when (e is not OperationCanceledException ||
-                                      !indexingContext.CancellationToken.IsCancellationRequested)
+                                      !PodcastRunScope.Current.CancellationToken.IsCancellationRequested)
             {
                 logger.LogError(e,
                     "Error getting playlist videos. podcast-id: '{podcastId}', youtube-playlist-id: '{youTubePlaylistId}'.",

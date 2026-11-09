@@ -130,12 +130,14 @@ public class PodcastsUpdater(
                 try
                 {
                     stageLog.Stage("start");
-                    var podcastIndexingContext = indexingContext.ForPodcastUpdate() with
+                    var podcastIndexingContext = indexingContext.ForPodcastUpdate();
+                    // The run scope (budget token + stage log) belongs to this podcast only: the update captures it
+                    // when it starts, and leaving the block restores the loop's scope before the next podcast.
+                    using (PodcastRunScope.Enter(new PodcastRunScope(budgetCts.Token, stageLog)))
                     {
-                        CancellationToken = budgetCts.Token,
-                        StageReporter = stageLog
-                    };
-                    updateTask = podcastUpdater.Update(podcastToUpdate, false, podcastIndexingContext);
+                        updateTask = podcastUpdater.Update(podcastToUpdate, false, podcastIndexingContext);
+                    }
+
                     var result = budget.HasValue
                         ? await updateTask.WaitAsync(budget.Value + _budget.AbandonGrace, timeProvider)
                         : await updateTask;
