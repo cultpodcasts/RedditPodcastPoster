@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.Text.Sanitisers;
 using RedditPodcastPoster.Twitter.Clients;
@@ -149,22 +150,22 @@ public class TweetManager(
             return null;
         }
 
-        var release = DateTime.SpecifyKind(item.Episode.ReleaseUtc, DateTimeKind.Utc);
+        var release = UtcDateTimes.ToUtc(item.Episode.ReleaseUtc);
         if (release > now.UtcDateTime.AddDays(-(tweetDays + EndTimeSlackDays)))
         {
             return null;
         }
 
-        return new DateTimeOffset(release.AddDays(tweetDays + EndTimeSlackDays));
+        return UtcDateTimes.ToUtcOffset(release.AddDays(tweetDays + EndTimeSlackDays));
     }
 
     public static DateTimeOffset TimelineStart(DateTime releaseUtc)
     {
         // A day early covers a release time later than the post (time zones, year- or date-only releases).
-        var release = DateTime.SpecifyKind(releaseUtc, DateTimeKind.Utc);
+        var release = UtcDateTimes.ToUtc(releaseUtc);
         var start = release <= EarliestStartTime.UtcDateTime.AddDays(1)
             ? EarliestStartTime
-            : new DateTimeOffset(release.AddDays(-1));
+            : UtcDateTimes.ToUtcOffset(release.AddDays(-1));
         var now = DateTimeOffset.UtcNow;
         return start > now ? now.AddDays(-1) : start;
     }

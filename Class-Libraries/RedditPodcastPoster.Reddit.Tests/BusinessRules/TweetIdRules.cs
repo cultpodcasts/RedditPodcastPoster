@@ -510,18 +510,21 @@ public class TweetIdRules
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
     }
 
-    [Fact(DisplayName = "The timeline window starts a day before release, and never before X's earliest start_time.")]
+    [Fact(DisplayName = "The timeline window starts a day before release (Unspecified kind read as UTC), and never before X's earliest start_time.")]
     public void timeline_start()
     {
         // Arrange
         var release = DomainTestFixture.UtcAtTime(-3, TimeSpan.FromHours(9));
+        var unspecified = DateTime.SpecifyKind(release, DateTimeKind.Unspecified);
 
         // Act
         var start = TweetManager.TimelineStart(release);
+        var startFromUnspecified = TweetManager.TimelineStart(unspecified);
         var floor = TweetManager.TimelineStart(DateTime.MinValue);
 
         // Assert
         start.Should().Be(new DateTimeOffset(release.AddDays(-1), TimeSpan.Zero));
+        startFromUnspecified.Should().Be(start);
         floor.Should().Be(TweetManager.EarliestStartTime);
     }
 

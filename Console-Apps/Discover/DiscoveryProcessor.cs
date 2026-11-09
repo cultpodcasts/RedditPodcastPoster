@@ -6,6 +6,7 @@ using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Discovery.Providers;
 using RedditPodcastPoster.Discovery.Services;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -78,13 +79,14 @@ public class DiscoveryProcessor(
         string searchSince;
         if (request.Since.HasValue)
         {
-            if (request.Since.Value.ToUniversalTime() > DateTime.UtcNow)
+            // Unspecified means UTC (#1212 / #1219) — never ToUniversalTime on CLI args.
+            since = UtcDateTimes.ToUtc(request.Since.Value);
+            if (since > DateTime.UtcNow)
             {
                 throw new InvalidOperationException(
                     $"'{nameof(request)}.{nameof(request.Since)}' is in the future. ");
             }
 
-            since = request.Since.Value.ToUniversalTime();
             searchSince = DateTime.UtcNow.Subtract(since).ToString();
         }
         else if (!string.IsNullOrWhiteSpace(request.SearchWindow))
@@ -99,9 +101,9 @@ public class DiscoveryProcessor(
         }
 
         Console.WriteLine(
-            $"Discovering items released since '{since.ToUniversalTime():O}' (local:'{since.ToLocalTime():O}').");
+            $"Discovering items released since '{since:O}' (local:'{since.ToLocalTime():O}').");
 
-        var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
+        var discoveryBegan = DateTime.UtcNow;
         Console.WriteLine(
             $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}').");
 
