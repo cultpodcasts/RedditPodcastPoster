@@ -77,7 +77,7 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// </para>
 /// <para>
 /// Each parent runs under the same per-podcast time budget as <see cref="PodcastsUpdater"/>
-/// (<see cref="PodcastUpdateBudgetOptions"/>, #1070): its <see cref="IndexingContext.CancellationToken"/> is cancelled when
+/// (<see cref="PodcastUpdateBudgetOptions"/>, #1070): its <see cref="PodcastRunScope.CancellationToken"/> is cancelled when
 /// the budget elapses, every Cosmos write re-checks the token, and an update that ignores cancellation is abandoned
 /// after the grace period. A slow news organisation therefore cannot hang the indexer activity. Stage lines use
 /// <see cref="PodcastIndexingStageLog"/> (prefix <c>IndexerPodcastStage</c>, the parent id in <c>podcast-id</c>).
@@ -335,12 +335,14 @@ public class CatalogueParentsUpdater(
         try
         {
             stageLog.Stage("start", $"catalogue-parent-kind={kind}");
-            var parentContext = indexingContext.ForPodcastUpdate() with
+            var parentContext = indexingContext.ForPodcastUpdate();
+            // The run scope (budget token + stage log) belongs to this parent only: the update captures it when it
+            // starts, and leaving the block restores the loop's scope before the next parent.
+            using (PodcastRunScope.Enter(new PodcastRunScope(budgetCts.Token, stageLog)))
             {
-                CancellationToken = budgetCts.Token,
-                StageReporter = stageLog
-            };
-            updateTask = index(parentContext);
+                updateTask = index(parentContext);
+            }
+
             var changed = budget.HasValue
                 ? await updateTask.WaitAsync(budget.Value + plan.AbandonGrace, timeProvider)
                 : await updateTask;
@@ -512,10 +514,10 @@ public class CatalogueParentsUpdater(
                 .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToTvShowEpisode(episode, show),
             context);
-        var cancellationToken = context.CancellationToken;
+        var cancellationToken = PodcastRunScope.Current.CancellationToken;
         if (outcome.ChangedPlayables.Count > 0)
         {
-            context.ReportStage("save-playables", $"changed={outcome.ChangedPlayables.Count}");
+            PodcastRunScope.Current.ReportStage("save-playables", $"changed={outcome.ChangedPlayables.Count}");
             cancellationToken.ThrowIfCancellationRequested();
             await tvShowEpisodeRepository.Save(outcome.ChangedPlayables);
             await PromoteHeroes(show, outcome.HeroIds, cancellationToken);
@@ -523,7 +525,7 @@ public class CatalogueParentsUpdater(
 
         if (!outcome.ParentPatch.IsEmpty)
         {
-            context.ReportStage("patch-parent");
+            PodcastRunScope.Current.ReportStage("patch-parent");
             cancellationToken.ThrowIfCancellationRequested();
             if (!await tvShowRepository.PatchIndexerState(show.Id, outcome.ParentPatch))
             {
@@ -555,10 +557,10 @@ public class CatalogueParentsUpdater(
                 .ToListAsync(cancellationToken).AsTask(),
             episode => CatalogueParentKindMapper.ToNewsReport(episode, organisation),
             context);
-        var cancellationToken = context.CancellationToken;
+        var cancellationToken = PodcastRunScope.Current.CancellationToken;
         if (outcome.ChangedPlayables.Count > 0)
         {
-            context.ReportStage("save-playables", $"changed={outcome.ChangedPlayables.Count}");
+            PodcastRunScope.Current.ReportStage("save-playables", $"changed={outcome.ChangedPlayables.Count}");
             cancellationToken.ThrowIfCancellationRequested();
             await newsReportRepository.Save(outcome.ChangedPlayables);
             await PromoteHeroes(organisation, outcome.HeroIds, cancellationToken);
@@ -566,7 +568,7 @@ public class CatalogueParentsUpdater(
 
         if (!outcome.ParentPatch.IsEmpty)
         {
-            context.ReportStage("patch-parent");
+            PodcastRunScope.Current.ReportStage("patch-parent");
             cancellationToken.ThrowIfCancellationRequested();
             if (!await newsOrganisationRepository.PatchIndexerState(organisation.Id, outcome.ParentPatch))
             {
@@ -662,7 +664,7 @@ public class CatalogueParentsUpdater(
         // change the pass writes back (it would overwrite a curator edit saved mid-pass).
         var indexingBefore = CatalogueIndexingChanges.Snapshot(source);
         var youTubeIndexingHintsBefore = source.YouTubeIndexingHints?.Copy();
-        var cancellationToken = indexingContext.CancellationToken;
+        var cancellationToken = PodcastRunScope.Current.CancellationToken;
         var lastIndexedBefore = parent.LastIndexed;
         var latestReleasedBefore = parent.LatestReleased;
         var podcast = source.ToTransientPodcast(parent);
@@ -677,7 +679,7 @@ public class CatalogueParentsUpdater(
             ? releasedSince
             : releasedSince - youTubePublishingDelay;
 
-        indexingContext.ReportStage("cosmos-read-playables");
+        PodcastRunScope.Current.ReportStage("cosmos-read-playables");
         var stored = await loadPlayables(repositoryReleasedSince, cancellationToken);
         var storedById = stored.ToDictionary(x => x.Id);
         var existing = stored.Select(x => ToEpisode(x, podcast)).ToList();
@@ -685,14 +687,14 @@ public class CatalogueParentsUpdater(
         var initialSkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var initialSkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
-        indexingContext.ReportStage("discover-episodes", $"stored-in-window={stored.Count}");
+        PodcastRunScope.Current.ReportStage("discover-episodes", $"stored-in-window={stored.Count}");
         var newEpisodes = await episodeProvider.GetEpisodes(podcast, existing, indexingContext);
         cancellationToken.ThrowIfCancellationRequested();
         ApplyMinimumDuration(podcast, newEpisodes, indexingContext);
 
-        indexingContext.ReportStage("merge", $"discovered={newEpisodes.Count}");
+        PodcastRunScope.Current.ReportStage("merge", $"discovered={newEpisodes.Count}");
         var merge = episodeMerger.MergeEpisodes(podcast, existing, newEpisodes);
-        indexingContext.ReportStage("sibling-podcast-check", $"added={merge.AddedEpisodes.Count}");
+        PodcastRunScope.Current.ReportStage("sibling-podcast-check", $"added={merge.AddedEpisodes.Count}");
         var addedEpisodes = await ExcludeSiblingPodcastVideos(
             parent, podcast, merge.AddedEpisodes, repositoryReleasedSince, cancellationToken);
         if (podcast.HasIgnoreAllEpisodes())
@@ -708,7 +710,7 @@ public class CatalogueParentsUpdater(
         var discoverySkipSpotify = indexingContext.SkipSpotifyUrlResolving;
         var discoverySkipYouTube = indexingContext.SkipYouTubeUrlResolving;
         var inScope = existing.Concat(addedEpisodes).ToList();
-        indexingContext.ReportStage("enrich-audio-services", $"in-window={inScope.Count}");
+        PodcastRunScope.Current.ReportStage("enrich-audio-services", $"in-window={inScope.Count}");
         // The provider already used this clone with the flow the batch passed in. Catch-up is the Index flow
         // (newest pages, no title search), the same entry point as PodcastUpdater, on the clone IndexWithinBudget
         // made so this pass's provider lookup is unchanged.
@@ -728,7 +730,7 @@ public class CatalogueParentsUpdater(
             indexingContext);
         cancellationToken.ThrowIfCancellationRequested();
 
-        indexingContext.ReportStage("filter", $"added={addedEpisodes.Count} enriched={enrichedIds.Count}");
+        PodcastRunScope.Current.ReportStage("filter", $"added={addedEpisodes.Count} enriched={enrichedIds.Count}");
         var eliminationTerms = (await eliminationTermsProviderInstance.GetAsync()).GetEliminationTerms();
         var filtered = podcastFilter.Filter(podcast, inScope, eliminationTerms.Terms);
 
@@ -887,7 +889,7 @@ public class CatalogueParentsUpdater(
             return enriched;
         }
 
-        var cancellationToken = indexingContext.CancellationToken;
+        var cancellationToken = PodcastRunScope.Current.CancellationToken;
         var recentSince = timeProvider.GetUtcNow().UtcDateTime - AudioCatchUpRecency;
         var missing = inWindow
             .Where(x => !x.Removed &&
@@ -1030,7 +1032,7 @@ public class CatalogueParentsUpdater(
 
         if (lookUpApple && MissingApple(probe))
         {
-            indexingContext.CancellationToken.ThrowIfCancellationRequested();
+            PodcastRunScope.Current.CancellationToken.ThrowIfCancellationRequested();
             await appleEpisodeEnricher.Enrich(request, indexingContext, enrichmentContext);
         }
 

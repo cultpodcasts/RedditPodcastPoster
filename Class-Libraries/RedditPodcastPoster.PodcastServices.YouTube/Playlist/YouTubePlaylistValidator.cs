@@ -36,9 +36,12 @@ public class YouTubePlaylistValidator(
         GetPlaylistInfoResponse info;
         try
         {
-            info = await youTubePlaylistService.GetPlaylistInfo(
-                new YouTubePlaylistId(playlistId, YouTubePlaylistIdSource.Unknown, "playlist-validator"),
-                new IndexingContext { CancellationToken = cancellationToken });
+            using (PodcastRunScope.Enter(new PodcastRunScope(cancellationToken)))
+            {
+                info = await youTubePlaylistService.GetPlaylistInfo(
+                    new YouTubePlaylistId(playlistId, YouTubePlaylistIdSource.Unknown, "playlist-validator"),
+                    new IndexingContext());
+            }
         }
         catch (Exception ex) when (ex is YouTubePlaylistNotFoundException ||
                                    ex is GoogleApiException

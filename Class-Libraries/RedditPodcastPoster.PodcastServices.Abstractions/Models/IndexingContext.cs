@@ -2,6 +2,11 @@ using RedditPodcastPoster.Episodes.Matching.Candidates;
 
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
+/// <summary>
+/// Indexing <i>policy</i>: value-equality flags copied with <c>with</c> per podcast and compared. Run-time state of a
+/// single podcast's update (its budget token and stage reporter) is not policy and lives on
+/// <see cref="PodcastRunScope"/> instead (#1073).
+/// </summary>
 public record IndexingContext(
     DateTime? ReleasedSince = null,
     bool IndexSpotify = true,
@@ -31,21 +36,6 @@ public record IndexingContext(
     /// an in-window episode the uploads check would not offer again. A full walk still refreshes the hints.
     /// </summary>
     public bool UseYouTubeIndexingHints { get; init; }
-
-    /// <summary>
-    /// Cancels the current podcast's update. The indexer sets this per podcast from its time budget
-    /// (<c>PodcastsUpdater</c>); outside that loop it is <see cref="CancellationToken.None"/>.
-    /// </summary>
-    public CancellationToken CancellationToken { get; init; }
-
-    /// <summary>Per-podcast stage reporter set by the indexer loop; <c>null</c> elsewhere.</summary>
-    public IPodcastIndexingStageReporter? StageReporter { get; init; }
-
-    /// <summary>Reports a stage on <see cref="StageReporter"/> when one is attached.</summary>
-    public void ReportStage(string stage, string? detail = null)
-    {
-        StageReporter?.Stage(stage, detail);
-    }
 
     public override string ToString()
     {

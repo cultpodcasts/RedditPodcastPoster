@@ -22,7 +22,7 @@ public class AppleEpisodeProvider(
     public async Task<IList<Episode>?> GetEpisodes(ApplePodcastId podcastId, IndexingContext indexingContext)
     {
         var episodes = await applePodcastService.GetEpisodes(
-            podcastId, indexingContext, indexingContext.CancellationToken);
+            podcastId, indexingContext, PodcastRunScope.Current.CancellationToken);
 
         if (episodes == null)
         {

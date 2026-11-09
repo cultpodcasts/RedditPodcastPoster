@@ -32,10 +32,10 @@ public class PodcastUpdateBudgetRules
     private readonly PodcastIndexingStageLogOptions _stageLog = new();
     private readonly PodcastUpdateBudgetCutTracker _cuts = new();
     private readonly List<Guid> _updated = [];
-    private readonly Dictionary<Guid, IndexingContext> _contexts = new();
+    private readonly Dictionary<Guid, PodcastRunScope> _scopes = new();
     private readonly Podcast _stalledPodcast;
     private readonly Podcast _healthyPodcast;
-    private Func<IndexingContext, Task<IndexPodcastResult>> _stalledUpdate;
+    private Func<PodcastRunScope, Task<IndexPodcastResult>> _stalledUpdate;
 
     public PodcastUpdateBudgetRules()
     {
@@ -54,12 +54,14 @@ public class PodcastUpdateBudgetRules
         _mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
         _mocker.GetMock<IPodcastUpdater>()
             .Setup(x => x.Update(It.IsAny<Podcast>(), false, It.IsAny<IndexingContext>()))
-            .Returns((Podcast podcast, bool _, IndexingContext context) =>
+            .Returns((Podcast podcast, bool _, IndexingContext _) =>
             {
+                // The loop opens the podcast's run scope around the call that starts its update.
+                var scope = PodcastRunScope.Current;
                 _updated.Add(podcast.Id);
-                _contexts[podcast.Id] = context;
+                _scopes[podcast.Id] = scope;
                 return podcast.Id == _stalledPodcast.Id
-                    ? _stalledUpdate(context)
+                    ? _stalledUpdate(scope)
                     : Task.FromResult(SuccessResult(podcast));
             });
     }
@@ -71,10 +73,10 @@ public class PodcastUpdateBudgetRules
     public async Task stalled_podcast_is_cancelled_and_the_loop_continues()
     {
         // Arrange
-        _stalledUpdate = async context =>
+        _stalledUpdate = async scope =>
         {
-            context.ReportStage("youtube-playlist-page", "page=2");
-            await Task.Delay(Timeout.Infinite, context.CancellationToken);
+            scope.ReportStage("youtube-playlist-page", "page=2");
+            await Task.Delay(Timeout.Infinite, scope.CancellationToken);
             return SuccessResult(_stalledPodcast);
         };
         var sut = _mocker.CreateInstance<PodcastsUpdater>();
@@ -126,10 +128,10 @@ public class PodcastUpdateBudgetRules
     public async Task podcast_update_carries_token_and_logs_stages()
     {
         // Arrange
-        IndexingContext? seen = null;
-        _stalledUpdate = context =>
+        PodcastRunScope? seen = null;
+        _stalledUpdate = scope =>
         {
-            seen = context;
+            seen = scope;
             return Task.FromResult(SuccessResult(_stalledPodcast));
         };
         var sut = _mocker.CreateInstance<PodcastsUpdater>();
@@ -198,9 +200,9 @@ public class PodcastUpdateBudgetRules
     public async Task expensive_pass_gets_a_larger_budget()
     {
         // Arrange
-        _stalledUpdate = async context =>
+        _stalledUpdate = async scope =>
         {
-            await Task.Delay(Timeout.Infinite, context.CancellationToken);
+            await Task.Delay(Timeout.Infinite, scope.CancellationToken);
             return SuccessResult(_stalledPodcast);
         };
         var sut = _mocker.CreateInstance<PodcastsUpdater>();
@@ -209,7 +211,7 @@ public class PodcastUpdateBudgetRules
         // Act
         var run = sut.UpdatePodcasts([_stalledPodcast.Id], expensivePass);
         _time.Advance(Budget);
-        var runningAfterNormalBudget = !run.IsCompleted && !_contexts[_stalledPodcast.Id].CancellationToken
+        var runningAfterNormalBudget = !run.IsCompleted && !_scopes[_stalledPodcast.Id].CancellationToken
             .IsCancellationRequested;
         _time.Advance(Budget * (_budget.ExpensivePassBudgetMultiplier - 1));
         var success = await Completion(run);
@@ -229,9 +231,9 @@ public class PodcastUpdateBudgetRules
     public async Task repeated_cuts_are_counted()
     {
         // Arrange
-        _stalledUpdate = async context =>
+        _stalledUpdate = async scope =>
         {
-            await Task.Delay(Timeout.Infinite, context.CancellationToken);
+            await Task.Delay(Timeout.Infinite, scope.CancellationToken);
             return SuccessResult(_stalledPodcast);
         };
 
@@ -275,9 +277,9 @@ public class PodcastUpdateBudgetRules
             entry.Message.Contains($"podcast-id='{_stalledPodcast.Id}'") &&
             entry.Message.Contains("status='Faulted'") &&
             entry.Message.Contains($"error-type='{nameof(InvalidOperationException)}'"));
-        var healthy = _contexts[_healthyPodcast.Id];
+        var healthy = _scopes[_healthyPodcast.Id];
         healthy.CancellationToken.IsCancellationRequested.Should().BeFalse();
-        healthy.StageReporter.Should().NotBeSameAs(_contexts[_stalledPodcast.Id].StageReporter);
+        healthy.StageReporter.Should().NotBeSameAs(_scopes[_stalledPodcast.Id].StageReporter);
     }
 
     private TimeSpan Budget => TimeSpan.FromSeconds(_budget.PerPodcastBudgetSeconds);
