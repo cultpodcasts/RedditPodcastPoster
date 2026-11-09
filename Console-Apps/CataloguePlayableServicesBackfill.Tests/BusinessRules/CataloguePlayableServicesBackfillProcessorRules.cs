@@ -998,6 +998,136 @@ public class CataloguePlayableServicesBackfillProcessorRules : IDisposable
         calls.Should().Equal(3);
     }
 
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when a film Cosmos write succeeds but search upload fails, then the " +
+        "run exits 3 with FailedSearchUploads, because films have no search pull and operators must see the failure.")]
+    public async Task failed_film_search_upload_exits_non_zero()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            },
+            YouTubeId = null
+        };
+        _mocker.GetMock<IFilmRepository>().Setup(r => r.GetAll()).Returns(ToAsync(film));
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.Update(film.Id, It.IsAny<Func<Film, bool>>()))
+            .ReturnsAsync((Guid _, Func<Film, bool> mutate) =>
+            {
+                mutate(film);
+                return film;
+            });
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(YouTubeIdOnlyApply("film-search-fail.jsonl", kind: "film"));
+
+        // Assert
+        result.ExitCode.Should().Be(CataloguePlayableServicesBackfillProcessor.ExitFailed);
+        result.Applied.Should().Be(1);
+        result.SearchUploaded.Should().Be(0);
+        result.FailedSearchUploads.Should().Be(1);
+        result.FailedWrites.Should().Be(0);
+        film.YouTubeId.Should().Be(videoId);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when --repush-search runs with apply on an Identical film, then the " +
+        "search document is uploaded without rewriting Cosmos, so a prior failed film search batch is recoverable.")]
+    public async Task repush_search_uploads_identical_film_without_cosmos_write()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            },
+            YouTubeId = videoId
+        };
+        _mocker.GetMock<IFilmRepository>().Setup(r => r.GetAll()).Returns(ToAsync(film));
+        IReadOnlyList<EpisodeSearchRecord>? uploaded = null;
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Setup(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Callback((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) => uploaded = docs)
+            .ReturnsAsync(true);
+        var changeLog = Path.Combine(_tempDir, "film-repush.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            YouTubeIdOnly = true,
+            Kind = "film",
+            RepushSearch = true,
+            Apply = true,
+            Consent = CataloguePlayableServicesBackfillConsent.ApplyPhrase,
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.Identical.Should().Be(1);
+        result.Discrepancies.Should().Be(0);
+        result.Applied.Should().Be(0);
+        result.SearchRepushQueued.Should().Be(1);
+        result.SearchUploaded.Should().Be(1);
+        uploaded.Should().ContainSingle().Which.Id.Should().Be(film.Id.ToString());
+        ReadSingle(changeLog).SearchRepush.Should().BeTrue();
+        _mocker.GetMock<IFilmRepository>()
+            .Verify(r => r.Update(It.IsAny<Guid>(), It.IsAny<Func<Film, bool>>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when --repush-search is dry-run on an Identical film, then the " +
+        "change-log marks searchRepush without uploading, so operators can preview recovery before consent.")]
+    public async Task repush_search_dry_run_logs_without_upload()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(videoId) }
+            },
+            YouTubeId = videoId
+        };
+        _mocker.GetMock<IFilmRepository>().Setup(r => r.GetAll()).Returns(ToAsync(film));
+        var changeLog = Path.Combine(_tempDir, "film-repush-dry.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            YouTubeIdOnly = true,
+            Kind = "film",
+            RepushSearch = true,
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.ExitCode.Should().Be(0);
+        result.Identical.Should().Be(1);
+        result.SearchRepushQueued.Should().Be(1);
+        result.SearchUploaded.Should().Be(0);
+        ReadSingle(changeLog).SearchRepush.Should().BeTrue();
+        _mocker.GetMock<IPlayableSearchDocumentSwap>()
+            .Verify(s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+    }
+
     private NewsReport UrlOnlyReport(string videoId, Guid? id = null, Guid? organisationId = null) =>
         new(_fixture.CreateTitle())
         {

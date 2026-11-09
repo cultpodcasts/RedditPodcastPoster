@@ -71,6 +71,23 @@ How writes are made:
 - **Search**: updated search documents are pushed in batches of 100 (films have no search pull; for news/TV the `_ts` bump also lets the indexer re-pull).
 - `--snapshot-dir` writes each playable's before `{ services, youTubeId }`.
 
+### Film search re-push after a failed upload
+
+If Cosmos writes succeed but a search batch fails, news/TV recover on the next indexer pull (`_ts`). Films do not: a plain re-run sees them as `Identical` and skips the push. Failed batches log the document ids and count `FailedSearchUploads` (exit `3`). Recover with:
+
+```powershell
+dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
+  --youtube-id-only `
+  --kind film `
+  --repush-search `
+  --ids <failed-guid> `
+  --change-log catalogue-playable-film-search-repush.jsonl `
+  --apply `
+  --consent "<operator-held phrase>"
+```
+
+`--repush-search` queues Identical, search-eligible films for upload without rewriting Cosmos. Dry-run (omit `--apply`) still writes `searchRepush: true` change-log rows so you can preview the set.
+
 ## Flags
 
 | Flag | Notes |
@@ -83,3 +100,4 @@ How writes are made:
 | `--limit` | Stop after N discrepancy candidates (`0` = no limit) |
 | `--change-log` | JSONL path |
 | `--snapshot-dir` | Optional before `{ services, youTubeId }` JSON slices |
+| `--repush-search` | Queue Identical films for search upload again (films have no pull; use after a failed search batch) |

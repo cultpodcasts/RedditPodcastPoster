@@ -47,4 +47,8 @@ public class CataloguePlayableServicesBackfillRequest
     [Option("snapshot-dir", Required = false, Default = null,
         HelpText = "Optional directory for before Services JSON snapshots of changed playables.")]
     public string? SnapshotDir { get; set; }
+
+    [Option("repush-search", Required = false, Default = false,
+        HelpText = "For films that are already Identical in Cosmos, still queue their search document for upload. Use after a search batch failed (films have no search pull). Combine with --apply/--consent to push; optionally --ids to limit. News/TV do not need this (_ts pull recovers).")]
+    public bool RepushSearch { get; set; }
 }

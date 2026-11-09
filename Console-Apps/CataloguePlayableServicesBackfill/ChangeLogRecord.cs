@@ -55,6 +55,13 @@ public sealed class ChangeLogRecord
     [JsonPropertyName("skipped")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Skipped { get; init; }
+
+    /// <summary>
+    /// True when <c>--repush-search</c> queued this Identical film for search upload (Cosmos was already correct).
+    /// </summary>
+    [JsonPropertyName("searchRepush")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool SearchRepush { get; init; }
 }
 
 public interface IChangeLogWriter : IAsyncDisposable
