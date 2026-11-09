@@ -9,6 +9,7 @@ using Api.Handlers.SubmitUrl;
 using Api.Services.SubmitUrl;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using Xunit;
 using FunctionHost.Tests.Api;
@@ -129,5 +130,40 @@ public class GetSubmitUrlLookupHandlerTests
         body.GetProperty("known").GetBoolean().Should().BeFalse();
         body.GetProperty("kind").GetString().Should().Be(UrlMembershipLookupKinds.Streaming);
         body.GetProperty("service").GetString().Should().Be(StreamingServiceWire.ToKey(StreamingService.BbcSounds));
+        body.TryGetProperty("rejected", out _).Should().BeFalse();
+        body.TryGetProperty("message", out _).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When membership lookup rejects a BBC News page, GET submit lookup responds 200 with rejected true and the rejection message, " +
+        "so the website can say so before any scrape (#1211 G5).")]
+    public async Task rejected_bbc_news_returns_200_with_rejected_and_message()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.com/news/{_fixture.CreateGuid():N}");
+        _mocker.GetMock<ISubmitUrlLookupService>()
+            .Setup(s => s.LookupAsync(url, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UrlMembershipLookupResult(
+                Known: false,
+                Kind: UrlMembershipLookupKinds.Unrecognised,
+                ContentKind: SubmitClassification.NewsReport,
+                Rejected: true,
+                RejectionMessage: BbcNewsSubmitRejection.Message));
+        var handler = _mocker.CreateInstance<GetSubmitUrlLookupHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            url,
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await ReadJsonBodyAsync(result);
+        body.GetProperty("known").GetBoolean().Should().BeFalse();
+        body.GetProperty("rejected").GetBoolean().Should().BeTrue();
+        body.GetProperty("message").GetString().Should().Be(BbcNewsSubmitRejection.Message);
+        body.GetProperty("contentKind").GetString().Should().Be(SubmitClassification.NewsReport);
     }
 }

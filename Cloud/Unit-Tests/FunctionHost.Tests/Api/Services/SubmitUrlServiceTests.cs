@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using Api.Dtos.Extensions;
@@ -665,6 +666,85 @@ public class SubmitUrlServiceTests
         // Assert
         result.Status.Should().Be(SubmitUrlStatus.BadRequest);
         result.Message.Should().Be(message);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on and a curator files a BBC News page under a news organisation, the API rejects it " +
+        "with the G5 message instead of the generic platform-URL 400, and nothing is submitted (#1211 G5).")]
+    public async Task bbc_news_with_parent_target_is_rejected_with_message()
+    {
+        // Arrange
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}"),
+            ParentKind = nameof(CatalogueParentKind.NewsOrganisation),
+            ParentId = _fixture.CreateGuid(),
+            ParentName = _fixture.CreateTitle()
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Rejected);
+        result.Result!.Rejected.Should().BeTrue();
+        result.Result.RejectionMessage.Should().Be(BbcNewsSubmitRejection.Message);
+        result.Result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        _mocker.GetMock<IUrlSubmitter>().Verify(
+            s => s.Submit(It.IsAny<Uri>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on and a BBC News page names a podcast shared by several rows, the API rejects it " +
+        "with the G5 message instead of an ambiguous-name conflict (#1211 G5).")]
+    public async Task bbc_news_with_ambiguous_podcast_name_is_rejected_not_conflict()
+    {
+        // Arrange
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        var name = _fixture.CreateTitle();
+        _storedPodcasts = [_fixture.CreatePodcast(p => p.Name = name), _fixture.CreatePodcast(p => p.Name = name)];
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://www.bbc.com/news/articles/{_fixture.CreateGuid():N}"),
+            PodcastName = name
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Rejected);
+        result.Result!.RejectionMessage.Should().Be(BbcNewsSubmitRejection.Message);
+        result.AmbiguousPodcasts.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are off, the API does not reject a BBC News page itself and leaves the submit to ingest, " +
+        "because the G5 rejection is part of the content-types rollout.")]
+    public async Task bbc_news_flag_off_is_not_rejected_by_the_api()
+    {
+        // Arrange
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}"),
+            ParentKind = nameof(CatalogueParentKind.NewsOrganisation),
+            ParentId = _fixture.CreateGuid(),
+            ParentName = _fixture.CreateTitle()
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().NotBe(SubmitUrlStatus.Rejected);
+        _mocker.GetMock<IUrlSubmitter>().Verify(
+            s => s.Submit(request.Url, It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()),
+            Times.Once);
     }
 
     private static string FlipCasing(string value)

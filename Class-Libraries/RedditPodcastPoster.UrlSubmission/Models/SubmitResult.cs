@@ -21,7 +21,9 @@ public record SubmitResult(
     CatalogueLanguageHold? LanguageHold = null,
     CatalogueIdentityHold? IdentityHold = null,
     // Set when a film was saved: the host uploads its search document now, not on the next pull index.
-    Film? FilmSearchSource = null
+    Film? FilmSearchSource = null,
+    // Why the URL was rejected, shown to the submitter. Null when not rejected or when no reason is given.
+    string? RejectionMessage = null
 )
 {
     public override string ToString()
@@ -55,6 +57,11 @@ public record SubmitResult(
         if (Rejected)
         {
             results.Add("rejected: 'True'");
+        }
+
+        if (RejectionMessage != null)
+        {
+            results.Add($"rejection-message: '{RejectionMessage}'");
         }
 
         if (RequiresCurator)
