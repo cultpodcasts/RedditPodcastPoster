@@ -1128,6 +1128,49 @@ public class CataloguePlayableServicesBackfillProcessorRules : IDisposable
                 Times.Never);
     }
 
+    [Fact(DisplayName =
+        "Catalogue playable services backfill: when an Identical film is both skipped-unparseable and " +
+        "--repush-search, then the change-log emits one row with both outcomes, so dry-run review is not duplicated.")]
+    public async Task identical_unparseable_repush_emits_single_change_log_row()
+    {
+        // Arrange
+        var existingId = _fixture.CreateYouTubeId();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = new Uri("https://www.youtube.com/@somechannel") }
+            },
+            YouTubeId = existingId
+        };
+        _mocker.GetMock<IFilmRepository>().Setup(r => r.GetAll()).Returns(ToAsync(film));
+        var changeLog = Path.Combine(_tempDir, "film-unparseable-repush.jsonl");
+        var sut = _mocker.CreateInstance<CataloguePlayableServicesBackfillProcessor>();
+
+        // Act
+        var result = await sut.Run(new CataloguePlayableServicesBackfillRequest
+        {
+            YouTubeIdOnly = true,
+            Kind = "film",
+            RepushSearch = true,
+            ChangeLog = changeLog
+        });
+
+        // Assert
+        result.Identical.Should().Be(1);
+        result.YouTubeIdSkippedUnparseable.Should().Be(1);
+        result.SearchRepushQueued.Should().Be(1);
+        result.SearchUploaded.Should().Be(0);
+        var lines = File.ReadAllLines(changeLog);
+        lines.Should().ContainSingle();
+        var record = ReadSingle(changeLog);
+        record.YouTubeIdOutcome.Should().Be(CataloguePlayableServicesBackfillProcessor.YouTubeIdSkippedUnparseable);
+        record.SearchRepush.Should().BeTrue();
+        record.Applied.Should().BeFalse();
+        film.YouTubeId.Should().Be(existingId);
+    }
+
     private NewsReport UrlOnlyReport(string videoId, Guid? id = null, Guid? organisationId = null) =>
         new(_fixture.CreateTitle())
         {

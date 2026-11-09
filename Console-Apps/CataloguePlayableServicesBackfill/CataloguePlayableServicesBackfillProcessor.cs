@@ -420,16 +420,12 @@ public class CataloguePlayableServicesBackfillProcessor(
         CountYouTube(youTube, counters, kind, id);
         if (!carry.HasChanges && !youTube.Changed)
         {
-            if (youTube.Outcome == CatalogueYouTubeIdSyncOutcome.SkippedUnparseable)
+            // One JSONL row when both skipped-unparseable and --repush-search apply (searchRepush wins the flag).
+            var searchRepush = TryQueueFilmSearchRepush(request, item, counters, pendingSearch);
+            if (youTube.Outcome == CatalogueYouTubeIdSyncOutcome.SkippedUnparseable || searchRepush)
             {
                 await WriteChange(changeLog, kind, id, parentId, backupPath, string.Empty, [], applied: false,
-                    youTube, skipped: null, searchRepush: false, cancellationToken);
-            }
-
-            if (TryQueueFilmSearchRepush(request, item, counters, pendingSearch))
-            {
-                await WriteChange(changeLog, kind, id, parentId, backupPath, string.Empty, [], applied: false,
-                    youTube, skipped: null, searchRepush: true, cancellationToken);
+                    youTube, skipped: null, searchRepush: searchRepush, cancellationToken);
             }
 
             counters.Identical++;

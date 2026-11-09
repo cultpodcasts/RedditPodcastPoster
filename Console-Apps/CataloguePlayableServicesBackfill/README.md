@@ -22,7 +22,7 @@ dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
 
 Writes `catalogue-playable-services-backfill.jsonl` (overwritten each run) with every missing-truth and discrepancy candidate. No Cosmos writes. JSONL uses `missingTruth: true` when neither episode backup nor PublicDatabase had the GUID (finish log / run counter: `MissingTruth`).
 
-Exit codes: `0` ok, `1` bad arguments, `2` apply refused (missing/wrong `--consent`), `3` one or more Cosmos writes failed (`FailedWrites > 0`).
+Exit codes: `0` ok, `1` bad arguments, `2` apply refused (missing/wrong `--consent`), `3` one or more Cosmos writes failed (`FailedWrites > 0`) or one or more search upload batches failed (`FailedSearchUploads > 0`).
 
 ## YouTube id only
 
@@ -68,12 +68,12 @@ How writes are made:
 
 - **NewsReport / TvShowEpisode**: the document is re-read with its ETag just before the write. If it is gone (deleted or moved since the scan) the row is skipped as `skipped: "not-found"`; if its `services` or `youTubeId` changed since the scan it is skipped as `skipped: "conflict"`. Otherwise a Cosmos **partial patch** sets only the changed paths (`/services` and/or `/youTubeId`) with `If-Match` on that ETag, so other fields edited concurrently are untouched. A patch never creates a document: 404 → `not-found`, 412 → `conflict`. Skips are logged as warnings and counted (`SkippedNotFound`, `SkippedConflict`); they do not fail the run.
 - **Film**: ETag-guarded read-modify-write through the film repository.
-- **Search**: updated search documents are pushed in batches of 100 (films have no search pull; for news/TV the `_ts` bump also lets the indexer re-pull).
+- **Search**: updated search documents are pushed in batches of 100 (films have no search pull; for news/TV the `_ts` bump also lets the indexer re-pull). Any failed search batch counts `FailedSearchUploads` and fails the run with exit `3` for every kind — even when news/TV will still recover on the next indexer pull. Films additionally need `--repush-search` (below).
 - `--snapshot-dir` writes each playable's before `{ services, youTubeId }`.
 
 ### Film search re-push after a failed upload
 
-If Cosmos writes succeed but a search batch fails, news/TV recover on the next indexer pull (`_ts`). Films do not: a plain re-run sees them as `Identical` and skips the push. Failed batches log the document ids and count `FailedSearchUploads` (exit `3`). Recover with:
+If Cosmos writes succeed but a search batch fails, the run exits `3` (`FailedSearchUploads`) for film, news, and TV alike. News/TV recover on the next indexer pull (`_ts`). Films do not: a plain re-run sees them as `Identical` and skips the push. Failed batches log the document ids — pass those as `--ids`. Recover with:
 
 ```powershell
 dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
@@ -88,6 +88,8 @@ dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
 
 `--repush-search` queues Identical, search-eligible films for upload without rewriting Cosmos. Dry-run (omit `--apply`) still writes `searchRepush: true` change-log rows so you can preview the set.
 
+**Pass `--ids` from the failed-batch error log.** Omitting `--ids` re-queues every Identical, search-eligible film in the catalogue for upload. `--limit` only stops after N discrepancy candidates, so it does **not** cap a pure re-push run.
+
 ## Flags
 
 | Flag | Notes |
@@ -100,4 +102,4 @@ dotnet run --project Console-Apps/CataloguePlayableServicesBackfill -- `
 | `--limit` | Stop after N discrepancy candidates (`0` = no limit) |
 | `--change-log` | JSONL path |
 | `--snapshot-dir` | Optional before `{ services, youTubeId }` JSON slices |
-| `--repush-search` | Queue Identical films for search upload again (films have no pull; use after a failed search batch) |
+| `--repush-search` | Queue Identical films for search upload again (films have no pull; use after a failed search batch). Pass `--ids` from the error log — omitting `--ids` re-queues all Identical films; `--limit` does not apply |
