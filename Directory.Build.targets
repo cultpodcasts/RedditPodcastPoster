@@ -30,14 +30,25 @@
     <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-5crp-9r3c-p9vr" />
   </ItemGroup>
 
-  <!-- Ensure low-level dependency-injection projects are built before other projects to avoid CS0006 metadata not found errors. -->
+  <!--
+    Ensure low-level dependency-injection projects are built before other projects to avoid
+    CS0006 metadata-not-found errors.
+
+    Nested &lt;MSBuild&gt; from many parallel parents races on GenerateDepsFile
+    (MSB4018 writing the same bin/Release/net10.0/*.deps.json). Prefer CI/scripts that
+    pre-build these two projects then set SkipEnsureDependencyInjectionBuilt=true
+    (see .github/workflows/deploy.yml, dotnet.yml, scripts/publish-console-apps.ps1).
+    Skipped when RuntimeIdentifier is set: RID publish/build already had no serialize path
+    and enabling nested MSBuild there made local -r publishes worse; Actions uses -m:1 then
+    publish --no-build instead. BuildInParallel=false only serializes within one invocation.
+  -->
   <Target Name="EnsureDependencyInjectionBuilt" BeforeTargets="Build"
           Condition="'$(SkipEnsureDependencyInjectionBuilt)' != 'true' and '$(RuntimeIdentifier)' == '' and '$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection' and '$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection.Abstractions'">
     <Message Importance="Low" Text="Building dependency-injection projects before $(MSBuildProjectName)..." />
     <MSBuild Projects="$(MSBuildThisFileDirectory)Class-Libraries\RedditPodcastPoster.DependencyInjection.Abstractions\RedditPodcastPoster.DependencyInjection.Abstractions.csproj;$(MSBuildThisFileDirectory)Class-Libraries\RedditPodcastPoster.DependencyInjection\RedditPodcastPoster.DependencyInjection.csproj"
              Targets="Build"
              BuildInParallel="false"
-             Properties="Configuration=$(Configuration);Platform=$(Platform)" />
+             Properties="Configuration=$(Configuration);Platform=$(Platform);SkipEnsureDependencyInjectionBuilt=true" />
   </Target>
 
   <Target Name="SetGitVersionInfo" BeforeTargets="PrepareForBuild">

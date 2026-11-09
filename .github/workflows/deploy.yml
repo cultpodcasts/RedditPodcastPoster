@@ -83,8 +83,29 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore /p:Configuration=Release -r ${{ env.TARGET_RUNTIME }}
+    # Shared Class-Libraries write the same bin/Release/net10.0/*.deps.json. Parallel
+    # MSBuild nodes race on GenerateDepsFile (MSB4018, run 42713443340 attempt 1 on api).
+    # EnsureDependencyInjectionBuilt is skipped when RuntimeIdentifier is set (-r), so the
+    # deploy path has no serialize target. Build once single-node, then publish --no-build.
+    - name: Build ${{ matrix.project.name }}
+      run: >
+        dotnet build
+        --configuration ${{ env.buildConfiguration }}
+        -r ${{ env.TARGET_RUNTIME }}
+        --no-restore
+        -p:SkipEnsureDependencyInjectionBuilt=true
+        -m:1
+        ${{ matrix.project.path }}
     - name: Publish ${{ matrix.project.name }}
-      run: dotnet publish --configuration ${{ env.buildConfiguration }} -r ${{ env.TARGET_RUNTIME }} ${{ matrix.project.path }} -o:${{ matrix.project.output }}
+      run: >
+        dotnet publish
+        --configuration ${{ env.buildConfiguration }}
+        -r ${{ env.TARGET_RUNTIME }}
+        --no-restore
+        --no-build
+        -p:SkipEnsureDependencyInjectionBuilt=true
+        ${{ matrix.project.path }}
+        -o:${{ matrix.project.output }}
     - name: Archive ${{ matrix.project.name }} artifacts
       uses: actions/upload-artifact@v7
       with:
@@ -106,8 +127,24 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore
+    # Same deps.json race as the matrix build job when EnsureDependencyInjectionBuilt
+    # nested MSBuild runs from many parents in parallel (no RID on this job).
+    - name: Build DI foundations
+      run: |
+        set -euo pipefail
+        abs='Class-Libraries/RedditPodcastPoster.DependencyInjection.Abstractions/RedditPodcastPoster.DependencyInjection.Abstractions.csproj'
+        di='Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj'
+        dotnet build "$abs" --configuration ${{ env.buildConfiguration }} --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
+        dotnet build "$di" --configuration ${{ env.buildConfiguration }} --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
+    - name: Build solution
+      run: >
+        dotnet build
+        --configuration ${{ env.buildConfiguration }}
+        --no-restore
+        -p:SkipEnsureDependencyInjectionBuilt=true
+        -m:1
     - name: Run tests
-      run: dotnet test --configuration ${{ env.buildConfiguration }} --no-restore --verbosity normal
+      run: dotnet test --configuration ${{ env.buildConfiguration }} --no-build --verbosity normal
 
   archive-infrastructure:
     runs-on: ubuntu-latest

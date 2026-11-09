@@ -34,8 +34,17 @@ jobs:
     - name: Solution filters (*.slnf ↔ slnx)
       shell: pwsh
       run: ./scripts/assert-slnf.ps1
+    # Pre-build DI foundations so parallel solution build does not race nested
+    # EnsureDependencyInjectionBuilt MSBuild invocations on the same deps.json.
+    - name: Build DI foundations
+      run: |
+        set -euo pipefail
+        abs='Class-Libraries/RedditPodcastPoster.DependencyInjection.Abstractions/RedditPodcastPoster.DependencyInjection.Abstractions.csproj'
+        di='Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj'
+        dotnet build "$abs" --configuration Release --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
+        dotnet build "$di" --configuration Release --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
     - name: Build
-      run: dotnet build --configuration Release
+      run: dotnet build --configuration Release --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal
     - name: Episode domain coverage gate
