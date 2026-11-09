@@ -880,6 +880,51 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
+        "Catalogue migrate: when LookUps remaps a TV publisher to a canonical show name that already exists and that " +
+        "mapping is not in the compiled seed, then TV apply is blocked, because the duplicate-parent gate must use the " +
+        "same LookUps snapshot as the writer.")]
+    public async Task lookups_tv_canonical_alias_not_in_seed_blocks_duplicate_parent()
+    {
+        // Arrange
+        var publisherName = _fixture.CreateTitle();
+        var lookupsShowName = _fixture.CreateTitleNotContainedIn(publisherName);
+        CatalogueTvShowCanonicalNames.IsPublisherName(publisherName).Should().BeFalse();
+        string.Equals(publisherName, lookupsShowName, StringComparison.OrdinalIgnoreCase).Should().BeFalse();
+        var lists = new CatalogueCuratorLists(
+            CatalogueNewsOrganisationAllowlist.Names,
+            CatalogueStayPodcastNames.Names,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [publisherName] = lookupsShowName
+            },
+            CatalogueNewsOrganisationChannelAliases.OrganisationNameByChannelPublisherName);
+        _mocker.GetMock<ICatalogueCuratorListsProvider>()
+            .Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(lists);
+        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var existing = CatalogueParentKindMapper.ToTvShow(
+            _fixture.CreatePodcast(p => p.Name = lookupsShowName),
+            lists);
+        _destination.TvShows[existing.Id] = existing;
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.TvShowEpisode, podcastId: podcast.Id));
+
+        // Assert
+        result.AppliedCount.Should().Be(0);
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.ParentNameExists);
+        _destination.TvShows.Keys.Should().Equal(existing.Id);
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+        CatalogueMigratePlanner.DestinationParent(podcast, SubmitClassification.TvShowEpisode, CatalogueCuratorLists.FromSeed())!
+            .Name.Should().Be(publisherName);
+        CatalogueMigratePlanner.DestinationParent(podcast, SubmitClassification.TvShowEpisode, lists)!
+            .Name.Should().Be(lookupsShowName);
+    }
+
+    [Fact(DisplayName =
         "Catalogue migrate rollback: a preview (no --apply) reports the plan without building the applier, because a " +
         "preview must never build the Search client or write.")]
     public async Task rollback_preview_does_not_build_the_applier()

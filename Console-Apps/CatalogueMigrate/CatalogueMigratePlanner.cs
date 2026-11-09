@@ -164,10 +164,14 @@ public static class CatalogueMigratePlanner
     public static Publisher? DestinationParent(
         Podcast podcast,
         string kind,
-        CatalogueCuratorLists? curatorLists = null) => kind switch
+        CatalogueCuratorLists curatorLists)
     {
-        SubmitClassification.NewsReport => CatalogueParentKindMapper.ToNewsOrganisation(podcast, curatorLists),
-        SubmitClassification.TvShowEpisode => CatalogueParentKindMapper.ToTvShow(podcast, curatorLists),
-        _ => null
-    };
+        ArgumentNullException.ThrowIfNull(curatorLists);
+        return kind switch
+        {
+            SubmitClassification.NewsReport => CatalogueParentKindMapper.ToNewsOrganisation(podcast, curatorLists),
+            SubmitClassification.TvShowEpisode => CatalogueParentKindMapper.ToTvShow(podcast, curatorLists),
+            _ => null
+        };
+    }
 }

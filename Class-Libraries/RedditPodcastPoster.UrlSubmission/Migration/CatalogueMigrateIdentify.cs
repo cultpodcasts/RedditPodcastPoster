@@ -245,17 +245,10 @@ public static class CatalogueMigrateIdentify
     }
 
     /// <summary>
-    /// Seed stay-podcast names. Prefer <see cref="CatalogueCuratorLists.StayPodcastPublisherNames"/>
-    /// when LookUps may have curator edits.
+    /// Compiled seed stay-podcast names. Runtime identify / migrate must use
+    /// <see cref="CatalogueCuratorLists.StayPodcastPublisherNames"/> when LookUps may differ.
     /// </summary>
     public static IReadOnlySet<string> StayPodcastPublisherNames => CatalogueStayPodcastNames.Names;
-
-    /// <summary>
-    /// Cosmo publisher names whose items are TV programmes (canonical show names live on
-    /// <see cref="CatalogueTvShowCanonicalNames"/> / LookUps).
-    /// </summary>
-    public static IEnumerable<string> TvShowPublisherNames =>
-        CatalogueTvShowCanonicalNames.PublisherNames;
 
     private static readonly Regex NameSaysPodcast = new(
         @"\bpodcasts?\b",

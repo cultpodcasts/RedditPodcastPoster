@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
@@ -155,8 +156,8 @@ public class CatalogueMigrateProcessor(
                     continue;
                 }
 
-                unit = await BlockMismatchedYouTubePlaylist(unit, cancellationToken);
-                unit = await BlockDuplicateParent(unit);
+                unit = await BlockMismatchedYouTubePlaylist(unit, curatorLists, cancellationToken);
+                unit = await BlockDuplicateParent(unit, curatorLists);
                 if (apply)
                 {
                     unit = BlockWhileIndexerMayBeRunning(unit);
@@ -325,9 +326,11 @@ public class CatalogueMigrateProcessor(
     /// </summary>
     private async Task<CatalogueMigrateUnit> BlockMismatchedYouTubePlaylist(
         CatalogueMigrateUnit unit,
+        CatalogueCuratorLists curatorLists,
         CancellationToken cancellationToken)
     {
-        if (!unit.ApplyEligible || CatalogueMigratePlanner.DestinationParent(unit.Podcast, unit.Kind) is null)
+        if (!unit.ApplyEligible ||
+            CatalogueMigratePlanner.DestinationParent(unit.Podcast, unit.Kind, curatorLists) is null)
         {
             return unit;
         }
@@ -355,9 +358,12 @@ public class CatalogueMigrateProcessor(
     /// (a channel alias or canonical TV name, or an outlet already moved by change-kind). Apply would otherwise
     /// create a second parent with the same name and fileKey instead of attaching to the existing one.
     /// </summary>
-    private async Task<CatalogueMigrateUnit> BlockDuplicateParent(CatalogueMigrateUnit unit)
+    private async Task<CatalogueMigrateUnit> BlockDuplicateParent(
+        CatalogueMigrateUnit unit,
+        CatalogueCuratorLists curatorLists)
     {
-        if (!unit.ApplyEligible || CatalogueMigratePlanner.DestinationParent(unit.Podcast, unit.Kind) is not { } parent)
+        if (!unit.ApplyEligible ||
+            CatalogueMigratePlanner.DestinationParent(unit.Podcast, unit.Kind, curatorLists) is not { } parent)
         {
             return unit;
         }
