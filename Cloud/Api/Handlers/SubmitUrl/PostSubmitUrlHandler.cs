@@ -34,7 +34,12 @@ public class PostSubmitUrlHandler(
             SubmitUrlStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, c),
             SubmitUrlStatus.Rejected =>
-                await ctx.BadRequest(new SubmitDispositionResponse(result.Result?.ContentKind, rejected: true), c),
+                await ctx.BadRequest(
+                    new SubmitDispositionResponse(
+                        result.Result?.ContentKind,
+                        rejected: true,
+                        message: result.Result?.RejectionMessage),
+                    c),
             SubmitUrlStatus.RequiresCurator =>
                 await ctx.Json(
                     HttpStatusCode.UnprocessableEntity,

@@ -635,13 +635,15 @@ public class UrlMembershipLookupRules
         result.PodcastName.Should().Be(podcast.Name);
     }
 
-    [Fact(DisplayName =
-        "When submit content types are on, a BBC /news/ URL is reported as a NewsReport " +
-        "and is not treated as a known podcast, because news has no Sounds or iPlayer catalogue row.")]
-    public async Task flag_on_bbc_news_url_is_a_news_report_hint()
+    [Theory(DisplayName =
+        "When submit content types are on, a BBC /news/ page on bbc.co.uk or bbc.com is reported as rejected with the same message " +
+        "as submit and is not treated as a known podcast, so the client can say so before any scrape (#1211 G5).")]
+    [InlineData("www.bbc.co.uk")]
+    [InlineData("www.bbc.com")]
+    public async Task flag_on_bbc_news_url_is_rejected_with_a_message(string host)
     {
         // Arrange
-        var url = new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}");
+        var url = new Uri($"https://{host}/news/{_fixture.CreateGuid():N}");
         _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
         var sut = _mocker.CreateInstance<UrlMembershipLookup>();
 
@@ -649,11 +651,31 @@ public class UrlMembershipLookupRules
         var result = await sut.Lookup(url, CancellationToken.None);
 
         // Assert
+        result.Rejected.Should().BeTrue();
+        result.RejectionMessage.Should().Be(BbcNewsSubmitRejection.Message);
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Unrecognised);
         result.ContentKind.Should().Be(SubmitClassification.NewsReport);
         result.PodcastId.Should().BeNull();
         _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When submit content types are on, a BBC iPlayer episode URL is not rejected, " +
+        "because iPlayer is the supported way in for BBC news programmes.")]
+    public async Task flag_on_bbc_iplayer_url_is_not_rejected()
+    {
+        // Arrange
+        var url = new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}");
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Rejected.Should().BeFalse();
+        result.RejectionMessage.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -671,6 +693,7 @@ public class UrlMembershipLookupRules
         result.Known.Should().BeFalse();
         result.Kind.Should().Be(UrlMembershipLookupKinds.Unrecognised);
         result.ContentKind.Should().BeNull();
+        result.Rejected.Should().BeFalse();
     }
 
     [Fact(DisplayName =

@@ -15,6 +15,8 @@ public static class SubmitUrlLookupResponseExtension
             PodcastIds = result.PodcastIds,
             Service = result.Service,
             ContentKind = result.ContentKind,
-            ParentName = result.ParentName
+            ParentName = result.ParentName,
+            Rejected = result.Rejected,
+            Message = result.RejectionMessage
         };
 }

@@ -24,14 +24,17 @@ public class UrlSubmitterContentKindRules
         _mocker.Use<IEpisodeUrlRouter>(_mocker.CreateInstance<EpisodeUrlRouter>());
     }
 
-    [Fact(DisplayName =
-        "When the submit content-type flag is on, a BBC /news/ URL returns an unpersisted NewsReport " +
-        "before categorise, and nothing is saved.")]
-    public async Task bbc_news_with_flag_on_returns_unpersisted_news_report()
+    [Theory(DisplayName =
+        "When the submit content-type flag is on, a BBC /news/ page on bbc.co.uk or bbc.com is rejected with a message " +
+        "pointing to BBC iPlayer or the BBC News YouTube channel, before categorise, and nothing is saved, " +
+        "because BBC news comes in only via iPlayer or the BBC News YouTube channel (#1211 G5).")]
+    [InlineData("www.bbc.co.uk")]
+    [InlineData("www.bbc.com")]
+    public async Task bbc_news_with_flag_on_is_rejected_with_a_message(string host)
     {
         // Arrange
         _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
-        var url = new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}");
+        var url = new Uri($"https://{host}/news/{_fixture.CreateGuid():N}");
         var sut = _mocker.CreateInstance<UrlSubmitter>();
 
         // Act
@@ -41,9 +44,13 @@ public class UrlSubmitterContentKindRules
             new SubmitOptions(null, MatchOtherServices: false, PersistToDatabase: true));
 
         // Assert
+        result.Rejected.Should().BeTrue();
+        result.RejectionMessage.Should().Be(BbcNewsSubmitRejection.Message);
+        result.RejectionMessage.Should().Contain("BBC iPlayer").And.Contain("BBC News YouTube channel");
         result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.Rejected.Should().BeFalse();
         result.RequiresCurator.Should().BeFalse();
+        result.EpisodeResult.Should().Be(SubmitResultState.None);
+        result.PodcastResult.Should().Be(SubmitResultState.None);
         result.PlayableId.Should().BeNull();
         result.Episode.Should().BeNull();
         result.Podcast.Should().BeNull();
@@ -59,6 +66,7 @@ public class UrlSubmitterContentKindRules
         _mocker.GetMock<ICategorisedItemProcessor>().Verify(
             p => p.ProcessCategorisedItem(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()),
             Times.Never);
+        _mocker.GetMock<ICatalogueParentSubmitter>().VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName =

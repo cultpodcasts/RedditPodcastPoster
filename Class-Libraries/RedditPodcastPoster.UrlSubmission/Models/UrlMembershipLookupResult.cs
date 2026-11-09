@@ -26,4 +26,12 @@ public record UrlMembershipLookupResult(
     /// <summary>
     /// Series or organisation name. Null for Film, which has no parent.
     /// </summary>
-    string? ParentName = null);
+    string? ParentName = null,
+    /// <summary>
+    /// True when submit would reject this URL (e.g. a BBC <c>/news/</c> page, #1211 G5).
+    /// </summary>
+    bool Rejected = false,
+    /// <summary>
+    /// Why the URL is rejected, for the submitter. Null when not rejected.
+    /// </summary>
+    string? RejectionMessage = null);

@@ -135,6 +135,40 @@ public class PostSubmitUrlHandlerConflictTests
         using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
         doc.RootElement.GetProperty("contentKind").GetString().Should().Be(SubmitClassification.Episode);
         doc.RootElement.GetProperty("rejected").GetBoolean().Should().BeTrue();
+        doc.RootElement.TryGetProperty("message", out _).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When submit rejects a BBC News page, the handler returns 400 with rejected true and the rejection message, " +
+        "so the website can show why and where to submit instead (#1211 G5).")]
+    public async Task rejected_bbc_news_submit_returns_400_with_message()
+    {
+        // Arrange
+        _serviceResult = new SubmitUrlResult(
+            SubmitUrlStatus.Rejected,
+            new SubmitResult(
+                SubmitResultState.None,
+                SubmitResultState.None,
+                ContentKind: SubmitClassification.NewsReport,
+                Rejected: true,
+                RejectionMessage: BbcNewsSubmitRejection.Message));
+        var handler = _mocker.CreateInstance<PostSubmitUrlHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new SubmitUrlRequest { Url = new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}") },
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        result.Body.Position = 0;
+        using var reader = new StreamReader(result.Body, leaveOpen: true);
+        using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
+        doc.RootElement.GetProperty("rejected").GetBoolean().Should().BeTrue();
+        doc.RootElement.GetProperty("contentKind").GetString().Should().Be(SubmitClassification.NewsReport);
+        doc.RootElement.GetProperty("message").GetString().Should().Be(BbcNewsSubmitRejection.Message);
     }
 
     [Fact(DisplayName =

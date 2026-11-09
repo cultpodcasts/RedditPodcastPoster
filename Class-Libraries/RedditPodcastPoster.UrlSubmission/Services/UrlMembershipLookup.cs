@@ -32,12 +32,15 @@ public class UrlMembershipLookup(
 
     public async Task<UrlMembershipLookupResult> Lookup(Uri url, CancellationToken cancellationToken)
     {
-        if (ContentTypesEnabled && SubmitContentClassifier.IsBbcNews(url))
+        if (ContentTypesEnabled && BbcNewsSubmitRejection.Applies(url))
         {
+            // G5 (#1211): same rejection as submit, so the client can say so before any scrape.
             return new UrlMembershipLookupResult(
                 false,
                 UrlMembershipLookupKinds.Unrecognised,
-                ContentKind: SubmitClassification.NewsReport);
+                ContentKind: SubmitClassification.NewsReport,
+                Rejected: true,
+                RejectionMessage: BbcNewsSubmitRejection.Message);
         }
 
         var kind = Classify(url, out var storedUrlEquals, out var streamingService);
