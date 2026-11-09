@@ -18,7 +18,7 @@ on:
 permissions:
   id-token: write
   contents: read
-  # variables: write is only on the provision job (sets/clears PROVISION_LATCH)
+  # PROVISION_LATCH set/clear uses secrets.VARIABLES_TOKEN (not a GITHUB_TOKEN permission).
 
 env:  
   DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
@@ -140,7 +140,9 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      variables: write
+      # No variables: write — that scope is invalid for GITHUB_TOKEN and made
+      # GitHub reject the whole workflow (#1309 / #1373). Latch set/clear uses
+      # secrets.VARIABLES_TOKEN (see provision_latch step).
     outputs:
       # Same-run gate for *-deploy (vars context may not refresh after we clear the latch).
       deploy_allowed: ${{ steps.provision_latch.outputs.deploy_allowed }}
@@ -261,7 +263,10 @@ jobs:
       id: provision_latch
       if: always()
       env:
-        GH_TOKEN: ${{ github.token }}
+        # Prefer VARIABLES_TOKEN (PAT / fine-grained with Actions Variables write).
+        # Fall back to github.token so the job still runs; set/clear then warn.
+        VARIABLES_TOKEN: ${{ secrets.VARIABLES_TOKEN }}
+        FALLBACK_TOKEN: ${{ github.token }}
         RUN_PROVISION: ${{ needs.build.outputs.run_provision }}
         BYPASS_LATCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.bypass_provision_latch == 'true' }}
         LATCH_VALUE: ${{ vars.PROVISION_LATCH }}
@@ -270,6 +275,13 @@ jobs:
         REPO="${{ github.repository }}"
         RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         JOB_OK="${{ job.status }}"
+
+        if [[ -n "${VARIABLES_TOKEN:-}" ]]; then
+          export GH_TOKEN="$VARIABLES_TOKEN"
+        else
+          export GH_TOKEN="$FALLBACK_TOKEN"
+          echo "::warning::Repo secret VARIABLES_TOKEN is not set. Using github.token, which cannot write Actions variables. Add VARIABLES_TOKEN so PROVISION_LATCH set/clear works. See docs/deployment.md § Provision latch."
+        fi
 
         latch_blocked=false
         if [[ -n "${LATCH_VALUE}" && "${LATCH_VALUE}" == blocked* ]]; then
@@ -281,16 +293,23 @@ jobs:
             # Same-run deploys use deploy_allowed=true after successful bicep even if
             # the cross-run latch variable cannot be deleted (permissions / API).
             echo "deploy_allowed=true" >> "$GITHUB_OUTPUT"
-            gh variable delete PROVISION_LATCH --repo "$REPO" 2>/dev/null || true
-            if gh variable list --repo "$REPO" --json name -q '.[].name' 2>/dev/null | grep -qx 'PROVISION_LATCH'; then
-              echo "::warning::PROVISION_LATCH still present after delete attempt — cross-run latch NOT cleared (this run may still deploy via deploy_allowed). Retry delete or run_provision when permissions allow."
+            if [[ -z "${VARIABLES_TOKEN:-}" ]]; then
+              echo "::warning::Skipping PROVISION_LATCH delete — VARIABLES_TOKEN not set. Same-run deploy_allowed=true; cross-run latch may still be set. See docs/deployment.md § Provision latch."
             else
-              echo "Cleared PROVISION_LATCH after successful provision (absent or deleted)."
+              gh variable delete PROVISION_LATCH --repo "$REPO" 2>/dev/null || true
+              if gh variable list --repo "$REPO" --json name -q '.[].name' 2>/dev/null | grep -qx 'PROVISION_LATCH'; then
+                echo "::warning::PROVISION_LATCH still present after delete attempt — cross-run latch NOT cleared (this run may still deploy via deploy_allowed). Retry delete or run_provision when permissions allow."
+              else
+                echo "Cleared PROVISION_LATCH after successful provision (absent or deleted)."
+              fi
             fi
           else
             BODY="blocked|${{ github.sha }}|${{ github.run_id }}|${RUN_URL}"
-            gh variable set PROVISION_LATCH --repo "$REPO" --body "$BODY"
-            echo "Set PROVISION_LATCH=$BODY"
+            if gh variable set PROVISION_LATCH --repo "$REPO" --body "$BODY"; then
+              echo "Set PROVISION_LATCH=$BODY"
+            else
+              echo "::warning::Failed to set PROVISION_LATCH (need VARIABLES_TOKEN with Variables write). deploy_allowed=false for this run; cross-run latch NOT set."
+            fi
             echo "deploy_allowed=false" >> "$GITHUB_OUTPUT"
           fi
           exit 0
