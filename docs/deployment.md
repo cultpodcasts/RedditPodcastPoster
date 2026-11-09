@@ -49,7 +49,7 @@ Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-di
 1. Actions → Run workflow → enable **`bypass_provision_latch`** (allows `*-deploy` **this run only**; next package-only run is still blocked until provision succeeds or the variable is deleted).
 2. Or delete the variable: `gh variable delete PROVISION_LATCH --repo cultpodcasts/RedditPodcastPoster`
 
-**Token for set/clear:** repo Actions secret **`VARIABLES_TOKEN`** — classic PAT with access to this repo that can manage Actions variables, or a fine-grained token with **Variables: Read and write** on `cultpodcasts/RedditPodcastPoster`. `GITHUB_TOKEN` cannot use a `variables: write` permission (invalid scope; broke all deploys after #1309 — see #1373). Without `VARIABLES_TOKEN`, the latch step still gates `deploy_allowed` for the current run but cannot persist/clear `PROVISION_LATCH` across runs.
+**Token for set/clear:** repo Actions secret **`RPP_VARIABLES_TOKEN`** — classic PAT with access to this repo that can manage Actions variables, or a fine-grained token with **Variables: Read and write** on `cultpodcasts/RedditPodcastPoster`. `GITHUB_TOKEN` cannot use a `variables: write` permission (invalid scope; broke all deploys after #1309 — see #1373). Without `RPP_VARIABLES_TOKEN`, the latch step still gates `deploy_allowed` for the current run but cannot persist/clear `PROVISION_LATCH` across runs.
 
 **Agents (HARD):**
 
