@@ -40,7 +40,7 @@
     (see .github/workflows/deploy.yml, dotnet.yml, scripts/publish-console-apps.ps1).
     Skipped when RuntimeIdentifier is set: RID publish/build already had no serialize path
     and enabling nested MSBuild there made local -r publishes worse; Actions uses -m:1 then
-    publish --no-build instead. BuildInParallel=false only serializes within one invocation.
+    publish with no-build instead. BuildInParallel=false only serializes within one invocation.
   -->
   <Target Name="EnsureDependencyInjectionBuilt" BeforeTargets="Build"
           Condition="'$(SkipEnsureDependencyInjectionBuilt)' != 'true' and '$(RuntimeIdentifier)' == '' and '$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection' and '$(MSBuildProjectName)' != 'RedditPodcastPoster.DependencyInjection.Abstractions'">
