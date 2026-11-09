@@ -45,6 +45,7 @@ public class CatalogueMigrateProcessor(
     CatalogueMigrateRollbackPreviewer rollbackPreviewer,
     ICatalogueMigrateEvidenceStore evidenceStore,
     IYouTubePlaylistValidator youTubePlaylistValidator,
+    ICatalogueCuratorListsProvider curatorListsProvider,
     TimeProvider timeProvider,
     ILogger<CatalogueMigrateProcessor> logger)
 {
@@ -115,6 +116,8 @@ public class CatalogueMigrateProcessor(
 
         try
         {
+            var curatorLists = await curatorListsProvider.GetAsync(cancellationToken);
+
             // Buffer the podcast list first: apply deletes source rows while the run walks the corpus.
             var podcasts = await EnumeratePodcasts(request.PodcastId).ToListAsync(cancellationToken);
             foreach (var listed in podcasts)
@@ -135,7 +138,8 @@ public class CatalogueMigrateProcessor(
                 }
 
                 var episodes = await episodeRepository.GetByPodcastId(podcast.Id).ToListAsync(cancellationToken);
-                var unit = CatalogueMigratePlanner.PlanUnit(podcast, episodes, request.Kind, request.PodcastId is not null);
+                var unit = CatalogueMigratePlanner.PlanUnit(
+                    podcast, episodes, request.Kind, request.PodcastId is not null, curatorLists);
                 if (unit is null)
                 {
                     continue;

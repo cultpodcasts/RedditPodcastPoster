@@ -147,6 +147,9 @@ public class PodcastKindTransferServiceRules
             .Callback<IReadOnlyList<Guid>, CancellationToken>((ids, _) => _deletedSearchIds = ids)
             .ReturnsAsync(() => _searchDeleteSucceeds);
         _mocker.GetMock<ILogger<PodcastKindTransferService>>();
+        _mocker.GetMock<ICatalogueCuratorListsProvider>()
+            .Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueCuratorLists.FromSeed());
         _mocker.GetMock<IYouTubePlaylistGuard>()
             .Setup(g => g.CheckChannelOwnsPlaylist(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))

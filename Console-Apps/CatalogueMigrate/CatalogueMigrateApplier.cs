@@ -35,6 +35,7 @@ public class CatalogueMigrateApplier(
     IEpisodeRepository episodeRepository,
     ICatalogueMigrateDestination destination,
     CatalogueMigrateRollbackPreviewer rollbackPreviewer,
+    ICatalogueCuratorListsProvider curatorListsProvider,
     ILogger<CatalogueMigrateApplier> logger)
 {
     public async Task<CatalogueMigrateApplyOutcome> Apply(
@@ -111,10 +112,12 @@ public class CatalogueMigrateApplier(
 
             await Record(CatalogueMigrateEvidenceEvent.Verified, $"stored={stored}");
 
+            var curatorLists = await curatorListsProvider.GetAsync(cancellationToken);
             var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
                 podcast,
                 unit.SearchEpisodes.Where(episode => !alreadyHeld.Contains(episode.Id)),
-                kind);
+                kind,
+                curatorLists);
             if (!await destination.UploadSearch(documents, cancellationToken))
             {
                 return await Fail(Record, podcast.Id, kind, "Search swap failed. Source rows kept; re-run resumes.");
@@ -299,10 +302,11 @@ public class CatalogueMigrateApplier(
         _ => false
     };
 
-    private Task WriteDestination(CatalogueMigrateUnit unit, IReadOnlySet<Guid> alreadyHeld)
+    private async Task WriteDestination(CatalogueMigrateUnit unit, IReadOnlySet<Guid> alreadyHeld)
     {
         var podcast = unit.Podcast;
         var episodes = unit.MoveEpisodes.Where(episode => !alreadyHeld.Contains(episode.Id)).ToList();
+        var curatorLists = await curatorListsProvider.GetAsync();
         // Playables keep Services only: an id without a services url would be lost. No client lookup in this CLI,
         // so use the deterministic id-derived url (existing urls and images are untouched).
         foreach (var episode in episodes)
@@ -313,24 +317,30 @@ public class CatalogueMigrateApplier(
         {
             case SubmitClassification.NewsReport:
             {
-                var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+                var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast, curatorLists);
                 var reports = episodes
                     .Select(episode => CatalogueParentKindMapper.ToNewsReport(episode, organisation))
                     .ToList();
-                return destination.SaveNews(organisation, reports);
+                await destination.SaveNews(organisation, reports);
+                return;
             }
             case SubmitClassification.TvShowEpisode:
             {
-                var show = CatalogueParentKindMapper.ToTvShow(podcast);
+                var show = CatalogueParentKindMapper.ToTvShow(podcast, curatorLists);
                 var playables = episodes
                     .Select(episode => CatalogueParentKindMapper.ToTvShowEpisode(episode, show))
                     .ToList();
-                return destination.SaveTv(show, playables);
+                await destination.SaveTv(show, playables);
+                return;
             }
             case SubmitClassification.Film:
-                return episodes.Count == 0
-                    ? Task.CompletedTask
-                    : destination.SaveFilm(CatalogueParentKindMapper.ToFilm(podcast, episodes.Single()));
+                if (episodes.Count == 0)
+                {
+                    return;
+                }
+
+                await destination.SaveFilm(CatalogueParentKindMapper.ToFilm(podcast, episodes.Single()));
+                return;
             default:
                 throw new ArgumentOutOfRangeException(nameof(unit), unit.Kind, "Not a corpus-migrate kind.");
         }

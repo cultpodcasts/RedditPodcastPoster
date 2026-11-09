@@ -18,10 +18,11 @@ namespace RedditPodcastPoster.Models.Catalogue;
 /// </summary>
 public static class CatalogueParentKindMapper
 {
-    public static TvShow ToTvShow(Podcast podcast)
+    public static TvShow ToTvShow(Podcast podcast, CatalogueCuratorLists? curatorLists = null)
     {
         ArgumentNullException.ThrowIfNull(podcast);
-        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
+        var lists = curatorLists ?? CatalogueCuratorLists.FromSeed();
+        var showName = lists.ShowNameFor(podcast.Name);
         var show = new TvShow(showName)
         {
             Id = podcast.Id
@@ -34,10 +35,11 @@ public static class CatalogueParentKindMapper
         return show;
     }
 
-    public static NewsOrganisation ToNewsOrganisation(Podcast podcast)
+    public static NewsOrganisation ToNewsOrganisation(Podcast podcast, CatalogueCuratorLists? curatorLists = null)
     {
         ArgumentNullException.ThrowIfNull(podcast);
-        var organisationName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(podcast.Name);
+        var lists = curatorLists ?? CatalogueCuratorLists.FromSeed();
+        var organisationName = lists.OrganisationNameFor(podcast.Name);
         var organisation = new NewsOrganisation(organisationName)
         {
             Id = podcast.Id

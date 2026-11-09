@@ -10,17 +10,19 @@ public static class CatalogueMigrateMover
     public static CatalogueMigrateMovePlan Plan(
         Podcast podcast,
         IEnumerable<Episode> episodes,
-        string contentKind)
+        string contentKind,
+        CatalogueCuratorLists? curatorLists = null)
     {
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(episodes);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentKind);
+        var lists = curatorLists ?? CatalogueCuratorLists.FromSeed();
 
         var active = episodes.Where(episode => !episode.Removed).ToList();
         return contentKind switch
         {
-            SubmitClassification.NewsReport => PlanNews(podcast, active),
-            SubmitClassification.TvShowEpisode => PlanTv(podcast, active),
+            SubmitClassification.NewsReport => PlanNews(podcast, active, lists),
+            SubmitClassification.TvShowEpisode => PlanTv(podcast, active, lists),
             SubmitClassification.Film => PlanFilm(podcast, active),
             _ => CatalogueMigrateMovePlan.Rejected(
                 contentKind,
@@ -29,9 +31,12 @@ public static class CatalogueMigrateMover
         };
     }
 
-    private static CatalogueMigrateMovePlan PlanNews(Podcast podcast, IReadOnlyList<Episode> episodes)
+    private static CatalogueMigrateMovePlan PlanNews(
+        Podcast podcast,
+        IReadOnlyList<Episode> episodes,
+        CatalogueCuratorLists lists)
     {
-        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast, lists);
         var reports = episodes
             .Select(episode => CatalogueParentKindMapper.ToNewsReport(episode, organisation))
             .ToList();
@@ -45,9 +50,12 @@ public static class CatalogueMigrateMover
             RejectReason: null);
     }
 
-    private static CatalogueMigrateMovePlan PlanTv(Podcast podcast, IReadOnlyList<Episode> episodes)
+    private static CatalogueMigrateMovePlan PlanTv(
+        Podcast podcast,
+        IReadOnlyList<Episode> episodes,
+        CatalogueCuratorLists lists)
     {
-        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        var show = CatalogueParentKindMapper.ToTvShow(podcast, lists);
         var playables = episodes
             .Select(episode => CatalogueParentKindMapper.ToTvShowEpisode(episode, show))
             .ToList();

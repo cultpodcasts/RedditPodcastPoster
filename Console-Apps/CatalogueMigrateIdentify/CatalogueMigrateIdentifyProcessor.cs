@@ -33,6 +33,7 @@ public class CatalogueMigrateIdentifyProcessor(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     ICatalogueAuthorityPreviewer authorityPreviewer,
+    ICatalogueCuratorListsProvider curatorListsProvider,
     ILogger<CatalogueMigrateIdentifyProcessor> logger)
 {
     /// <summary>
@@ -54,6 +55,7 @@ public class CatalogueMigrateIdentifyProcessor(
             "Catalogue migrate identify dry-run — no Cosmos writes. TMDB and TheTVDB run only for signal-identified TV and film, and only when that set is at most {Max}.",
             MaxSignalAuthorityLookups);
 
+        var curatorLists = await curatorListsProvider.GetAsync();
         var candidateCount = 0;
         var signalMatches = new List<(Podcast Podcast, string ContentKind, List<Episode> Episodes)>();
         await foreach (var podcast in EnumeratePodcasts(request.PodcastId))
@@ -66,7 +68,7 @@ public class CatalogueMigrateIdentifyProcessor(
             var episodes = await episodeRepository.GetByPodcastId(podcast.Id)
                 .Where(episode => !episode.Removed)
                 .ToListAsync();
-            var suggestion = Identify.FromPodcast(podcast, episodes);
+            var suggestion = Identify.FromPodcast(podcast, episodes, curatorLists);
             if (suggestion.ContentKind == SubmitClassification.Episode)
             {
                 continue;
@@ -99,7 +101,7 @@ public class CatalogueMigrateIdentifyProcessor(
         var authority = new List<CatalogueAuthorityReport>(signalMatches.Count);
         foreach (var (podcast, contentKind, episodes) in signalMatches)
         {
-            authority.AddRange(await PreviewAuthority(podcast, contentKind, episodes));
+            authority.AddRange(await PreviewAuthority(podcast, contentKind, episodes, curatorLists));
         }
 
         logger.LogInformation(
@@ -112,11 +114,12 @@ public class CatalogueMigrateIdentifyProcessor(
     private async Task<IReadOnlyList<CatalogueAuthorityReport>> PreviewAuthority(
         Podcast podcast,
         string contentKind,
-        IReadOnlyList<Episode> episodes)
+        IReadOnlyList<Episode> episodes,
+        CatalogueCuratorLists curatorLists)
     {
         var query = contentKind == SubmitClassification.Film
             ? podcast.Name?.Trim() ?? string.Empty
-            : CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
+            : curatorLists.ShowNameFor(podcast.Name);
         CatalogueAuthorityPreview preview;
         IReadOnlyList<Guid>? episodeIds = null;
         try

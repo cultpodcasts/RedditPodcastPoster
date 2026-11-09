@@ -547,6 +547,35 @@ public class CatalogueMigrateIdentifyRules
         result.RequiresAllowlist.Should().BeFalse();
     }
 
+    [Fact(DisplayName =
+        "When CatalogueCuratorLists carries a LookUps stay-podcast name that is not in the compiled seed, " +
+        "then FromPodcast keeps that YouTube-only publisher as Episode, because curator LookUps override the seed.")]
+    public void lookups_stay_podcast_name_overrides_seed()
+    {
+        // Arrange
+        var stayName = _fixture.CreateTitle() + " News";
+        var lists = new CatalogueCuratorLists(
+            CatalogueNewsOrganisationAllowlist.Names,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { stayName },
+            CatalogueTvShowCanonicalNames.ShowNameByPublisherName,
+            CatalogueNewsOrganisationChannelAliases.OrganisationNameByChannelPublisherName);
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.Name = stayName;
+            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            p.SpotifyId = string.Empty;
+            p.AppleId = null;
+        });
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode], lists);
+
+        // Assert
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.RequiresAllowlist.Should().BeFalse();
+    }
+
     public static TheoryData<string> ExtraNewsChannelPublisherNameRows()
     {
         var rows = new TheoryData<string>();

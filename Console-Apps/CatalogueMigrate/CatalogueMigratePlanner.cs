@@ -76,19 +76,21 @@ public static class CatalogueMigratePlanner
         Podcast podcast,
         IReadOnlyList<Episode> allEpisodes,
         string kind,
-        bool targeted)
+        bool targeted,
+        CatalogueCuratorLists? curatorLists = null)
     {
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(allEpisodes);
+        var lists = curatorLists ?? CatalogueCuratorLists.FromSeed();
         if (podcast.Removed == true)
         {
             return null;
         }
 
         var active = allEpisodes.Where(episode => !episode.Removed).ToList();
-        var suggestion = Identify.FromPodcast(podcast, active);
+        var suggestion = Identify.FromPodcast(podcast, active, lists);
         var planEpisodes = (IReadOnlyList<Episode>) active;
-        var onAllowlist = CatalogueNewsOrganisationAllowlist.Contains(podcast.Name);
+        var onAllowlist = lists.IsAllowlisted(podcast.Name);
         string? block = null;
 
         switch (kind)
@@ -99,7 +101,7 @@ public static class CatalogueMigratePlanner
                     return null;
                 }
 
-                planEpisodes = Identify.IsYouTubeOnlyNewsOrganisation(podcast, active)
+                planEpisodes = Identify.IsYouTubeOnlyNewsOrganisation(podcast, active, lists)
                     ? active
                     : active.Where(Identify.IsNewsReportEpisode).ToList();
                 if (planEpisodes.Count == 0)
@@ -137,13 +139,13 @@ public static class CatalogueMigratePlanner
                 break;
         }
 
-        if (block is null && DestinationParent(podcast, kind) is { } parent &&
+        if (block is null && DestinationParent(podcast, kind, lists) is { } parent &&
             CatalogueMigrateServiceIds.Dropped(podcast, parent).Count > 0)
         {
             block = ServiceIdsWouldBeDropped;
         }
 
-        var plan = CatalogueMigrateMover.Plan(podcast, planEpisodes, kind);
+        var plan = CatalogueMigrateMover.Plan(podcast, planEpisodes, kind, lists);
         return new CatalogueMigrateUnit(
             podcast,
             kind,
@@ -159,10 +161,13 @@ public static class CatalogueMigratePlanner
         podcast.IndexAllEpisodes || !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex);
 
     /// <summary>The TV show / news organisation the writer would store for this podcast; null for Film.</summary>
-    public static Publisher? DestinationParent(Podcast podcast, string kind) => kind switch
+    public static Publisher? DestinationParent(
+        Podcast podcast,
+        string kind,
+        CatalogueCuratorLists? curatorLists = null) => kind switch
     {
-        SubmitClassification.NewsReport => CatalogueParentKindMapper.ToNewsOrganisation(podcast),
-        SubmitClassification.TvShowEpisode => CatalogueParentKindMapper.ToTvShow(podcast),
+        SubmitClassification.NewsReport => CatalogueParentKindMapper.ToNewsOrganisation(podcast, curatorLists),
+        SubmitClassification.TvShowEpisode => CatalogueParentKindMapper.ToTvShow(podcast, curatorLists),
         _ => null
     };
 }

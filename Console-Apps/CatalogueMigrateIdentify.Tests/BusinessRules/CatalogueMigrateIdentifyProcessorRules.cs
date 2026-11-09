@@ -28,6 +28,9 @@ public class CatalogueMigrateIdentifyProcessorRules
         _mocker.Use<IPodcastRepository>(_podcasts);
         _mocker.Use<IEpisodeRepository>(_episodes);
         _mocker.Use(NullLogger<CatalogueMigrateIdentifyProcessor>.Instance);
+        _mocker.GetMock<ICatalogueCuratorListsProvider>()
+            .Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueCuratorLists.FromSeed());
         _mocker.GetMock<ICatalogueAuthorityPreviewer>()
             .Setup(previewer => previewer.PreviewTvShowAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string query, CancellationToken _) =>

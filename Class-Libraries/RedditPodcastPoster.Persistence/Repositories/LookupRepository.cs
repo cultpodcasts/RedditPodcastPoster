@@ -1,6 +1,7 @@
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.Discovery;
@@ -105,6 +106,48 @@ public class LookupRepository(
     public async Task SaveYouTubeThumbnailRecheckCursor(YouTubeThumbnailRecheckCursor cursor)
     {
         await lookupContainer.UpsertItemAsync(cursor, new PartitionKey(cursor.Id.ToString()));
+    }
+
+    public Task<CatalogueNewsOrganisationAllowlistLookup?> GetCatalogueNewsOrganisationAllowlistLookup()
+    {
+        return GetById<CatalogueNewsOrganisationAllowlistLookup>(CatalogueNewsOrganisationAllowlistLookup._Id);
+    }
+
+    public async Task SaveCatalogueNewsOrganisationAllowlistLookup(CatalogueNewsOrganisationAllowlistLookup document)
+    {
+        await lookupContainer.UpsertItemAsync(document, new PartitionKey(document.Id.ToString()));
+    }
+
+    public Task<CatalogueStayPodcastNamesLookup?> GetCatalogueStayPodcastNamesLookup()
+    {
+        return GetById<CatalogueStayPodcastNamesLookup>(CatalogueStayPodcastNamesLookup._Id);
+    }
+
+    public async Task SaveCatalogueStayPodcastNamesLookup(CatalogueStayPodcastNamesLookup document)
+    {
+        await lookupContainer.UpsertItemAsync(document, new PartitionKey(document.Id.ToString()));
+    }
+
+    public Task<CatalogueTvShowCanonicalNamesLookup?> GetCatalogueTvShowCanonicalNamesLookup()
+    {
+        return GetById<CatalogueTvShowCanonicalNamesLookup>(CatalogueTvShowCanonicalNamesLookup._Id);
+    }
+
+    public async Task SaveCatalogueTvShowCanonicalNamesLookup(CatalogueTvShowCanonicalNamesLookup document)
+    {
+        await lookupContainer.UpsertItemAsync(document, new PartitionKey(document.Id.ToString()));
+    }
+
+    public Task<CatalogueNewsOrganisationChannelAliasesLookup?> GetCatalogueNewsOrganisationChannelAliasesLookup()
+    {
+        return GetById<CatalogueNewsOrganisationChannelAliasesLookup>(
+            CatalogueNewsOrganisationChannelAliasesLookup._Id);
+    }
+
+    public async Task SaveCatalogueNewsOrganisationChannelAliasesLookup(
+        CatalogueNewsOrganisationChannelAliasesLookup document)
+    {
+        await lookupContainer.UpsertItemAsync(document, new PartitionKey(document.Id.ToString()));
     }
 
     public async Task IncrementHomePageActiveEpisodeCount(int delta)

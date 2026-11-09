@@ -53,6 +53,9 @@ public class CatalogueMigrateProcessorRules
                     playlistId,
                     string.IsNullOrWhiteSpace(owner) ? _fixture.CreateYouTubeChannelId() : owner);
             });
+        _mocker.GetMock<ICatalogueCuratorListsProvider>()
+            .Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueCuratorLists.FromSeed());
         _mocker.Use(_mocker.CreateInstance<CatalogueMigrateRollbackPreviewer>());
         _mocker.Use<Func<CatalogueMigrateApplier>>(() => _mocker.CreateInstance<CatalogueMigrateApplier>());
     }

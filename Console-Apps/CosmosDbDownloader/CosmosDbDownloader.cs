@@ -532,6 +532,10 @@ public class CosmosDbDownloader(
             await lookupRepository.GetYouTubeIndexerKeyState(),
             await lookupRepository.GetYouTubeQuotaUsageState(),
             await lookupRepository.GetYouTubeThumbnailRecheckCursor(),
+            await lookupRepository.GetCatalogueNewsOrganisationAllowlistLookup(),
+            await lookupRepository.GetCatalogueStayPodcastNamesLookup(),
+            await lookupRepository.GetCatalogueTvShowCanonicalNamesLookup(),
+            await lookupRepository.GetCatalogueNewsOrganisationChannelAliasesLookup(),
         ];
 
         return candidates.OfType<IFileKeyed>().ToList();

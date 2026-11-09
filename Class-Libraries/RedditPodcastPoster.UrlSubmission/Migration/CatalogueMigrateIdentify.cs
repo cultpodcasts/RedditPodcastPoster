@@ -81,10 +81,14 @@ public static class CatalogueMigrateIdentify
     /// programmes (canonical show name; episode services hold every platform),
     /// then news. Curator stay-podcast names (partisan/advocacy/satire) stay Episode.
     /// </summary>
-    public static CatalogueMigrateSuggestion FromPodcast(Podcast podcast, IEnumerable<Episode> episodes)
+    public static CatalogueMigrateSuggestion FromPodcast(
+        Podcast podcast,
+        IEnumerable<Episode> episodes,
+        CatalogueCuratorLists? curatorLists = null)
     {
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(episodes);
+        var lists = curatorLists ?? CatalogueCuratorLists.FromSeed();
         var active = episodes.Where(episode => !episode.Removed).ToList();
         var fromUrls = FromEpisodes(active);
         if (fromUrls.ContentKind != SubmitClassification.Episode || fromUrls.RequiresCurator)
@@ -100,7 +104,7 @@ public static class CatalogueMigrateIdentify
                 RequiresCurator: false);
         }
 
-        if (IsNamedTvShow(podcast, active))
+        if (IsNamedTvShow(podcast, active, lists))
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.TvShowEpisode,
@@ -108,7 +112,7 @@ public static class CatalogueMigrateIdentify
                 RequiresCurator: false);
         }
 
-        if (IsYouTubeOnlyNewsOrganisation(podcast, active))
+        if (IsYouTubeOnlyNewsOrganisation(podcast, active, lists))
         {
             return new CatalogueMigrateSuggestion(
                 SubmitClassification.NewsReport,
@@ -148,10 +152,14 @@ public static class CatalogueMigrateIdentify
         return FromSignals(signals);
     }
 
-    public static bool IsYouTubeOnlyNewsOrganisation(Podcast podcast, IReadOnlyList<Episode> episodes)
+    public static bool IsYouTubeOnlyNewsOrganisation(
+        Podcast podcast,
+        IReadOnlyList<Episode> episodes,
+        CatalogueCuratorLists? curatorLists = null)
     {
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(episodes);
+        var lists = curatorLists ?? CatalogueCuratorLists.FromSeed();
         if (episodes.Count == 0)
         {
             return false;
@@ -172,8 +180,8 @@ public static class CatalogueMigrateIdentify
             return false;
         }
 
-        return LooksLikeNewsOrganisationName(podcast.Name)
-               || CatalogueNewsOrganisationChannelAliases.IsExtraChannel(podcast.Name);
+        return LooksLikeNewsOrganisationName(podcast.Name, lists)
+               || lists.IsExtraChannel(podcast.Name);
     }
 
     /// <summary>
@@ -183,8 +191,11 @@ public static class CatalogueMigrateIdentify
     /// Newspapers (Times, Herald, …) and rolling-news names (24/7, France 24)
     /// are outlets worldwide, not only US TV.
     /// </summary>
-    public static bool LooksLikeNewsOrganisationName(string? name)
+    public static bool LooksLikeNewsOrganisationName(
+        string? name,
+        CatalogueCuratorLists? curatorLists = null)
     {
+        var lists = curatorLists ?? CatalogueCuratorLists.FromSeed();
         var trimmed = name?.Trim() ?? string.Empty;
         if (trimmed.Length == 0)
         {
@@ -192,8 +203,8 @@ public static class CatalogueMigrateIdentify
         }
 
         if (PublisherNameSaysPodcast(trimmed)
-            || PublisherStaysPodcast(trimmed)
-            || PublisherIsTvShow(trimmed))
+            || lists.IsStayPodcast(trimmed)
+            || lists.IsTvShowPublisher(trimmed))
         {
             return false;
         }
@@ -213,63 +224,35 @@ public static class CatalogueMigrateIdentify
     private static bool PublisherNameSaysPodcast(string name) =>
         NameSaysPodcast.IsMatch(name);
 
-    private static bool PublisherStaysPodcast(string name) =>
-        StayPodcastPublisherNames.Contains(name);
-
-    private static bool PublisherIsTvShow(string name) =>
-        CatalogueTvShowCanonicalNames.IsPublisherName(name);
-
     /// <summary>
     /// Curator-named TV programmes. Platform ids on the old podcast row do not
     /// decide kind: a TvShowEpisode canonical page holds many <c>services</c>.
     /// </summary>
-    public static bool IsNamedTvShow(Podcast podcast, IReadOnlyList<Episode> episodes)
+    public static bool IsNamedTvShow(
+        Podcast podcast,
+        IReadOnlyList<Episode> episodes,
+        CatalogueCuratorLists? curatorLists = null)
     {
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(episodes);
+        var lists = curatorLists ?? CatalogueCuratorLists.FromSeed();
         if (episodes.Count == 0)
         {
             return false;
         }
 
-        return PublisherIsTvShow(podcast.Name?.Trim() ?? string.Empty);
+        return lists.IsTvShowPublisher(podcast.Name);
     }
 
     /// <summary>
-    /// Curator: partisan, advocacy, news-satire, news-commentary, or one-person host channels stay
-    /// podcasts even when the name or YouTube About looks like a news organisation.
-    /// News Central TV, BreakThrough News, Newsmax, Democracy Now!, Redacted,
-    /// Le Média, and Law&amp;Crime are outlets and are not on this list.
+    /// Seed stay-podcast names. Prefer <see cref="CatalogueCuratorLists.StayPodcastPublisherNames"/>
+    /// when LookUps may have curator edits.
     /// </summary>
-    public static readonly IReadOnlySet<string> StayPodcastPublisherNames =
-        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Crime News AEOR",
-            "Daily Caller News",
-            "NIUS",
-            "MAGNO NEWS",
-            "HW News English",
-            "MintPress News",
-            "Andy Ngo",
-            "Ari Melber, Journalist & Attorney",
-            "XENU TV",
-            "Owen Report",
-            "Nancy Mace",
-            // Curator review 22 Oct 2026: news-commentary podcasts that stay podcasts.
-            "Fayn",
-            "Mail News",
-            "Re: News",
-            "Rob Wolchek-Investigative News Reporter",
-            "Daily Cast News",
-            "Touch Breaking News",
-            "On Demand News",
-            "National and World News",
-            "Times Radio Tech"
-        };
+    public static IReadOnlySet<string> StayPodcastPublisherNames => CatalogueStayPodcastNames.Names;
 
     /// <summary>
     /// Cosmo publisher names whose items are TV programmes (canonical show names live on
-    /// <see cref="CatalogueTvShowCanonicalNames"/>).
+    /// <see cref="CatalogueTvShowCanonicalNames"/> / LookUps).
     /// </summary>
     public static IEnumerable<string> TvShowPublisherNames =>
         CatalogueTvShowCanonicalNames.PublisherNames;

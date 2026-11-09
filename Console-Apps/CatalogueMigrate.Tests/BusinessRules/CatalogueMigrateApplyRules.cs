@@ -58,6 +58,9 @@ public class CatalogueMigrateApplyRules
         _mocker.Use(NullLogger<CatalogueMigrateProcessor>.Instance);
         _mocker.Use(NullLogger<CatalogueMigrateApplier>.Instance);
         _mocker.Use(NullLogger<CatalogueMigrateRollbackPreviewer>.Instance);
+        _mocker.GetMock<ICatalogueCuratorListsProvider>()
+            .Setup(x => x.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueCuratorLists.FromSeed());
         _mocker.Use(_mocker.CreateInstance<CatalogueMigrateRollbackPreviewer>());
         _mocker.Use<Func<CatalogueMigrateApplier>>(() => _mocker.CreateInstance<CatalogueMigrateApplier>());
     }

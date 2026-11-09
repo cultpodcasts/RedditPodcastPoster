@@ -1,6 +1,7 @@
 # News organisation channel aliases
 
-**Code:** [`CatalogueNewsOrganisationChannelAliases`](../Class-Libraries/RedditPodcastPoster.Models/Catalogue/CatalogueNewsOrganisationChannelAliases.cs)  
+**Code (seed):** [`CatalogueNewsOrganisationChannelAliases`](../Class-Libraries/RedditPodcastPoster.Models/Catalogue/CatalogueNewsOrganisationChannelAliases.cs)  
+**LookUps:** `CatalogueNewsOrganisationChannelAliasesLookup` via [`ICatalogueCuratorListsProvider`](../Class-Libraries/RedditPodcastPoster.Persistence.Abstractions/Repositories/ICatalogueCuratorListsProvider.cs) (seed fallback until curated)  
 **Map:** `OrganisationNameByChannelPublisherName`
 
 ## Why it exists

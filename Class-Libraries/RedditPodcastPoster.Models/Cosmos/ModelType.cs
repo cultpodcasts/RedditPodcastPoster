@@ -98,5 +98,17 @@ public enum ModelType
     FileKeyClaim = 31,
 
     [JsonPropertyName(nameof(XApiRateLimitState))]
-    XApiRateLimitState = 32
+    XApiRateLimitState = 32,
+
+    [JsonPropertyName(nameof(CatalogueNewsOrganisationAllowlistLookup))]
+    CatalogueNewsOrganisationAllowlistLookup = 33,
+
+    [JsonPropertyName(nameof(CatalogueStayPodcastNamesLookup))]
+    CatalogueStayPodcastNamesLookup = 34,
+
+    [JsonPropertyName(nameof(CatalogueTvShowCanonicalNamesLookup))]
+    CatalogueTvShowCanonicalNamesLookup = 35,
+
+    [JsonPropertyName(nameof(CatalogueNewsOrganisationChannelAliasesLookup))]
+    CatalogueNewsOrganisationChannelAliasesLookup = 36
 }

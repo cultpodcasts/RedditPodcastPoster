@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Episodes;
@@ -133,6 +134,22 @@ public class CosmosDbUploader(
                 case nameof(ModelType.YouTubeThumbnailRecheckCursor):
                     await lookupRepository.SaveYouTubeThumbnailRecheckCursor(
                         DeserializeRequired<YouTubeThumbnailRecheckCursor>(json, file));
+                    break;
+                case nameof(ModelType.CatalogueNewsOrganisationAllowlistLookup):
+                    await lookupRepository.SaveCatalogueNewsOrganisationAllowlistLookup(
+                        DeserializeRequired<CatalogueNewsOrganisationAllowlistLookup>(json, file));
+                    break;
+                case nameof(ModelType.CatalogueStayPodcastNamesLookup):
+                    await lookupRepository.SaveCatalogueStayPodcastNamesLookup(
+                        DeserializeRequired<CatalogueStayPodcastNamesLookup>(json, file));
+                    break;
+                case nameof(ModelType.CatalogueTvShowCanonicalNamesLookup):
+                    await lookupRepository.SaveCatalogueTvShowCanonicalNamesLookup(
+                        DeserializeRequired<CatalogueTvShowCanonicalNamesLookup>(json, file));
+                    break;
+                case nameof(ModelType.CatalogueNewsOrganisationChannelAliasesLookup):
+                    await lookupRepository.SaveCatalogueNewsOrganisationChannelAliasesLookup(
+                        DeserializeRequired<CatalogueNewsOrganisationChannelAliasesLookup>(json, file));
                     break;
                 default:
                     throw new InvalidOperationException(

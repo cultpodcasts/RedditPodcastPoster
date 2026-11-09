@@ -54,6 +54,7 @@ public static class ServiceCollectionExtensions
                     var logger = s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LookupRepository>>();
                     return new LookupRepository(containerFactory.CreateLookUpsContainer(), logger);
                 })
+                .AddSingleton<ICatalogueCuratorListsProvider, CatalogueCuratorListsProvider>()
                 .AddSingleton<ILanguageTitleCasingRulesRepository>(s =>
                 {
                     var containerFactory = s.GetRequiredService<ICosmosDbContainerFactory>();

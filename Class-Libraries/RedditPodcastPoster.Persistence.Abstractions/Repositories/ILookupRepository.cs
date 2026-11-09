@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Subjects;
 using RedditPodcastPoster.Models.Discovery;
@@ -29,4 +30,12 @@ public interface ILookupRepository
     Task SaveYouTubeQuotaUsageState(YouTubeQuotaUsageState state);
     Task<YouTubeThumbnailRecheckCursor?> GetYouTubeThumbnailRecheckCursor();
     Task SaveYouTubeThumbnailRecheckCursor(YouTubeThumbnailRecheckCursor cursor);
+    Task<CatalogueNewsOrganisationAllowlistLookup?> GetCatalogueNewsOrganisationAllowlistLookup();
+    Task SaveCatalogueNewsOrganisationAllowlistLookup(CatalogueNewsOrganisationAllowlistLookup document);
+    Task<CatalogueStayPodcastNamesLookup?> GetCatalogueStayPodcastNamesLookup();
+    Task SaveCatalogueStayPodcastNamesLookup(CatalogueStayPodcastNamesLookup document);
+    Task<CatalogueTvShowCanonicalNamesLookup?> GetCatalogueTvShowCanonicalNamesLookup();
+    Task SaveCatalogueTvShowCanonicalNamesLookup(CatalogueTvShowCanonicalNamesLookup document);
+    Task<CatalogueNewsOrganisationChannelAliasesLookup?> GetCatalogueNewsOrganisationChannelAliasesLookup();
+    Task SaveCatalogueNewsOrganisationChannelAliasesLookup(CatalogueNewsOrganisationChannelAliasesLookup document);
 }

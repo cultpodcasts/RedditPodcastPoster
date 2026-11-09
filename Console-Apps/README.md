@@ -440,6 +440,17 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 | `--from-r2` | Build from current R2 `languages` object instead of `CreateDefault()` |
 | `-f, --force` | Overwrite an existing LookUps document |
 
+### SeedCatalogueCuratorLookups
+
+**Purpose:** Seed the four catalogue curator LookUps documents (S-008 allowlist, stay-podcast names, TV canonical names, news channel aliases) from the compiled static sets. Dry-run unless `--apply`. Skips each existing document unless `--force`. Agents must never run `--apply` against production — human curator only.
+
+**Run:** `dotnet run --project Console-Apps/SeedCatalogueCuratorLookups --` · PATH: `SeedCatalogueCuratorLookups`
+
+| Option | Description |
+|--------|-------------|
+| `-a, --apply` | Write the documents; without this flag, report only |
+| `-f, --force` | Overwrite existing LookUps documents |
+
 ### FindDuplicateEpisodes
 
 **Purpose:** Find (and optionally fix) duplicate episodes.

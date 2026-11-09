@@ -5,9 +5,10 @@ alwaysApply: true
 
 # Catalogue migrate / playable-services CLIs — agents dry-run only
 
-`CatalogueMigrateIdentify`, `CatalogueMigrate`, and `CataloguePlayableServicesBackfill` have **two layers**.
+`CatalogueMigrateIdentify`, `CatalogueMigrate`, `CataloguePlayableServicesBackfill`, and `SeedCatalogueCuratorLookups` have **two layers**.
 
 GATE 5 unlock, “continue”, “run the migrators”, deploy, or merge **does not** count as apply consent.
+Seeding catalogue curator LookUps (`SeedCatalogueCuratorLookups --apply`) is a human curator write — same agent ban as migrate apply.
 
 ## 1. This code
 
@@ -28,9 +29,10 @@ Agents **never** invoke these CLIs with `--apply` or `--consent`, even when the 
 ## Forbidden always
 
 - `dotnet run` / published exe / PATH invoke of `CatalogueMigrateIdentify`, `CatalogueMigrate`, or `CataloguePlayableServicesBackfill` **with `--apply` or `--consent`**
+- `dotnet run` / published exe / PATH invoke of `SeedCatalogueCuratorLookups` **with `--apply`** (production LookUps curator writes)
 - Any other flag or env that would write Cosmos, delete podcast or episode rows, or upload Azure Search for these tools
 - Writing a consent phrase into scripts, launch settings, CI, or docs as a ready-to-run default
 
 ## Stop
 
-If a migrate or playable-services-backfill CLI is running with `--apply` or any write path started by an agent, **stop immediately**.
+If a migrate, playable-services-backfill, or catalogue-curator-lookups seeder CLI is running with `--apply` or any write path started by an agent, **stop immediately**.

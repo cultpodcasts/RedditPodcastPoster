@@ -16,11 +16,13 @@ public static class CatalogueMigrateSearchDocuments
     public static IReadOnlyList<EpisodeSearchRecord> FromPodcastEpisodes(
         Podcast podcast,
         IEnumerable<Episode> episodes,
-        string contentKind)
+        string contentKind,
+        CatalogueCuratorLists? curatorLists = null)
     {
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(episodes);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentKind);
+        var lists = curatorLists ?? CatalogueCuratorLists.FromSeed();
         if (contentKind is not (
             SearchContentKind.NewsReport or
             SearchContentKind.TvShowEpisode or
@@ -51,12 +53,12 @@ public static class CatalogueMigrateSearchDocuments
             }
             else if (contentKind == SearchContentKind.TvShowEpisode)
             {
-                record.SeriesName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
+                record.SeriesName = lists.ShowNameFor(podcast.Name);
             }
             else
             {
                 // Extra YouTube channels of an outlet are parented onto the canonical organisation name.
-                record.SeriesName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(podcast.Name);
+                record.SeriesName = lists.OrganisationNameFor(podcast.Name);
             }
 
             documents.Add(record);

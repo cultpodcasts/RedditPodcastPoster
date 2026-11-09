@@ -64,6 +64,7 @@ public class PodcastKindTransferService(
     IFileKeyAllocator fileKeyAllocator,
     IParentKindTransferLockStore lockStore,
     IYouTubePlaylistGuard youTubePlaylistGuard,
+    ICatalogueCuratorListsProvider curatorListsProvider,
     IOptions<PostingCriteria> postingCriteria,
     TimeProvider timeProvider,
     ILogger<PodcastKindTransferService> logger) : IPodcastKindTransferService
@@ -245,15 +246,17 @@ public class PodcastKindTransferService(
 
         // From here on the transfer writes; the caller's token is no longer honoured, and any exception (including
         // a client-side Cosmos or HTTP timeout surfacing as OperationCanceledException) is a real failure.
+        var curatorLists = await curatorListsProvider.GetAsync(CancellationToken.None);
         try
         {
             return targetKind switch
             {
                 CatalogueParentKind.TvShow => await TransferParent(
-                    podcast, snapshot.Episodes, resuming: snapshot.ExistingTvShow is not null, TvShowTarget(), lease),
+                    podcast, snapshot.Episodes, resuming: snapshot.ExistingTvShow is not null,
+                    TvShowTarget(curatorLists), lease),
                 CatalogueParentKind.NewsOrganisation => await TransferParent(
                     podcast, snapshot.Episodes, resuming: snapshot.ExistingNewsOrganisation is not null,
-                    NewsOrganisationTarget(podcast), lease),
+                    NewsOrganisationTarget(podcast, curatorLists), lease),
                 _ => new PodcastKindTransferResult(PodcastKindTransferStatus.InvalidTarget)
             };
         }
@@ -314,24 +317,26 @@ public class PodcastKindTransferService(
         where TParent : Publisher
         where TPlayable : Playable;
 
-    private TransferTarget<TvShow, TvShowEpisode> TvShowTarget() =>
+    private TransferTarget<TvShow, TvShowEpisode> TvShowTarget(CatalogueCuratorLists curatorLists) =>
         new(
             CatalogueParentKind.TvShow,
             FileKeyKind.TvShow,
             SearchContentKind.TvShowEpisode,
-            CatalogueParentKindMapper.ToTvShow,
+            podcast => CatalogueParentKindMapper.ToTvShow(podcast, curatorLists),
             CatalogueParentKindMapper.ToTvShowEpisode,
             tvShowRepository.Save,
             tvShowEpisodeRepository.Save,
             tvShowEpisodeRepository.Delete,
             tvShowRepository.Delete);
 
-    private TransferTarget<NewsOrganisation, NewsReport> NewsOrganisationTarget(Podcast podcast) =>
+    private TransferTarget<NewsOrganisation, NewsReport> NewsOrganisationTarget(
+        Podcast podcast,
+        CatalogueCuratorLists curatorLists) =>
         new(
             CatalogueParentKind.NewsOrganisation,
             FileKeyKind.NewsOrganisation,
             SearchContentKind.NewsReport,
-            CatalogueParentKindMapper.ToNewsOrganisation,
+            source => CatalogueParentKindMapper.ToNewsOrganisation(source, curatorLists),
             (episode, organisation) => MapNewsReportClearingLengthDerivedIgnored(episode, organisation, podcast),
             newsOrganisationRepository.Save,
             newsReportRepository.Save,
@@ -750,7 +755,9 @@ public class PodcastKindTransferService(
             .Where(episode => EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
             .Select(episode => episode.Id)
             .ToList();
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(podcast, episodes, contentKind);
+        var curatorLists = await curatorListsProvider.GetAsync(CancellationToken.None);
+        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+            podcast, episodes, contentKind, curatorLists);
         var uploaded = await searchSwap.UploadAsync(documents, CancellationToken.None);
         if (excluded.Count == 0)
         {
