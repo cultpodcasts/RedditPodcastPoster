@@ -43,12 +43,15 @@ public class BbcNewsSubmitRejectionRules
 
     [Theory(DisplayName =
         "Other BBC pages and look-alike hosts are not rejected as BBC News, " +
-        "because Newsround, Newsbeat, Sport, iPlayer and Sounds are not /news/ pages and a look-alike host is not the BBC.")]
+        "because Newsround, Newsbeat, Sport, iPlayer and Sounds are not /news/ pages, /news/av-embeds/ media embeds are " +
+        "iPlayer catalogue URLs (the supported way in), and a look-alike host is not the BBC.")]
     [InlineData("https://www.bbc.co.uk/newsround/{0}")]
     [InlineData("https://www.bbc.co.uk/newsbeat/{0}")]
     [InlineData("https://www.bbc.com/sport/{0}")]
     [InlineData("https://www.bbc.co.uk/iplayer/episode/{0}")]
     [InlineData("https://www.bbc.co.uk/sounds/play/{0}")]
+    [InlineData("https://www.bbc.co.uk/news/av-embeds/{0}")]
+    [InlineData("https://www.bbc.com/NEWS/AV-EMBEDS/{0}/vpid/{0}")]
     [InlineData("https://www.notbbc.co.uk/news/{0}")]
     [InlineData("https://bbc.co.uk.example.com/news/{0}")]
     [InlineData("https://www.example.com/news/{0}")]

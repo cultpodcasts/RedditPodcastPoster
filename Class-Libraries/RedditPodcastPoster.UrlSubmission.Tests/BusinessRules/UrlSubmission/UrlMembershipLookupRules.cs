@@ -679,6 +679,32 @@ public class UrlMembershipLookupRules
     }
 
     [Fact(DisplayName =
+        "When submit content types are on, a BBC /news/av-embeds/ media embed already stored as iPlayer is not rejected as a " +
+        "BBC News page and is not hinted as a NewsReport; membership treats it as before (unrecognised, no submit adapter), " +
+        "because av-embeds are iPlayer catalogue URLs (#1211 G5).")]
+    public async Task flag_on_stored_bbc_av_embed_is_not_rejected()
+    {
+        // Arrange
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        var url = new Uri($"https://www.bbc.co.uk/news/av-embeds/{_fixture.CreateYouTubeId()}");
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => SeedBbcIplayerLookup(e, url));
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var result = await sut.Lookup(url, CancellationToken.None);
+
+        // Assert
+        result.Rejected.Should().BeFalse();
+        result.RejectionMessage.Should().BeNull();
+        result.Kind.Should().Be(UrlMembershipLookupKinds.Unrecognised);
+        result.ContentKind.Should().BeNull();
+        _episodes.SavedEpisodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When submit content types are off, a BBC /news/ URL stays unrecognised and omits contentKind.")]
     public async Task flag_off_bbc_news_url_omits_content_kind()
     {
