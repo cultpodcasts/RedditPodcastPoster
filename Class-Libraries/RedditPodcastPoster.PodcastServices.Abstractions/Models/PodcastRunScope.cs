@@ -26,9 +26,11 @@ namespace RedditPodcastPoster.PodcastServices.Abstractions.Models;
 /// </para>
 /// <para>
 /// Handles may be disposed out of order (for example an outer handle ends while an inner one, kept elsewhere, is
-/// still open). Disposing a handle never puts back a scope whose own handle has already been disposed: the flow
-/// falls back to the nearest enclosing scope that is still open, or <see cref="None"/>. Disposing a handle whose
-/// scope is not the current one on this flow leaves the current scope alone.
+/// still open). Disposing a handle whose scope is not the current one on this flow leaves the current scope alone and
+/// marks that scope as closed out of order; a later disposal never puts such a scope back, and falls back to the
+/// nearest enclosing scope that was not closed out of order, or <see cref="None"/>. A handle disposed in order (the
+/// loops dispose theirs as soon as the update has started) is an ordinary pop on the loop's flow: the scope stays
+/// live on the update's flow, which captured it, including after a nested scope inside the update is left.
 /// </para>
 /// <para>
 /// Two things must not be done inside a run, because nothing would fail at compile time and the budget would quietly
@@ -93,13 +95,16 @@ public sealed class PodcastRunScope
 
     /// <summary>
     /// One <see cref="Enter(PodcastRunScope)"/>: the scope it made current and the frame that was current before.
-    /// Disposing it only changes the flow when it is the current frame, and then skips enclosing frames that were
-    /// already disposed, so an out-of-order disposal cannot bring back a stale (possibly cancelled) scope.
+    /// Disposing it only changes the flow when it is the current frame. A frame disposed while it was not current is
+    /// closed out of order, and restoring skips such frames, so an out-of-order disposal cannot bring back a stale
+    /// (possibly cancelled) scope. A frame disposed in order is not skipped: it is still the live scope on any flow
+    /// that captured it (an update that outlives its loop's handle).
     /// </summary>
     private sealed class Frame : IDisposable
     {
         private readonly Frame? _parent;
         private volatile bool _disposed;
+        private volatile bool _closedOutOfOrder;
 
         public Frame(PodcastRunScope scope, Frame? parent)
         {
@@ -121,11 +126,14 @@ public sealed class PodcastRunScope
             {
                 // Not this flow's current frame: an inner frame is still open, or the handle is disposed on another
                 // flow. Leave the current scope alone; the inner frame skips this one when it is disposed.
+                _closedOutOfOrder = true;
                 return;
             }
 
+            // Only skip frames closed out of order. A frame popped in order on another flow (the loop's) is still the
+            // live scope on this one (the update's) and must be restored after a nested scope ends.
             var restore = _parent;
-            while (restore is { _disposed: true })
+            while (restore is { _closedOutOfOrder: true })
             {
                 restore = restore._parent;
             }

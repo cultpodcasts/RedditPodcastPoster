@@ -209,6 +209,45 @@ public class PodcastRunScopeRules
         podcastCopy.ToString().Should().Be(batch.ToString());
     }
 
+    [Fact(DisplayName =
+        "When an update outlives the loop's handle for its run and then enters and leaves a nested scope, the update " +
+        "is back on its own run afterwards, not on no run, because the loop disposing its handle in order must not " +
+        "take the budget token and stage reporter away from the update that is still running.")]
+    public async Task an_update_outliving_its_handle_keeps_its_scope_after_a_nested_scope()
+    {
+        // Arrange
+        var release = new TaskCompletionSource();
+        var podcastScope = new PodcastRunScope(_budget.Token);
+        Task<(PodcastRunScope During, PodcastRunScope After)> update;
+        using (PodcastRunScope.Enter(podcastScope))
+        {
+            update = EnterNestedScopeAfter(release.Task);
+        }
+
+        // Act
+        release.SetResult();
+        var (during, after) = await update;
+
+        // Assert
+        during.Should().NotBeSameAs(podcastScope);
+        after.Should().BeSameAs(podcastScope);
+        PodcastRunScope.Current.Should().BeSameAs(PodcastRunScope.None);
+    }
+
+    private static async Task<(PodcastRunScope During, PodcastRunScope After)> EnterNestedScopeAfter(Task gate)
+    {
+        await gate;
+        using var nestedBudget = new CancellationTokenSource();
+        PodcastRunScope during;
+        using (PodcastRunScope.Enter(new PodcastRunScope(nestedBudget.Token)))
+        {
+            await Task.Yield();
+            during = PodcastRunScope.Current;
+        }
+
+        return (during, PodcastRunScope.Current);
+    }
+
     private static async Task<CancellationToken> ReadScopeAfter(Task gate)
     {
         await gate;
