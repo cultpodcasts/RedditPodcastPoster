@@ -76,7 +76,9 @@ public class CatalogueSocialPostRules
         _mocker.Use(Options.Create(new TwitterOptions
         {
             ConsumerKey = "k", ConsumerSecret = "s", AccessToken = "t", AccessTokenSecret = "ts",
-            WithEpisodeUrl = true, ShortUrlOnlyWhenShareImage = false
+            WithEpisodeUrl = true, ShortUrlOnlyWhenShareImage = false,
+            // These rules assert @handle placement; production default is false (#1202).
+            IncludeAtMentions = true
         }));
         _mocker.Use(Options.Create(new BlueskyOptions
         {
