@@ -1,5 +1,6 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
@@ -8,6 +9,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -22,7 +24,8 @@ public class SubmitUrlService(
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILookupRepository lookupRepository,
     ILogger<SubmitUrlService> logger,
-    IPlayableSearchDocumentSwap playableSearch) : ISubmitUrlService
+    IPlayableSearchDocumentSwap playableSearch,
+    IOptions<SubmitContentTypesOptions>? submitContentTypes = null) : ISubmitUrlService
 {
     public async Task<SubmitUrlResult> SubmitAsync(
         SubmitUrlRequest submitUrlModel,
@@ -39,6 +42,15 @@ public class SubmitUrlService(
                 logger.LogWarning("{RunName}: Rejected submit of '{Url}': {Error}", nameof(SubmitAsync),
                     submitUrlModel.Url, parentError);
                 return new SubmitUrlResult(SubmitUrlStatus.BadRequest, Message: parentError);
+            }
+
+            // G5 (#1211): a BBC News page is rejected with its message whatever else the request carries, so the
+            // parent-target URL check and the podcast-name lookup below cannot pre-empt it with a generic 400 / 409.
+            if (submitContentTypes?.Value is { Enabled: true } && BbcNewsSubmitRejection.Applies(submitUrlModel.Url))
+            {
+                logger.LogInformation("{RunName}: Rejected BBC News page submit '{Url}'.", nameof(SubmitAsync),
+                    submitUrlModel.Url);
+                return new SubmitUrlResult(SubmitUrlStatus.Rejected, BbcNewsSubmitRejection.Result());
             }
 
             if (parentTarget != null && !UrlSubmitter.CanFileUnderCatalogueParent(submitUrlModel.Url))

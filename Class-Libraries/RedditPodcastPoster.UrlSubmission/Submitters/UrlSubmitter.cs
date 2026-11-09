@@ -36,12 +36,7 @@ public class UrlSubmitter(
                 // G5 (#1211): BBC news comes in only via iPlayer or the BBC News YouTube channel. Reject before
                 // any categorise or persist, so nothing is saved under BBC News.
                 logger.LogInformation("Rejected BBC News page submit '{Url}'.", url);
-                return new SubmitResult(
-                    SubmitResultState.None,
-                    SubmitResultState.None,
-                    ContentKind: SubmitClassification.NewsReport,
-                    Rejected: true,
-                    RejectionMessage: BbcNewsSubmitRejection.Message);
+                return BbcNewsSubmitRejection.Result();
             }
 
             // An item moved out of a podcast (to a film, film trailer, TV episode or news report) keeps its

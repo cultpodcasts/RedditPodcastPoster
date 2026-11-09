@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
@@ -66,6 +67,30 @@ public class UrlSubmitterContentKindRules
         _mocker.GetMock<ICategorisedItemProcessor>().Verify(
             p => p.ProcessCategorisedItem(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()),
             Times.Never);
+        _mocker.GetMock<ICatalogueParentSubmitter>().VerifyNoOtherCalls();
+    }
+
+    [Fact(DisplayName =
+        "When the submit content-type flag is on and a curator files a BBC News page under a news organisation, ingest still " +
+        "rejects it with the G5 message before any parent lookup, so a chosen parent cannot save it (#1211 G5).")]
+    public async Task bbc_news_with_parent_target_is_rejected_before_parent_lookup()
+    {
+        // Arrange
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions { Enabled = true }));
+        var url = new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}");
+        var target = new CatalogueParentTarget(CatalogueParentKind.NewsOrganisation, _fixture.CreateGuid(), _fixture.CreateTitle());
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        var result = await sut.Submit(
+            url,
+            new IndexingContext(),
+            new SubmitOptions(null, MatchOtherServices: false, PersistToDatabase: true, Parent: target));
+
+        // Assert
+        result.Rejected.Should().BeTrue();
+        result.RejectionMessage.Should().Be(BbcNewsSubmitRejection.Message);
+        _mocker.GetMock<ICatalogueParentLookup>().VerifyNoOtherCalls();
         _mocker.GetMock<ICatalogueParentSubmitter>().VerifyNoOtherCalls();
     }
 
