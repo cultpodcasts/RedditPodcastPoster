@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
@@ -20,22 +21,10 @@ public class TweetBuilderAtMentionRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
-    private TwitterOptions _twitterOptions = null!;
 
     public TweetBuilderAtMentionRules()
     {
-        _twitterOptions = new TwitterOptions
-        {
-            ConsumerKey = "k",
-            ConsumerSecret = "s",
-            AccessToken = "t",
-            AccessTokenSecret = "ts",
-            HashTag = null,
-            WithEpisodeUrl = false,
-            IncludeAtMentions = false
-        };
         _mocker.Use<IHashTagEnricher>(new HashTagEnricher());
-        _mocker.Use(Options.Create(_twitterOptions));
         _mocker.GetMock<IHashTagProvider>()
             .Setup(x => x.GetHashTags(It.IsAny<List<string>>()))
             .ReturnsAsync(new List<HashTag>());
@@ -46,6 +35,7 @@ public class TweetBuilderAtMentionRules
     public async Task build_tweet_omits_at_handles_when_include_at_mentions_is_off()
     {
         // Arrange — handles would be appended if IncludeAtMentions were on; assert they stay out.
+        UseTwitterOptions(includeAtMentions: false);
         const string podcastHandle = "@PodHandleOff";
         const string guestHandle = "@GuestHandleOff";
         var podcast = _fixture.CreatePodcast(p =>
@@ -84,7 +74,7 @@ public class TweetBuilderAtMentionRules
     public async Task build_tweet_appends_at_handles_when_include_at_mentions_is_on()
     {
         // Arrange
-        _twitterOptions.IncludeAtMentions = true;
+        UseTwitterOptions(includeAtMentions: true);
         const string podcastHandle = "@PodHandleOn";
         const string guestHandle = "@GuestHandleOn";
         var podcast = _fixture.CreatePodcast(p =>
@@ -114,6 +104,98 @@ public class TweetBuilderAtMentionRules
         tweet.Should().Contain(podcastHandle);
         tweet.Should().Contain(guestHandle);
     }
+
+    [Fact(DisplayName =
+        "TweetBuilder: when a film (!HasParentLine) is tweeted and IncludeAtMentions is false, then there is no @handle line, because film tagging is gated by the same default-off policy (#1202).")]
+    public async Task film_tweet_omits_at_handles_when_include_at_mentions_is_off()
+    {
+        // Arrange
+        UseTwitterOptions(includeAtMentions: false);
+        const string filmHandle = "@FilmHandleOff";
+        const string guestHandle = "@FilmGuestOff";
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = null;
+            p.TwitterHandle = filmHandle;
+        });
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Subjects = [];
+            e.HashTag = null;
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        ArrangeSanitisers(podcast, episode.Title);
+        _mocker.GetMock<IPersonGuestHandleResolver>()
+            .Setup(x => x.Resolve(It.IsAny<Episode>()))
+            .ReturnsAsync((new[] { guestHandle }, Array.Empty<string>()));
+        var item = new PodcastEpisode(podcast, episode) { ContentKind = nameof(ContentKind.Film) };
+        var sut = _mocker.CreateInstance<TweetBuilder>();
+
+        // Act
+        var tweet = await sut.BuildTweet(item, shortUrl: null);
+
+        // Assert
+        tweet.Should().Contain(episode.Title);
+        tweet.Should().NotContain(filmHandle);
+        tweet.Should().NotContain(guestHandle);
+        _mocker.GetMock<IPersonGuestHandleResolver>()
+            .Verify(x => x.Resolve(It.IsAny<Episode>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "TweetBuilder: when a film (!HasParentLine) is tweeted and IncludeAtMentions is true, then a handle-only line carries the film and guest @handles, because a film has no parent name and operators opted in.")]
+    public async Task film_tweet_appends_at_handles_when_include_at_mentions_is_on()
+    {
+        // Arrange
+        UseTwitterOptions(includeAtMentions: true);
+        const string filmHandle = "@FilmHandleOn";
+        const string guestHandle = "@FilmGuestOn";
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = null;
+            p.TwitterHandle = filmHandle;
+        });
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Subjects = [];
+            e.HashTag = null;
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        ArrangeSanitisers(podcast, episode.Title);
+        _mocker.GetMock<IPersonGuestHandleResolver>()
+            .Setup(x => x.Resolve(It.IsAny<Episode>()))
+            .ReturnsAsync((new[] { guestHandle }, Array.Empty<string>()));
+        var item = new PodcastEpisode(podcast, episode) { ContentKind = nameof(ContentKind.Film) };
+        var sut = _mocker.CreateInstance<TweetBuilder>();
+
+        // Act
+        var tweet = await sut.BuildTweet(item, shortUrl: null);
+
+        // Assert
+        var lines = tweet.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        lines[1].Should().Be($"{filmHandle} {guestHandle}");
+        tweet.Should().NotContain(podcast.Name);
+    }
+
+    private void UseTwitterOptions(bool includeAtMentions) =>
+        _mocker.Use(Options.Create(CreateTwitterOptions(includeAtMentions)));
+
+    private static TwitterOptions CreateTwitterOptions(bool includeAtMentions) => new()
+    {
+        ConsumerKey = "k",
+        ConsumerSecret = "s",
+        AccessToken = "t",
+        AccessTokenSecret = "ts",
+        HashTag = null,
+        WithEpisodeUrl = false,
+        IncludeAtMentions = includeAtMentions
+    };
 
     private void ArrangeSanitisers(Podcast podcast, string title)
     {
