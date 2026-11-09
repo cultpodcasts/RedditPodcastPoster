@@ -15,8 +15,9 @@ namespace RedditPodcastPoster.Twitter.Clients;
 /// <summary>
 /// X API v2 client. A typed <see cref="HttpClient"/> from <c>IHttpClientFactory</c> (base address
 /// <see cref="TwitterOptions.ApiBaseAddress"/>, timeout <see cref="TwitterOptions.RequestTimeoutSeconds"/>);
-/// <see cref="Auth.TwitterAuthenticationHandler"/> signs each request. Post creation is never retried
-/// automatically, so a post X accepted is not sent twice by this client. Rate-limit and usage-cap windows
+/// <see cref="Auth.TwitterAuthenticationHandler"/> signs each request. DI attaches
+/// <see cref="XApiSafeRetryPolicy"/> so GET/DELETE retry on transient/5xx, but post creation is never
+/// auto-retried — a post X accepted must not be sent twice by this client. Rate-limit and usage-cap windows
 /// are persisted in LookUps (<see cref="IXApiRateLimitStore"/>) so recycled Function workers skip X until
 /// <c>x-rate-limit-reset</c> (or the usage-cap skip-until) elapses.
 /// </summary>
@@ -62,7 +63,7 @@ public class TwitterClient(
         {
             logger.LogInformation("Tweet sent successfully! Tweet: '{Tweet}'.", tweet);
             await ClearSkipWindow(cancellationToken);
-            return new PostTweetResponse(TweetSendStatus.Sent, TweetId: await ReadPostedTweetId(response));
+            return new PostTweetResponse(TweetSendStatus.Sent, TweetId: await ReadPostedTweetId(response, cancellationToken));
         }
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -300,12 +301,12 @@ public class TwitterClient(
         }
     }
 
-    private async Task<string?> ReadPostedTweetId(HttpResponseMessage response)
+    private async Task<string?> ReadPostedTweetId(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         string? body;
         try
         {
-            body = await response.Content.ReadAsStringAsync();
+            body = await response.Content.ReadAsStringAsync(cancellationToken);
         }
         catch (Exception ex)
         {
