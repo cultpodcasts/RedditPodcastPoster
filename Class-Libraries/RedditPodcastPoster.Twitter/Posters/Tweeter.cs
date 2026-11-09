@@ -134,7 +134,7 @@ public class Tweeter(
     {
         var reason = status switch
         {
-            TweetSendStatus.PaymentRequired => "X credits depleted (402 Payment Required)",
+            TweetSendStatus.PaymentRequired => "X credits depleted (402 Payment Required or usage-capped)",
             TweetSendStatus.AuthenticationFailed => "X rejected the credentials (401/403)",
             _ => "X rate limit reached (429 Too Many Requests)"
         };
