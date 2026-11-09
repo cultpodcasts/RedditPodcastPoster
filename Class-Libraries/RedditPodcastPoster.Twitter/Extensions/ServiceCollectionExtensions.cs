@@ -35,11 +35,12 @@ public static class ServiceCollectionExtensions
         services.AddXOAuth2TokenServices();
         services.AddTwitterOptionsValidation(validateOnStart: true);
         services.AddTransient<TwitterAuthenticationHandler>();
-        // Auth is inner so each Polly retry re-signs (OAuth 1.0a nonce/timestamp). Policy is outer and
-        // only retries GET/DELETE on transient/5xx — never POST create (see XApiSafeRetryPolicy).
+        // Auth is inner so each Resilience retry re-signs (OAuth 1.0a nonce/timestamp). The custom
+        // AddResilienceHandler is outer and only retries GET/DELETE on transient/5xx — never POST
+        // create (see XApiSafeRetryPolicy). Do not use AddStandardResilienceHandler.
         services.AddHttpClient<ITwitterClient, TwitterClient>(ConfigureXApiClient)
             .AddHttpMessageHandler<TwitterAuthenticationHandler>()
-            .AddPolicyHandler(XApiSafeRetryPolicy.ForRequest);
+            .AddResilienceHandler(XApiSafeRetryPolicy.PipelineName, XApiSafeRetryPolicy.Configure);
         return services;
     }
 

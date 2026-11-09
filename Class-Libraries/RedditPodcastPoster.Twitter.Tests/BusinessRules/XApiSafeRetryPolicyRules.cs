@@ -1,6 +1,6 @@
 using System.Net;
 using FluentAssertions;
-using Microsoft.Extensions.Http;
+using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Twitter.Clients;
 using RedditPodcastPoster.Twitter.Tests.Fakes;
 
@@ -30,18 +30,30 @@ public class XApiSafeRetryPolicyRules
     }
 
     [Fact(DisplayName =
+        "X API safe-retry uses seconds-scale exponential backoff with jitter, because sub-second delays amplify load during 5xx blips.")]
+    public void retry_backoff_is_seconds_scale_exponential_with_jitter()
+    {
+        // Arrange
+        // Act
+        var options = XApiSafeRetryPolicy.CreateRetryOptions();
+
+        // Assert
+        options.MaxRetryAttempts.Should().Be(XApiSafeRetryPolicy.MaxRetries);
+        options.Delay.Should().Be(XApiSafeRetryPolicy.RetryBaseDelay);
+        options.Delay.TotalSeconds.Should().BeGreaterThanOrEqualTo(1);
+        options.BackoffType.Should().Be(Polly.DelayBackoffType.Exponential);
+        options.UseJitter.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "A GET that fails with 503 is retried and then succeeds, because timeline reads are idempotent.")]
     public async Task get_retries_on_5xx_then_succeeds()
     {
         // Arrange
         _inner.Respond(HttpStatusCode.ServiceUnavailable, "{}");
         _inner.Respond(HttpStatusCode.OK, "{\"data\":[],\"meta\":{}}");
+        using var client = CreateResilientClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.x.com/2/users/1/tweets");
-        using var pipeline = new PolicyHttpMessageHandler(XApiSafeRetryPolicy.ForRequest(request))
-        {
-            InnerHandler = _inner
-        };
-        using var client = new HttpClient(pipeline);
 
         // Act
         using var response = await client.SendAsync(request);
@@ -58,12 +70,8 @@ public class XApiSafeRetryPolicyRules
         // Arrange
         _inner.Respond(HttpStatusCode.BadGateway, "{}");
         _inner.Respond(HttpStatusCode.OK, "{\"data\":{\"deleted\":true}}");
+        using var client = CreateResilientClient();
         using var request = new HttpRequestMessage(HttpMethod.Delete, "https://api.x.com/2/tweets/1");
-        using var pipeline = new PolicyHttpMessageHandler(XApiSafeRetryPolicy.ForRequest(request))
-        {
-            InnerHandler = _inner
-        };
-        using var client = new HttpClient(pipeline);
 
         // Act
         using var response = await client.SendAsync(request);
@@ -79,15 +87,11 @@ public class XApiSafeRetryPolicyRules
     {
         // Arrange
         _inner.Respond(HttpStatusCode.ServiceUnavailable, "{}");
+        using var client = CreateResilientClient();
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.x.com/2/tweets")
         {
             Content = new StringContent("{\"text\":\"x\"}")
         };
-        using var pipeline = new PolicyHttpMessageHandler(XApiSafeRetryPolicy.ForRequest(request))
-        {
-            InnerHandler = _inner
-        };
-        using var client = new HttpClient(pipeline);
 
         // Act
         using var response = await client.SendAsync(request);
@@ -103,12 +107,8 @@ public class XApiSafeRetryPolicyRules
     {
         // Arrange
         _inner.Respond(HttpStatusCode.NotFound, "{}");
+        using var client = CreateResilientClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.x.com/2/users/1/tweets");
-        using var pipeline = new PolicyHttpMessageHandler(XApiSafeRetryPolicy.ForRequest(request))
-        {
-            InnerHandler = _inner
-        };
-        using var client = new HttpClient(pipeline);
 
         // Act
         using var response = await client.SendAsync(request);
@@ -116,5 +116,27 @@ public class XApiSafeRetryPolicyRules
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         _inner.Requests.Should().ContainSingle();
+    }
+
+    private HttpClient CreateResilientClient()
+    {
+        var services = new ServiceCollection();
+        services.AddHttpClient(XApiSafeRetryPolicy.PipelineName)
+            .ConfigurePrimaryHttpMessageHandler(() => new NonDisposingHandler(_inner))
+            .AddResilienceHandler(XApiSafeRetryPolicy.PipelineName, XApiSafeRetryPolicy.Configure);
+
+        var provider = services.BuildServiceProvider();
+        return provider.GetRequiredService<IHttpClientFactory>().CreateClient(XApiSafeRetryPolicy.PipelineName);
+    }
+
+    /// <summary>
+    /// Keeps the shared <see cref="ScriptedHttpHandler"/> alive across HttpClient disposal.
+    /// </summary>
+    private sealed class NonDisposingHandler(HttpMessageHandler inner) : DelegatingHandler(inner)
+    {
+        protected override void Dispose(bool disposing)
+        {
+            // Do not dispose the shared scripted inner handler.
+        }
     }
 }
