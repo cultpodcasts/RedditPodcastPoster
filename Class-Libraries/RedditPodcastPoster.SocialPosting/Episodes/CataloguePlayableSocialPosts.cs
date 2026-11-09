@@ -6,8 +6,11 @@ using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
-using RedditPodcastPoster.PodcastServices.Abstractions.Extensions;
 
 namespace RedditPodcastPoster.SocialPosting.Episodes;
 
@@ -17,6 +20,7 @@ public class CataloguePlayableSocialPosts(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     IFilmRepository filmRepository,
+    IPodcastEpisodeFilter podcastEpisodeFilter,
     IOptions<PostingCriteria> postingCriteria,
     ILogger<CataloguePlayableSocialPosts> logger)
     : ICataloguePlayableSocialPosts
@@ -25,14 +29,20 @@ public class CataloguePlayableSocialPosts(
 
     public async Task<IReadOnlyList<PodcastEpisode>> GetUntweeted()
     {
-        var items = await GetRecent(DateTimeExtensions.DaysAgo(_postingCriteria.TweetDays));
-        return items.Where(x => !x.Episode.Tweeted).ToArray();
+        var candidates = await GetCandidates(DateTimeExtensions.DaysAgo(_postingCriteria.TweetDays));
+        return await FilterReady(
+            candidates,
+            _postingCriteria.TweetDays,
+            podcastEpisodeFilter.GetMostRecentUntweetedEpisodes);
     }
 
     public async Task<IReadOnlyList<PodcastEpisode>> GetBlueskyReady()
     {
-        var items = await GetRecent(DateTimeExtensions.DaysAgo(_postingCriteria.BlueSkyDays));
-        return items.Where(x => !x.Episode.BlueskyPosted).ToArray();
+        var candidates = await GetCandidates(DateTimeExtensions.DaysAgo(_postingCriteria.BlueSkyDays));
+        return await FilterReady(
+            candidates,
+            _postingCriteria.BlueSkyDays,
+            podcastEpisodeFilter.GetMostRecentBlueskyReadyEpisodes);
     }
 
     public Task MarkTweeted(PodcastEpisode item, string? tweetPost) =>
@@ -72,7 +82,7 @@ public class CataloguePlayableSocialPosts(
                 film.Removed = false;
             });
 
-    private async Task<IReadOnlyList<PodcastEpisode>> GetRecent(DateTime since)
+    private async Task<IReadOnlyList<PodcastEpisode>> GetCandidates(DateTime since)
     {
         var items = new List<PodcastEpisode>();
 
@@ -84,7 +94,7 @@ public class CataloguePlayableSocialPosts(
         foreach (var tvShow in tvShows)
         {
             var episodes = await tvShowEpisodeRepository
-                .GetByTvShowId(tvShow.Id, x => x.ReleaseSort >= since)
+                .GetByTvShowId(tvShow.Id, PlayableCosmosFilters.ReleasedOnOrAfter<TvShowEpisode>(since))
                 .ToArrayAsync();
             items.AddRange(episodes.Select(e => CatalogueParentKindMapper.ToPostProjection(e, tvShow)));
         }
@@ -97,34 +107,62 @@ public class CataloguePlayableSocialPosts(
         foreach (var organisation in organisations)
         {
             var reports = await newsReportRepository
-                .GetByNewsOrganisationId(organisation.Id, x => x.ReleaseSort >= since)
+                .GetByNewsOrganisationId(
+                    organisation.Id,
+                    PlayableCosmosFilters.ReleasedOnOrAfter<NewsReport>(since))
                 .ToArrayAsync();
             items.AddRange(reports.Select(r => CatalogueParentKindMapper.ToPostProjection(r, organisation)));
         }
 
         // A film has no releaseCosmosFallback: a document written before releaseSort existed only has
         // release, and its ReleaseSort is rebuilt from that on read. Fetch those too and let the
-        // in-memory ReleaseUtc check below apply the window.
+        // podcast filter's ReleaseUtc window apply.
         var films = await filmRepository
             .GetAllBy(x => (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
                            (!x.ReleaseSort.IsDefined() || x.ReleaseSort >= since))
             .ToArrayAsync();
         items.AddRange(films.Select(CatalogueParentKindMapper.ToPostProjection));
 
-        // Same readiness as the podcast filter (PodcastEpisodeFilter): in the window, not removed or ignored,
-        // a postable link, and not held back by a YouTube publishing delay.
-        var postable = items
-            .Where(x => x.Episode.ReleaseUtc >= since &&
-                        x.Episode is { Removed: false, Ignored: false } &&
-                        EpisodeServicePresence.TryGetPreferredSocialPostUrl(x.Episode, out _, out _) &&
-                        !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
-            .OrderByDescending(x => x.Episode.ReleaseUtc)
-            .ToArray();
         logger.LogInformation(
-            "Catalogue social-post candidates since '{Since:O}': tv-shows {TvShows}, news-organisations {Organisations}, films {Films}, items {Items}, postable {Postable}, skipped {Skipped}.",
-            since, tvShows.Length, organisations.Length, films.Length, items.Count, postable.Length,
-            items.Count - postable.Length);
-        return postable;
+            "Catalogue social-post candidates since '{Since:O}': tv-shows {TvShows}, news-organisations {Organisations}, films {Films}, items {Items}.",
+            since, tvShows.Length, organisations.Length, films.Length, items.Count);
+        return items;
+    }
+
+    /// <summary>
+    /// Applies the same podcast readiness rules via <see cref="IPodcastEpisodeFilter"/>, then restores
+    /// <see cref="PodcastEpisode.ContentKind"/> (the filter rewraps pairs without it).
+    /// </summary>
+    private async Task<IReadOnlyList<PodcastEpisode>> FilterReady(
+        IReadOnlyList<PodcastEpisode> candidates,
+        int numberOfDays,
+        Func<Podcast, IEnumerable<Episode>, int, Task<IEnumerable<PodcastEpisode>>> filter)
+    {
+        if (candidates.Count == 0)
+        {
+            return [];
+        }
+
+        var contentKindByEpisodeId = candidates.ToDictionary(x => x.Episode.Id, x => x.ContentKind);
+        var ready = new List<PodcastEpisode>();
+        foreach (var group in candidates.GroupBy(x => x.Podcast.Id))
+        {
+            var podcast = group.First().Podcast;
+            var filtered = await filter(podcast, group.Select(x => x.Episode), numberOfDays);
+            foreach (var item in filtered)
+            {
+                if (contentKindByEpisodeId.TryGetValue(item.Episode.Id, out var contentKind))
+                {
+                    ready.Add(item with { ContentKind = contentKind });
+                }
+            }
+        }
+
+        var ordered = ready.OrderByDescending(x => x.Episode.ReleaseUtc).ToArray();
+        logger.LogInformation(
+            "Catalogue social-post filter: candidates {Candidates}, ready {Ready}, skipped {Skipped}.",
+            candidates.Count, ordered.Length, candidates.Count - ordered.Length);
+        return ordered;
     }
 
     private async Task Update(PodcastEpisode item, Action<Playable> setPlayable, Action<Models.Films.Film> setFilm)

@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -88,6 +89,10 @@ public class CatalogueSocialPostRules
             MinimumDuration = TimeSpan.FromMinutes(1), TweetDays = 2, RedditDays = 2, BlueSkyDays = 2,
             CategoriserDays = 2
         }));
+        // Real filter so catalogue candidates share podcast readiness (incl. YouTube delay) — #1057.
+        _mocker.Use<IPodcastEpisodeFilter>(new PodcastEpisodeFilter(
+            Options.Create(new DelayedYouTubePublication { EvaluationThreshold = TimeSpan.FromDays(7) }),
+            NullLogger<PodcastEpisodeFilter>.Instance));
     }
 
     // ---- fixtures -------------------------------------------------------------------------
@@ -180,6 +185,33 @@ public class CatalogueSocialPostRules
         item.Episode.PodcastId.Should().Be(show.Id);
         item.Episode.Title.Should().Be(tvEpisode.Title);
         item.Episode.Services.Should().NotBeNull().And.HaveCount(tvEpisode.Services!.Count);
+    }
+
+    [Fact(DisplayName =
+        "When a news report is projected for social posting, then the projection podcast carries YouTube publishing delay and release authority from the organisation's Indexing, because catalogue readiness must use the same delay as podcast episodes.")]
+    public void news_projection_carries_indexing_youtube_delay()
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            delay.Ticks,
+            spotifyShowId: _fixture.CreateSpotifyId());
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast,
+            release: DomainTestFixture.UtcDaysAgo(0).AddHours(2),
+            length: _fixture.CreateDuration());
+        var report = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+
+        // Act
+        var item = CatalogueParentKindMapper.ToPostProjection(report, organisation);
+
+        // Assert
+        item.ContentKind.Should().Be("NewsReport");
+        item.Podcast.YouTubePublicationOffset.Should().Be(delay.Ticks);
+        item.Podcast.ReleaseAuthority.Should().Be(Service.YouTube);
+        item.Podcast.SpotifyId.Should().Be(podcast.SpotifyId);
+        item.Podcast.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
     }
 
     [Fact(DisplayName =
@@ -727,6 +759,51 @@ public class CatalogueSocialPostRules
         // Assert
         result.Select(x => x.Episode.Id).Should().Equal(newest.Id, report.Id, film.Id);
         result.Select(x => x.ContentKind).Should().Equal("TvShowEpisode", "NewsReport", "Film");
+    }
+
+    [Fact(DisplayName =
+        "When a YouTube news report is still inside its parent's YouTube publishing delay, then it is not tweet-ready, because catalogue candidates share IPodcastEpisodeFilter readiness with podcast episodes.")]
+    public async Task delayed_youtube_news_report_is_not_tweet_ready()
+    {
+        // Arrange
+        var delay = TimeSpan.FromDays(1);
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
+            _fixture.CreateYouTubeChannelId(),
+            delay.Ticks,
+            spotifyShowId: _fixture.CreateSpotifyId());
+        podcast.TwitterHandle = string.Empty;
+        podcast.BlueskyHandle = "@synthnews.example";
+        podcast.HashTag = null;
+        podcast.EnrichmentHashTags = null;
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+        organisation.LatestReleased = DateTime.UtcNow;
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            podcast,
+            release: DateTime.UtcNow.AddHours(-2),
+            length: TimeSpan.FromHours(1),
+            title: _fixture.CreateTitle());
+        episode.Subjects = [];
+        episode.Guests = null;
+        var report = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
+            .Returns(() => Array.Empty<TvShow>().ToAsyncEnumerable());
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
+            .Returns(() => new[] { organisation }.ToAsyncEnumerable());
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(x => x.GetByNewsOrganisationId(organisation.Id, It.IsAny<Expression<Func<NewsReport, bool>>>()))
+            .Returns(() => new[] { report }.ToAsyncEnumerable());
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
+            .Returns(() => Array.Empty<Film>().ToAsyncEnumerable());
+        var sut = _mocker.CreateInstance<CataloguePlayableSocialPosts>();
+
+        // Act
+        var result = await sut.GetUntweeted();
+
+        // Assert
+        result.Should().BeEmpty();
     }
 
     [Fact(DisplayName =

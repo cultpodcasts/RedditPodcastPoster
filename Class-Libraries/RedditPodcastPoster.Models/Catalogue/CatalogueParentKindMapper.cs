@@ -175,12 +175,28 @@ public static class CatalogueParentKindMapper
     {
         ArgumentNullException.ThrowIfNull(playable);
         ArgumentNullException.ThrowIfNull(parent);
-        var podcast = new Podcast { Id = parent.Id };
-        CopyPublisher(parent, podcast);
+        // Indexing carries YouTube delay, release authority and audio/YouTube ids so social readiness
+        // matches podcast episodes (IPodcastEpisodeFilter / IsDelayedYouTubePublishing).
+        var podcast = ToProjectionPodcast(parent);
         var episode = new Episode { Id = playable.Id };
         CopyPlayable(playable, episode);
         episode.SetPodcastProperties(podcast);
         return new PodcastEpisode(podcast, episode) { ContentKind = contentKind };
+    }
+
+    /// <summary>
+    /// Unsaved podcast for social-post templates and readiness: publisher fields plus the parent's
+    /// <see cref="CatalogueIndexingSource"/> via <see cref="CatalogueIndexingSource.ToTransientPodcast"/>.
+    /// </summary>
+    private static Podcast ToProjectionPodcast(Publisher parent)
+    {
+        var indexing = parent switch
+        {
+            TvShow show => show.Indexing,
+            NewsOrganisation organisation => organisation.Indexing,
+            _ => null
+        } ?? new CatalogueIndexingSource();
+        return indexing.ToTransientPodcast(parent);
     }
 
     private static void CopyPublisher(Publisher source, Publisher target)
