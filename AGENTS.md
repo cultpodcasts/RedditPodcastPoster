@@ -79,6 +79,7 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 
 ## Domain conventions
 
+- A parent's title regex (podcast `TitleRegex`, or a news organisation's / TV show's `indexing.titleRegex` on a post projection) is only compiled via `Podcast.CreateTitleRegex` (`Podcast.TitleFlags`, case-insensitive) — display DTOs, homepage and social posts alike (#1378).
 - Podcast `DescriptionRegex` is only compiled via `DescriptionRegexTokens.Create` (tokens `{episode-title}`, `{podcast-name}`, 2s match timeout); see [docs/description-regex-tokens.md](docs/description-regex-tokens.md).
 - YouTube episode images are chosen only by `YouTubeThumbnailResolver` (success status + taller than the 90px placeholder) and are never cleared; recent `maxresdefault`/`hq720` images are re-checked hourly by the Indexer `YouTubeThumbnailRecheck` activity. See [docs/youtube-thumbnails.md](docs/youtube-thumbnails.md).
 - Search documents store compact service identifiers and short key names. The UI reconstructs URLs. Call the type `CompactSearchRecord`. Do not add `V2` or `Legacy` names.

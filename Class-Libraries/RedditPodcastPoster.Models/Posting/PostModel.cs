@@ -38,10 +38,7 @@ public class PostModel
         SubjectKnownTerms = subjectKnownTerms;
         Language = language;
 
-        if (!string.IsNullOrWhiteSpace(podcastTitleRegex))
-        {
-            TitleRegex = new Regex(podcastTitleRegex, Podcast.TitleFlags);
-        }
+        TitleRegex = Podcast.CreateTitleRegex(podcastTitleRegex);
 
         if (!string.IsNullOrWhiteSpace(podcastDescriptionRegex))
         {
