@@ -46,8 +46,13 @@ moves. A name with no organisation and no `createOrganisation` is a 404, so a ty
   `bypassShortEpisodeChecking` and `alwaysPromoteAsHero` on, `indexAllEpisodes` off. No YouTube channel or playlist and
   no Spotify / Apple id are copied from the podcast: a news organisation on the channel a channel-scoped podcast holds
   would be refused by `ChannelWideYouTubeClaimGuard`, and new uploads on that channel keep landing on the podcast.
-- `latestReleased` = the latest release among the moved reports. Moves into an existing organisation do not change
-  its `latestReleased`.
+- `latestReleased` = the latest release among the moved reports.
+
+A move into an existing organisation raises its `latestReleased` to the newest moved report after the episode rows
+are deleted, with a conditional field patch (`INewsOrganisationRepository.RaiseLatestReleased`: only when the stored
+value is missing or older, so it is never lowered and nothing else on the document is written). Best effort, as in
+the TV move: a failure is logged and the move is still a 202. This matters because a created organisation has no
+YouTube channel, so no Indexer pass raises it when later batches join.
 
 ## Order (`EpisodeNewsMoveService`)
 
@@ -55,17 +60,32 @@ moves. A name with no organisation and no `createOrganisation` is a 404, so a ty
    not-found or conflict.
 2. Save a created organisation, then the reports (`CatalogueParentKindMapper.ToNewsReport`: services, subjects,
    posted / tweeted / Bluesky state, **ignored and removed flags kept**). Missing `services.*.url` are filled from the
-   episode's ids without platform calls, as the kind transfer does.
+   episode's ids without platform calls, as the kind transfer does. One exception to keeping `ignored`, shared with
+   the kind transfer (`CatalogueShortEpisodeIgnore.IsLengthDerivedIgnored`): an episode ignored only for being under
+   the podcast's short-episode threshold (`minimumDuration`, else the posting-criteria floor unless the podcast
+   bypassed short-episode checking) is not ignored as a report, because a news organisation bypasses that check.
+   Longer ignored episodes stay ignored. So the same episode gets the same report whichever route moved it.
 3. Swap each search document under the same id to ContentKind `NewsReport`
    (`CataloguePlayableSearchDocument.For(NewsReport)`); a removed report is deleted from the index instead. Failure:
    500 with `failureIndexing`, episodes kept.
-4. Re-read the episodes; any edited during the move are remapped and re-swapped. Re-read the organisation and each
-   report; if any is gone: 500, episodes kept.
+4. Re-read the episodes (a filtered `IN` query per 100 ids, not a scan of the podcast); any edited during the move
+   are remapped and re-swapped. An episode row deleted by someone else meanwhile already has its report, so it is
+   listed in `movedEpisodeIds` (and logged). Re-read the organisation and each report; if any is gone: 500, episodes
+   kept.
 5. Delete only the moved episode rows.
+6. Raise an existing organisation's `latestReleased` (above), then delete the moved episodes' short-link records, as
+   the TV and film moves do (both best effort). With no record the Shortner looks the id up in search, now ContentKind
+   `NewsReport`, and redirects to the news page in one hop.
 
 Re-sending resumes: a report already in the target organisation while its episode row exists is rewritten from the
-episode; with the episode row gone, the id is reported in `alreadyMovedEpisodeIds`. Short-link records are left as
-they are (as the kind transfer does); old `/podcast/...` links rely on the site's moved-kind redirect.
+episode; with the episode row gone, the id is reported in `alreadyMovedEpisodeIds`.
 
 As with the other moves, an episode released in the last few days may be re-added to the podcast by the Indexer
 (#1068).
+
+## Removed episodes
+
+Unlike the TV and film moves, which refuse a removed episode (400), Move to news **moves removed episodes**: the
+report keeps `removed` and its search document is deleted. This is intended, so flags are preserved; it lets a
+curator mark unplayable episodes removed and still move them with the rest (as was done for Court TV). Do not change
+it to match TV / film.

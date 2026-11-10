@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Api.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -12,6 +14,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.UrlShortening.Services;
 using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.Episodes;
@@ -34,12 +37,19 @@ namespace Api.Services.Episodes;
 /// organisation), or that is already a TV episode, a film or a news report of another organisation, refuses the whole
 /// request and nothing is written.</item>
 /// <item>Save a created organisation, then the news reports (<see cref="CatalogueParentKindMapper.ToNewsReport"/>:
-/// services, subjects, posted / tweeted / Bluesky state, ignored and removed flags).</item>
+/// services, subjects, posted / tweeted / Bluesky state, ignored and removed flags). As in the kind transfer, an
+/// episode ignored only for being under the podcast's short-episode threshold is not ignored as a report
+/// (<see cref="CatalogueShortEpisodeIgnore.IsLengthDerivedIgnored"/>), because a news parent bypasses that check.
+/// Unlike the TV and film moves, removed episodes can be moved: they keep <c>removed</c> and their search document
+/// is deleted.</item>
 /// <item>Swap each search document under the same id to ContentKind NewsReport (removed reports are deleted from the
 /// index instead). On failure the source episodes are kept.</item>
 /// <item>Re-read the organisation and the reports; a concurrent delete keeps the source episodes. Episodes edited during
 /// the move are remapped first.</item>
 /// <item>Delete only the moved episode rows.</item>
+/// <item>Raise the organisation's <c>latestReleased</c> with a conditional field patch (never lowered), then delete
+/// the moved episodes' short-link records so the Shortner resolves them from search, as the TV and film moves do.
+/// Both best effort.</item>
 /// </list>
 /// Re-sending resumes: a report already in the target organisation while its episode row exists is rewritten from the
 /// episode; with the episode row gone, the id is reported as already moved.
@@ -53,8 +63,12 @@ public class EpisodeNewsMoveService(
     IFilmRepository filmRepository,
     IPlayableSearchDocumentSwap searchSwap,
     IFileKeyAllocator fileKeyAllocator,
+    IShortnerService shortnerService,
+    IOptions<PostingCriteria> postingCriteria,
     ILogger<EpisodeNewsMoveService> logger) : IEpisodeNewsMoveService
 {
+    private readonly TimeSpan _postingMinimumDuration = postingCriteria.Value.MinimumDuration;
+
     /// <summary>Most episode ids one batch request may move (one HTTP request, well inside the host timeout).</summary>
     public const int MaxEpisodesPerRequest = 500;
 
@@ -108,6 +122,7 @@ public class EpisodeNewsMoveService(
         var created = false;
         // A created organisation only exists once saved; until then a failure reports neither its id nor created.
         var organisationSaved = false;
+        MovePlan? plan = null;
         try
         {
             var podcast = await podcastRepository.GetPodcast(podcastId);
@@ -126,7 +141,7 @@ public class EpisodeNewsMoveService(
             created = resolved.Created;
             organisationSaved = !created;
 
-            var plan = await Plan(podcast, episodeIds, organisation, cancellationToken);
+            plan = await Plan(podcast, episodeIds, organisation, cancellationToken);
             if (plan.NotFound.Count > 0 || plan.Conflicts.Count > 0)
             {
                 logger.LogWarning(
@@ -156,6 +171,7 @@ public class EpisodeNewsMoveService(
 
             var fingerprints = plan.ToMove.ToDictionary(episode => episode.Id, Fingerprint);
             var reports = MapReports(podcast, plan.ToMove, organisation);
+            var latestById = reports.ToDictionary(report => report.Id);
             if (created)
             {
                 organisation.LatestReleased = reports.Max(report => report.ReleaseSort);
@@ -177,8 +193,19 @@ public class EpisodeNewsMoveService(
 
             // Episodes the Indexer or a curator changed while the reports were written are remapped before their
             // source rows go, so that edit is not lost.
-            var current = await ReadEpisodes(podcast.Id, plan.ToMove.Select(episode => episode.Id).ToHashSet(),
+            var current = await ReadEpisodes(podcast.Id, plan.ToMove.Select(episode => episode.Id).ToList(),
                 cancellationToken);
+            // An episode deleted (by a curator or the Indexer) between the plan and this read already has its news
+            // report and search document, so it is reported as moved rather than dropped from every list.
+            var currentIds = current.Select(episode => episode.Id).ToHashSet();
+            var vanished = plan.ToMove.Select(episode => episode.Id).Where(id => !currentIds.Contains(id)).ToList();
+            if (vanished.Count > 0)
+            {
+                logger.LogWarning(
+                    "{method}: {count} episode row(s) of podcast '{podcastId}' were deleted during the move to news organisation '{organisationId}'; their news reports exist and they are reported as moved: {episodeIds}.",
+                    nameof(Move), vanished.Count, podcast.Id, organisation.Id, string.Join(", ", vanished));
+            }
+
             var changed = current
                 .Where(episode => fingerprints[episode.Id] != Fingerprint(episode))
                 .ToList();
@@ -188,6 +215,11 @@ public class EpisodeNewsMoveService(
                     "{method}: {count} episode(s) of podcast '{podcastId}' changed during the move; remapping before delete.",
                     nameof(Move), changed.Count, podcast.Id);
                 var remapped = MapReports(podcast, changed, organisation);
+                foreach (var report in remapped)
+                {
+                    latestById[report.Id] = report;
+                }
+
                 await SaveReports(remapped);
                 if (!await SwapSearch(organisation, remapped, cancellationToken))
                 {
@@ -224,11 +256,13 @@ public class EpisodeNewsMoveService(
                 await episodeRepository.DeleteMany(podcast.Id, chunk);
             }
 
+            var moved = deletable.Select(episode => episode.Id).Concat(vanished).ToList();
             logger.LogInformation(
                 "Moved {count} episode(s) from podcast '{podcastId}' to news organisation '{name}' ('{organisationId}', created {created}). The podcast is kept.",
-                deletable.Count, podcast.Id, currentOrganisation.Name, currentOrganisation.Id, created);
-            return Accepted(currentOrganisation, created, deletable.Select(episode => episode.Id).ToList(),
-                plan.AlreadyMoved);
+                moved.Count, podcast.Id, currentOrganisation.Name, currentOrganisation.Id, created);
+            await RaiseLatestReleased(currentOrganisation, moved.Select(id => latestById[id]));
+            await DeleteShortLinks(podcast, deletable);
+            return Accepted(currentOrganisation, created, moved, plan.AlreadyMoved);
         }
         catch (Exception ex)
         {
@@ -238,7 +272,7 @@ public class EpisodeNewsMoveService(
             return organisation is null || !organisationSaved
                 ? new EpisodeNewsMoveResult(EpisodeNewsMoveStatus.Failed,
                     Error: "Unable to move to news. The source episodes were kept; re-send to resume")
-                : Failed(organisation, created, [], indexing: false);
+                : Failed(organisation, created, plan?.AlreadyMoved ?? [], indexing: false);
         }
     }
 
@@ -310,15 +344,22 @@ public class EpisodeNewsMoveService(
         return new MovePlan(toMove, alreadyMoved, notFound, conflicts);
     }
 
+    /// <summary>
+    /// Reads only the requested episodes, with a single-partition <c>IN</c> query per <see cref="LookupChunkSize"/>
+    /// ids, so neither route scans the podcast's whole back catalogue.
+    /// </summary>
     private async Task<List<Episode>> ReadEpisodes(
         Guid podcastId,
-        IReadOnlySet<Guid> ids,
+        IEnumerable<Guid> ids,
         CancellationToken cancellationToken)
     {
         var episodes = new List<Episode>();
-        await foreach (var episode in episodeRepository.GetByPodcastId(podcastId).WithCancellation(cancellationToken))
+        foreach (var chunk in ids.Distinct().Chunk(LookupChunkSize))
         {
-            if (ids.Contains(episode.Id))
+            var chunkIds = chunk.ToList();
+            await foreach (var episode in episodeRepository
+                               .GetByPodcastId(podcastId, item => chunkIds.Contains(item.Id))
+                               .WithCancellation(cancellationToken))
             {
                 episodes.Add(episode);
             }
@@ -329,9 +370,11 @@ public class EpisodeNewsMoveService(
 
     /// <summary>
     /// Reports keep Services only: missing <c>services.*.url</c> are filled from the episode's nested ids
-    /// (deterministic, no platform calls, as the kind transfer does) before mapping. Flags are copied as they are.
+    /// (deterministic, no platform calls, as the kind transfer does) before mapping. Flags are copied, except that
+    /// <c>ignored</c> is cleared when it came only from the podcast's short-episode threshold
+    /// (<see cref="CatalogueShortEpisodeIgnore.IsLengthDerivedIgnored"/>, shared with the kind transfer).
     /// </summary>
-    private static List<NewsReport> MapReports(
+    private List<NewsReport> MapReports(
         Podcast podcast,
         IEnumerable<Episode> episodes,
         NewsOrganisation organisation) =>
@@ -339,9 +382,71 @@ public class EpisodeNewsMoveService(
             .Select(episode =>
             {
                 EpisodeServicePresence.EnsureServiceUrlsFromIds(episode, podcast.AppleId);
-                return CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+                var report = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
+                if (CatalogueShortEpisodeIgnore.IsLengthDerivedIgnored(podcast, episode, _postingMinimumDuration))
+                {
+                    report.Ignored = false;
+                }
+
+                return report;
             })
             .ToList();
+
+    /// <summary>
+    /// Raises <c>latestReleased</c> to the newest moved report, only when the stored value is still older (a
+    /// conditional patch, no full-document save), as the TV move does. A created organisation has no YouTube channel,
+    /// so no Indexer pass would raise it; later batches into an existing organisation need this. The move has already
+    /// succeeded, so a failure is logged and does not fail the request.
+    /// </summary>
+    private async Task RaiseLatestReleased(NewsOrganisation organisation, IEnumerable<NewsReport> moved)
+    {
+        var released = moved.Select(report => report.ReleaseSort).DefaultIfEmpty().Max();
+        if (released == default || (organisation.LatestReleased is { } latest && latest >= released))
+        {
+            return;
+        }
+
+        try
+        {
+            if (!await newsOrganisationRepository.RaiseLatestReleased(organisation.Id, released))
+            {
+                logger.LogWarning("{method}: News organisation '{organisationId}' was not found to patch latestReleased.",
+                    nameof(RaiseLatestReleased), organisation.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{method}: latestReleased patch failed for news organisation '{organisationId}'.",
+                nameof(RaiseLatestReleased), organisation.Id);
+        }
+    }
+
+    /// <summary>
+    /// The short-link key is the episode id (base 64), which the report keeps. As in the TV and film moves the record
+    /// is deleted: with no record the Shortner looks the id up in search (now ContentKind NewsReport) and redirects in
+    /// one hop, instead of via the kept podcast's page and the site's moved-kind redirect. Best effort.
+    /// </summary>
+    private async Task DeleteShortLinks(Podcast podcast, IReadOnlyList<Episode> episodes)
+    {
+        foreach (var chunk in episodes.Chunk(LookupChunkSize))
+        {
+            try
+            {
+                var result = await shortnerService.Delete(chunk.Select(episode => new PodcastEpisode(podcast, episode)));
+                if (!result.Success)
+                {
+                    logger.LogWarning(
+                        "{method}: Short-link records for {count} moved episode(s) of podcast '{podcastId}' were not deleted (absent, or the KV delete failed).",
+                        nameof(DeleteShortLinks), chunk.Length, podcast.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{method}: Short-link delete failed for {count} moved episode(s) of podcast '{podcastId}'.",
+                    nameof(DeleteShortLinks), chunk.Length, podcast.Id);
+            }
+        }
+    }
 
     private async Task SaveReports(IReadOnlyList<NewsReport> reports) =>
         await Parallel.ForEachAsync(

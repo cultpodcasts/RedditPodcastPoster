@@ -42,6 +42,9 @@ public class NewsOrganisationRepository(
     public Task<NewsOrganisationDefaultsPatchResult> PatchCreationDefaults(Guid newsOrganisationId, bool indexingStored) =>
         NewsOrganisationDefaultsPatchOperations.Apply(newsOrganisationsContainer, newsOrganisationId, indexingStored);
 
+    public Task<bool> RaiseLatestReleased(Guid newsOrganisationId, DateTime latestReleased) =>
+        CatalogueParentIndexerPatchOperations.RaiseLatestReleased(newsOrganisationsContainer, newsOrganisationId, latestReleased);
+
     public async Task Delete(Guid newsOrganisationId)
     {
         try

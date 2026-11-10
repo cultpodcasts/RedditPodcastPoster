@@ -339,12 +339,9 @@ public class PodcastKindTransferService(
             newsOrganisationRepository.Delete);
 
     /// <summary>
-    /// News parents force <c>bypassShortEpisodeChecking</c>, so new short reports are not length-ignored.
-    /// Episodes already ignored under podcast short-episode rules keep <see cref="Playable.Ignored"/> when
-    /// mapped as-is. Clear that flag when short checking was enforced on the source podcast and length is
-    /// under the same threshold indexing/submit used (<see cref="Podcast.MinimumDuration"/> else posting
-    /// criteria). Longer ignored episodes (manual / ignore-all / other) stay ignored. Short episodes that
-    /// were ignore-all are indistinguishable from length-derived and are also cleared.
+    /// News parents force <c>bypassShortEpisodeChecking</c>, so new short reports are not length-ignored. Clear
+    /// <see cref="Playable.Ignored"/> on episodes ignored only under the podcast's short-episode rules
+    /// (<see cref="CatalogueShortEpisodeIgnore.IsLengthDerivedIgnored"/>, shared with Move to news).
     /// </summary>
     private NewsReport MapNewsReportClearingLengthDerivedIgnored(
         Episode episode,
@@ -352,39 +349,13 @@ public class PodcastKindTransferService(
         Podcast podcast)
     {
         var report = CatalogueParentKindMapper.ToNewsReport(episode, organisation);
-        if (IsLengthDerivedIgnoredUnderPodcastRules(podcast, episode))
+        if (CatalogueShortEpisodeIgnore.IsLengthDerivedIgnored(podcast, episode, _postingCriteria.MinimumDuration))
         {
             report.Ignored = false;
         }
 
         return report;
     }
-
-    /// <summary>
-    /// True when the episode is ignored and podcast short-episode checking would have set that from length
-    /// alone (same enforce/threshold as <c>PodcastUpdater</c>). Submit <c>EpisodeFactory</c> differs: when
-    /// <c>BypassShortEpisodeChecking</c> is true it skips length-ignore entirely, even with an explicit
-    /// <see cref="Podcast.MinimumDuration"/>.
-    /// </summary>
-    private bool IsLengthDerivedIgnoredUnderPodcastRules(Podcast podcast, Episode episode)
-    {
-        if (!episode.Ignored)
-        {
-            return false;
-        }
-
-        // Explicit podcast MinimumDuration always applies. Bypass only skips the global posting-criteria floor.
-        var bypassGlobalShortCheck = podcast.BypassShortEpisodeChecking == true;
-        var enforceMinimumDuration = podcast.MinimumDuration.HasValue || !bypassGlobalShortCheck;
-        if (!enforceMinimumDuration)
-        {
-            return false;
-        }
-
-        var threshold = podcast.MinimumDuration ?? _postingCriteria.MinimumDuration;
-        return episode.Length < threshold;
-    }
-
     /// <summary>Per-transfer counters for the one summary log line.</summary>
     private sealed class TransferStats
     {
