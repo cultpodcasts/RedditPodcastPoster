@@ -21,6 +21,7 @@ public class EpisodeController(
     IPostEpisodeFilmMoveHandler postEpisodeFilmMoveHandler,
     IPostEpisodeTrailerAttachHandler postEpisodeTrailerAttachHandler,
     IPostEpisodeTvShowMoveHandler postEpisodeTvShowMoveHandler,
+    IPostEpisodeNewsMoveHandler postEpisodeNewsMoveHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<EpisodeController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -36,6 +37,7 @@ public class EpisodeController(
     private const string? FilmMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/film";
     private const string? TrailerAttachRoute = "episode/{podcastId:guid}/{episodeId:guid}/trailer";
     private const string? TvShowMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/tvshow";
+    private const string? NewsMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/news";
 
 
     [Function("PodcastNameEpisodeGet")]
@@ -239,6 +241,32 @@ public class EpisodeController(
             ["curate"],
             new EpisodeTvShowMoveCommand(podcastId, episodeId, request.ToModel()),
             postEpisodeTvShowMoveHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    /// <summary>
+    /// Moves one podcast episode to a news organisation as a news report (same id). Body: <c>newsOrganisationId</c> or
+    /// <c>newsOrganisationName</c>, optional <c>createOrganisation</c> + <c>publisher</c> (new organisation by name).
+    /// The podcast and its show ids are kept (docs/move-to-news.md).
+    /// </summary>
+    [Function("PodcastEpisodeMoveToNews")]
+    public Task<HttpResponseData> MoveToNews(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = NewsMoveRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        Dtos.EpisodeNewsMoveRequest? request,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeNewsMoveCommand(podcastId, episodeId, request.ToModel()),
+            postEpisodeNewsMoveHandler.Handle,
             Unauthorised,
             ct);
     }

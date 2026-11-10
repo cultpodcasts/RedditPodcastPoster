@@ -7,6 +7,7 @@ using Api;
 using Api.Dtos;
 using Api.Dtos.Extensions;
 using Api.Factories;
+using Api.Handlers.Episodes;
 using Api.Handlers.Podcasts;
 using Api.Models;
 using Azure.Diagnostics;
@@ -20,6 +21,7 @@ public class PodcastController(
     IGetPodcastKindTransferStatusHandler getPodcastKindTransferStatusHandler,
     IIndexPodcastHandler indexPodcastHandler,
     IRenamePodcastHandler renamePodcastHandler,
+    IPostPodcastNewsMoveHandler postPodcastNewsMoveHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<PodcastController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -161,6 +163,27 @@ public class PodcastController(
         Guid podcastId,
         CancellationToken ct
     ) => HandleRequest(req, ["curate"], podcastId, getPodcastKindTransferStatusHandler.Handle, Unauthorised, ct);
+
+    /// <summary>
+    /// Moves only the listed episodes of the podcast to one news organisation as news reports (same ids). Body:
+    /// <c>episodeIds</c> plus <c>newsOrganisationId</c> or <c>newsOrganisationName</c>, optional
+    /// <c>createOrganisation</c> + <c>publisher</c>. The organisation is created or resolved once. The podcast, its
+    /// other episodes and its show ids are kept; this is not a kind transfer (docs/move-to-news.md).
+    /// </summary>
+    [Function("PodcastEpisodesMoveToNews")]
+    public Task<HttpResponseData> MoveEpisodesToNews(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/{podcastId:guid}/news")]
+        HttpRequestData req,
+        Guid podcastId,
+        [FromBody] Dtos.PodcastNewsMoveRequest? request,
+        CancellationToken ct
+    ) => HandleRequest(
+            req,
+            ["curate"],
+            request.ToCommand(podcastId),
+            postPodcastNewsMoveHandler.Handle,
+            Unauthorised,
+            ct);
 
     [Function("PodcastPatch")]
     public Task<HttpResponseData> Patch(
