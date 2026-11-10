@@ -29,6 +29,20 @@ Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-di
 
 **Manual run (main):** Actions → **Provision and Deploy** → **Run workflow** → branch `main`. Set **run_provision** to create/update Cosmos containers and function app settings even when this commit did not touch `Infrastructure/**` (e.g. retry after a failed provision). Leave it off to redeploy packages only. Provision failure still blocks `*-deploy`.
 
+### PR gate (required check for `main`, #1374)
+
+Every pull request into `main` runs **PR gate** (`.github/workflows/pr-gate.yml`). Its final job **`gate`** is the one check branch protection requires (shown as `PR gate / gate`). It is red when any of these fail:
+
+| Job | What it checks |
+|-----|----------------|
+| `build` | The **Build** workflow (`dotnet.yml`, called via `workflow_call`): restore, slnx/slnf asserts, build, all tests, coverage gate, unit-test guardrails, Pester |
+| `actionlint` | Pinned actionlint over `.github/workflows/**` (shellcheck/pyflakes off). Catches invalid workflows such as the unknown `permissions: variables: write` scope from #1309, which GitHub rejected before any job ran |
+| `bicep` | Pinned Bicep CLI `bicep build` of every `Infrastructure/**/*.bicep` (no Azure login). `functions.bicepparam` is not built: it reads deploy-time environment variables |
+
+PRs into other branches still run **Build** directly. **Provision and Deploy** is never part of the gate.
+
+Branch protection for `main` (set by Jon, after the gate has one green PR run): require status checks → `gate`, and require branches to be up to date before merging.
+
 ### Provision latch (`PROVISION_LATCH`) — HARD for agents
 
 **Why:** If a `run_provision` attempt fails (e.g. #1295 budget before Cosmos/settings), later merges with **no** `Infrastructure/**` change still used to ship packages from `main` (including the dependent code) while bicep never applied — host crash / missing containers. The latch stops that.

@@ -1,0 +1,97 @@
+# PR gate for main (#1374). One required status check: "PR gate / gate".
+#
+# Fails the PR when any of these fail:
+#   build    - the Build workflow (restore, solution asserts, build, tests, coverage gate, unit-test guardrails, Pester)
+#   actionlint - every .github/workflows/** file; catches invalid workflows such as the unknown
+#                `permissions: variables: write` scope that made every Provision and Deploy run end with 0 jobs (#1309)
+#   bicep    - compiles every Infrastructure/**/*.bicep (no Azure login; .bicepparam needs deploy-time env, so it is not built)
+#
+# Provision and Deploy is never part of this gate: it deploys, and runs on push to main / workflow_dispatch only.
+# Branch protection on main must require the check "gate" (shown as "PR gate / gate" in the Checks tab).
+# See docs/deployment.md § PR gate.
+
+name: PR gate
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  ACTIONLINT_VERSION: '1.7.12'
+  ACTIONLINT_SHA256: '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8'
+  BICEP_VERSION: '0.49.2'
+  BICEP_SHA256: '0ab9de90c2493f206f8281bae74f9ee2d5ed3605548dab1adf41fef185e1f7c5'
+
+jobs:
+  build:
+    uses: ./.github/workflows/dotnet.yml
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Install actionlint ${{ env.ACTIONLINT_VERSION }}
+      run: |
+        set -euo pipefail
+        archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+        curl -fsSL -o "$RUNNER_TEMP/$archive" \
+          "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+        echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check --strict
+        tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+    # Workflow syntax, expressions, job graph and permission scopes. Shell / Python linting of `run:`
+    # scripts is off on purpose: the gate is for invalid workflows, not script style.
+    - name: actionlint
+      run: |
+        set -euo pipefail
+        "$RUNNER_TEMP/actionlint" -shellcheck= -pyflakes=
+
+  bicep:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Install Bicep ${{ env.BICEP_VERSION }}
+      run: |
+        set -euo pipefail
+        curl -fsSL -o "$RUNNER_TEMP/bicep" \
+          "https://github.com/Azure/bicep/releases/download/v${BICEP_VERSION}/bicep-linux-x64"
+        echo "${BICEP_SHA256}  $RUNNER_TEMP/bicep" | sha256sum --check --strict
+        chmod +x "$RUNNER_TEMP/bicep"
+    - name: bicep build
+      run: |
+        set -euo pipefail
+        shopt -s globstar nullglob
+        files=(Infrastructure/**/*.bicep)
+        if [ ${#files[@]} -eq 0 ]; then
+          echo "::error::No Infrastructure/**/*.bicep files found"
+          exit 1
+        fi
+        for file in "${files[@]}"; do
+          echo "bicep build $file"
+          "$RUNNER_TEMP/bicep" build "$file" --stdout > /dev/null
+        done
+
+  # The single required check. `always()` so a failed or cancelled dependency turns this red
+  # instead of leaving it skipped (a skipped required check would not block the merge).
+  gate:
+    if: always()
+    needs: [ build, actionlint, bicep ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: All PR checks passed
+      env:
+        RESULTS: ${{ toJSON(needs) }}
+      run: |
+        set -euo pipefail
+        echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+        failed=$(echo "$RESULTS" | jq -r '[to_entries[] | select(.value.result != "success") | .key] | join(", ")')
+        if [ -n "$failed" ]; then
+          echo "::error::PR gate failed: ${failed}"
+          exit 1
+        fi
