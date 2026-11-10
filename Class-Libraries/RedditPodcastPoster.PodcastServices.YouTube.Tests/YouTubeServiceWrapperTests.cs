@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -111,6 +112,69 @@ public class YouTubeServiceWrapperTests
             Times.Once);
     }
 
+    [Fact]
+    public void Dispose_DoesNotThrowWhenServiceProviderDisposesSynchronously()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(CreateCliWrapper());
+        var provider = services.BuildServiceProvider();
+        _ = provider.GetRequiredService<YouTubeServiceWrapper>();
+
+        var act = () => provider.Dispose();
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Dispose_PersistsIndexerRingState()
+    {
+        var strategy = new Mock<IYouTubeApiKeyStrategy>();
+        var ring = new List<ApplicationWrapper>
+        {
+            Wrap("key1", "Primary-1"),
+            Wrap("key8", "Reattempt-1")
+        };
+        var stateService = new Mock<IYouTubeIndexerKeyStateService>();
+
+        var wrapper = new YouTubeServiceWrapper(
+            CreateService("key1"),
+            ring[0],
+            ApplicationUsage.Indexer,
+            strategy.Object,
+            ring,
+            initialRingIndex: 0,
+            stateService.Object,
+            NullLogger<YouTubeServiceWrapper>.Instance);
+
+        wrapper.Rotate();
+        wrapper.Dispose();
+
+        stateService.Verify(
+            x => x.PersistSessionEndAsync(1, "key8", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    private static YouTubeServiceWrapper CreateCliWrapper()
+    {
+        var strategy = new Mock<IYouTubeApiKeyStrategy>();
+        var application = new ApplicationWrapper(
+            new Application
+            {
+                ApiKey = "key1",
+                Name = "CultPodcasts",
+                Usage = ApplicationUsage.Cli,
+                DisplayName = "CLI-1"
+            }, 0, 0);
+
+        return new YouTubeServiceWrapper(
+            CreateService("key1"),
+            application,
+            ApplicationUsage.Cli,
+            strategy.Object,
+            indexerKeyRing: null,
+            initialRingIndex: 0,
+            indexerKeyStateService: null,
+            NullLogger<YouTubeServiceWrapper>.Instance);
+    }
     private static ApplicationWrapper Wrap(string apiKey, string displayName) =>
         new(new Application
         {
