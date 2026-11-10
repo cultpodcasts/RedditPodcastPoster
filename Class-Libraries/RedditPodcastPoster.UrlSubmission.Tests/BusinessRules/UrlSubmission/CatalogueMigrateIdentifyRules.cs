@@ -14,9 +14,9 @@ public class CatalogueMigrateIdentifyRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "A BBC news URL marks the row as a NewsReport candidate that needs an allowlist for apply, " +
+        "A BBC news URL marks the row as a NewsReport candidate that needs a curator --podcast-id for apply, " +
         "because News migrate is first and S-008 forbids unattended news-station moves.")]
-    public void bbc_news_url_is_a_news_candidate_that_needs_an_allowlist()
+    public void bbc_news_url_is_a_news_candidate_that_needs_a_podcast_id()
     {
         // Arrange
         var signals = new[]
@@ -29,7 +29,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
+        result.RequiresPodcastId.Should().BeTrue();
         result.RequiresCurator.Should().BeFalse();
     }
 
@@ -52,7 +52,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
         result.RequiresCurator.Should().BeTrue();
     }
 
@@ -77,7 +77,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
         result.RequiresCurator.Should().BeTrue();
     }
 
@@ -98,13 +98,13 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Film);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
         result.RequiresCurator.Should().BeFalse();
     }
 
     [Fact(DisplayName =
         "A series signal with no News or Film is a TvShowEpisode candidate, " +
-        "and it does not need a news allowlist.")]
+        "and it does not need a curator --podcast-id.")]
     public void series_only_is_a_tv_candidate()
     {
         // Arrange
@@ -120,7 +120,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
         result.RequiresCurator.Should().BeFalse();
     }
 
@@ -142,12 +142,12 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
         result.RequiresCurator.Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "A stored episode whose service URL is a BBC news page is a NewsReport candidate that needs an allowlist, " +
+        "A stored episode whose service URL is a BBC news page is a NewsReport candidate that needs a curator --podcast-id, " +
         "because corpus identify reads episode URLs without scraping.")]
     public void stored_bbc_news_episode_url_is_a_news_candidate()
     {
@@ -164,7 +164,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
+        result.RequiresPodcastId.Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -185,7 +185,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -201,7 +201,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
         result.RequiresCurator.Should().BeFalse();
     }
 
@@ -229,7 +229,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
         result.RequiresCurator.Should().BeTrue();
         CatalogueMigrateIdentify.IsNewsReportEpisode(newsEpisode).Should().BeTrue();
         CatalogueMigrateIdentify.IsNewsReportEpisode(spotifyEpisode).Should().BeFalse();
@@ -239,7 +239,7 @@ public class CatalogueMigrateIdentifyRules
     }
 
     [Fact(DisplayName =
-        "A YouTube-only publisher whose name is four ASCII letters is a NewsReport candidate that needs an allowlist, " +
+        "A YouTube-only publisher whose name is four ASCII letters is a NewsReport candidate that needs a curator --podcast-id, " +
         "because S-008 dry-run may use call-sign style names without scraping.")]
     public void youtube_only_four_letter_name_is_a_news_station_candidate()
     {
@@ -259,12 +259,12 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
+        result.RequiresPodcastId.Should().BeTrue();
         result.RequiresCurator.Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "A YouTube-only publisher whose name contains the word News is a NewsReport candidate that needs an allowlist, " +
+        "A YouTube-only publisher whose name contains the word News is a NewsReport candidate that needs a curator --podcast-id, " +
         "because many US stations brand as Eyewitness News or 9 News rather than a four-letter call sign.")]
     public void youtube_only_name_with_news_word_is_a_news_organisation_candidate()
     {
@@ -283,12 +283,12 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
+        result.RequiresPodcastId.Should().BeTrue();
         result.RequiresCurator.Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "A YouTube-only publisher whose name is a US network plus a channel number is a NewsReport candidate that needs an allowlist, " +
+        "A YouTube-only publisher whose name is a US network plus a channel number is a NewsReport candidate that needs a curator --podcast-id, " +
         "because affiliates often publish as ABC7 or FOX 5 instead of four call letters.")]
     public void youtube_only_us_affiliate_channel_number_is_a_news_organisation_candidate()
     {
@@ -308,61 +308,11 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
-    }
-
-    public static TheoryData<string> NewspaperMastheadRows() =>
-        ["Times", "Tribune", "Herald", "Gazette", "Chronicle"];
-
-    [Theory(DisplayName =
-        "A YouTube-only publisher whose name contains a newspaper masthead word is a NewsReport candidate that needs an allowlist, " +
-        "because papers such as a city Times or Herald are news organisations worldwide, not only US TV call signs.")]
-    [MemberData(nameof(NewspaperMastheadRows))]
-    public void youtube_only_newspaper_masthead_name_is_a_news_organisation_candidate(string masthead)
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p =>
-        {
-            p.Name = $"{_fixture.CreateTitle()} {masthead}";
-            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            p.SpotifyId = string.Empty;
-            p.AppleId = null;
-        });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-
-        // Act
-        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
-
-        // Assert
-        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
+        result.RequiresPodcastId.Should().BeTrue();
     }
 
     [Fact(DisplayName =
-        "A YouTube-only publisher whose name uses End Times as prophecy language stays Episode, " +
-        "because that is not a newspaper masthead.")]
-    public void youtube_only_end_times_name_is_not_a_news_organisation()
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p =>
-        {
-            p.Name = $"{_fixture.CreateTitle()} End Times";
-            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            p.SpotifyId = string.Empty;
-            p.AppleId = null;
-        });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-
-        // Act
-        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
-
-        // Assert
-        result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
-    }
-
-    [Fact(DisplayName =
-        "A YouTube-only publisher whose name includes 24/7 is a NewsReport candidate that needs an allowlist, " +
+        "A YouTube-only publisher whose name includes 24/7 is a NewsReport candidate that needs a curator --podcast-id, " +
         "because rolling-news channels outside the US brand that way rather than with a News word.")]
     public void youtube_only_round_the_clock_name_is_a_news_organisation_candidate()
     {
@@ -381,34 +331,11 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
+        result.RequiresPodcastId.Should().BeTrue();
     }
 
     [Fact(DisplayName =
-        "A YouTube-only publisher whose name is an international news brand without the word News is a NewsReport candidate that needs an allowlist, " +
-        "because outlets such as France 24 are news organisations worldwide.")]
-    public void youtube_only_international_news_brand_is_a_news_organisation_candidate()
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p =>
-        {
-            p.Name = $"France 24 {_fixture.CreateTitle()}";
-            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            p.SpotifyId = string.Empty;
-            p.AppleId = null;
-        });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-
-        // Act
-        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
-
-        // Assert
-        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
-    }
-
-    [Fact(DisplayName =
-        "A YouTube-only publisher whose name has no News word, newspaper masthead, 24/7 mark, or US affiliate channel number stays Episode, " +
+        "A YouTube-only publisher whose name has no News word, 24/7 mark, or US affiliate channel number stays Episode, " +
         "because entertainment YouTube channels must not become NewsOrganisation from the name heuristic.")]
     public void youtube_only_entertainment_name_is_not_a_news_organisation()
     {
@@ -427,7 +354,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -449,90 +376,18 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
-    }
-
-    public static TheoryData<string> TvShowPublisherNameRows()
-    {
-        var rows = new TheoryData<string>();
-        foreach (var name in CatalogueTvShowCanonicalNames.PublisherNames)
-        {
-            rows.Add(name);
-        }
-
-        return rows;
-    }
-
-    [Theory(DisplayName =
-        "A publisher whose exact name is a curator TV programme is a TvShowEpisode candidate, " +
-        "because those rows are a TV show, not a news desk, and platform ids do not decide kind.")]
-    [MemberData(nameof(TvShowPublisherNameRows))]
-    public void named_tv_show_publisher_is_a_tv_candidate(string name)
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p =>
-        {
-            p.Name = name;
-            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            p.SpotifyId = string.Empty;
-            p.AppleId = null;
-        });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-
-        // Act
-        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
-
-        // Assert
-        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
-        result.RequiresAllowlist.Should().BeFalse();
-        result.RequiresCurator.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "A curator-named TV programme still identifies as TvShowEpisode when the old podcast row has a Spotify id, " +
-        "because a TV episode page holds many platform services and is not YouTube-only.")]
-    public void named_tv_show_with_spotify_is_still_tv()
-    {
-        // Arrange
-        var name = CatalogueTvShowCanonicalNames.PublisherNames.First();
-        var podcast = _fixture.CreatePodcast(p =>
-        {
-            p.Name = name;
-            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            p.SpotifyId = _fixture.CreateSpotifyId();
-            p.AppleId = null;
-        });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-
-        // Act
-        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
-
-        // Assert
-        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
-        result.RequiresAllowlist.Should().BeFalse();
-    }
-
-    public static TheoryData<string> StayPodcastPublisherNameRows()
-    {
-        var rows = new TheoryData<string>();
-        foreach (var name in CatalogueMigrateIdentify.StayPodcastPublisherNames)
-        {
-            rows.Add(name);
-        }
-
-        return rows;
-    }
-
-    [Theory(DisplayName =
-        "A YouTube-only publisher whose exact name is on the stay-podcast list stays Episode, " +
-        "because partisan, advocacy, news-satire, news-commentary, and one-person host rows remain podcasts.")]
-    [MemberData(nameof(StayPodcastPublisherNameRows))]
-    public void stay_podcast_publisher_name_stays_episode(string name)
+        "A YouTube-only publisher with no iPlayer series and a name that does not look like news stays Episode, " +
+        "because there is no curator TV-programme name list: TV comes from stored iPlayer series or --podcast-id.")]
+    public void youtube_only_publisher_is_not_tv_by_name()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast(p =>
         {
-            p.Name = name;
+            p.Name = _fixture.CreateTitle();
             p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
             p.SpotifyId = string.Empty;
             p.AppleId = null;
@@ -544,45 +399,8 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
-    }
-
-    public static TheoryData<string> ExtraNewsChannelPublisherNameRows()
-    {
-        var rows = new TheoryData<string>();
-        foreach (var name in CatalogueNewsOrganisationChannelAliases.ExtraChannelPublisherNames)
-        {
-            rows.Add(name);
-        }
-
-        return rows;
-    }
-
-    [Theory(DisplayName =
-        "A YouTube-only extra channel of a news organisation is a NewsReport candidate that needs an allowlist, " +
-        "because one news outlet can have several YouTube channels and those rows are not a second organisation.")]
-    [MemberData(nameof(ExtraNewsChannelPublisherNameRows))]
-    public void extra_youtube_channel_of_a_news_organisation_is_a_news_candidate(string name)
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p =>
-        {
-            p.Name = name;
-            p.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            p.SpotifyId = string.Empty;
-            p.AppleId = null;
-        });
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
-
-        // Act
-        var result = CatalogueMigrateIdentify.FromPodcast(podcast, [episode]);
-
-        // Assert
-        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
-        result.RequiresAllowlist.Should().BeTrue();
-        CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(name)
-            .Should()
-            .NotBe(name);
+        result.RequiresPodcastId.Should().BeFalse();
+        result.RequiresCurator.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -605,7 +423,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -627,7 +445,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -659,7 +477,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
         result.RequiresCurator.Should().BeFalse();
     }
 
@@ -718,7 +536,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -750,7 +568,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -782,7 +600,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -816,7 +634,7 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =
@@ -838,30 +656,17 @@ public class CatalogueMigrateIdentifyRules
 
         // Assert
         result.ContentKind.Should().Be(SubmitClassification.Episode);
-        result.RequiresAllowlist.Should().BeFalse();
+        result.RequiresPodcastId.Should().BeFalse();
     }
 
-    private string CreateFourLetterName()
-    {
-        var seed = Math.Abs(_fixture.Create<int>());
-        for (var attempt = 0; attempt < 8; attempt++)
+    private string CreateFourLetterName() =>
+        string.Create(4, _fixture.Create<int>(), static (span, value) =>
         {
-            var name = string.Create(4, seed + attempt, static (span, value) =>
+            var n = value;
+            for (var i = 0; i < span.Length; i++)
             {
-                var n = value;
-                for (var i = 0; i < span.Length; i++)
-                {
-                    span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
-                    n = HashCode.Combine(n, i);
-                }
-            });
-            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name)
-                && !CatalogueNewsOrganisationAllowlist.Contains(name))
-            {
-                return name;
+                span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n % 26)];
+                n = HashCode.Combine(n, i);
             }
-        }
-
-        return "WXYZ";
-    }
+        });
 }

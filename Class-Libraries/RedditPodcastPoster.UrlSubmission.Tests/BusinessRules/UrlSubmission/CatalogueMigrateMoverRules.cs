@@ -13,8 +13,8 @@ public class CatalogueMigrateMoverRules
 
     [Fact(DisplayName =
         "A News move plan keeps the podcast id as the organisation id and each episode id as a report id, " +
-        "and it requires an allowlist before apply.")]
-    public void news_plan_keeps_guids_and_requires_allowlist()
+        "and it requires a curator --podcast-id before apply.")]
+    public void news_plan_keeps_guids_and_requires_podcast_id()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
@@ -27,7 +27,7 @@ public class CatalogueMigrateMoverRules
         plan.Accepted.Should().BeTrue();
         plan.DestParentId.Should().Be(podcast.Id);
         plan.DestPlayableIds.Should().Equal(episode.Id);
-        plan.RequiresAllowlist.Should().BeTrue();
+        plan.RequiresPodcastId.Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -45,7 +45,7 @@ public class CatalogueMigrateMoverRules
         plan.Accepted.Should().BeTrue();
         plan.DestParentId.Should().Be(podcast.Id);
         plan.DestPlayableIds.Should().Equal(episode.Id);
-        plan.RequiresAllowlist.Should().BeFalse();
+        plan.RequiresPodcastId.Should().BeFalse();
     }
 
     [Fact(DisplayName =

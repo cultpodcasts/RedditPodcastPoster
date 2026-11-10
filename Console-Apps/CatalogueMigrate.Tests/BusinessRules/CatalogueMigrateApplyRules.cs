@@ -68,13 +68,14 @@ public class CatalogueMigrateApplyRules
     public async Task consent_for_another_kind_is_refused()
     {
         // Arrange
-        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
         var result = await sut.Run(ApplyRequest(
             SubmitClassification.NewsReport,
-            consentKind: SubmitClassification.TvShowEpisode));
+            consentKind: SubmitClassification.TvShowEpisode,
+            podcastId: podcast.Id));
 
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitApplyRefused);
@@ -92,7 +93,7 @@ public class CatalogueMigrateApplyRules
     {
         // Arrange
         _clock.Now = OutsideIndexerWindow();
-        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p =>
+        var podcast = SeedAutoIndexedNewsCandidatePodcast(p =>
         {
             p.BypassShortEpisodeChecking = false;
             p.AlwaysPromoteAsHero = false;
@@ -100,7 +101,7 @@ public class CatalogueMigrateApplyRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.AppliedCount.Should().Be(1);
@@ -111,17 +112,17 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
-        "Catalogue migrate: when News is applied with consent for an S-008 publisher, then the organisation and every report keep " +
+        "Catalogue migrate: when News is applied with consent and --podcast-id for a News candidate, then the organisation and every report keep " +
         "their ids, removed episodes stay removed, search swaps only active rows to NewsReport, the removed episode's search key " +
         "is deleted, and the podcast rows are deleted, because migrate moves rather than copies (S-006).")]
-    public async Task news_apply_moves_allowlisted_publisher_keeping_ids()
+    public async Task news_apply_moves_named_publisher_keeping_ids()
     {
         // Arrange
-        var (podcast, episodes) = SeedAllowlistedNewsPodcast(activeEpisodes: 2, removedEpisodes: 1);
+        var (podcast, episodes) = SeedNewsCandidatePodcast(activeEpisodes: 2, removedEpisodes: 1);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
@@ -142,11 +143,11 @@ public class CatalogueMigrateApplyRules
     public async Task evidence_begin_is_first_and_holds_snapshot()
     {
         // Arrange
-        var (podcast, episodes) = SeedAllowlistedNewsPodcast(activeEpisodes: 2);
+        var (podcast, episodes) = SeedNewsCandidatePodcast(activeEpisodes: 2);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         var records = _evidence.Records(result.Evidence.Single());
@@ -163,12 +164,12 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
-        "Catalogue migrate: when a News candidate's publisher is not on S-008, then apply leaves it in Podcasts and the plan " +
-        "line says why, because News apply is allowlist-only (S-008).")]
-    public async Task news_apply_refuses_publisher_off_the_allowlist()
+        "Catalogue migrate: when News is applied without --podcast-id, then every News candidate stays in Podcasts and the " +
+        "plan line says why, because News apply moves only a curator-named podcast (S-008) now the name allowlist is retired.")]
+    public async Task news_apply_without_podcast_id_is_refused()
     {
         // Arrange
-        var podcast = SeedHeuristicNewsPodcastOffAllowlist();
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
@@ -177,9 +178,67 @@ public class CatalogueMigrateApplyRules
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
         result.AppliedCount.Should().Be(0);
-        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.NotOnAllowlist);
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.NewsRequiresPodcastId);
+        result.PlanLines.Single().Targeted.Should().BeFalse();
         _destination.NewsOrganisations.Should().BeEmpty();
         _evidence.Files.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when an untargeted News scan finds a podcast that is only partly News, then the plan line " +
+        "reports PartialNews rather than NewsRequiresPodcastId, because the scan should surface the more useful block.")]
+    public async Task untargeted_partial_news_reports_partial_news_not_podcast_id_gate()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var newsEpisode = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            newsEpisode,
+            "bbcSounds",
+            new Uri($"https://www.bbc.co.uk/news/{_fixture.CreateGuid():N}"),
+            image: null);
+        var spotifyEpisode = _fixture.CreateStoredEpisode(podcast);
+        EpisodeServicePresence.Upsert(
+            spotifyEpisode,
+            ServiceKeys.Spotify,
+            new Uri($"https://open.spotify.com/episode/{_fixture.CreateGuid():N}"),
+            image: null);
+        _podcasts.Seed(podcast);
+        _episodes.Seed(newsEpisode, spotifyEpisode);
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+
+        // Assert
+        result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
+        result.AppliedCount.Should().Be(0);
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.PartialNews);
+        result.PlanLines.Single().Targeted.Should().BeFalse();
+        _destination.NewsOrganisations.Should().BeEmpty();
+        (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue migrate: when an untargeted News scan finds a duplicate parent name, then the plan line reports " +
+        "ParentNameExists rather than NewsRequiresPodcastId, because the more useful block is shown first.")]
+    public async Task untargeted_news_duplicate_parent_name_reports_parent_name_exists()
+    {
+        // Arrange
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
+        var existing = CatalogueParentKindMapper.ToNewsOrganisation(_fixture.CreatePodcast(p => p.Name = podcast.Name));
+        _destination.NewsOrganisations[existing.Id] = existing;
+        var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
+
+        // Act
+        var result = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+
+        // Assert
+        result.PlanLines.Single().BlockReason.Should().Be(CatalogueMigratePlanner.ParentNameExists);
+        result.PlanLines.Single().Targeted.Should().BeFalse();
+        result.AppliedCount.Should().Be(0);
+        _destination.NewsOrganisations.Keys.Should().Equal(existing.Id);
         (await _podcasts.GetPodcast(podcast.Id)).Should().NotBeNull();
     }
 
@@ -189,19 +248,25 @@ public class CatalogueMigrateApplyRules
     public async Task dry_run_plan_equals_apply_plan()
     {
         // Arrange
-        SeedAllowlistedNewsPodcast(activeEpisodes: 2, removedEpisodes: 1);
-        SeedHeuristicNewsPodcastOffAllowlist();
+        SeedNewsCandidatePodcast(activeEpisodes: 1);
+        SeedIplayerTvPodcast();
+        SeedIplayerTvPodcast();
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var dryRun = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
-        var apply = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var newsDryRun = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+        var newsApply = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var tvDryRun = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.TvShowEpisode });
+        var tvApply = await sut.Run(ApplyRequest(SubmitClassification.TvShowEpisode));
 
         // Assert
-        dryRun.PlanLines.Should().HaveCount(2);
-        apply.PlanLines.Should().BeEquivalentTo(dryRun.PlanLines, options => options.WithStrictOrdering());
-        dryRun.SearchDocumentCount.Should().Be(apply.SearchDocumentCount);
-        apply.AppliedCount.Should().Be(1);
+        newsDryRun.PlanLines.Should().ContainSingle();
+        newsApply.PlanLines.Should().BeEquivalentTo(newsDryRun.PlanLines, options => options.WithStrictOrdering());
+        newsApply.AppliedCount.Should().Be(0);
+        tvDryRun.PlanLines.Should().HaveCount(2);
+        tvApply.PlanLines.Should().BeEquivalentTo(tvDryRun.PlanLines, options => options.WithStrictOrdering());
+        tvDryRun.SearchDocumentCount.Should().Be(tvApply.SearchDocumentCount);
+        tvApply.AppliedCount.Should().Be(2);
     }
 
     [Fact(DisplayName =
@@ -210,16 +275,16 @@ public class CatalogueMigrateApplyRules
     public async Task search_failure_stops_then_rerun_resumes()
     {
         // Arrange
-        var (podcast, episodes) = SeedAllowlistedNewsPodcast(activeEpisodes: 2);
+        var (podcast, episodes) = SeedNewsCandidatePodcast(activeEpisodes: 2);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
         _destination.FailSearch = true;
 
         // Act
-        var failed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var failed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
         var keptAfterFailure = await _podcasts.GetPodcast(podcast.Id);
         _destination.FailSearch = false;
         _clock.Now = _clock.Now.AddMinutes(5);
-        var resumed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var resumed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         failed.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
@@ -238,13 +303,13 @@ public class CatalogueMigrateApplyRules
     public async Task removed_episode_delete_failure_keeps_source()
     {
         // Arrange
-        var (podcast, episodes) = SeedAllowlistedNewsPodcast(activeEpisodes: 1, removedEpisodes: 1);
+        var (podcast, episodes) = SeedNewsCandidatePodcast(activeEpisodes: 1, removedEpisodes: 1);
         var removed = episodes.Single(episode => episode.Removed);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
         _destination.FailSearchDelete = true;
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
@@ -261,21 +326,21 @@ public class CatalogueMigrateApplyRules
     public async Task batches_and_limit_resume()
     {
         // Arrange
-        SeedAllowlistedNewsPodcast(activeEpisodes: 1);
-        SeedAllowlistedNewsPodcast(activeEpisodes: 1);
-        SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        SeedIplayerTvPodcast();
+        SeedIplayerTvPodcast();
+        SeedIplayerTvPodcast();
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var first = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, batchSize: 1, limit: 2));
+        var first = await sut.Run(ApplyRequest(SubmitClassification.TvShowEpisode, batchSize: 1, limit: 2));
         _clock.Now = _clock.Now.AddMinutes(5);
-        var second = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, batchSize: 1));
+        var second = await sut.Run(ApplyRequest(SubmitClassification.TvShowEpisode, batchSize: 1));
 
         // Assert
         first.AppliedCount.Should().Be(2);
         first.Evidence.Should().HaveCount(2);
         second.AppliedCount.Should().Be(1);
-        _destination.NewsOrganisations.Should().HaveCount(3);
+        _destination.TvShows.Should().HaveCount(3);
         (await _podcasts.Count()).Should().Be(0);
     }
 
@@ -422,7 +487,7 @@ public class CatalogueMigrateApplyRules
     {
         // Arrange
         _clock.Now = OutsideIndexerWindow();
-        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p =>
+        var podcast = SeedAutoIndexedNewsCandidatePodcast(p =>
         {
             p.EpisodeIncludeTitleRegex = _fixture.CreateShortTitle();
             p.TitleRegex = _fixture.CreateShortTitle();
@@ -431,7 +496,7 @@ public class CatalogueMigrateApplyRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
@@ -491,11 +556,11 @@ public class CatalogueMigrateApplyRules
     {
         // Arrange
         _clock.Now = AtMinute(minute);
-        var podcast = SeedAutoIndexedAllowlistedNewsPodcast();
+        var podcast = SeedAutoIndexedNewsCandidatePodcast();
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
@@ -512,11 +577,11 @@ public class CatalogueMigrateApplyRules
     {
         // Arrange
         _clock.Now = AtMinute(CatalogueMigrateIndexerWindow.SafeFromMinute - 1);
-        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.AppliedCount.Should().Be(1);
@@ -530,11 +595,11 @@ public class CatalogueMigrateApplyRules
     {
         // Arrange
         _clock.Now = AtMinute(CatalogueMigrateIndexerWindow.SafeUntilMinute);
-        var podcast = SeedAutoIndexedAllowlistedNewsPodcast();
+        var podcast = SeedAutoIndexedNewsCandidatePodcast();
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
+        var result = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport, PodcastId = podcast.Id });
 
         // Assert
         var line = result.PlanLines.Single();
@@ -550,7 +615,7 @@ public class CatalogueMigrateApplyRules
     {
         // Arrange
         _clock.Now = OutsideIndexerWindow();
-        var podcast = SeedAutoIndexedAllowlistedNewsPodcast();
+        var podcast = SeedAutoIndexedNewsCandidatePodcast();
         var arrived = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         _destination.AfterSearchUpload = () =>
         {
@@ -560,7 +625,7 @@ public class CatalogueMigrateApplyRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
@@ -579,7 +644,7 @@ public class CatalogueMigrateApplyRules
     {
         // Arrange
         _clock.Now = OutsideIndexerWindow();
-        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p => p.LastIndexed = DomainTestFixture.UtcDaysAgo(1));
+        var podcast = SeedAutoIndexedNewsCandidatePodcast(p => p.LastIndexed = DomainTestFixture.UtcDaysAgo(1));
         _destination.AfterSearchUpload = async () =>
         {
             var indexed = (await _podcasts.GetPodcast(podcast.Id))!;
@@ -589,7 +654,7 @@ public class CatalogueMigrateApplyRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
@@ -605,7 +670,7 @@ public class CatalogueMigrateApplyRules
     {
         // Arrange
         _clock.Now = OutsideIndexerWindow();
-        var podcast = SeedAutoIndexedAllowlistedNewsPodcast(p => p.YouTubePlaylistQueryIsExpensive = false);
+        var podcast = SeedAutoIndexedNewsCandidatePodcast(p => p.YouTubePlaylistQueryIsExpensive = false);
         _destination.AfterSearchUpload = async () =>
         {
             var saved = (await _podcasts.GetPodcast(podcast.Id))!;
@@ -615,7 +680,7 @@ public class CatalogueMigrateApplyRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
@@ -624,15 +689,23 @@ public class CatalogueMigrateApplyRules
 
     [Fact(DisplayName =
         "Catalogue migrate: when the hourly indexer saves a later podcast while an earlier one in the same run is being " +
-        "moved, then the later podcast is planned from a fresh read, moves cleanly, and its news organisation carries the " +
+        "moved, then the later podcast is planned from a fresh read, moves cleanly, and its TV show carries the " +
         "settings the indexer saved, because planning from the list read at the start would copy stale settings and make " +
         "the pre-delete re-check stop the run after the destination was already written.")]
     public async Task later_podcast_is_planned_from_a_fresh_read()
     {
         // Arrange
         _clock.Now = OutsideIndexerWindow();
-        var first = SeedAutoIndexedAllowlistedNewsPodcast(p => p.YouTubePlaylistQueryIsExpensive = false);
-        var second = SeedAutoIndexedAllowlistedNewsPodcast(p => p.YouTubePlaylistQueryIsExpensive = false);
+        var first = SeedIplayerTvPodcast(p =>
+        {
+            p.IndexAllEpisodes = true;
+            p.YouTubePlaylistQueryIsExpensive = false;
+        });
+        var second = SeedIplayerTvPodcast(p =>
+        {
+            p.IndexAllEpisodes = true;
+            p.YouTubePlaylistQueryIsExpensive = false;
+        });
         var indexedLater = false;
         _destination.AfterSearchUpload = async () =>
         {
@@ -642,7 +715,7 @@ public class CatalogueMigrateApplyRules
             }
 
             indexedLater = true;
-            var later = _destination.NewsOrganisations.ContainsKey(first.Id) ? second : first;
+            var later = _destination.TvShows.ContainsKey(first.Id) ? second : first;
             var saved = (await _podcasts.GetPodcast(later.Id))!;
             saved.LastIndexed = DomainTestFixture.UtcToday;
             saved.YouTubePlaylistQueryIsExpensive = true;
@@ -651,15 +724,15 @@ public class CatalogueMigrateApplyRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.TvShowEpisode));
 
         // Assert
         result.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitOk);
         result.AppliedCount.Should().Be(2);
         (await _podcasts.GetPodcast(first.Id)).Should().BeNull();
         (await _podcasts.GetPodcast(second.Id)).Should().BeNull();
-        _destination.NewsOrganisations.Values.Should()
-            .ContainSingle(organisation => organisation.Indexing!.YouTubePlaylistQueryIsExpensive == true);
+        _destination.TvShows.Values.Should()
+            .ContainSingle(show => show.Indexing!.YouTubePlaylistQueryIsExpensive == true);
     }
 
     [Theory(DisplayName =
@@ -712,9 +785,9 @@ public class CatalogueMigrateApplyRules
     public async Task rollback_needs_apply_and_consent()
     {
         // Arrange
-        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
-        var applied = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var applied = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
         var file = applied.Evidence.Single();
 
         // Act
@@ -734,9 +807,9 @@ public class CatalogueMigrateApplyRules
     public async Task rollback_restores_source_and_search()
     {
         // Arrange
-        var (podcast, episodes) = SeedAllowlistedNewsPodcast(activeEpisodes: 2, removedEpisodes: 1);
+        var (podcast, episodes) = SeedNewsCandidatePodcast(activeEpisodes: 2, removedEpisodes: 1);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
-        var applied = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var applied = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
         var file = applied.Evidence.Single();
         _clock.Now = _clock.Now.AddMinutes(5);
 
@@ -761,9 +834,9 @@ public class CatalogueMigrateApplyRules
     public async Task rollback_refuses_when_destination_grew()
     {
         // Arrange
-        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
-        var applied = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var applied = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
         var organisation = _destination.NewsOrganisations[podcast.Id];
         var later = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         await _destination.SaveNews(organisation, [CatalogueParentKindMapper.ToNewsReport(later, organisation)]);
@@ -783,11 +856,11 @@ public class CatalogueMigrateApplyRules
     public async Task news_apply_keeps_parent_service_ids()
     {
         // Arrange
-        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.AppliedCount.Should().Be(1);
@@ -803,7 +876,7 @@ public class CatalogueMigrateApplyRules
     public async Task mismatched_youtube_playlist_blocks_dry_run_and_apply()
     {
         // Arrange
-        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
         var playlistId = _fixture.CreateYouTubePlaylistId();
         var ownerChannelId = _fixture.CreateYouTubeChannelId();
         podcast.YouTubePlaylistId = playlistId;
@@ -815,8 +888,8 @@ public class CatalogueMigrateApplyRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var dryRun = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport });
-        var apply = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var dryRun = await sut.Run(new CatalogueMigrateRequest { Kind = SubmitClassification.NewsReport, PodcastId = podcast.Id });
+        var apply = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         dryRun.PlanLines.Single().Accepted.Should().BeFalse();
@@ -835,13 +908,13 @@ public class CatalogueMigrateApplyRules
     public async Task existing_news_organisation_with_same_name_blocks_apply()
     {
         // Arrange
-        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
         var existing = CatalogueParentKindMapper.ToNewsOrganisation(_fixture.CreatePodcast(p => p.Name = podcast.Name));
         _destination.NewsOrganisations[existing.Id] = existing;
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var result = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         result.AppliedCount.Should().Be(0);
@@ -852,17 +925,16 @@ public class CatalogueMigrateApplyRules
     }
 
     [Fact(DisplayName =
-        "Catalogue migrate: when a publisher maps to a canonical TV show name that another TV show already has, then TV " +
-        "apply is blocked, because the canonical name must attach to the existing show, not create a second one.")]
-    public async Task canonical_tv_name_owned_by_another_show_blocks_apply()
+        "Catalogue migrate: when another TV show already has the podcast's name, then TV apply is blocked, because the " +
+        "TV show keeps the podcast's own name and must not create a second show with that name.")]
+    public async Task tv_name_owned_by_another_show_blocks_apply()
     {
         // Arrange
-        var (publisherName, showName) = CatalogueTvShowCanonicalNames.ShowNameByPublisherName
-            .First(pair => !string.Equals(pair.Key, pair.Value, StringComparison.OrdinalIgnoreCase));
-        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+        var name = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p => p.Name = name);
         _podcasts.Seed(podcast);
         _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
-        var existing = CatalogueParentKindMapper.ToTvShow(_fixture.CreatePodcast(p => p.Name = showName));
+        var existing = CatalogueParentKindMapper.ToTvShow(_fixture.CreatePodcast(p => p.Name = name));
         _destination.TvShows[existing.Id] = existing;
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
@@ -882,8 +954,8 @@ public class CatalogueMigrateApplyRules
     public async Task rollback_preview_does_not_build_the_applier()
     {
         // Arrange
-        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
-        var applied = await _mocker.CreateInstance<CatalogueMigrateProcessor>().Run(ApplyRequest(SubmitClassification.NewsReport));
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
+        var applied = await _mocker.CreateInstance<CatalogueMigrateProcessor>().Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
         var applierBuilds = 0;
         _mocker.Use<Func<CatalogueMigrateApplier>>(() =>
         {
@@ -911,7 +983,7 @@ public class CatalogueMigrateApplyRules
     {
         // Arrange
         _clock.Now = OutsideIndexerWindow();
-        var (podcast, episodes) = SeedAllowlistedNewsPodcast(activeEpisodes: 2);
+        var (podcast, episodes) = SeedNewsCandidatePodcast(activeEpisodes: 2);
         podcast.IndexAllEpisodes = true;
         _podcasts.Seed(podcast);
         Guid? removedId = null;
@@ -930,7 +1002,7 @@ public class CatalogueMigrateApplyRules
         var sut = _mocker.CreateInstance<CatalogueMigrateProcessor>();
 
         // Act
-        var failed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var failed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
         var removed = episodes.Single(episode => episode.Id == removedId);
         var videoId = EpisodeServicePresence.YouTubeEpisodeId(removed)!;
         var recreated = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
@@ -952,7 +1024,7 @@ public class CatalogueMigrateApplyRules
         };
         _episodes.BeforeDelete = null;
         _clock.Now = _clock.Now.AddMinutes(5);
-        var resumed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport));
+        var resumed = await sut.Run(ApplyRequest(SubmitClassification.NewsReport, podcastId: podcast.Id));
 
         // Assert
         failed.ExitCode.Should().Be(CatalogueMigrateProcessor.ExitFailed);
@@ -1037,31 +1109,45 @@ public class CatalogueMigrateApplyRules
             Consent = CatalogueMigrateConsent.RollbackPhrase(Path.GetFileName(file))
         };
 
-    private (Podcast Podcast, IReadOnlyList<Episode> Episodes) SeedAllowlistedNewsPodcast(
+    /// <summary>A YouTube-only podcast whose synthetic name the identify news-name heuristic picks up.</summary>
+    private (Podcast Podcast, IReadOnlyList<Episode> Episodes) SeedNewsCandidatePodcast(
         int activeEpisodes,
         int removedEpisodes = 0)
     {
-        var name = CatalogueNewsOrganisationAllowlist.Names.First(candidate =>
-            IsYouTubeOnlyNewsCandidate(candidate)
-            && !_podcasts.GetAll().ToBlockingEnumerable().Any(existing => existing.Name == candidate));
+        var name = $"{_fixture.CreateShortTitle()} News";
+        IsYouTubeOnlyNewsCandidate(name).Should().BeTrue();
         return SeedYouTubeOnlyPodcast(name, activeEpisodes, removedEpisodes);
     }
 
-    private Podcast SeedAutoIndexedAllowlistedNewsPodcast(Action<Podcast>? configure = null)
+    private Podcast SeedAutoIndexedNewsCandidatePodcast(Action<Podcast>? configure = null)
     {
-        var (podcast, _) = SeedAllowlistedNewsPodcast(activeEpisodes: 1);
+        var (podcast, _) = SeedNewsCandidatePodcast(activeEpisodes: 1);
         podcast.IndexAllEpisodes = true;
         configure?.Invoke(podcast);
         _podcasts.Seed(podcast);
         return podcast;
     }
 
-    private Podcast SeedHeuristicNewsPodcastOffAllowlist()
+    /// <summary>A YouTube-only podcast with two stored iPlayer episode URLs, which an untargeted TV scan plans.</summary>
+    private Podcast SeedIplayerTvPodcast(Action<Podcast>? configure = null)
     {
-        var name = $"{_fixture.CreateShortTitle()} News";
-        IsYouTubeOnlyNewsCandidate(name).Should().BeTrue();
-        CatalogueNewsOrganisationAllowlist.Contains(name).Should().BeFalse();
-        return SeedYouTubeOnlyPodcast(name, activeEpisodes: 1, removedEpisodes: 0).Podcast;
+        var podcast = CreateYouTubeOnlyPodcast(_fixture.CreateTitle());
+        configure?.Invoke(podcast);
+        var episodes = Enumerable.Range(0, 2)
+            .Select(_ =>
+            {
+                var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+                EpisodeServicePresence.Upsert(
+                    episode,
+                    "bbcIplayer",
+                    new Uri($"https://www.bbc.co.uk/iplayer/episode/{_fixture.CreateYouTubeId()}"),
+                    image: null);
+                return episode;
+            })
+            .ToArray();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episodes);
+        return podcast;
     }
 
     private bool IsYouTubeOnlyNewsCandidate(string name)

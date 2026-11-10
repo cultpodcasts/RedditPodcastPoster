@@ -10,10 +10,10 @@
 |------|-----|
 | Order News → Film → TV (S-007) | One `--kind` per run, run in that order. Identify gives each podcast exactly one kind. |
 | Keep ids (S-006) | NewsOrganisation/TvShow id = podcast id. Every playable keeps its episode id. Film id = episode id. |
-| Search swap | `MergeOrUpload` of same-id documents with `contentKind` (active episodes only). An extra news channel uses the canonical organisation name ([channel aliases](../catalogue-news-organisation-channel-aliases.md)). |
+| Search swap | `MergeOrUpload` of same-id documents with `contentKind` (active episodes only). `seriesName` is the podcast's own name, the same name the new parent gets. There is no curator rename or channel-alias map (retired in #1359). |
 | Move, don't copy | Destination upsert → verify count → search swap → delete episodes → delete podcast. Removed episodes move too and stay removed. |
-| S-008 | News apply only for `CatalogueNewsOrganisationAllowlist` publishers, and only when every active episode is news. |
-| Auto-indexed podcasts | Blocked (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`), because Film/TV/News parents are not indexed. |
+| S-008 | News apply moves only a curator-named podcast (`--podcast-id`), and only when every active episode is news. An untargeted News run plans every heuristic candidate but blocks each one (`NewsRequiresPodcastId`). The frozen 299-name allowlist was retired in #1359. |
+| Auto-indexed podcasts | News and TV move with their `indexing` block (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`); the hourly indexer keeps indexing them. Only Film refuses an auto-indexed podcast (no parent to keep indexing). |
 | Conflicts | A podcast id that already has the other parent kind is skipped and logged as a `conflict`. |
 | Dry-run = apply plan | Both modes log the same `Catalogue migrate plan … apply= block=` lines from one planner. |
 | Evidence | Each batch writes one JSONL file in `catalogue-migrate-evidence\`. A `begin` record holds the full podcast and every episode **before** any write, then `destWritten`, `verified`, `searchSwapped`, `sourceDeleted`, `completed` (or `failed`/`conflict`). |

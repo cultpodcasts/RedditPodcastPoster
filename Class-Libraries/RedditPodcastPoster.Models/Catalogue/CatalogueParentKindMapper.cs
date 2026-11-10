@@ -21,7 +21,7 @@ public static class CatalogueParentKindMapper
     public static TvShow ToTvShow(Podcast podcast)
     {
         ArgumentNullException.ThrowIfNull(podcast);
-        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
+        var showName = ParentName(podcast);
         var show = new TvShow(showName)
         {
             Id = podcast.Id
@@ -37,7 +37,7 @@ public static class CatalogueParentKindMapper
     public static NewsOrganisation ToNewsOrganisation(Podcast podcast)
     {
         ArgumentNullException.ThrowIfNull(podcast);
-        var organisationName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(podcast.Name);
+        var organisationName = ParentName(podcast);
         var organisation = new NewsOrganisation(organisationName)
         {
             Id = podcast.Id
@@ -51,6 +51,16 @@ public static class CatalogueParentKindMapper
         organisation.Indexing = CatalogueIndexingSource.ApplyNewsOrganisationCreationDefaults(
             CatalogueIndexingSource.FromPodcast(podcast));
         return organisation;
+    }
+
+    /// <summary>
+    /// A TV show or news organisation keeps the podcast's own name (trimmed). No curator rename map
+    /// applies: the migration-era name lists were retired (#1359).
+    /// </summary>
+    public static string ParentName(Podcast podcast)
+    {
+        ArgumentNullException.ThrowIfNull(podcast);
+        return podcast.Name?.Trim() ?? string.Empty;
     }
 
     public static TvShowEpisode ToTvShowEpisode(Episode episode, TvShow tvShow)

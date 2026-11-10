@@ -35,13 +35,13 @@ public class CatalogueMigrateSearchDocumentsRules
     }
 
     [Fact(DisplayName =
-        "A News search-swap document for an extra YouTube channel of an outlet uses the canonical organisation name as " +
-        "seriesName, because those reports are parented onto that organisation, not a second one.")]
-    public void news_swap_for_extra_channel_uses_organisation_name()
+        "A News search-swap document uses the podcast's own trimmed name as seriesName, the same name the new " +
+        "news organisation gets, because no curator channel-alias list renames it.")]
+    public void news_swap_uses_podcast_name()
     {
         // Arrange
-        var channelName = CatalogueNewsOrganisationChannelAliases.ExtraChannelPublisherNames.First();
-        var podcast = _fixture.CreatePodcast(p => p.Name = channelName);
+        var name = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p => p.Name = $"  {name}  ");
         var episode = _fixture.CreateStoredEpisode(podcast);
 
         // Act
@@ -51,8 +51,8 @@ public class CatalogueMigrateSearchDocumentsRules
             SearchContentKind.NewsReport);
 
         // Assert
-        documents.Single().SeriesName.Should().Be(CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(channelName));
-        documents.Single().SeriesName.Should().NotBe(channelName);
+        documents.Single().SeriesName.Should().Be(name);
+        documents.Single().SeriesName.Should().Be(CatalogueParentKindMapper.ToNewsOrganisation(podcast).Name);
     }
 
     [Fact(DisplayName =
@@ -73,17 +73,17 @@ public class CatalogueMigrateSearchDocumentsRules
         documents.Should().ContainSingle();
         documents[0].Id.Should().Be(episode.Id.ToString());
         documents[0].ContentKind.Should().Be(SearchContentKind.TvShowEpisode);
-        documents[0].SeriesName.Should().Be(CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name));
+        documents[0].SeriesName.Should().Be(podcast.Name.Trim());
     }
 
     [Fact(DisplayName =
-        "A TV search-swap document for a curator programme uses the canonical show name as seriesName, " +
-        "because the public TV page is the show, not the channel the videos were filed under.")]
-    public void tv_swap_uses_canonical_show_name()
+        "A TV search-swap document uses the podcast's own trimmed name as seriesName, the same name the new " +
+        "TV show gets, because no curator show-name list renames it.")]
+    public void tv_swap_uses_podcast_name()
     {
         // Arrange
-        var publisherName = CatalogueTvShowCanonicalNames.PublisherNames.First();
-        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+        var name = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p => p.Name = $"  {name}  ");
         var episode = _fixture.CreateStoredEpisode(podcast);
 
         // Act
@@ -94,8 +94,8 @@ public class CatalogueMigrateSearchDocumentsRules
 
         // Assert
         documents.Should().ContainSingle();
-        documents[0].SeriesName.Should().Be(CatalogueTvShowCanonicalNames.ShowNameFor(publisherName));
-        documents[0].ContentKind.Should().Be(SearchContentKind.TvShowEpisode);
+        documents[0].SeriesName.Should().Be(name);
+        documents[0].SeriesName.Should().Be(CatalogueParentKindMapper.ToTvShow(podcast).Name);
     }
 
     [Fact(DisplayName =

@@ -74,10 +74,10 @@ public class CatalogueMigrateIdentifyProcessor(
 
             candidateCount++;
             logger.LogInformation(
-                "Catalogue migrate candidate {PodcastId} {ContentKind} allowlist={RequiresAllowlist} curator={RequiresCurator} episodes={EpisodeCount}",
+                "Catalogue migrate candidate {PodcastId} {ContentKind} requiresPodcastId={RequiresPodcastId} curator={RequiresCurator} episodes={EpisodeCount}",
                 podcast.Id,
                 suggestion.ContentKind,
-                suggestion.RequiresAllowlist,
+                suggestion.RequiresPodcastId,
                 suggestion.RequiresCurator,
                 episodes.Count);
 
@@ -116,7 +116,7 @@ public class CatalogueMigrateIdentifyProcessor(
     {
         var query = contentKind == SubmitClassification.Film
             ? podcast.Name?.Trim() ?? string.Empty
-            : CatalogueTvShowCanonicalNames.ShowNameFor(podcast.Name);
+            : CatalogueParentKindMapper.ParentName(podcast);
         CatalogueAuthorityPreview preview;
         IReadOnlyList<Guid>? episodeIds = null;
         try

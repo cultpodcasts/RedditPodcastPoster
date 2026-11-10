@@ -16,7 +16,7 @@ public sealed record CatalogueMigrateUnit(
     CatalogueMigrateMovePlan Plan,
     IReadOnlyList<Episode> MoveEpisodes,
     IReadOnlyList<Episode> SearchEpisodes,
-    bool OnAllowlist,
+    bool Targeted,
     string? ApplyBlockReason)
 {
     public bool ApplyEligible => Plan.Accepted && ApplyBlockReason is null;
@@ -27,8 +27,12 @@ public sealed record CatalogueMigrateUnit(
 
 public static class CatalogueMigratePlanner
 {
-    public const string NotOnAllowlist =
-        "S-008: publisher is not on CatalogueNewsOrganisationAllowlist, so News apply is refused.";
+    /// <summary>
+    /// S-008: News apply moves only a podcast a curator names with <c>--podcast-id</c>. The hard-coded
+    /// 299-name allowlist was retired (#1359); identify heuristics still find candidates in a dry-run scan.
+    /// </summary>
+    public const string NewsRequiresPodcastId =
+        "S-008: News apply moves only a curator-named podcast. Re-run with --podcast-id for this podcast.";
 
     public const string PartialNews =
         "Only some episodes are News. A curator must split this podcast before News apply.";
@@ -88,35 +92,41 @@ public static class CatalogueMigratePlanner
         var active = allEpisodes.Where(episode => !episode.Removed).ToList();
         var suggestion = Identify.FromPodcast(podcast, active);
         var planEpisodes = (IReadOnlyList<Episode>) active;
-        var onAllowlist = CatalogueNewsOrganisationAllowlist.Contains(podcast.Name);
         string? block = null;
 
         switch (kind)
         {
             case SubmitClassification.NewsReport:
-                if (suggestion.ContentKind != SubmitClassification.NewsReport || suggestion.RequiresCurator)
+            {
+                var youTubeOnlyNews = Identify.IsYouTubeOnlyNewsOrganisation(podcast, active);
+                var newsEpisodes = active.Where(Identify.IsNewsReportEpisode).ToList();
+                var acceptedNews = suggestion.ContentKind == SubmitClassification.NewsReport &&
+                                   !suggestion.RequiresCurator;
+                // Identify marks mixed news/non-news as RequiresCurator Episode, which used to drop the
+                // podcast from the News scan. Plan those with PartialNews so an untargeted scan shows
+                // the split reason instead of a blank line or only NewsRequiresPodcastId.
+                var mixedNews = newsEpisodes.Count > 0 && newsEpisodes.Count != active.Count;
+                if (!acceptedNews && !mixedNews)
                 {
                     return null;
                 }
 
-                planEpisodes = Identify.IsYouTubeOnlyNewsOrganisation(podcast, active)
-                    ? active
-                    : active.Where(Identify.IsNewsReportEpisode).ToList();
+                planEpisodes = youTubeOnlyNews ? active : newsEpisodes;
                 if (planEpisodes.Count == 0)
                 {
                     return null;
                 }
 
-                if (!onAllowlist)
-                {
-                    block = NotOnAllowlist;
-                }
-                else if (planEpisodes.Count != active.Count)
+                // Prefer PartialNews over the untargeted S-008 gate so a scan shows the useful reason.
+                // NewsRequiresPodcastId is applied last in CatalogueMigrateProcessor after playlist /
+                // duplicate-parent checks, so those reasons can surface on an untargeted scan too.
+                if (planEpisodes.Count != active.Count)
                 {
                     block = PartialNews;
                 }
 
                 break;
+            }
             case SubmitClassification.TvShowEpisode when !targeted:
                 if (suggestion.ContentKind != SubmitClassification.TvShowEpisode)
                 {
@@ -150,7 +160,7 @@ public static class CatalogueMigratePlanner
             plan,
             MoveEpisodes: allEpisodes,
             SearchEpisodes: planEpisodes,
-            onAllowlist,
+            targeted,
             block);
     }
 

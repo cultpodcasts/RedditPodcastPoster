@@ -689,29 +689,16 @@ public class CatalogueMigrateIdentifyProcessorRules
         _episodes.Seed(first, second);
     }
 
-    private string CreateFourLetterName()
-    {
-        var seed = _fixture.Create<int>() & int.MaxValue;
-        for (var attempt = 0; attempt < 32; attempt++)
+    private string CreateFourLetterName() =>
+        string.Create(4, _fixture.Create<int>(), static (span, value) =>
         {
-            var name = string.Create(4, seed + attempt, static (span, value) =>
+            var n = value;
+            for (var i = 0; i < span.Length; i++)
             {
-                var n = value;
-                for (var i = 0; i < span.Length; i++)
-                {
-                    span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n) % 26];
-                    n = HashCode.Combine(n, i);
-                }
-            });
-            if (!CatalogueTvShowCanonicalNames.IsPublisherName(name)
-                && !CatalogueNewsOrganisationAllowlist.Contains(name))
-            {
-                return name;
+                span[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.Abs(n % 26)];
+                n = HashCode.Combine(n, i);
             }
-        }
-
-        return "QZXJ";
-    }
+        });
 
     private string ImdbId() =>
         "tt" + _fixture.CreateAppleId().ToString(CultureInfo.InvariantCulture);

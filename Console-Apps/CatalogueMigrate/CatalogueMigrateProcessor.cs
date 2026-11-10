@@ -14,8 +14,8 @@ public sealed record CatalogueMigratePlanLine(
     int PlayableCount,
     int RemovedPlayableCount,
     int SearchDocumentCount,
-    bool RequiresAllowlist,
-    bool OnAllowlist,
+    bool RequiresPodcastId,
+    bool Targeted,
     bool Accepted,
     string? BlockReason);
 
@@ -157,6 +157,8 @@ public class CatalogueMigrateProcessor(
                 {
                     unit = BlockWhileIndexerMayBeRunning(unit);
                 }
+
+                unit = BlockUntargetedNews(unit);
 
                 if (unit.ApplyEligible && request.Limit is { } limit && eligibleCount >= limit)
                 {
@@ -347,8 +349,22 @@ public class CatalogueMigrateProcessor(
     }
 
     /// <summary>
+    /// S-008: News apply moves only a curator-named podcast. Applied last so PartialNews, service-id,
+    /// playlist-ownership and duplicate-parent reasons win on an untargeted scan.
+    /// </summary>
+    private static CatalogueMigrateUnit BlockUntargetedNews(CatalogueMigrateUnit unit)
+    {
+        if (unit.Kind != SubmitClassification.NewsReport || unit.Targeted || unit.ApplyBlockReason is not null)
+        {
+            return unit;
+        }
+
+        return unit with { ApplyBlockReason = CatalogueMigratePlanner.NewsRequiresPodcastId };
+    }
+
+    /// <summary>
     /// Blocks a News / TV move whose destination name or fileKey already belongs to another parent of that kind
-    /// (a channel alias or canonical TV name, or an outlet already moved by change-kind). Apply would otherwise
+    /// (a same-named parent, or one already moved by change-kind). Apply would otherwise
     /// create a second parent with the same name and fileKey instead of attaching to the existing one.
     /// </summary>
     private async Task<CatalogueMigrateUnit> BlockDuplicateParent(CatalogueMigrateUnit unit)
@@ -410,20 +426,20 @@ public class CatalogueMigrateProcessor(
             unit.MoveEpisodes.Count,
             unit.RemovedEpisodeCount,
             unit.SearchEpisodes.Count,
-            unit.Plan.RequiresAllowlist,
-            unit.OnAllowlist,
+            unit.Plan.RequiresPodcastId,
+            unit.Targeted,
             unit.ApplyEligible,
             unit.ApplyBlockReason);
         logger.LogInformation(
-            "Catalogue migrate plan {PodcastId} {Kind} parent={ParentId} playables={PlayableCount} removed={RemovedCount} searchDocuments={SearchDocumentCount} allowlist={RequiresAllowlist} onAllowlist={OnAllowlist} apply={ApplyEligible} block={BlockReason}",
+            "Catalogue migrate plan {PodcastId} {Kind} parent={ParentId} playables={PlayableCount} removed={RemovedCount} searchDocuments={SearchDocumentCount} requiresPodcastId={RequiresPodcastId} targeted={Targeted} apply={ApplyEligible} block={BlockReason}",
             line.PodcastId,
             line.Kind,
             line.ParentId,
             line.PlayableCount,
             line.RemovedPlayableCount,
             line.SearchDocumentCount,
-            line.RequiresAllowlist,
-            line.OnAllowlist,
+            line.RequiresPodcastId,
+            line.Targeted,
             line.Accepted,
             line.BlockReason);
         return line;
