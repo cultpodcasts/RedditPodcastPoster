@@ -6,8 +6,11 @@ name: Build
 on:
   push:
     branches: ["!main"]
+  # PRs into main run this through the PR gate (pr-gate.yml, #1374), so the required check is one
+  # name; other base branches still run it directly.
   pull_request:
-    branches: [ "**" ]
+    branches-ignore: [ main ]
+  workflow_call:
 
 env:  
   DOTNET_VERSION: '10.0.x'
