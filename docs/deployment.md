@@ -37,7 +37,7 @@ Every pull request into `main` runs **PR gate** (`.github/workflows/pr-gate.yml`
 |-----|----------------|
 | `build` | The **Build** workflow (`dotnet.yml`, called via `workflow_call`): restore, slnx/slnf asserts, build, all tests, coverage gate, unit-test guardrails, Pester |
 | `actionlint` | Pinned actionlint over `.github/workflows/**` (shellcheck/pyflakes off). Catches invalid workflows such as the unknown `permissions: variables: write` scope from #1309, which GitHub rejected before any job ran |
-| `bicep` | Pinned Bicep CLI `bicep build` of every `Infrastructure/*.bicep` (no Azure login). `functions.bicepparam` is not built: it reads deploy-time environment variables |
+| `bicep` | Pinned Bicep CLI `bicep build` of every `Infrastructure/**/*.bicep` (no Azure login). `functions.bicepparam` is not built: it reads deploy-time environment variables |
 
 PRs into other branches still run **Build** directly. **Provision and Deploy** is never part of the gate.
 

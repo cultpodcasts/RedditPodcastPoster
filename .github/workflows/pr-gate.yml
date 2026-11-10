@@ -4,7 +4,7 @@
 #   build    - the Build workflow (restore, solution asserts, build, tests, coverage gate, unit-test guardrails, Pester)
 #   actionlint - every .github/workflows/** file; catches invalid workflows such as the unknown
 #                `permissions: variables: write` scope that made every Provision and Deploy run end with 0 jobs (#1309)
-#   bicep    - compiles every Infrastructure/*.bicep (no Azure login; .bicepparam needs deploy-time env, so it is not built)
+#   bicep    - compiles every Infrastructure/**/*.bicep (no Azure login; .bicepparam needs deploy-time env, so it is not built)
 #
 # Provision and Deploy is never part of this gate: it deploys, and runs on push to main / workflow_dispatch only.
 # Branch protection on main must require the check "gate" (shown as "PR gate / gate" in the Checks tab).
@@ -66,10 +66,10 @@ jobs:
     - name: bicep build
       run: |
         set -euo pipefail
-        shopt -s nullglob
-        files=(Infrastructure/*.bicep)
+        shopt -s globstar nullglob
+        files=(Infrastructure/**/*.bicep)
         if [ ${#files[@]} -eq 0 ]; then
-          echo "::error::No Infrastructure/*.bicep files found"
+          echo "::error::No Infrastructure/**/*.bicep files found"
           exit 1
         fi
         for file in "${files[@]}"; do
