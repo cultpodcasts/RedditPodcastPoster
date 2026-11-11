@@ -499,6 +499,36 @@ public class EpisodeResultsEnricherCatalogueParentRules
             It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
+    [Fact(DisplayName =
+        "When a news organisation is matched by its Spotify id and the discovered video is on one of its additional YouTube channels, the match reports no YouTube playlist, because the main channel's playlist does not scope an additional channel (#1370).")]
+    public async Task spotify_matched_organisation_on_additional_channel_reports_no_main_playlist()
+    {
+        // Arrange
+        var spotifyId = _fixture.Create<string>();
+        var additionalChannelId = _fixture.Create<string>();
+        var organisation = AddOrganisation(i =>
+        {
+            i.SpotifyId = spotifyId;
+            i.YouTubeChannelId = _fixture.Create<string>();
+            i.YouTubePlaylistId = CreatePlaylistId();
+            i.AdditionalYouTubeChannelIds = [additionalChannelId];
+        });
+        var result = CreateEpisodeResult(ids =>
+        {
+            ids.Spotify = spotifyId;
+            ids.YouTube = additionalChannelId;
+        });
+        AttachYouTube(result, CreateVideoId());
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(organisation.Id);
+        match.YouTubePlaylistId.Should().BeEmpty();
+    }
+
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)
     {
         foreach (var item in items.ToList())

@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -197,7 +198,8 @@ public class CatalogueParentAdditionalYouTubeChannelRules
 
     [Fact(DisplayName =
         "Catalogue parent indexing: indexer state the additional channel pass changes (an expensive-query flag) is " +
-        "not written back to the organisation, because indexing.* bookmarks describe the main channel only.")]
+        "not written back to the organisation, because indexing.* bookmarks describe the main channel only; a " +
+        "warning names the channel so the repeated search / playlist cost is visible.")]
     public async Task additional_channel_pass_does_not_write_indexer_state()
     {
         // Arrange
@@ -223,6 +225,15 @@ public class CatalogueParentAdditionalYouTubeChannelRules
         organisation.Indexing!.YouTubePlaylistQueryIsExpensive.Should().NotBe(true);
         organisation.Indexing.YouTubeChannelSearchForbidden.Should().NotBe(true);
         organisation.Indexing.AdditionalYouTubeChannelIds.Should().Equal(additionalChannelId);
+        _mocker.GetMock<ILogger<CatalogueParentsUpdater>>().Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) =>
+                    v.ToString()!.Contains(additionalChannelId) && v.ToString()!.Contains("not persisted")),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 
     [Fact(DisplayName =

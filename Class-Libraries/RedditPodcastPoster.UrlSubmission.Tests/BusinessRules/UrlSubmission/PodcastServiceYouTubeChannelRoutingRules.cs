@@ -521,4 +521,71 @@ public class PodcastServiceYouTubeChannelRoutingRules
         VerifyContains(playlist, Times.Once());
         VerifyContains(parentPlaylist, Times.Once());
     }
+
+    private void ChannelIsAdditionalChannelOf(string mainPlaylistId)
+    {
+        var organisation = new NewsOrganisation(_fixture.CreateTitle())
+        {
+            Indexing = new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+                YouTubePlaylistId = mainPlaylistId,
+                AdditionalYouTubeChannelIds = [_channelId]
+            }
+        };
+        _mocker.GetMock<ICatalogueParentLookup>()
+            .Setup(x => x.FindByOwner(
+                It.Is<EpisodeUrlOwnerIds>(ids => ids.YouTubeChannelId == _channelId),
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync(CatalogueParentMatch.For(organisation));
+    }
+
+    [Fact(DisplayName =
+        "A video on a news organisation's additional YouTube channel that is not in the playlist of the playlist-scoped podcast on that channel goes to the organisation, because the organisation claims the additional channel channel-wide and its main channel's playlist does not scope it (#1370).")]
+    public async Task additional_channel_video_outside_podcast_playlist_goes_to_organisation()
+    {
+        // Arrange
+        var podcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        var mainPlaylist = _fixture.CreateYouTubePlaylistId();
+        await AddPodcast(podcastPlaylist);
+        InPlaylist(podcastPlaylist, false);
+        InPlaylist(mainPlaylist, false);
+        ChannelIsAdditionalChannelOf(mainPlaylist);
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var result = await sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        result.Podcast.Should().BeNull();
+        result.Ids.YouTubeChannelId.Should().Be(_channelId);
+        VerifyContains(mainPlaylist, Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "Through the router, a video on a news organisation's additional channel outside the playlist of the podcast on that channel is routed to the organisation, not the podcast, even when the organisation's main channel is playlist-scoped (#1370).")]
+    public async Task router_routes_additional_channel_video_to_organisation()
+    {
+        // Arrange
+        var podcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        var mainPlaylist = _fixture.CreateYouTubePlaylistId();
+        var otherPodcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        await AddPodcast(podcastPlaylist);
+        await AddPodcast(otherPodcastPlaylist);
+        InPlaylist(podcastPlaylist, false);
+        InPlaylist(otherPodcastPlaylist, false);
+        InPlaylist(mainPlaylist, null);
+        ChannelIsAdditionalChannelOf(mainPlaylist);
+        _mocker.Use<IPodcastService>(_mocker.CreateInstance<PodcastService>());
+        var router = _mocker.CreateInstance<EpisodeUrlRouter>();
+
+        // Act
+        var route = await router.RouteByOwner(_url, new IndexingContext());
+
+        // Assert
+        route.Podcast.Should().BeNull();
+        route.Parent!.Kind.Should().Be(CatalogueParentKind.NewsOrganisation);
+        VerifyContains(mainPlaylist, Times.Never());
+    }
 }

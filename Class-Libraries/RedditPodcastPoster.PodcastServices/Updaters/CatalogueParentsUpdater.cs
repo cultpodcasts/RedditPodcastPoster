@@ -1214,6 +1214,14 @@ public class CatalogueParentsUpdater(
             logger.LogInformation(
                 "{Prefix} parent-id='{ParentId}' name='{ParentName}' channel='{ChannelId}' discovered='{Discovered}' added='{Added}'.",
                 AdditionalYouTubeChannelMessagePrefix, parent.Id, parent.Name, channelId, found.Count, added);
+            if (transient.YouTubeChannelSearchForbidden == true || transient.YouTubePlaylistQueryIsExpensive == true)
+            {
+                // Indexer state is main-channel only, so these flags are not kept and the next pass tries again.
+                logger.LogWarning(
+                    "{Prefix} parent-id='{ParentId}' name='{ParentName}' channel='{ChannelId}' youtube-channel-search-forbidden='{SearchForbidden}' youtube-playlist-query-is-expensive='{PlaylistExpensive}'; not persisted for an additional channel, so the next pass retries it.",
+                    AdditionalYouTubeChannelMessagePrefix, parent.Id, parent.Name, channelId,
+                    transient.YouTubeChannelSearchForbidden == true, transient.YouTubePlaylistQueryIsExpensive == true);
+            }
         }
 
         return combined;

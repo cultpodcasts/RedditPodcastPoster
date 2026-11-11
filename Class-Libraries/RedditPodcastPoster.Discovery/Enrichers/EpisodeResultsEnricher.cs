@@ -113,7 +113,7 @@ public class EpisodeResultsEnricher(
                             parent.Removed,
                             (youTubePlaylistByOwner.TryGetValue(parent.Id, out var youTubePlaylistId)
                                 ? youTubePlaylistId
-                                : parent.Indexing.YouTubePlaylistId) ?? string.Empty,
+                                : ReportedYouTubePlaylistId(parent, episodeResult)) ?? string.Empty,
                             suppressesUnrelatedShows: parent.Removed)))
                     .ToArray();
             yield return new EnrichedEpisodeResult(
@@ -121,6 +121,16 @@ public class EpisodeResultsEnricher(
                 await ApplyPlaylistScope(episodeResult, combined, youTubePlaylistByOwner));
         }
     }
+
+    /// <summary>
+    /// The playlist reported for a parent that has no YouTube-selected entry (it was matched by Spotify / Apple
+    /// first): its playlist on the result's YouTube channel when it holds that channel, so a video on an additional
+    /// channel is not stamped with the main channel's playlist (#1370). Not used for playlist scoping.
+    /// </summary>
+    private static string? ReportedYouTubePlaylistId(CatalogueOwner parent, EpisodeResult episodeResult) =>
+        episodeResult.PodcastIds.YouTube is { } channelId && parent.Indexing.HoldsYouTubeChannel(channelId)
+            ? parent.Indexing.YouTubePlaylistIdOn(channelId)
+            : parent.Indexing.YouTubePlaylistId;
 
     /// <summary>
     /// Keeps the indexed owner the elimination rule already used, and every removed match, so a banned show
