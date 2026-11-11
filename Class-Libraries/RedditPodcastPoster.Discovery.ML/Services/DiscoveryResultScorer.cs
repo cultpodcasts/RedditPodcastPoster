@@ -34,22 +34,12 @@ public sealed class DiscoveryResultScorer : IDiscoveryResultScorer, IDisposable
         {
             var text = DiscoveryFeatureBuilder.BuildEmbeddingText(discoveryResult);
             var embedding = resources.Embedder.Embed(text);
-            var numeric = DiscoveryFeatureBuilder.BuildNumericFeatures(discoveryResult, resources.ShowAcceptRates);
-            var example = new DiscoveryTrainingExample
-            {
-                Label = false,
-                Embedding = embedding,
-                HasMatchingPodcast = numeric.HasMatchingPodcast,
-                SubjectCount = numeric.SubjectCount,
-                SourceListenNotes = numeric.SourceListenNotes,
-                SourceSpotify = numeric.SourceSpotify,
-                SourceYouTube = numeric.SourceYouTube,
-                SourceTaddy = numeric.SourceTaddy,
-                ShowAcceptRate = numeric.ShowAcceptRate
-            };
+            var numeric = DiscoveryFeatureBuilder.BuildNumericFeatures(
+                discoveryResult, resources.ShowAcceptCounts, resources.ShowSmoothing);
+            var example = DiscoveryFeatureBuilder.ToExample(embedding, numeric);
 
             var probability = resources.Predictor.PredictAcceptProbability(example);
-            var shouldHide = probability < _settings.AutoHideThreshold;
+            var shouldHide = probability < resources.AutoHideThreshold;
             return new DiscoveryScoreResult(probability, shouldHide);
         }
         catch (Exception ex)
@@ -106,30 +96,64 @@ public sealed class DiscoveryResultScorer : IDiscoveryResultScorer, IDisposable
             return null;
         }
 
+        DiscoveryAcceptManifest? manifest = null;
         if (File.Exists(manifestPath))
         {
-            var manifest = JsonSerializer.Deserialize<DiscoveryAcceptManifest>(File.ReadAllText(manifestPath));
+            manifest = JsonSerializer.Deserialize<DiscoveryAcceptManifest>(File.ReadAllText(manifestPath));
             if (manifest != null)
             {
                 _logger.LogInformation(
-                    "Loaded discovery accept model trained at {TrainedAt:O} on {Rows:N0} rows (test precision @ threshold: {Precision:P1}).",
-                    manifest.TrainedAt, manifest.TrainingRows, manifest.TestPrecisionAtThreshold);
+                    "Loaded discovery accept model trained at {TrainedAt:O} on {Rows:N0} rows, feature version {FeatureVersion} (test precision @ threshold: {Precision:P1}, recall: {Recall:P1}).",
+                    manifest.TrainedAt, manifest.TrainingRows, manifest.FeatureVersion,
+                    manifest.TestPrecisionAtThreshold, manifest.TestRecallAtThreshold);
             }
         }
 
-        var showRates = ShowAcceptRateLookup.Load(showRatesPath);
+        if (manifest?.RequiresShowAcceptRates == true && !File.Exists(showRatesPath))
+        {
+            _logger.LogError(
+                "Discovery scorer feature version {FeatureVersion} requires '{ShowAcceptRatesFile}' but it is missing under '{Directory}'.", // pragma: allowlist secret
+                manifest.FeatureVersion,
+                _settings.ShowAcceptRatesFileName,
+                directory);
+            return null;
+        }
+
+        var threshold = AutoHideThreshold(manifest, _settings);
+        var showCounts = ShowAcceptRateLookup.Load(showRatesPath);
         var embedder = new MiniLmOnnxEmbedder(onnxPath, tokenizerPath, _settings.EmbeddingMaxLength);
         var predictor = new DiscoveryAcceptModelPredictor(modelPath);
-        _logger.LogInformation("Discovery scorer enabled. Auto-hide threshold: {Threshold}.", _settings.AutoHideThreshold);
-        return new ScorerResources(embedder, predictor, showRates);
+        _logger.LogInformation("Discovery scorer enabled. Auto-hide threshold: {Threshold}.", threshold);
+        return new ScorerResources(
+            embedder,
+            predictor,
+            showCounts,
+            manifest?.ShowSmoothing() ?? ShowAcceptSmoothing.Raw,
+            threshold);
     }
 
-    private sealed class ScorerResources(MiniLmOnnxEmbedder embedder, DiscoveryAcceptModelPredictor predictor, IReadOnlyDictionary<string, float> showAcceptRates)
+    /// <summary>
+    /// A calibrated (feature version 2+) model carries the threshold chosen for its own probability scale;
+    /// a fixed setting tuned for an earlier model would hide the wrong share. Older models use the setting.
+    /// </summary>
+    public static float AutoHideThreshold(DiscoveryAcceptManifest? manifest, DiscoveryScorerSettings settings) =>
+        settings.UseManifestThreshold && manifest is { FeatureVersion: >= 2 }
+            ? manifest.AutoHideThreshold
+            : settings.AutoHideThreshold;
+
+    private sealed class ScorerResources(
+        MiniLmOnnxEmbedder embedder,
+        DiscoveryAcceptModelPredictor predictor,
+        IReadOnlyDictionary<string, ShowAcceptCounts> showAcceptCounts,
+        ShowAcceptSmoothing showSmoothing,
+        float autoHideThreshold)
         : IDisposable
     {
         public MiniLmOnnxEmbedder Embedder { get; } = embedder;
         public DiscoveryAcceptModelPredictor Predictor { get; } = predictor;
-        public IReadOnlyDictionary<string, float> ShowAcceptRates { get; } = showAcceptRates;
+        public IReadOnlyDictionary<string, ShowAcceptCounts> ShowAcceptCounts { get; } = showAcceptCounts;
+        public ShowAcceptSmoothing ShowSmoothing { get; } = showSmoothing;
+        public float AutoHideThreshold { get; } = autoHideThreshold;
 
         public void Dispose()
         {
