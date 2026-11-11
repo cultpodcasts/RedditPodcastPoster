@@ -131,7 +131,8 @@ public class NewsReportFilmMoveService(
                 "Moved news report '{reportId}' from news organisation '{organisationId}' to film '{filmName}'.",
                 report.Id, report.NewsOrganisationId, film.Name);
             await NewsReportMoveSource.DeleteShortLink(shortnerService, logger, report);
-            var emptied = await NewsReportMoveSource.EmptiedOrganisation(newsReportRepository, logger, report);
+            var emptied = await NewsReportMoveSource.EmptiedOrganisation(
+                newsReportRepository, newsOrganisationRepository, logger, report);
             return new EpisodeFilmMoveResult(
                 EpisodeFilmMoveStatus.Accepted, film.Id, film.Name, EmptiedNewsOrganisationId: emptied);
         }

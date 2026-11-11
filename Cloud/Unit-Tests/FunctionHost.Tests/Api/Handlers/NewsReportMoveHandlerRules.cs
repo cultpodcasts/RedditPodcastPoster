@@ -28,7 +28,16 @@ public class NewsReportMoveHandlerRules
             .ReturnsAsync((object _, CancellationToken _) => null!);
         _ctx.Setup(c => c.Ok(It.IsAny<object>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((object _, CancellationToken _) => null!);
+        _ctx.Setup(c => c.NotFound(It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((object _, CancellationToken _) => null!);
+        _ctx.Setup(c => c.Conflict(It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((object _, CancellationToken _) => null!);
+        _ctx.Setup(c => c.BadRequest(It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((object _, CancellationToken _) => null!);
     }
+
+    /// <summary>Reads a property of the anonymous 404 body the handlers build.</summary>
+    private static object? Property(object body, string name) => body.GetType().GetProperty(name)?.GetValue(body);
 
     [Fact(DisplayName =
         "PostNewsReportTvShowMoveHandler: an accepted move responds 202 with the TV-move DTO carrying emptiedNewsOrganisationId, so the website can offer to retire the emptied organisation.")]
@@ -114,4 +123,89 @@ public class NewsReportMoveHandlerRules
             It.Is<EpisodeFilmMoveResponse>(r => r.Cancelled),
             It.IsAny<CancellationToken>()), Times.Once);
     }
-}
+
+    [Fact(DisplayName =
+        "PostNewsReportTvShowMoveHandler: not found responds 404 with { reportId, tvShowId, error }, conflict 409 with the TV-move DTO and bad request 400 with ApiErrorResponse, so the CF-API proxy and website keep their contract.")]
+    public async Task tv_show_move_not_found_conflict_and_bad_request_follow_contract()
+    {
+        // Arrange
+        var reportId = _fixture.CreateGuid();
+        var showId = _fixture.CreateGuid();
+        var notFound = _fixture.Create<string>();
+        var conflict = _fixture.Create<string>();
+        var badRequest = _fixture.Create<string>();
+        _mocker.GetMock<INewsReportTvShowMoveService>()
+            .SetupSequence(s => s.MoveAsync(It.IsAny<NewsReportTvShowMoveCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeTvShowMoveResult(EpisodeTvShowMoveStatus.NotFound, Error: notFound))
+            .ReturnsAsync(new EpisodeTvShowMoveResult(
+                EpisodeTvShowMoveStatus.Conflict, showId, _fixture.CreateTitle(), reportId, Error: conflict))
+            .ReturnsAsync(new EpisodeTvShowMoveResult(EpisodeTvShowMoveStatus.BadRequest, Error: badRequest));
+        var sut = _mocker.CreateInstance<PostNewsReportTvShowMoveHandler>();
+        var command = new NewsReportTvShowMoveCommand(reportId, new EpisodeTvShowMoveRequest { TvShowId = showId });
+
+        // Act
+        await sut.Handle(_ctx.Object, command, CancellationToken.None);
+        await sut.Handle(_ctx.Object, command, CancellationToken.None);
+        await sut.Handle(_ctx.Object, command, CancellationToken.None);
+
+        // Assert
+        _ctx.Verify(x => x.NotFound(
+            It.Is<object>(body =>
+                Equals(Property(body, "reportId"), reportId) &&
+                Equals(Property(body, "tvShowId"), (Guid?)showId) &&
+                Equals(Property(body, "error"), notFound)),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _ctx.Verify(x => x.Conflict(
+            It.Is<EpisodeTvShowMoveResponse>(r => r.TvShowId == showId && r.EpisodeId == reportId && r.Error == conflict),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _ctx.Verify(x => x.BadRequest(
+            It.Is<ApiErrorResponse>(r => r.Error == badRequest),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "PostNewsReportFilmMoveHandler: an accepted move responds 202 with emptiedNewsOrganisationId, not found 404 with { reportId, error }, conflict 409 with the film-move DTO and bad request 400 with ApiErrorResponse.")]
+    public async Task film_move_accepted_not_found_conflict_and_bad_request_follow_contract()
+    {
+        // Arrange
+        var reportId = _fixture.CreateGuid();
+        var organisationId = _fixture.CreateGuid();
+        var existingFilmId = _fixture.CreateGuid();
+        var notFound = _fixture.Create<string>();
+        var conflict = _fixture.Create<string>();
+        var badRequest = _fixture.Create<string>();
+        _mocker.GetMock<INewsReportFilmMoveService>()
+            .SetupSequence(s => s.MoveAsync(It.IsAny<NewsReportFilmMoveCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeFilmMoveResult(
+                EpisodeFilmMoveStatus.Accepted, reportId, _fixture.CreateTitle(),
+                EmptiedNewsOrganisationId: organisationId))
+            .ReturnsAsync(new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.NotFound, Error: notFound))
+            .ReturnsAsync(new EpisodeFilmMoveResult(
+                EpisodeFilmMoveStatus.Conflict, existingFilmId, _fixture.CreateTitle(), Error: conflict))
+            .ReturnsAsync(new EpisodeFilmMoveResult(EpisodeFilmMoveStatus.BadRequest, Error: badRequest));
+        var sut = _mocker.CreateInstance<PostNewsReportFilmMoveHandler>();
+        var command = new NewsReportFilmMoveCommand(reportId, new EpisodeFilmMoveRequest());
+
+        // Act
+        for (var i = 0; i < 4; i++)
+        {
+            await sut.Handle(_ctx.Object, command, CancellationToken.None);
+        }
+
+        // Assert
+        _ctx.Verify(x => x.Accepted(
+            It.Is<EpisodeFilmMoveResponse>(r => r.FilmId == reportId && r.EmptiedNewsOrganisationId == organisationId),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _ctx.Verify(x => x.NotFound(
+            It.Is<object>(body =>
+                Equals(Property(body, "reportId"), reportId) &&
+                Equals(Property(body, "error"), notFound) &&
+                Property(body, "tvShowId") == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _ctx.Verify(x => x.Conflict(
+            It.Is<EpisodeFilmMoveResponse>(r => r.FilmId == existingFilmId && r.Error == conflict),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _ctx.Verify(x => x.BadRequest(
+            It.Is<ApiErrorResponse>(r => r.Error == badRequest),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }}

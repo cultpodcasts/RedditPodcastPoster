@@ -31,6 +31,7 @@ public class NewsReportTvShowMoveServiceRules
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly List<NewsReport> _reports = [];
+    private readonly List<NewsOrganisation> _organisations = [];
     private readonly List<(Guid OrganisationId, Guid ReportId)> _reportDeletes = [];
     private readonly List<TvShow> _shows = [];
     private readonly List<TvShow> _savedShows = [];
@@ -44,6 +45,7 @@ public class NewsReportTvShowMoveServiceRules
     private readonly List<Guid> _shortLinkDeletes = [];
     private Func<DeleteResult> _shortLinkDeleteResult = () => new DeleteResult(true);
     private bool _countThrows;
+    private bool _organisationReadThrows;
 
     public NewsReportTvShowMoveServiceRules()
     {
@@ -64,6 +66,11 @@ public class NewsReportTvShowMoveServiceRules
             .ReturnsAsync((Guid organisationId) => _countThrows
                 ? throw new InvalidOperationException(_fixture.Create<string>())
                 : _reports.Count(item => item.NewsOrganisationId == organisationId));
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(r => r.GetNewsOrganisation(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid id) => _organisationReadThrows
+                ? throw new InvalidOperationException(_fixture.Create<string>())
+                : _organisations.SingleOrDefault(item => item.Id == id));
         var shows = _mocker.GetMock<ITvShowRepository>();
         shows
             .Setup(r => r.GetTvShow(It.IsAny<Guid>()))
@@ -144,8 +151,13 @@ public class NewsReportTvShowMoveServiceRules
         return show;
     }
 
-    private NewsOrganisation CreateOrganisation() =>
-        new(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+    private NewsOrganisation CreateOrganisation(Action<NewsOrganisation>? configure = null)
+    {
+        var organisation = new NewsOrganisation(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        configure?.Invoke(organisation);
+        _organisations.Add(organisation);
+        return organisation;
+    }
 
     private NewsReport SeedReport(NewsOrganisation? organisation = null, Action<NewsReport>? configure = null)
     {
@@ -235,6 +247,61 @@ public class NewsReportTvShowMoveServiceRules
         var show = SeedShow();
         var report = SeedReport();
         _countThrows = true;
+
+        // Act
+        var result = await MoveToShow(report.Id, show.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        result.EmptiedNewsOrganisationId.Should().BeNull();
+        _reports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Moving the last report out of an already removed news organisation names no emptied organisation, because there is nothing left to retire.")]
+    public async Task removed_organisation_is_not_reported_as_emptied()
+    {
+        // Arrange
+        var show = SeedShow();
+        var organisation = CreateOrganisation(item => item.Removed = true);
+        var report = SeedReport(organisation);
+
+        // Act
+        var result = await MoveToShow(report.Id, show.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        result.EmptiedNewsOrganisationId.Should().BeNull();
+        _reports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Moving the last report of a news organisation that no longer exists (an orphaned report) names no emptied organisation, so the website never sends a retire PATCH that would 404.")]
+    public async Task orphaned_report_names_no_emptied_organisation()
+    {
+        // Arrange
+        var show = SeedShow();
+        var report = SeedReport();
+        _organisations.Clear();
+
+        // Act
+        var result = await MoveToShow(report.Id, show.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTvShowMoveStatus.Accepted);
+        result.EmptiedNewsOrganisationId.Should().BeNull();
+        _savedTvEpisodes.Should().ContainSingle().Which.Id.Should().Be(report.Id);
+        _reports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When the news organisation cannot be read after the move, the move is still accepted with no emptied organisation, as for a failed count.")]
+    public async Task organisation_read_failure_does_not_fail_the_move()
+    {
+        // Arrange
+        var show = SeedShow();
+        var report = SeedReport();
+        _organisationReadThrows = true;
 
         // Act
         var result = await MoveToShow(report.Id, show.Id);

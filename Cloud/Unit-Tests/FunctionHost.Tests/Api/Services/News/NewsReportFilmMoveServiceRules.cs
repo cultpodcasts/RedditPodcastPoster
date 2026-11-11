@@ -41,6 +41,8 @@ public class NewsReportFilmMoveServiceRules
     private Action? _afterSearchUpload;
     private readonly List<Guid> _shortLinkDeletes = [];
     private Func<DeleteResult> _shortLinkDeleteResult = () => new DeleteResult(true);
+    private bool _countThrows;
+    private bool _organisationReadThrowsAfterDelete;
 
     public NewsReportFilmMoveServiceRules()
     {
@@ -58,10 +60,16 @@ public class NewsReportFilmMoveServiceRules
             .Returns(Task.CompletedTask);
         reports
             .Setup(r => r.Count(It.IsAny<Guid>()))
-            .ReturnsAsync((Guid organisationId) => _reports.Count(item => item.NewsOrganisationId == organisationId));
+            .ReturnsAsync((Guid organisationId) => _countThrows
+                ? throw new InvalidOperationException(_fixture.Create<string>())
+                : _reports.Count(item => item.NewsOrganisationId == organisationId));
+        // The film service reads the organisation twice: for the publisher fields before the move, and for the
+        // emptied check after the report row is deleted. The flag fails only the second read.
         _mocker.GetMock<INewsOrganisationRepository>()
             .Setup(r => r.GetNewsOrganisation(It.IsAny<Guid>()))
-            .ReturnsAsync((Guid id) => _organisations.SingleOrDefault(item => item.Id == id));
+            .ReturnsAsync((Guid id) => _organisationReadThrowsAfterDelete && _reportDeletes.Count > 0
+                ? throw new InvalidOperationException(_fixture.Create<string>())
+                : _organisations.SingleOrDefault(item => item.Id == id));
         var films = _mocker.GetMock<IFilmRepository>();
         films
             .Setup(r => r.GetFilm(It.IsAny<Guid>()))
@@ -192,8 +200,26 @@ public class NewsReportFilmMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "Moving the last report of a news organisation names it as emptied and leaves it in place, so the curator can retire it; a removed organisation still gives an active film.")]
+        "Moving the last report of an active news organisation names it as emptied and leaves it in place, so the curator can retire it.")]
     public async Task last_report_reports_emptied_organisation()
+    {
+        // Arrange
+        var organisation = SeedOrganisation();
+        var report = SeedReport(organisation);
+
+        // Act
+        var result = await Move(report.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        result.EmptiedNewsOrganisationId.Should().Be(organisation.Id);
+        _mocker.GetMock<INewsOrganisationRepository>().Verify(r => r.Delete(It.IsAny<Guid>()), Times.Never);
+        _mocker.GetMock<INewsOrganisationRepository>().Verify(r => r.Save(It.IsAny<NewsOrganisation>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Moving the last report out of an already removed news organisation gives an active film and names no emptied organisation, because there is nothing left to retire.")]
+    public async Task removed_organisation_gives_active_film_and_no_emptied_organisation()
     {
         // Arrange
         var organisation = SeedOrganisation(item => item.Removed = true);
@@ -204,10 +230,9 @@ public class NewsReportFilmMoveServiceRules
 
         // Assert
         result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
-        result.EmptiedNewsOrganisationId.Should().Be(organisation.Id);
-        _savedFilms.Single().Removed.Should().BeNull();
-        _mocker.GetMock<INewsOrganisationRepository>().Verify(r => r.Delete(It.IsAny<Guid>()), Times.Never);
-        _mocker.GetMock<INewsOrganisationRepository>().Verify(r => r.Save(It.IsAny<NewsOrganisation>()), Times.Never);
+        result.EmptiedNewsOrganisationId.Should().BeNull();
+        _savedFilms.Should().ContainSingle().Which.Removed.Should().BeNull();
+        _reports.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -224,8 +249,64 @@ public class NewsReportFilmMoveServiceRules
 
         // Assert
         result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        result.EmptiedNewsOrganisationId.Should().BeNull();
         _savedFilms.Should().ContainSingle().Which.Id.Should().Be(report.Id);
         _reports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When the remaining reports cannot be counted, the move to film is still accepted with no emptied organisation, because the move itself is already done.")]
+    public async Task count_failure_does_not_fail_the_move()
+    {
+        // Arrange
+        var report = SeedReport();
+        _countThrows = true;
+
+        // Act
+        var result = await Move(report.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        result.EmptiedNewsOrganisationId.Should().BeNull();
+        _reports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When the news organisation cannot be read after the report row is deleted, the move to film is still accepted with no emptied organisation, as for a failed count.")]
+    public async Task organisation_read_failure_does_not_fail_the_move()
+    {
+        // Arrange
+        var report = SeedReport();
+        _organisationReadThrowsAfterDelete = true;
+
+        // Act
+        var result = await Move(report.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        result.EmptiedNewsOrganisationId.Should().BeNull();
+        _reports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "An unexpected error mid-move to film returns Failed with no ids and keeps the report row, so the curator can re-send.")]
+    public async Task unexpected_error_keeps_report_row()
+    {
+        // Arrange
+        var report = SeedReport();
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.Save(It.IsAny<Film>()))
+            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
+
+        // Act
+        var result = await Move(report.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Failed);
+        result.FilmId.Should().BeNull();
+        result.FailureIndexing.Should().BeFalse();
+        _reports.Should().ContainSingle();
+        _shortLinkDeletes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =

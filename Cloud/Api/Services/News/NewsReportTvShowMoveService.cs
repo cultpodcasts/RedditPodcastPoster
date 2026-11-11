@@ -35,6 +35,7 @@ namespace Api.Services.News;
 /// </summary>
 public class NewsReportTvShowMoveService(
     INewsReportRepository newsReportRepository,
+    INewsOrganisationRepository newsOrganisationRepository,
     ITvShowRepository tvShowRepository,
     ITvShowEpisodeRepository tvShowEpisodeRepository,
     IFilmRepository filmRepository,
@@ -165,7 +166,8 @@ public class NewsReportTvShowMoveService(
                 report.Id, report.NewsOrganisationId, currentShow.Name, currentShow.Id);
             await TvShowMoveTarget.RaiseLatestReleased(tvShowRepository, logger, currentShow, currentEpisode);
             await NewsReportMoveSource.DeleteShortLink(shortnerService, logger, report);
-            var emptied = await NewsReportMoveSource.EmptiedOrganisation(newsReportRepository, logger, report);
+            var emptied = await NewsReportMoveSource.EmptiedOrganisation(
+                newsReportRepository, newsOrganisationRepository, logger, report);
             return TvShowMoveTarget.Accepted(currentShow.Id, currentShow.Name, currentEpisode.Id, created) with
             {
                 EmptiedNewsOrganisationId = emptied

@@ -57,3 +57,10 @@ The move never changes or deletes the news organisation, even when it has no rep
 report, the response carries `emptiedNewsOrganisationId`, and the website offers to retire it with the existing curator
 edit, `PATCH newsorganisation/{id}` with `removed: true` (curate scope, no admin needed). Removal is reversible and keeps
 the organisation's name, file key and redirects; nothing is hard-deleted.
+
+`emptiedNewsOrganisationId` is omitted when reports remain, when the organisation is already removed, when it no
+longer exists (an orphaned report), or when the count or the organisation read failed; none of those fails the move.
+
+A re-send after a completed move returns 202 **without** `emptiedNewsOrganisationId`: the report row, and with it the
+organisation id, is gone. So if the first 202 is lost there is no retire prompt, and the curator retires the outlet from
+its edit page. The website must not rely on the field appearing on a retry.
