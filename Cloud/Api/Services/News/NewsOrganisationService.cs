@@ -14,6 +14,10 @@ namespace Api.Services.News;
 /// Curator GET/PATCH for a news organisation. Mirrors <c>TvShowService</c> for lookup (id, or a unique name).
 /// The editable set is the shared publisher fields, including publisher, description and removed (which cascades to
 /// the reports). Name is not part of PATCH: it is changed by <c>POST newsorganisation/name/{identifier}</c> (<c>CatalogueRenameService</c>), which records a redirect.
+/// A news organisation may also hold <c>additionalYouTubeChannels</c> (#1370, <see cref="AdditionalYouTubeChannels"/>),
+/// each with an optional playlist on that channel: each new playlist is validated against its channel, and each channel
+/// passes the same channel-wide claim guard (when no playlist scopes it) and uniqueness check as the main channel before
+/// anything is saved.
 /// </summary>
 public class NewsOrganisationService(
     INewsOrganisationRepository newsOrganisationRepository,
@@ -71,6 +75,14 @@ public class NewsOrganisationService(
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.NotFound);
             }
 
+            if (AdditionalYouTubeChannels.Check(organisation, request.Change) is { } channelsRefused)
+            {
+                logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                    organisation.Id, channelsRefused.Code, channelsRefused.Message);
+                return new NewsOrganisationUpdateResult(
+                    NewsOrganisationUpdateStatus.BadRequest, channelsRefused.Message, Code: channelsRefused.Code);
+            }
+
             var playlistCheck = await youTubePlaylistGuard.Check(
                 organisation.Indexing?.YouTubePlaylistId,
                 request.Change.YouTubePlaylistId,
@@ -84,6 +96,20 @@ public class NewsOrganisationService(
                     refused.IsRetryable ? NewsOrganisationUpdateStatus.ServiceUnavailable : NewsOrganisationUpdateStatus.BadRequest,
                     refused.Message,
                     Code: refused.Code);
+            }
+
+            if (await AdditionalYouTubeChannels.CheckPlaylists(
+                    organisation, request.Change, youTubePlaylistGuard, cancellationToken) is
+                { } additionalPlaylistRefused)
+            {
+                logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                    organisation.Id, additionalPlaylistRefused.Code, additionalPlaylistRefused.Message);
+                return new NewsOrganisationUpdateResult(
+                    additionalPlaylistRefused.IsRetryable
+                        ? NewsOrganisationUpdateStatus.ServiceUnavailable
+                        : NewsOrganisationUpdateStatus.BadRequest,
+                    additionalPlaylistRefused.Message,
+                    Code: additionalPlaylistRefused.Code);
             }
 
             if (ChannelWideYouTubeClaimProjection.ChangeAffectsClaim(request.Change))
@@ -108,6 +134,30 @@ public class NewsOrganisationService(
                 }
             }
 
+            if (AdditionalYouTubeChannels.ListRequested(request.Change) || request.Change.Removed != null)
+            {
+                // An additional channel is claimed channel-wide unless its own playlist scopes it.
+                var projectedRemoved = request.Change.Removed ?? organisation.IsRemoved();
+                foreach (var additionalChannel in AdditionalYouTubeChannels.Projected(organisation, request.Change))
+                {
+                    if (await channelWideYouTubeClaimGuard.Check(
+                            organisation.Id,
+                            ChannelWideYouTubeClaimKind.NewsOrganisation,
+                            additionalChannel.YouTubeChannelId,
+                            additionalChannel.YouTubePlaylistId,
+                            projectedRemoved,
+                            cancellationToken) is { } additionalConflict)
+                    {
+                        logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                            organisation.Id, ChannelWideYouTubeClaimConflict.Code, additionalConflict.Message);
+                        return new NewsOrganisationUpdateResult(
+                            NewsOrganisationUpdateStatus.BadRequest,
+                            additionalConflict.Message,
+                            Code: ChannelWideYouTubeClaimConflict.Code);
+                    }
+                }
+            }
+
             PublisherChangeApplier.Apply(organisation, request.Change);
             if (await serviceIdsUniqueness.FindConflict(organisation.Id, request.Change) is { } conflict)
             {
@@ -116,8 +166,19 @@ public class NewsOrganisationService(
             }
 
             organisation.Indexing = ServiceIdsApplier.Apply(organisation.Indexing, request.Change, organisation, logger);
-            if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
-                    playlistCheck, organisation.Indexing?.YouTubeChannelId) is { } derivedOwner)
+            AdditionalYouTubeChannels.Apply(organisation, request.Change);
+            var derivedOwner = YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
+                playlistCheck, organisation.Indexing?.YouTubeChannelId);
+            if (derivedOwner != null && organisation.HoldsAdditionalYouTubeChannel(derivedOwner))
+            {
+                // The main playlist only ever scopes the main channel (#1370), so a channel this organisation already
+                // holds as an additional channel is not also made its main channel. Like the conflict branch below,
+                // this is a soft fill: warn and still save the playlist rather than refuse the PATCH.
+                logger.LogWarning(
+                    "{method}: not deriving youTubeChannelId for '{id}': main youTubePlaylistId '{playlistId}' belongs to its additional YouTube channel '{channelId}'; set that playlist on the additional channel's entry instead.",
+                    nameof(UpdateAsync), organisation.Id, organisation.Indexing?.YouTubePlaylistId, derivedOwner);
+            }
+            else if (derivedOwner != null)
             {
                 // Derive runs after Apply, so request.Change never included this channel for FindConflict.
                 // On conflict, skip derive + warn and still save the playlist — playlist-only edits stay

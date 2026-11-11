@@ -1,10 +1,12 @@
 using System.Linq.Expressions;
 using Api.Models;
+using Api.Services.News;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.Catalogue;
@@ -21,14 +23,18 @@ public sealed record ServiceIdConflict(string Field, string Value, IReadOnlyList
 /// owner per id. Only ids the PATCH sets are checked (clearing never conflicts).
 /// <list type="bullet">
 /// <item>Another news organisation or TV show with the same <c>youTubeChannelId</c>, <c>spotifyId</c> or
-/// <c>appleId</c>: conflict.</item>
+/// <c>appleId</c>: conflict. A YouTube channel is held by a parent as its main <c>youTubeChannelId</c> or as one of a news
+/// organisation's <c>additionalYouTubeChannels</c> (#1370), whatever playlist scopes it; both kinds of hold conflict,
+/// both ways.</item>
 /// <item>A podcast with the same <c>spotifyId</c> / <c>appleId</c>, or a channel-wide podcast (no playlist) on the same
 /// <c>youTubeChannelId</c>: conflict, because that podcast would win every submit and the parent's id would be dead.</item>
 /// <item>A playlist-scoped podcast on the same channel: allowed with a Warning. A show podcast with its own playlist
 /// on an outlet's channel is legitimate (for example "Here's the Scoop" on NBC News); submission routes by playlist
 /// membership (#1054).</item>
 /// </list>
-/// Removed podcasts are ignored, as submission ignores them.
+/// Removed podcasts are ignored, as submission ignores them. Each channel of a news organisation's
+/// <c>additionalYouTubeChannels</c> (or the older <c>additionalYouTubeChannelIds</c>) is checked like
+/// <c>youTubeChannelId</c> (field named as the body sent it).
 /// </summary>
 public interface IServiceIdsUniqueness
 {
@@ -44,23 +50,25 @@ public class ServiceIdsUniqueness(
     public async Task<ServiceIdConflict?> FindConflict(Guid parentId, ServiceIdsChange change)
     {
         var channelId = change.YouTubeChannelId?.Trim();
-        if (!string.IsNullOrEmpty(channelId))
+        if (!string.IsNullOrEmpty(channelId) &&
+            await FindYouTubeChannelConflict(parentId, "youTubeChannelId", channelId) is { } channelConflict)
         {
-            var owners = await ParentOwners(
-                x => x.Id != parentId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId,
-                x => x.Id != parentId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId);
-            var podcasts = await Podcasts(x => x.YouTubeChannelId == channelId);
-            owners.AddRange(podcasts.Where(p => string.IsNullOrEmpty(p.YouTubePlaylistId)).Select(p => p.Id));
-            if (owners.Count > 0)
-            {
-                return new ServiceIdConflict("youTubeChannelId", channelId, owners);
-            }
+            return channelConflict;
+        }
 
-            foreach (var podcast in podcasts)
+        if (change is NewsOrganisationChangeRequest organisationChange &&
+            AdditionalYouTubeChannels.ListRequested(organisationChange))
+        {
+            // A playlist on an additional channel does not share the channel: the channel itself is held once, as the
+            // main channel is whatever its playlist.
+            var field = AdditionalYouTubeChannels.FieldName(organisationChange);
+            foreach (var additionalChannel in AdditionalYouTubeChannels.Projected(null, organisationChange))
             {
-                logger.LogWarning(
-                    "Parent '{ParentId}' shares youTubeChannelId '{ChannelId}' with playlist-scoped podcast '{PodcastId}' ('{PodcastName}', playlist '{PlaylistId}'); submission routes by playlist membership.",
-                    parentId, channelId, podcast.Id, podcast.Name, podcast.YouTubePlaylistId);
+                if (await FindYouTubeChannelConflict(parentId, field, additionalChannel.YouTubeChannelId) is
+                    { } additionalConflict)
+                {
+                    return additionalConflict;
+                }
             }
         }
 
@@ -87,6 +95,30 @@ public class ServiceIdsUniqueness(
             {
                 return new ServiceIdConflict("appleId", appleId.ToString(), owners);
             }
+        }
+
+        return null;
+    }
+
+    private async Task<ServiceIdConflict?> FindYouTubeChannelConflict(Guid parentId, string field, string channelId)
+    {
+        // A news organisation holds a channel as its main channel or as one of its own additional channels; a TV show
+        // only ever holds its main channel.
+        var owners = await ParentOwners(
+            NewsOrganisationCosmosFilters.OtherHoldsYouTubeChannel(parentId, channelId),
+            x => x.Id != parentId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId);
+        var podcasts = await Podcasts(x => x.YouTubeChannelId == channelId);
+        owners.AddRange(podcasts.Where(p => string.IsNullOrEmpty(p.YouTubePlaylistId)).Select(p => p.Id));
+        if (owners.Count > 0)
+        {
+            return new ServiceIdConflict(field, channelId, owners);
+        }
+
+        foreach (var podcast in podcasts)
+        {
+            logger.LogWarning(
+                "Parent '{ParentId}' shares {Field} '{ChannelId}' with playlist-scoped podcast '{PodcastId}' ('{PodcastName}', playlist '{PlaylistId}'); submission routes by playlist membership.",
+                parentId, field, channelId, podcast.Id, podcast.Name, podcast.YouTubePlaylistId);
         }
 
         return null;

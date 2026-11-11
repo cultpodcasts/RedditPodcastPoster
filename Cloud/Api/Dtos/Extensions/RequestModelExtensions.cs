@@ -136,7 +136,13 @@ public static class RequestModelExtensions
         });
 
     public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) =>
-        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest()));
+        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels = request.AdditionalYouTubeChannels?
+                .Select(x => new Models.AdditionalYouTubeChannelChange(x?.YouTubeChannelId, x?.YouTubePlaylistId))
+                .ToArray(),
+            AdditionalYouTubeChannelIds = request.AdditionalYouTubeChannelIds?.ToArray()
+        }));
 
     public static Models.NewsReportChangeRequest ToModel(this NewsReportChangeRequest request) =>
         request.CopyPlayableFieldsTo(new Models.NewsReportChangeRequest());

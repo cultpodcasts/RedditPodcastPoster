@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -20,6 +22,12 @@ namespace RedditPodcastPoster.Discovery.Enrichers;
 /// When several owners share a YouTube channel, a channel-wide owner (no playlist) is preferred over a playlist-scoped
 /// one, the same tie-break as <c>CatalogueParentLookup.FindByOwner</c>. A playlist-scoped owner eliminates only a
 /// video that is in its playlist; any other video on the channel stays matched and is not index-all.
+/// </para>
+/// <para>
+/// A news organisation owns each of its <see cref="NewsOrganisation.AdditionalYouTubeChannels"/> as it owns its main
+/// channel (#1370): a video on one of them is matched to the organisation, and that channel's own optional playlist
+/// (never the main channel's) scopes it there and is the playlist reported for the result. Owners' channels are read
+/// through <see cref="CatalogueParentYouTubeChannels"/>, so a TV show is only ever matched on its main channel.
 /// </para>
 /// </summary>
 public class EpisodeResultsEnricher(
@@ -93,7 +101,7 @@ public class EpisodeResultsEnricher(
                 var parent = FindYouTubeParent(catalogueOwners, channelId);
                 if (Add(parents, parent))
                 {
-                    youTubePlaylistByOwner[parent!.Id] = parent.Indexing.YouTubePlaylistId;
+                    youTubePlaylistByOwner[parent!.Id] = parent.YouTubeChannels.PlaylistIdOn(channelId);
                 }
             }
 
@@ -107,7 +115,9 @@ public class EpisodeResultsEnricher(
                             parent.Id,
                             parent.IndexAllEpisodes,
                             parent.Removed,
-                            parent.Indexing.YouTubePlaylistId ?? string.Empty,
+                            (youTubePlaylistByOwner.TryGetValue(parent.Id, out var youTubePlaylistId)
+                                ? youTubePlaylistId
+                                : ReportedYouTubePlaylistId(parent, episodeResult)) ?? string.Empty,
                             suppressesUnrelatedShows: parent.Removed)))
                     .ToArray();
             yield return new EnrichedEpisodeResult(
@@ -115,6 +125,16 @@ public class EpisodeResultsEnricher(
                 await ApplyPlaylistScope(episodeResult, combined, youTubePlaylistByOwner));
         }
     }
+
+    /// <summary>
+    /// The playlist reported for a parent that has no YouTube-selected entry (it was matched by Spotify / Apple
+    /// first): its playlist on the result's YouTube channel when it holds that channel, so a video on an additional
+    /// channel is not stamped with the main channel's playlist (#1370). Not used for playlist scoping.
+    /// </summary>
+    private static string? ReportedYouTubePlaylistId(CatalogueOwner parent, EpisodeResult episodeResult) =>
+        episodeResult.PodcastIds.YouTube is { } channelId && parent.YouTubeChannels.Holds(channelId)
+            ? parent.YouTubeChannels.PlaylistIdOn(channelId)
+            : parent.Indexing.YouTubePlaylistId;
 
     /// <summary>
     /// Keeps the indexed owner the elimination rule already used, and every removed match, so a banned show
@@ -237,12 +257,15 @@ public class EpisodeResultsEnricher(
 
     private async Task<IReadOnlyList<CatalogueOwner>> LoadCatalogueOwners()
     {
-        var organisations = await newsOrganisationRepository.GetAllBy(x => x.Indexing != null).ToArrayAsync();
+        var organisations = await newsOrganisationRepository
+            .GetAllBy(NewsOrganisationCosmosFilters.HasIndexingOrAdditionalYouTubeChannels()).ToArrayAsync();
         var shows = await tvShowRepository.GetAllBy(x => x.Indexing != null).ToArrayAsync();
         return
         [
-            .. organisations.Select(x => new CatalogueOwner(x.Id, x.Indexing!, x.IsRemoved())),
-            .. shows.Select(x => new CatalogueOwner(x.Id, x.Indexing!, x.IsRemoved()))
+            .. organisations.Select(x => new CatalogueOwner(
+                x.Id, x.Indexing ?? new CatalogueIndexingSource(), CatalogueParentYouTubeChannels.Of(x), x.IsRemoved())),
+            .. shows.Select(x => new CatalogueOwner(
+                x.Id, x.Indexing!, CatalogueParentYouTubeChannels.Of(x), x.IsRemoved()))
         ];
     }
 
@@ -257,9 +280,9 @@ public class EpisodeResultsEnricher(
 
     private static CatalogueOwner? FindYouTubeParent(IReadOnlyList<CatalogueOwner> owners, string channelId)
     {
-        var matches = owners.Where(x => x.Indexing.YouTubeChannelId == channelId).ToArray();
+        var matches = owners.Where(x => x.YouTubeChannels.Holds(channelId)).ToArray();
         return FirstAutoOrSingle(
-            PreferChannelWide(matches, x => x.Indexing.YouTubePlaylistId),
+            PreferChannelWide(matches, x => x.YouTubeChannels.PlaylistIdOn(channelId)),
             x => x.Indexing.IsAutoIndexed);
     }
 
@@ -278,7 +301,11 @@ public class EpisodeResultsEnricher(
             podcasts,
             x => x.IndexAllEpisodes || !string.IsNullOrEmpty(x.EpisodeIncludeTitleRegex));
 
-    private sealed record CatalogueOwner(Guid Id, CatalogueIndexingSource Indexing, bool Removed)
+    private sealed record CatalogueOwner(
+        Guid Id,
+        CatalogueIndexingSource Indexing,
+        CatalogueParentYouTubeChannels YouTubeChannels,
+        bool Removed)
     {
         public bool IndexAllEpisodes => Indexing.IndexAllEpisodes;
     }
