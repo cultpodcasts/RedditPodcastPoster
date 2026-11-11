@@ -1288,8 +1288,8 @@ public class CatalogueParentRoutingRules
         {
             i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
             i.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
-            i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         });
+        organisation.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         var url = YouTubeUrl();
         OwnerIs(url, null, new EpisodeUrlOwnerIds(YouTubeChannelId: additionalChannelId));
         var sut = _mocker.CreateInstance<UrlSubmitter>();
@@ -1316,8 +1316,8 @@ public class CatalogueParentRoutingRules
         {
             i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
             i.YouTubePlaylistId = mainPlaylistId;
-            i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         });
+        organisation.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         var show = AddShow(i =>
         {
             i.YouTubeChannelId = additionalChannelId;
@@ -1352,9 +1352,9 @@ public class CatalogueParentRoutingRules
     {
         // Arrange
         var name = "Synthetic Outlet " + _fixture.CreateTitle();
-        var organisation = AddOrganisation(
-            i => i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(_fixture.CreateYouTubeChannelId())],
-            name);
+        var organisation = AddOrganisation(name: name);
+        organisation.AdditionalYouTubeChannels =
+            [AdditionalYouTubeChannel.ChannelWide(_fixture.CreateYouTubeChannelId())];
         var url = YouTubeUrl();
         OwnerIs(url, null,
             new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(), YouTubeChannelTitle: name));
@@ -1379,9 +1379,9 @@ public class CatalogueParentRoutingRules
         {
             i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
             i.YouTubePlaylistId = mainPlaylistId;
-            i.AdditionalYouTubeChannels =
-                [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
         });
+        organisation.AdditionalYouTubeChannels =
+            [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
         var show = AddShow(i => i.YouTubeChannelId = additionalChannelId);
         var inPlaylist = YouTubeUrl();
         var outsidePlaylist = YouTubeUrl();
@@ -1414,12 +1414,12 @@ public class CatalogueParentRoutingRules
         // Arrange
         var additionalChannelId = _fixture.CreateYouTubeChannelId();
         var additionalPlaylistId = _fixture.CreateYouTubePlaylistId();
-        AddOrganisation(i =>
+        var organisation = AddOrganisation(i =>
         {
             i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
-            i.AdditionalYouTubeChannels =
-                [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
         });
+        organisation.AdditionalYouTubeChannels =
+            [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
         AddShow(i => i.YouTubeChannelId = additionalChannelId);
         var url = YouTubeUrl();
         _mocker.GetMock<IYouTubePlaylistMembership>()

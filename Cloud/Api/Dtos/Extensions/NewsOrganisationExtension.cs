@@ -7,7 +7,7 @@ public static class NewsOrganisationExtension
     public static NewsOrganisationDto ToDto(this NewsOrganisation organisation)
     {
         var dto = new NewsOrganisationDto().WithPublisherFields(organisation).WithServiceIds(organisation.Indexing);
-        var channels = organisation.Indexing?.AdditionalYouTubeChannels ?? [];
+        var channels = organisation.AdditionalYouTubeChannels ?? [];
         dto.AdditionalYouTubeChannels = channels
             .Select(x => new AdditionalYouTubeChannelDto
             {

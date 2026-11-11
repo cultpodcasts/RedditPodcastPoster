@@ -21,7 +21,7 @@ public interface ICatalogueParentLookup
 
     /// <summary>
     /// The parent whose <c>indexing</c> holds the URL's channel / show id (a YouTube channel id matches the main
-    /// <c>youTubeChannelId</c> or one of a news organisation's <c>additionalYouTubeChannels</c>, #1370). Many → after the podcast tie-breaks
+    /// <c>youTubeChannelId</c> or one of a news organisation's own <c>additionalYouTubeChannels</c>, #1370). Many → after the podcast tie-breaks
     /// (no playlist, then the single auto-indexed one) → <see cref="AmbiguousParentNameException"/>.
     /// Without a video URL, a channel-wide claim wins over playlist-scoped peers (same as podcasts).
     /// </summary>
@@ -119,18 +119,13 @@ public class CatalogueParentLookup(
         {
             var channelId = ids.YouTubeChannelId;
             matches.AddRange((await newsOrganisations
-                    .GetAllBy(x => x.Indexing != null &&
-                                   (x.Indexing.YouTubeChannelId == channelId ||
-                                    (x.Indexing.AdditionalYouTubeChannels != null &&
-                                     x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId))))
+                    .GetAllBy(x => (x.Indexing != null && x.Indexing.YouTubeChannelId == channelId) ||
+                                   (x.AdditionalYouTubeChannels != null &&
+                                    x.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId)))
                     .ToListAsync())
                 .Select(CatalogueParentMatch.For));
             matches.AddRange((await tvShows
-                    .GetAllBy(x => x.Indexing != null &&
-                                   (x.Indexing.YouTubeChannelId == channelId ||
-                                    (x.Indexing.AdditionalYouTubeChannels != null &&
-                                     x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId))))
-                    .ToListAsync())
+                    .GetAllBy(x => x.Indexing != null && x.Indexing.YouTubeChannelId == channelId).ToListAsync())
                 .Select(CatalogueParentMatch.For));
             if (matches.Count > 1)
             {
@@ -166,7 +161,7 @@ public class CatalogueParentLookup(
     /// With a video URL: playlist-scoped parents that contain the video win (same idea as
     /// <c>PodcastService.MatchYouTubeChannelOwner</c>). Without a URL: channel-wide peers win over playlist-scoped.
     /// A parent holding the channel as an additional channel is scoped there by that channel's own optional playlist
-    /// (<see cref="CatalogueIndexingSource.YouTubePlaylistIdOn"/>), never by its main playlist.
+    /// (<see cref="CatalogueParentYouTubeChannels.PlaylistIdOn"/>), never by its main playlist.
     /// </summary>
     private async Task<List<CatalogueParentMatch>> ResolveYouTubeChannelTie(
         List<CatalogueParentMatch> matches,
@@ -174,9 +169,9 @@ public class CatalogueParentLookup(
         Uri? url,
         IndexingContext? indexingContext)
     {
-        var channelWide = matches.Where(x => string.IsNullOrWhiteSpace(x.Indexing?.YouTubePlaylistIdOn(channelId)))
+        var channelWide = matches.Where(x => string.IsNullOrWhiteSpace(x.YouTubeChannels.PlaylistIdOn(channelId)))
             .ToList();
-        var playlistScoped = matches.Where(x => !string.IsNullOrWhiteSpace(x.Indexing?.YouTubePlaylistIdOn(channelId)))
+        var playlistScoped = matches.Where(x => !string.IsNullOrWhiteSpace(x.YouTubeChannels.PlaylistIdOn(channelId)))
             .ToList();
 
         if (url is not null && indexingContext is not null && playlistScoped.Count > 0)
@@ -186,7 +181,7 @@ public class CatalogueParentLookup(
             foreach (var candidate in playlistScoped)
             {
                 var inPlaylist = await youTubePlaylistMembership.IsVideoInPlaylist(
-                    youTubeService, candidate.Indexing!.YouTubePlaylistIdOn(channelId)!, url,
+                    youTubeService, candidate.YouTubeChannels.PlaylistIdOn(channelId)!, url,
                     indexingContext.SkipYouTubeUrlResolving);
                 if (inPlaylist == true)
                 {
@@ -252,7 +247,7 @@ public class CatalogueParentLookup(
         var shows = await PublisherNameAttachLookup.FindByName(tvShows, title);
         var matches = organisations.Select(CatalogueParentMatch.For)
             .Concat(shows.Select(CatalogueParentMatch.For))
-            .Where(x => !x.Parent.IsRemoved() && (x.Indexing?.AllYouTubeChannelIds().Count ?? 0) == 0)
+            .Where(x => !x.Parent.IsRemoved() && x.YouTubeChannels.All().Count == 0)
             .ToList();
         return Single(matches, title);
     }

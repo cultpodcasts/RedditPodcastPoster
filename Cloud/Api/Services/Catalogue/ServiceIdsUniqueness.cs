@@ -101,15 +101,14 @@ public class ServiceIdsUniqueness(
 
     private async Task<ServiceIdConflict?> FindYouTubeChannelConflict(Guid parentId, string field, string channelId)
     {
+        // A news organisation holds a channel as its main channel or as one of its own additional channels; a TV show
+        // only ever holds its main channel.
         var owners = await ParentOwners(
-            x => x.Id != parentId && x.Indexing != null &&
-                 (x.Indexing.YouTubeChannelId == channelId ||
-                  (x.Indexing.AdditionalYouTubeChannels != null &&
-                   x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId))),
-            x => x.Id != parentId && x.Indexing != null &&
-                 (x.Indexing.YouTubeChannelId == channelId ||
-                  (x.Indexing.AdditionalYouTubeChannels != null &&
-                   x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId))));
+            x => x.Id != parentId &&
+                 ((x.Indexing != null && x.Indexing.YouTubeChannelId == channelId) ||
+                  (x.AdditionalYouTubeChannels != null &&
+                   x.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId))),
+            x => x.Id != parentId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId);
         var podcasts = await Podcasts(x => x.YouTubeChannelId == channelId);
         owners.AddRange(podcasts.Where(p => string.IsNullOrEmpty(p.YouTubePlaylistId)).Select(p => p.Id));
         if (owners.Count > 0)

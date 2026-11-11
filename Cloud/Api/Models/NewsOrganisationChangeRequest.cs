@@ -3,7 +3,7 @@ namespace Api.Models;
 public class NewsOrganisationChangeRequest : ServiceIdsChange
 {
     /// <summary>
-    /// Null = unchanged; a list (possibly empty) replaces <c>indexing.additionalYouTubeChannels</c> (#1370). Each entry is
+    /// Null = unchanged; a list (possibly empty) replaces the organisation's <c>additionalYouTubeChannels</c> (#1370). Each entry is
     /// a channel id and an optional playlist id on that channel.
     /// </summary>
     public AdditionalYouTubeChannelChange[]? AdditionalYouTubeChannels { get; set; }

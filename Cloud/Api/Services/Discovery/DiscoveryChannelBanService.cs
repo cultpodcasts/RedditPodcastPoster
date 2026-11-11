@@ -280,20 +280,16 @@ public class DiscoveryChannelBanService(
         if (identity.YouTubeChannelId is { } channel)
         {
             if (await newsOrganisationRepository
-                    .GetAllBy(x => x.Indexing != null &&
-                                   (x.Indexing.YouTubeChannelId == channel ||
-                                    (x.Indexing.AdditionalYouTubeChannels != null &&
-                                     x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channel))))
+                    .GetAllBy(x => (x.Indexing != null && x.Indexing.YouTubeChannelId == channel) ||
+                                   (x.AdditionalYouTubeChannels != null &&
+                                    x.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channel)))
                     .AnyAsync(cancellationToken))
             {
                 return true;
             }
 
             if (await tvShowRepository
-                    .GetAllBy(x => x.Indexing != null &&
-                                   (x.Indexing.YouTubeChannelId == channel ||
-                                    (x.Indexing.AdditionalYouTubeChannels != null &&
-                                     x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channel))))
+                    .GetAllBy(x => x.Indexing != null && x.Indexing.YouTubeChannelId == channel)
                     .AnyAsync(cancellationToken))
             {
                 return true;

@@ -152,7 +152,7 @@ public class PodcastService(
         var parentClaims = parent == null
             ? false
             : await youTubePlaylistMembership.IsVideoInPlaylist(
-                youTubeService, parent.Indexing?.YouTubePlaylistIdOn(channelId), url,
+                youTubeService, parent.YouTubeChannels.PlaylistIdOn(channelId), url,
                 indexingContext.SkipYouTubeUrlResolving);
         if (parentClaims == null)
         {

@@ -75,7 +75,7 @@ public class NewsOrganisationService(
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.NotFound);
             }
 
-            if (AdditionalYouTubeChannels.Check(organisation.Indexing, request.Change) is { } channelsRefused)
+            if (AdditionalYouTubeChannels.Check(organisation, request.Change) is { } channelsRefused)
             {
                 logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
                     organisation.Id, channelsRefused.Code, channelsRefused.Message);
@@ -99,7 +99,7 @@ public class NewsOrganisationService(
             }
 
             if (await AdditionalYouTubeChannels.CheckPlaylists(
-                    organisation.Indexing, request.Change, youTubePlaylistGuard, cancellationToken) is
+                    organisation, request.Change, youTubePlaylistGuard, cancellationToken) is
                 { } additionalPlaylistRefused)
             {
                 logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
@@ -138,7 +138,7 @@ public class NewsOrganisationService(
             {
                 // An additional channel is claimed channel-wide unless its own playlist scopes it.
                 var projectedRemoved = request.Change.Removed ?? organisation.IsRemoved();
-                foreach (var additionalChannel in AdditionalYouTubeChannels.Projected(organisation.Indexing, request.Change))
+                foreach (var additionalChannel in AdditionalYouTubeChannels.Projected(organisation, request.Change))
                 {
                     if (await channelWideYouTubeClaimGuard.Check(
                             organisation.Id,
@@ -166,10 +166,10 @@ public class NewsOrganisationService(
             }
 
             organisation.Indexing = ServiceIdsApplier.Apply(organisation.Indexing, request.Change, organisation, logger);
-            organisation.Indexing = AdditionalYouTubeChannels.Apply(organisation.Indexing, request.Change);
+            AdditionalYouTubeChannels.Apply(organisation, request.Change);
             if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
                     playlistCheck, organisation.Indexing?.YouTubeChannelId) is { } derivedOwner &&
-                organisation.Indexing?.HoldsAdditionalYouTubeChannel(derivedOwner) != true)
+                !organisation.HoldsAdditionalYouTubeChannel(derivedOwner))
             {
                 // Derive runs after Apply, so request.Change never included this channel for FindConflict.
                 // On conflict, skip derive + warn and still save the playlist — playlist-only edits stay

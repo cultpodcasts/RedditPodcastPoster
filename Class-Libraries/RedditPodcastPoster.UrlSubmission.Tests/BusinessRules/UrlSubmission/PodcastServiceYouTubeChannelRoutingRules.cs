@@ -529,9 +529,9 @@ public class PodcastServiceYouTubeChannelRoutingRules
             Indexing = new CatalogueIndexingSource
             {
                 YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-                YouTubePlaylistId = mainPlaylistId,
-                AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ForPlaylist(_channelId, additionalPlaylistId)]
-            }
+                YouTubePlaylistId = mainPlaylistId
+            },
+            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ForPlaylist(_channelId, additionalPlaylistId)]
         };
         _mocker.GetMock<ICatalogueParentLookup>()
             .Setup(x => x.FindByOwner(
@@ -742,12 +742,12 @@ public class PodcastServiceYouTubeChannelRoutingRules
             Indexing = new CatalogueIndexingSource
             {
                 YouTubeChannelId = _channelId,
-                YouTubePlaylistId = mainPlaylist,
-                AdditionalYouTubeChannels =
-                [
-                    AdditionalYouTubeChannel.ForPlaylist(_fixture.CreateYouTubeChannelId(), additionalPlaylist)
-                ]
-            }
+                YouTubePlaylistId = mainPlaylist
+            },
+            AdditionalYouTubeChannels =
+            [
+                AdditionalYouTubeChannel.ForPlaylist(_fixture.CreateYouTubeChannelId(), additionalPlaylist)
+            ]
         };
         _mocker.GetMock<ICatalogueParentLookup>()
             .Setup(x => x.FindByOwner(
@@ -785,9 +785,9 @@ public class PodcastServiceYouTubeChannelRoutingRules
             Indexing = new CatalogueIndexingSource
             {
                 YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-                YouTubePlaylistId = mainPlaylist,
-                AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ForPlaylist(_channelId, additionalPlaylist)]
-            }
+                YouTubePlaylistId = mainPlaylist
+            },
+            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ForPlaylist(_channelId, additionalPlaylist)]
         };
         NewsOrganisation[] organisations = [organisation];
         _mocker.GetMock<INewsOrganisationRepository>()

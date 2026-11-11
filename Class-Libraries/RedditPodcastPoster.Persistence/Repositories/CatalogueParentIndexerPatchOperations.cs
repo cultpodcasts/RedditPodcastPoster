@@ -21,23 +21,11 @@ namespace RedditPodcastPoster.Persistence.Repositories;
 /// Order matters because the chunks are separate writes: removals go first and <c>/lastIndexed</c> (the pass's
 /// success marker) is the very last operation, so a patch that fails part-way never records a completed pass.
 /// </para>
-/// <para>
-/// <c>/indexing/additionalYouTubeChannels</c> (#1370) holds curator-owned channel and playlist ids beside the
-/// indexer-owned per-channel flags, and can only be set as a whole. It is therefore its own single-operation patch,
-/// guarded by <see cref="FilterPredicateFor"/> so it only applies while the stored channels and playlists are still the
-/// ones the pass read (same order). If a curator changed them mid-pass the precondition fails, the flags are not
-/// written, and the next pass measures them again.
-/// </para>
 /// </summary>
 public static class CatalogueParentIndexerPatchOperations
 {
     public const int MaxOperationsPerPatch = 10;
     private const string IndexingPathPrefix = "/indexing/";
-
-    /// <summary>JSON name of <see cref="Models.Catalogue.CatalogueIndexingSource.AdditionalYouTubeChannels"/>.</summary>
-    public const string AdditionalYouTubeChannelsMember = "additionalYouTubeChannels";
-
-    private const string AdditionalYouTubeChannelsPath = IndexingPathPrefix + AdditionalYouTubeChannelsMember;
 
     public static IReadOnlyList<IReadOnlyList<PatchOperation>> Build(
         CatalogueParentIndexerPatch patch,
@@ -46,7 +34,6 @@ public static class CatalogueParentIndexerPatchOperations
         ArgumentNullException.ThrowIfNull(patch);
         var operations = new List<PatchOperation>();
         var removals = new List<PatchOperation>();
-        var guarded = new List<PatchOperation>();
         if (patch.LatestReleased is { } latestReleased)
         {
             operations.Add(PatchOperation.Set("/latestReleased", latestReleased));
@@ -61,15 +48,7 @@ public static class CatalogueParentIndexerPatchOperations
                 var path = $"{IndexingPathPrefix}{name}";
                 if (indexing.TryGetPropertyValue(name, out var value) && value is not null)
                 {
-                    var set = PatchOperation.Set<JsonNode?>(path, value.DeepClone());
-                    if (path == AdditionalYouTubeChannelsPath)
-                    {
-                        guarded.Add(set);
-                    }
-                    else
-                    {
-                        operations.Add(set);
-                    }
+                    operations.Add(PatchOperation.Set<JsonNode?>(path, value.DeepClone()));
                 }
                 else
                 {
@@ -85,7 +64,6 @@ public static class CatalogueParentIndexerPatchOperations
         }
 
         return removals.Select(removal => (IReadOnlyList<PatchOperation>) [removal])
-            .Concat(guarded.Select(set => (IReadOnlyList<PatchOperation>) [set]))
             .Concat(operations.Chunk(MaxOperationsPerPatch).Select(chunk => (IReadOnlyList<PatchOperation>) chunk))
             .ToList();
     }
@@ -93,22 +71,11 @@ public static class CatalogueParentIndexerPatchOperations
     /// <summary>
     /// The patch filter a chunk from <see cref="Build"/> must be sent with: a single <c>/indexing/{member}</c>
     /// removal only applies when the stored member is defined (an explicit null counts as defined, so a stored null
-    /// is removed too), because Cosmos fails a Remove on a missing path. A single set of
-    /// <c>/indexing/additionalYouTubeChannels</c> only applies while the stored list has the same channel ids and
-    /// playlist ids in the same order (<see cref="AdditionalYouTubeChannelsUnchangedFilter"/>). Other chunks are
-    /// unfiltered (null).
+    /// is removed too), because Cosmos fails a Remove on a missing path. Other chunks are unfiltered (null).
     /// </summary>
     public static string? FilterPredicateFor(IReadOnlyList<PatchOperation> chunk)
     {
         ArgumentNullException.ThrowIfNull(chunk);
-        if (chunk is [PatchOperation<JsonNode?>
-            {
-                OperationType: PatchOperationType.Set, Path: AdditionalYouTubeChannelsPath, Value: JsonArray channels
-            }])
-        {
-            return AdditionalYouTubeChannelsUnchangedFilter(channels);
-        }
-
         if (chunk is not [{ OperationType: PatchOperationType.Remove, Path: var path }] ||
             !path.StartsWith(IndexingPathPrefix, StringComparison.Ordinal))
         {
@@ -118,40 +85,6 @@ public static class CatalogueParentIndexerPatchOperations
         var member = path[IndexingPathPrefix.Length..].Replace("\\", "\\\\").Replace("\"", "\\\"");
         return $"FROM c WHERE IS_DEFINED(c.indexing[\"{member}\"])";
     }
-
-    /// <summary>
-    /// Cosmos patch filter that matches only while the stored <c>indexing.additionalYouTubeChannels</c> holds exactly the
-    /// channel ids and playlist ids of <paramref name="channels"/>, in order (the flags may differ: those are what the
-    /// patch writes).
-    /// </summary>
-    public static string AdditionalYouTubeChannelsUnchangedFilter(JsonArray channels)
-    {
-        ArgumentNullException.ThrowIfNull(channels);
-        const string list = "c.indexing[\"" + AdditionalYouTubeChannelsMember + "\"]";
-        var conditions = new List<string> { $"IS_ARRAY({list})", $"ARRAY_LENGTH({list}) = {channels.Count}" };
-        for (var i = 0; i < channels.Count; i++)
-        {
-            var channel = channels[i] as JsonObject;
-            var channelId = StringMember(channel, "youTubeChannelId");
-            var playlistId = StringMember(channel, "youTubePlaylistId");
-            conditions.Add(channelId is null
-                ? $"NOT IS_DEFINED({list}[{i}].youTubeChannelId)"
-                : $"{list}[{i}].youTubeChannelId = '{Quote(channelId)}'");
-            conditions.Add(playlistId is null
-                ? $"(NOT IS_DEFINED({list}[{i}].youTubePlaylistId) OR IS_NULL({list}[{i}].youTubePlaylistId))"
-                : $"{list}[{i}].youTubePlaylistId = '{Quote(playlistId)}'");
-        }
-
-        return "FROM c WHERE " + string.Join(" AND ", conditions);
-    }
-
-    private static string? StringMember(JsonObject? node, string name) =>
-        node is not null && node.TryGetPropertyValue(name, out var value) && value is JsonValue jsonValue &&
-        jsonValue.TryGetValue<string>(out var text)
-            ? text
-            : null;
-
-    private static string Quote(string value) => value.Replace("\\", "\\\\").Replace("'", "\\'");
 
     /// <summary>
     /// Cosmos patch filter that only lets a <c>/latestReleased</c> raise through when the stored value is missing,

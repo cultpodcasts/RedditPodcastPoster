@@ -5,7 +5,7 @@ namespace Api.Dtos;
 public class NewsOrganisationDto : ServiceIdsDto
 {
     /// <summary>
-    /// From <c>indexing.additionalYouTubeChannels</c> (#1370): the organisation's YouTube channels beside
+    /// From the organisation's <c>additionalYouTubeChannels</c> (#1370): the organisation's YouTube channels beside
     /// <c>youTubeChannelId</c>, each with its optional playlist on that channel. Empty when none.
     /// </summary>
     [JsonPropertyName("additionalYouTubeChannels")]

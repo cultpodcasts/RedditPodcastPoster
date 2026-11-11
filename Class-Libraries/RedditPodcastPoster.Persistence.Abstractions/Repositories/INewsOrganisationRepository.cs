@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -13,6 +14,14 @@ public interface INewsOrganisationRepository : IRepository<NewsOrganisation>, IF
     /// longer exists.
     /// </summary>
     Task<bool> PatchIndexerState(Guid newsOrganisationId, CatalogueParentIndexerPatch patch);
+
+    /// <summary>
+    /// The indexer's write-back of the per-channel flags on <see cref="NewsOrganisation.AdditionalYouTubeChannels"/>
+    /// (#1370): sets <c>additionalYouTubeChannels</c> to <paramref name="channels"/> only while the stored list still has
+    /// the same channel and playlist ids in the same order, so a curator edit of the channels saved during the pass
+    /// wins (the flags are measured again next pass). Returns false when the NewsOrganisation no longer exists.
+    /// </summary>
+    Task<bool> PatchAdditionalYouTubeChannelFlags(Guid newsOrganisationId, IReadOnlyList<AdditionalYouTubeChannel> channels);
 
     /// <summary>
     /// Sets only <c>indexing.bypassShortEpisodeChecking</c> and <c>indexing.alwaysPromoteAsHero</c> to true (the

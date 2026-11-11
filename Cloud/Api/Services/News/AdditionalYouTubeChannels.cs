@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Api.Models;
 using Api.Services.YouTube;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.News;
 
 namespace Api.Services.News;
 
@@ -12,7 +13,7 @@ namespace Api.Services.News;
 public sealed record AdditionalYouTubeChannelsRefusal(string Code, string Message, bool IsRetryable = false);
 
 /// <summary>
-/// The news organisation PATCH rules for <c>indexing.additionalYouTubeChannels</c> (#1370): an outlet with more than
+/// The news organisation PATCH rules for <see cref="NewsOrganisation.AdditionalYouTubeChannels"/> (#1370): an outlet with more than
 /// one YouTube channel (for example a main channel and an archive channel) indexes and owns each of them, as a whole
 /// channel or through that channel's own optional playlist. The body sends <c>additionalYouTubeChannels</c>
 /// (<c>[{ youTubeChannelId, youTubePlaylistId? }]</c>) or the older <c>additionalYouTubeChannelIds</c> (ids only), never
@@ -47,32 +48,26 @@ public static partial class AdditionalYouTubeChannels
 
     /// <summary>
     /// The additional channels the organisation will hold after the PATCH (channel and playlist ids only). In the ids-only
-    /// form a channel already on <paramref name="indexing"/> keeps its stored playlist; pass null to ignore stored
+    /// form a channel already on <paramref name="organisation"/> keeps its stored playlist; pass null to ignore stored
     /// playlists (channel ids only).
     /// </summary>
     public static IReadOnlyList<AdditionalYouTubeChannel> Projected(
-        CatalogueIndexingSource? indexing,
+        NewsOrganisation? organisation,
         NewsOrganisationChangeRequest change)
     {
-        if (Requested(indexing, change) is { } requested)
+        if (Requested(organisation, change) is { } requested)
         {
-            return new CatalogueIndexingSource
-                {
-                    AdditionalYouTubeChannels =
-                    [
-                        .. requested.Select(x =>
-                            AdditionalYouTubeChannel.ForPlaylist(x.YouTubeChannelId ?? string.Empty, x.YouTubePlaylistId))
-                    ]
-                }
-                .AdditionalYouTubeChannels ?? [];
+            return AdditionalYouTubeChannel.Normalise(
+                requested.Select(x =>
+                    AdditionalYouTubeChannel.ForPlaylist(x.YouTubeChannelId ?? string.Empty, x.YouTubePlaylistId))) ?? [];
         }
 
-        return indexing?.AdditionalYouTubeChannels ?? [];
+        return organisation?.AdditionalYouTubeChannels ?? [];
     }
 
     /// <summary>Null when the projected channels may be stored; otherwise the 400 refusal. Makes no YouTube call.</summary>
     public static AdditionalYouTubeChannelsRefusal? Check(
-        CatalogueIndexingSource? indexing,
+        NewsOrganisation organisation,
         NewsOrganisationChangeRequest change)
     {
         if (!ChangeAffectsChannels(change))
@@ -87,7 +82,7 @@ public static partial class AdditionalYouTubeChannels
                 "Send additionalYouTubeChannels or the older additionalYouTubeChannelIds, not both.");
         }
 
-        if (Requested(indexing, change) is { } requested)
+        if (Requested(organisation, change) is { } requested)
         {
             var seen = new Dictionary<string, string?>(StringComparer.Ordinal);
             foreach (var entry in requested)
@@ -129,10 +124,10 @@ public static partial class AdditionalYouTubeChannels
             }
         }
 
-        var additional = Projected(indexing, change);
+        var additional = Projected(organisation, change);
         var main = change.YouTubeChannelId != null
             ? Trimmed(change.YouTubeChannelId)
-            : indexing?.YouTubeChannelId;
+            : organisation.Indexing?.YouTubeChannelId;
         if (main != null && additional.Any(x => string.Equals(x.YouTubeChannelId, main, StringComparison.Ordinal)))
         {
             return new AdditionalYouTubeChannelsRefusal(
@@ -151,7 +146,7 @@ public static partial class AdditionalYouTubeChannels
     /// <c>youTubePlaylistLookupFailed</c> (503).
     /// </summary>
     public static async Task<AdditionalYouTubeChannelsRefusal?> CheckPlaylists(
-        CatalogueIndexingSource? indexing,
+        NewsOrganisation organisation,
         NewsOrganisationChangeRequest change,
         IYouTubePlaylistGuard youTubePlaylistGuard,
         CancellationToken cancellationToken)
@@ -161,10 +156,10 @@ public static partial class AdditionalYouTubeChannels
             return null;
         }
 
-        foreach (var channel in Projected(indexing, change))
+        foreach (var channel in Projected(organisation, change))
         {
             if (channel.YouTubePlaylistId is not { } playlistId ||
-                string.Equals(indexing?.AdditionalYouTubeChannelFor(channel.YouTubeChannelId)?.YouTubePlaylistId,
+                string.Equals(organisation.AdditionalYouTubeChannelFor(channel.YouTubeChannelId)?.YouTubePlaylistId,
                     playlistId, StringComparison.Ordinal))
             {
                 continue;
@@ -184,22 +179,22 @@ public static partial class AdditionalYouTubeChannels
     }
 
     /// <summary>
-    /// Stores the requested list on <paramref name="indexing"/> (created only when a channel is actually set). A channel
-    /// that was already held keeps its indexer-owned <c>youTubeChannelSearchForbidden</c>, and its
-    /// <c>youTubePlaylistQueryIsExpensive</c> while its playlist is unchanged. Returns the block to keep; unchanged when
-    /// the PATCH leaves the list alone.
+    /// Stores the requested list on <paramref name="organisation"/> (an empty list is stored as none). A channel that was
+    /// already held keeps its indexer-owned <c>youTubeChannelSearchForbidden</c>, and its
+    /// <c>youTubePlaylistQueryIsExpensive</c> while its playlist is unchanged. Leaves the stored list alone when the PATCH
+    /// does not send one.
     /// </summary>
-    public static CatalogueIndexingSource? Apply(CatalogueIndexingSource? indexing, NewsOrganisationChangeRequest change)
+    public static void Apply(NewsOrganisation organisation, NewsOrganisationChangeRequest change)
     {
         if (!ListRequested(change))
         {
-            return indexing;
+            return;
         }
 
-        var channels = Projected(indexing, change)
+        organisation.AdditionalYouTubeChannels = Projected(organisation, change)
             .Select(channel =>
             {
-                if (indexing?.AdditionalYouTubeChannelFor(channel.YouTubeChannelId) is { } stored)
+                if (organisation.AdditionalYouTubeChannelFor(channel.YouTubeChannelId) is { } stored)
                 {
                     channel.YouTubeChannelSearchForbidden = stored.YouTubeChannelSearchForbidden;
                     if (string.Equals(stored.YouTubePlaylistId, channel.YouTubePlaylistId, StringComparison.Ordinal))
@@ -211,19 +206,10 @@ public static partial class AdditionalYouTubeChannels
                 return channel;
             })
             .ToList();
-
-        if (indexing == null)
-        {
-            var created = new CatalogueIndexingSource { AdditionalYouTubeChannels = channels };
-            return created.AdditionalYouTubeChannels == null ? null : created;
-        }
-
-        indexing.AdditionalYouTubeChannels = channels;
-        return indexing;
     }
 
     private static IReadOnlyList<AdditionalYouTubeChannelChange>? Requested(
-        CatalogueIndexingSource? indexing,
+        NewsOrganisation? organisation,
         NewsOrganisationChangeRequest change)
     {
         if (change.AdditionalYouTubeChannels is { } channels)
@@ -235,7 +221,7 @@ public static partial class AdditionalYouTubeChannels
         // its playlist (and, in Apply, its flags, because the playlist is unchanged). A new id is a whole channel.
         return change.AdditionalYouTubeChannelIds?
             .Select(id => new AdditionalYouTubeChannelChange(
-                id, indexing?.AdditionalYouTubeChannelFor(id)?.YouTubePlaylistId))
+                id, organisation?.AdditionalYouTubeChannelFor(id)?.YouTubePlaylistId))
             .ToList();
     }
 

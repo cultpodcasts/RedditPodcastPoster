@@ -2,18 +2,21 @@
 
 A news organisation can own more than one YouTube channel, and each channel can optionally be scoped to one of its
 own playlists. The main channel stays in `indexing.youTubeChannelId` (with its optional `indexing.youTubePlaylistId`).
-Extra channels go in `indexing.additionalYouTubeChannels`. TV shows and podcasts do not have this field.
+Extra channels are a property of the news organisation itself, `additionalYouTubeChannels` (`NewsOrganisation.AdditionalYouTubeChannels`),
+beside `indexing` on the document. They are **not** on the shared `indexing` block (`CatalogueIndexingSource`), which TV
+shows also use: TV shows and podcasts have no such field in their object model, and a stray one on a stored TV show
+document is neither read nor written back.
 
 ```json
 "indexing": {
   "youTubeChannelId": "UC…main",
-  "youTubePlaylistId": "PL…optional, scopes the main channel only",
-  "additionalYouTubeChannels": [
-    { "youTubeChannelId": "UC…archive" },
-    { "youTubeChannelId": "UC…clips", "youTubePlaylistId": "PL…optional, owned by UC…clips",
-      "youTubePlaylistQueryIsExpensive": true, "youTubeChannelSearchForbidden": true }
-  ]
-}
+  "youTubePlaylistId": "PL…optional, scopes the main channel only"
+},
+"additionalYouTubeChannels": [
+  { "youTubeChannelId": "UC…archive" },
+  { "youTubeChannelId": "UC…clips", "youTubePlaylistId": "PL…optional, owned by UC…clips",
+    "youTubePlaylistQueryIsExpensive": true, "youTubeChannelSearchForbidden": true }
+]
 ```
 
 `youTubePlaylistQueryIsExpensive` and `youTubeChannelSearchForbidden` on an entry are indexer-owned, as the same flags
@@ -23,9 +26,12 @@ on the main channel are. The curator API never sets them.
 
 - **Per-channel playlist.** An entry without `youTubePlaylistId` is claimed **channel-wide**. An entry with one is
   scoped to that playlist on that channel only. The main `youTubePlaylistId` never scopes an additional channel, and an
-  additional channel's playlist never scopes the main channel (`CatalogueIndexingSource.YouTubePlaylistIdOn(channelId)`).
+  additional channel's playlist never scopes the main channel. Shared code reads a parent's channels through
+  `CatalogueParentYouTubeChannels.Of(newsOrganisation | tvShow)` (`All()`, `Holds`, `PlaylistIdOn(channelId)`,
+  `ClaimsChannelWide`); only the news-organisation overload includes additional channels.
 - **Stored normalised.** Ids are trimmed, an entry with a blank channel id is dropped, a repeated channel keeps its
-  first entry, and an empty list is not stored (the field is omitted in Cosmos and in `indexing` JSON).
+  first entry, and an empty list is not stored (the field is omitted from the document, so a document without it is an
+  organisation with one channel).
 - **Only the news organisation PATCH sets it** (`PATCH /newsorganisation/{id}`):
   - `additionalYouTubeChannels: [{ "youTubeChannelId": "UC…", "youTubePlaylistId": "PL…" | null }]`, or
   - the older `additionalYouTubeChannelIds: ["UC…"]` (ids only, so it cannot set or clear a
@@ -44,7 +50,7 @@ on the main channel are. The curator API never sets them.
     quota), with the main-channel playlist codes: `youTubePlaylistIdInvalid`, `youTubePlaylistNotFound`,
     `youTubePlaylistChannelMismatch`. A lookup that fails is **503** `youTubePlaylistLookupFailed`.
 - **Uniqueness (409).** An additional channel conflicts like a main channel, whatever playlist scopes it: with another
-  news organisation's or TV show's main or additional channel, and with a channel-wide podcast. A playlist-scoped
+  news organisation's main or additional channel, a TV show's (main) channel, and a channel-wide podcast. A playlist-scoped
   podcast on the same channel is allowed (submission routes by playlist membership). Setting a main
   `youTubeChannelId` that another organisation holds as an additional channel is refused the same way.
 - **Channel-wide claim (400 `channelWideYouTubeConflict`).** A channel-wide additional channel is refused when a
@@ -55,7 +61,7 @@ on the main channel are. The curator API never sets them.
 
 | Path | Behaviour |
 | --- | --- |
-| Hourly indexer (`CatalogueParentsUpdater`) | After the main channel, each additional channel is read as its own YouTube-only transient podcast: channel-wide, or through its playlist (owner = that channel). New videos are saved as `NewsReport`s under the organisation, de-duplicated by YouTube id. Sibling-podcast playlist exclusion runs per channel-wide channel. Each channel's `youTubeChannelSearchForbidden` / `youTubePlaylistQueryIsExpensive` is written back onto its entry; the patch of `indexing.additionalYouTubeChannels` is guarded so it only applies while the stored channel and playlist ids are unchanged (a curator edit mid-pass wins, and the next pass measures again). Playlist history, order and large-playlist hints stay main-channel only. Logs use the prefix `IndexerCatalogueAdditionalYouTubeChannel`. A pass that skips YouTube skips the additional channels too. |
+| Hourly indexer (`CatalogueParentsUpdater`) | News organisations only (a TV show is indexed on its main channel alone). After the main channel, each additional channel is read as its own YouTube-only transient podcast: channel-wide, or through its playlist (owner = that channel). New videos are saved as `NewsReport`s under the organisation, de-duplicated by YouTube id. Sibling-podcast playlist exclusion runs per channel-wide channel. Each channel's `youTubeChannelSearchForbidden` / `youTubePlaylistQueryIsExpensive` is written back onto its entry; the patch of the organisation's `/additionalYouTubeChannels` (`INewsOrganisationRepository.PatchAdditionalYouTubeChannelFlags`, run before the parent patch so `lastIndexed` is still written last) is guarded so it only applies while the stored channel and playlist ids are unchanged (a curator edit mid-pass wins, and the next pass measures again). Playlist history, order and large-playlist hints stay main-channel only. Logs use the prefix `IndexerCatalogueAdditionalYouTubeChannel`. A pass that skips YouTube skips the additional channels too. |
 | URL submit (`CatalogueParentLookup`, `PodcastService`) | A video on an additional channel routes to the organisation. With a playlist on that channel, the playlist-membership tie-breaks use that playlist (never the main one): a playlist-scoped podcast containing the video keeps it, and the organisation's playlist containing it wins over a channel-wide podcast, exactly as the main channel's playlist does. An organisation that holds any channel (main or additional) is never matched by channel title. |
 | Discovery (`EpisodeResultsEnricher`, channel bans) | A result on an additional channel matches the organisation, and reports that channel's playlist. With `indexAllEpisodes` it is index-all when the channel is channel-wide or the video is in that channel's playlist. |
 | Admin API uniqueness and claim guard | See Rules. |

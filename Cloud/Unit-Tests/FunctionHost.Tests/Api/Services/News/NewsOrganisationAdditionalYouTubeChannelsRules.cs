@@ -24,7 +24,7 @@ using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 namespace FunctionHost.Tests.Api.Services.News;
 
 /// <summary>
-/// #1370: a news organisation can hold more than one YouTube channel (<c>additionalYouTubeChannels</c> beside
+/// #1370: a news organisation can hold more than one YouTube channel (its own <c>additionalYouTubeChannels</c> beside
 /// <c>youTubeChannelId</c>, each with an optional playlist on that channel; the older ids-only
 /// <c>additionalYouTubeChannelIds</c> body is still accepted, keeps stored playlists and adds new ids as whole channels).
 /// The curator PATCH stores, replaces and clears the list; each new playlist
@@ -119,12 +119,16 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
             NullLogger<ServiceIdsUniqueness>.Instance));
     }
 
-    private NewsOrganisation AddOrganisation(CatalogueIndexingSource? indexing = null, bool removed = false)
+    private NewsOrganisation AddOrganisation(
+        CatalogueIndexingSource? indexing = null,
+        bool removed = false,
+        List<AdditionalYouTubeChannel>? additionalYouTubeChannels = null)
     {
         var organisation = new NewsOrganisation(_fixture.CreateTitle())
         {
             Id = _fixture.CreateGuid(),
             Indexing = indexing,
+            AdditionalYouTubeChannels = additionalYouTubeChannels,
             Removed = removed ? true : null
         };
         _organisations.Add(organisation);
@@ -190,7 +194,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
         _savedOrganisation.Should().BeSameAs(organisation);
         organisation.Indexing!.YouTubeChannelId.Should().Be(mainChannelId);
-        organisation.Indexing.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId, clipsChannelId);
+        organisation.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId, clipsChannelId);
         organisation.ToDto().AdditionalYouTubeChannelIds.Should().Equal(archiveChannelId, clipsChannelId);
     }
 
@@ -200,11 +204,12 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
     {
         // Arrange
         var mainChannelId = _fixture.CreateYouTubeChannelId();
-        var organisation = AddOrganisation(new CatalogueIndexingSource
-        {
-            YouTubeChannelId = mainChannelId,
-            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(_fixture.CreateYouTubeChannelId())]
-        });
+        var organisation = AddOrganisation(
+            new CatalogueIndexingSource
+            {
+                YouTubeChannelId = mainChannelId
+            },
+            additionalYouTubeChannels: [AdditionalYouTubeChannel.ChannelWide(_fixture.CreateYouTubeChannelId())]);
 
         // Act
         var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
@@ -214,8 +219,8 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
 
         // Assert
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
-        organisation.Indexing!.AdditionalYouTubeChannels.Should().BeNull();
-        organisation.Indexing.YouTubeChannelId.Should().Be(mainChannelId);
+        organisation.AdditionalYouTubeChannels.Should().BeNull();
+        organisation.Indexing!.YouTubeChannelId.Should().Be(mainChannelId);
         organisation.ToDto().AdditionalYouTubeChannelIds.Should().BeEmpty();
     }
 
@@ -225,11 +230,12 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
     {
         // Arrange
         var archiveChannelId = _fixture.CreateYouTubeChannelId();
-        var organisation = AddOrganisation(new CatalogueIndexingSource
-        {
-            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]
-        });
+        var organisation = AddOrganisation(
+            new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId()
+            },
+            additionalYouTubeChannels: [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]);
 
         // Act
         var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
@@ -239,7 +245,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
 
         // Assert
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
-        organisation.Indexing!.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId);
+        organisation.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId);
     }
 
     [Fact(DisplayName =
@@ -259,7 +265,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         result.Status.Should().Be(NewsOrganisationUpdateStatus.BadRequest);
         result.Code.Should().Be(AdditionalYouTubeChannels.InvalidChannelIdCode);
         _savedOrganisation.Should().BeNull();
-        organisation.Indexing!.AdditionalYouTubeChannels.Should().BeNull();
+        organisation.AdditionalYouTubeChannels.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -288,11 +294,12 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
     {
         // Arrange
         var archiveChannelId = _fixture.CreateYouTubeChannelId();
-        var organisation = AddOrganisation(new CatalogueIndexingSource
-        {
-            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]
-        });
+        var organisation = AddOrganisation(
+            new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId()
+            },
+            additionalYouTubeChannels: [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]);
 
         // Act
         var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
@@ -334,11 +341,12 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
     {
         // Arrange
         var archiveChannelId = _fixture.CreateYouTubeChannelId();
-        var organisation = AddOrganisation(new CatalogueIndexingSource
-        {
-            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]
-        });
+        var organisation = AddOrganisation(
+            new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId()
+            },
+            additionalYouTubeChannels: [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]);
         var show = AddShow();
 
         // Act
@@ -383,12 +391,13 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
     {
         // Arrange
         var archiveChannelId = _fixture.CreateYouTubeChannelId();
-        var organisation = AddOrganisation(new CatalogueIndexingSource
-        {
-            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            YouTubePlaylistId = _fixture.CreateYouTubePlaylistId(),
-            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]
-        });
+        var organisation = AddOrganisation(
+            new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+                YouTubePlaylistId = _fixture.CreateYouTubePlaylistId()
+            },
+            additionalYouTubeChannels: [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]);
         var podcast = AddPodcast(p =>
         {
             p.YouTubeChannelId = string.Empty;
@@ -441,9 +450,9 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         // Assert
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
         _savedOrganisation.Should().BeSameAs(organisation);
-        organisation.Indexing!.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId, clipsChannelId);
-        organisation.Indexing.YouTubePlaylistIdOn(archiveChannelId).Should().BeNull();
-        organisation.Indexing.YouTubePlaylistIdOn(clipsChannelId).Should().Be(clipsPlaylistId);
+        organisation.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId, clipsChannelId);
+        CatalogueParentYouTubeChannels.Of(organisation).PlaylistIdOn(archiveChannelId).Should().BeNull();
+        CatalogueParentYouTubeChannels.Of(organisation).PlaylistIdOn(clipsChannelId).Should().Be(clipsPlaylistId);
         var dto = organisation.ToDto();
         dto.AdditionalYouTubeChannels.Select(x => (x.YouTubeChannelId, x.YouTubePlaylistId)).Should()
             .Equal((archiveChannelId, null), (clipsChannelId, clipsPlaylistId));
@@ -482,7 +491,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         result.Code.Should().Be(code);
         result.Message.Should().Contain(clipsChannelId);
         _savedOrganisation.Should().BeNull();
-        organisation.Indexing!.AdditionalYouTubeChannels.Should().BeNull();
+        organisation.AdditionalYouTubeChannels.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -501,11 +510,12 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         var clips = AdditionalYouTubeChannel.ForPlaylist(clipsChannelId, oldClipsPlaylistId);
         clips.YouTubePlaylistQueryIsExpensive = true;
         clips.YouTubeChannelSearchForbidden = true;
-        var organisation = AddOrganisation(new CatalogueIndexingSource
-        {
-            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannels = [archive, clips]
-        });
+        var organisation = AddOrganisation(
+            new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId()
+            },
+            additionalYouTubeChannels: [archive, clips]);
         PlaylistOwnership(clipsChannelId, newClipsPlaylistId, null);
 
         // Act
@@ -520,11 +530,11 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
 
         // Assert
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
-        var storedArchive = organisation.Indexing!.AdditionalYouTubeChannelFor(archiveChannelId)!;
+        var storedArchive = organisation.AdditionalYouTubeChannelFor(archiveChannelId)!;
         storedArchive.YouTubePlaylistId.Should().Be(archivePlaylistId);
         storedArchive.YouTubePlaylistQueryIsExpensive.Should().BeTrue();
         storedArchive.YouTubeChannelSearchForbidden.Should().BeTrue();
-        var storedClips = organisation.Indexing.AdditionalYouTubeChannelFor(clipsChannelId)!;
+        var storedClips = organisation.AdditionalYouTubeChannelFor(clipsChannelId)!;
         storedClips.YouTubePlaylistId.Should().Be(newClipsPlaylistId);
         storedClips.YouTubePlaylistQueryIsExpensive.Should().BeNull();
         storedClips.YouTubeChannelSearchForbidden.Should().BeTrue();
@@ -545,11 +555,12 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         var clips = AdditionalYouTubeChannel.ForPlaylist(clipsChannelId, clipsPlaylistId);
         clips.YouTubePlaylistQueryIsExpensive = true;
         clips.YouTubeChannelSearchForbidden = true;
-        var organisation = AddOrganisation(new CatalogueIndexingSource
-        {
-            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannels = [clips]
-        });
+        var organisation = AddOrganisation(
+            new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId()
+            },
+            additionalYouTubeChannels: [clips]);
 
         // Act
         var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
@@ -559,14 +570,14 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
 
         // Assert
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
-        organisation.Indexing!.AdditionalYouTubeChannels!
+        organisation.AdditionalYouTubeChannels!
             .Select(x => (x.YouTubeChannelId, x.YouTubePlaylistId))
             .Should().Equal((clipsChannelId, clipsPlaylistId), (archiveChannelId, (string?)null));
-        var storedClips = organisation.Indexing.AdditionalYouTubeChannelFor(clipsChannelId)!;
+        var storedClips = organisation.AdditionalYouTubeChannelFor(clipsChannelId)!;
         storedClips.YouTubePlaylistQueryIsExpensive.Should().BeTrue();
         storedClips.YouTubeChannelSearchForbidden.Should().BeTrue();
-        organisation.Indexing.ClaimsYouTubeChannelWide(clipsChannelId).Should().BeFalse();
-        organisation.Indexing.ClaimsYouTubeChannelWide(archiveChannelId).Should().BeTrue();
+        CatalogueParentYouTubeChannels.Of(organisation).ClaimsChannelWide(clipsChannelId).Should().BeFalse();
+        CatalogueParentYouTubeChannels.Of(organisation).ClaimsChannelWide(archiveChannelId).Should().BeTrue();
         VerifyOwnershipChecks(Times.Never());
     }
 
@@ -578,11 +589,12 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         var clipsChannelId = _fixture.CreateYouTubeChannelId();
         var clips = AdditionalYouTubeChannel.ForPlaylist(clipsChannelId, _fixture.CreateYouTubePlaylistId());
         clips.YouTubePlaylistQueryIsExpensive = true;
-        var organisation = AddOrganisation(new CatalogueIndexingSource
-        {
-            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannels = [clips]
-        });
+        var organisation = AddOrganisation(
+            new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId()
+            },
+            additionalYouTubeChannels: [clips]);
 
         // Act
         var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
@@ -592,10 +604,10 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
 
         // Assert
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
-        var storedClips = organisation.Indexing!.AdditionalYouTubeChannelFor(clipsChannelId)!;
+        var storedClips = organisation.AdditionalYouTubeChannelFor(clipsChannelId)!;
         storedClips.YouTubePlaylistId.Should().BeNull();
         storedClips.YouTubePlaylistQueryIsExpensive.Should().BeNull();
-        organisation.Indexing.ClaimsYouTubeChannelWide(clipsChannelId).Should().BeTrue();
+        CatalogueParentYouTubeChannels.Of(organisation).ClaimsChannelWide(clipsChannelId).Should().BeTrue();
         VerifyOwnershipChecks(Times.Never());
     }
 
@@ -717,7 +729,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
 
         // Assert
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
-        organisation.Indexing!.YouTubePlaylistIdOn(clipsChannelId).Should().Be(playlistId);
+        CatalogueParentYouTubeChannels.Of(organisation).PlaylistIdOn(clipsChannelId).Should().Be(playlistId);
     }
 
     [Fact(DisplayName =
@@ -726,12 +738,13 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
     {
         // Arrange
         var clipsChannelId = _fixture.CreateYouTubeChannelId();
-        AddOrganisation(new CatalogueIndexingSource
-        {
-            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannels =
-                [AdditionalYouTubeChannel.ForPlaylist(clipsChannelId, _fixture.CreateYouTubePlaylistId())]
-        });
+        AddOrganisation(
+            new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId()
+            },
+            additionalYouTubeChannels:
+                [AdditionalYouTubeChannel.ForPlaylist(clipsChannelId, _fixture.CreateYouTubePlaylistId())]);
         var podcast = AddPodcast(p =>
         {
             p.YouTubeChannelId = string.Empty;

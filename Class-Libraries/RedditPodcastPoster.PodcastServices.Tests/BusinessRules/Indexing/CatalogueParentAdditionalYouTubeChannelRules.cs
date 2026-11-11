@@ -36,6 +36,7 @@ public class CatalogueParentAdditionalYouTubeChannelRules
     private readonly List<NewsReport> _savedReports = [];
     private readonly List<(Guid Id, CatalogueParentIndexerPatch Patch)> _showPatches = [];
     private readonly List<(Guid Id, CatalogueParentIndexerPatch Patch)> _organisationPatches = [];
+    private readonly List<(Guid Id, List<AdditionalYouTubeChannel> Channels)> _channelFlagPatches = [];
     private readonly Dictionary<Guid, TvShow> _shows = [];
     private readonly Dictionary<Guid, NewsOrganisation> _organisations = [];
     private readonly List<TvShowEpisode> _storedTvEpisodes = [];
@@ -71,6 +72,11 @@ public class CatalogueParentAdditionalYouTubeChannelRules
             .Returns(() => _organisations.Values.ToAsyncEnumerable());
         organisations.Setup(x => x.PatchIndexerState(It.IsAny<Guid>(), It.IsAny<CatalogueParentIndexerPatch>()))
             .Callback((Guid id, CatalogueParentIndexerPatch patch) => _organisationPatches.Add((id, patch)))
+            .ReturnsAsync(true);
+        organisations.Setup(x => x.PatchAdditionalYouTubeChannelFlags(
+                It.IsAny<Guid>(), It.IsAny<IReadOnlyList<AdditionalYouTubeChannel>>()))
+            .Callback((Guid id, IReadOnlyList<AdditionalYouTubeChannel> channels) =>
+                _channelFlagPatches.Add((id, channels.Select(x => x.Copy()).ToList())))
             .ReturnsAsync(true);
 
         var tvEpisodes = _mocker.GetMock<ITvShowEpisodeRepository>();
@@ -143,7 +149,7 @@ public class CatalogueParentAdditionalYouTubeChannelRules
         podcast.YouTubePlaylistId = string.Empty;
         var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
         var additionalChannelId = _fixture.CreateYouTubeChannelId();
-        organisation.Indexing!.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
+        organisation.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         _organisations[organisation.Id] = organisation;
         return (organisation, podcast.YouTubeChannelId, additionalChannelId);
     }
@@ -198,8 +204,8 @@ public class CatalogueParentAdditionalYouTubeChannelRules
 
     [Fact(DisplayName =
         "Catalogue parent indexing: when YouTube refuses search for an additional channel or its playlist query is " +
-        "measured expensive, the flags are stored on that channel's indexing.additionalYouTubeChannels entry and " +
-        "patched, and the main channel's flags are left alone, because each channel's YouTube cost must be " +
+        "measured expensive, the flags are stored on that channel's entry in the organisation's own " +
+        "additionalYouTubeChannels and patched there, and the main channel's flags are left alone, because each channel's YouTube cost must be " +
         "remembered so later passes do not repeat the refused or expensive query.")]
     public async Task additional_channel_flags_are_persisted_per_channel()
     {
@@ -222,14 +228,16 @@ public class CatalogueParentAdditionalYouTubeChannelRules
         // Assert
         success.Should().BeTrue();
         var patch = _organisationPatches.Should().ContainSingle().Subject.Patch;
-        patch.ChangedIndexingProperties.Should().Contain("additionalYouTubeChannels");
         patch.ChangedIndexingProperties.Should().NotContain(["youTubePlaylistQueryIsExpensive", "youTubeChannelSearchForbidden"]);
-        var stored = patch.Indexing.AdditionalYouTubeChannelFor(additionalChannelId)!;
+        var flagPatch = _channelFlagPatches.Should().ContainSingle().Subject;
+        flagPatch.Id.Should().Be(organisation.Id);
+        var stored = flagPatch.Channels.Should().ContainSingle().Subject;
+        stored.YouTubeChannelId.Should().Be(additionalChannelId);
         stored.YouTubePlaylistQueryIsExpensive.Should().BeTrue();
         stored.YouTubeChannelSearchForbidden.Should().BeTrue();
         organisation.Indexing!.YouTubePlaylistQueryIsExpensive.Should().NotBe(true);
         organisation.Indexing.YouTubeChannelSearchForbidden.Should().NotBe(true);
-        organisation.Indexing.AdditionalYouTubeChannelIdList().Should().Equal(additionalChannelId);
+        organisation.AdditionalYouTubeChannelIdList().Should().Equal(additionalChannelId);
     }
 
     [Fact(DisplayName =
@@ -240,7 +248,7 @@ public class CatalogueParentAdditionalYouTubeChannelRules
     {
         // Arrange
         var (organisation, mainChannelId, additionalChannelId) = SeedMultiChannelOrganisation();
-        var channel = organisation.Indexing!.AdditionalYouTubeChannelFor(additionalChannelId)!;
+        var channel = organisation.AdditionalYouTubeChannelFor(additionalChannelId)!;
         channel.YouTubeChannelSearchForbidden = true;
         channel.YouTubePlaylistQueryIsExpensive = true;
         _discoveredByChannel[mainChannelId] = [];
@@ -256,8 +264,7 @@ public class CatalogueParentAdditionalYouTubeChannelRules
         additionalPass.YouTubeChannelSearchForbidden.Should().BeTrue();
         additionalPass.YouTubePlaylistQueryIsExpensive.Should().BeTrue();
         mainPass.YouTubeChannelSearchForbidden.Should().NotBe(true);
-        _organisationPatches.Should().ContainSingle().Which.Patch.ChangedIndexingProperties
-            .Should().NotContain("additionalYouTubeChannels");
+        _channelFlagPatches.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
@@ -285,9 +292,9 @@ public class CatalogueParentAdditionalYouTubeChannelRules
         success.Should().BeTrue();
         var patch = _organisationPatches.Should().ContainSingle().Subject.Patch;
         patch.ChangedIndexingProperties.Should().Contain("youTubeChannelSearchForbidden");
-        patch.ChangedIndexingProperties.Should().NotContain("additionalYouTubeChannels");
         patch.Indexing.YouTubeChannelSearchForbidden.Should().BeTrue();
-        patch.Indexing.AdditionalYouTubeChannelFor(additionalChannelId)!.YouTubeChannelSearchForbidden.Should().BeNull();
+        _channelFlagPatches.Should().BeEmpty();
+        organisation.AdditionalYouTubeChannelFor(additionalChannelId)!.YouTubeChannelSearchForbidden.Should().BeNull();
         _providerCalls.Single(x => x.YouTubeChannelId == additionalChannelId)
             .YouTubeChannelSearchForbidden.Should().BeNull();
     }
@@ -303,7 +310,7 @@ public class CatalogueParentAdditionalYouTubeChannelRules
         var mainPlaylistId = _fixture.CreateYouTubePlaylistId();
         var additionalPlaylistId = _fixture.CreateYouTubePlaylistId();
         organisation.Indexing!.YouTubePlaylistId = mainPlaylistId;
-        organisation.Indexing.AdditionalYouTubeChannels =
+        organisation.AdditionalYouTubeChannels =
             [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
         var video = NewVideo();
         _discoveredByChannel[mainChannelId] = [];
@@ -330,7 +337,7 @@ public class CatalogueParentAdditionalYouTubeChannelRules
     {
         // Arrange
         var (organisation, mainChannelId, additionalChannelId) = SeedMultiChannelOrganisation();
-        organisation.Indexing!.AdditionalYouTubeChannels =
+        organisation.AdditionalYouTubeChannels =
             [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, _fixture.CreateYouTubePlaylistId())];
         var playlistShow = _fixture.CreatePodcast(p =>
         {

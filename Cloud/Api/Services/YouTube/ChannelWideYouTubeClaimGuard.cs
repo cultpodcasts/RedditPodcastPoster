@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -50,16 +51,17 @@ public class ChannelWideYouTubeClaimGuard(
         if (kind != ChannelWideYouTubeClaimKind.NewsOrganisation)
         {
             Expression<Func<NewsOrganisation, bool>> match = x =>
-                x.Id != entityId && x.Indexing != null &&
-                (x.Indexing.YouTubeChannelId == channelId ||
-                 (x.Indexing.AdditionalYouTubeChannels != null &&
-                  x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId)));
+                x.Id != entityId &&
+                ((x.Indexing != null && x.Indexing.YouTubeChannelId == channelId) ||
+                 (x.AdditionalYouTubeChannels != null &&
+                  x.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId)));
             await foreach (var organisation in newsOrganisationRepository.GetAllBy(match)
                                .WithCancellation(cancellationToken))
             {
                 // An additional channel (#1370) is channel-wide unless its own playlist scopes it; the main playlist
                 // never scopes it.
-                if (organisation.IsRemoved() || organisation.Indexing?.ClaimsYouTubeChannelWide(channelId) != true)
+                if (organisation.IsRemoved() ||
+                    !CatalogueParentYouTubeChannels.Of(organisation).ClaimsChannelWide(channelId))
                 {
                     continue;
                 }
@@ -71,13 +73,10 @@ public class ChannelWideYouTubeClaimGuard(
         if (kind != ChannelWideYouTubeClaimKind.TvShow)
         {
             Expression<Func<TvShow, bool>> match = x =>
-                x.Id != entityId && x.Indexing != null &&
-                (x.Indexing.YouTubeChannelId == channelId ||
-                 (x.Indexing.AdditionalYouTubeChannels != null &&
-                  x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId)));
+                x.Id != entityId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId;
             await foreach (var show in tvShowRepository.GetAllBy(match).WithCancellation(cancellationToken))
             {
-                if (show.IsRemoved() || show.Indexing?.ClaimsYouTubeChannelWide(channelId) != true)
+                if (show.IsRemoved() || !string.IsNullOrWhiteSpace(show.Indexing?.YouTubePlaylistId))
                 {
                     continue;
                 }

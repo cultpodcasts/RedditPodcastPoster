@@ -482,9 +482,9 @@ public class EpisodeResultsEnricherCatalogueParentRules
         {
             i.YouTubeChannelId = _fixture.Create<string>();
             i.YouTubePlaylistId = CreatePlaylistId();
-            i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
             i.IndexAllEpisodes = true;
         });
+        organisation.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         var result = CreateEpisodeResult(ids => ids.YouTube = additionalChannelId);
         AttachYouTube(result, CreateVideoId());
 
@@ -511,8 +511,8 @@ public class EpisodeResultsEnricherCatalogueParentRules
             i.SpotifyId = spotifyId;
             i.YouTubeChannelId = _fixture.Create<string>();
             i.YouTubePlaylistId = CreatePlaylistId();
-            i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         });
+        organisation.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         var result = CreateEpisodeResult(ids =>
         {
             ids.Spotify = spotifyId;
@@ -545,10 +545,10 @@ public class EpisodeResultsEnricherCatalogueParentRules
         {
             i.YouTubeChannelId = _fixture.Create<string>();
             i.YouTubePlaylistId = mainPlaylistId;
-            i.AdditionalYouTubeChannels =
-                [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
             i.IndexAllEpisodes = true;
         });
+        organisation.AdditionalYouTubeChannels =
+            [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
         var result = CreateEpisodeResult(ids => ids.YouTube = additionalChannelId);
         AttachYouTube(result, videoId);
         _mocker.GetMock<IYouTubePlaylistMembership>()
@@ -580,9 +580,9 @@ public class EpisodeResultsEnricherCatalogueParentRules
             i.SpotifyId = spotifyId;
             i.YouTubeChannelId = _fixture.Create<string>();
             i.YouTubePlaylistId = CreatePlaylistId();
-            i.AdditionalYouTubeChannels =
-                [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
         });
+        organisation.AdditionalYouTubeChannels =
+            [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
         var result = CreateEpisodeResult(ids =>
         {
             ids.Spotify = spotifyId;

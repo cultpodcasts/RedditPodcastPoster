@@ -4,7 +4,8 @@ namespace RedditPodcastPoster.Models.Catalogue;
 
 /// <summary>
 /// One of a news organisation's YouTube channels beside its main <see cref="CatalogueIndexingSource.YouTubeChannelId"/>
-/// (#1370, JSON <c>indexing.additionalYouTubeChannels[]</c>). The channel is indexed and owned as a whole channel, or,
+/// (#1370, <see cref="News.NewsOrganisation.AdditionalYouTubeChannels"/>, JSON <c>additionalYouTubeChannels[]</c> on the
+/// news organisation document). Only a news organisation holds these. The channel is indexed and owned as a whole channel, or,
 /// when <see cref="YouTubePlaylistId"/> is set, only through that playlist (which must belong to this channel). The
 /// curator sets <see cref="YouTubeChannelId"/> and <see cref="YouTubePlaylistId"/> through the news organisation PATCH;
 /// the indexer owns <see cref="YouTubePlaylistQueryIsExpensive"/> and <see cref="YouTubeChannelSearchForbidden"/> for
@@ -51,6 +52,34 @@ public sealed class AdditionalYouTubeChannel
     /// <summary>An entry for <paramref name="channelId"/> scoped to <paramref name="playlistId"/> (null or blank: whole channel).</summary>
     public static AdditionalYouTubeChannel ForPlaylist(string channelId, string? playlistId) =>
         new() { YouTubeChannelId = channelId, YouTubePlaylistId = playlistId };
+
+    /// <summary>
+    /// The stored form of a list of additional channels: entries that are null or have a blank channel id are dropped,
+    /// a repeated channel keeps its first entry, and an empty result is null (so the list is omitted when written).
+    /// </summary>
+    public static List<AdditionalYouTubeChannel>? Normalise(IEnumerable<AdditionalYouTubeChannel?>? values)
+    {
+        if (values is null)
+        {
+            return null;
+        }
+
+        var normalised = new List<AdditionalYouTubeChannel>();
+        foreach (var value in values)
+        {
+            if (value is null || string.IsNullOrWhiteSpace(value.YouTubeChannelId))
+            {
+                continue;
+            }
+
+            if (normalised.All(x => !string.Equals(x.YouTubeChannelId, value.YouTubeChannelId, StringComparison.Ordinal)))
+            {
+                normalised.Add(value);
+            }
+        }
+
+        return normalised.Count == 0 ? null : normalised;
+    }
 
     public AdditionalYouTubeChannel Copy() => new()
     {
