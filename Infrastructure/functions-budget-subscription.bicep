@@ -17,10 +17,9 @@ param monthlyFunctionsBudgetAmount int
 param alertEmailAddress string = ''
 
 // Azure Consumption budgets reject updates that change timePeriod.startDate
-// ("Start date of budgets cannot be updated"). Do not use utcNow() here —
-// a rolling month default fails every redeploy after the budget's create month.
-// Keep this aligned with the live budget (functions-cost-budget-infra was created
-// 2026-04-01). Changing it requires deleting and recreating the budget.
+// ("Start date of budgets cannot be updated" / "Please delete and create a new budget").
+// Do not use utcNow() — a rolling month default fails redeploy and can block Cosmos.
+// Keep pinned to the live functions-cost-budget-infra start (2026-04-01).
 @description('Immutable budget start date (must match the existing budget once created).')
 param budgetStartDate string = '2026-04-01T00:00:00Z'
 

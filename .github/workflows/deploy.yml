@@ -202,8 +202,11 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
 
-    # Critical resources first. Budget is last: a budget-only failure must not
-    # skip Cosmos/functions, but still fails this job so *-deploy does not run.
+# Provision order: Cosmos -> Storage -> App Insights -> Functions (app settings) -> Set Function State -> Budget.
+    # The subscription budget is alerting-only and nothing downstream depends on it, so it runs last:
+    # a budget failure (e.g. immutable startDate) must not block new containers or Functions app settings
+    # (FileKeyClaims after #1295 — run 42307824897 failed on budget before cosmos-db.bicep).
+    # Budget-only failure still fails this job so *-deploy does not run. See docs/deployment.md.
     - name: Cosmos DB (Deploy Bicep)
       id: bicepcosmosdeploy
       uses: azure/bicep-deploy@v2.5.0
@@ -230,6 +233,7 @@ jobs:
         resource-group-name: ${{ env.DATABASE_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/cosmos-db-diagnostics.bicep
         parameters: '{"cosmosAccountName":"${{ secrets.COSMOS_ACCOUNT_NAME }}", "logAnalyticsWorkspaceName":"loganalytics-${{ env.suffix }}", "enableDiagnostics":true}'
+
     - name: Storage (Deploy Bicep)
       id: bicepstoragedeploy
       uses: azure/bicep-deploy@v2.5.0
@@ -281,7 +285,8 @@ jobs:
           az functionapp ${{ env.functionState }} --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
           az functionapp ${{ env.functionState }} --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
 
-    # After Cosmos/functions. Must succeed for provision to pass (no continue-on-error).
+# Last: alerting-only; may fail the job loudly but only after everything deploys depend on is applied.
+    # Must succeed for provision to pass (no continue-on-error). Gate with run_provision (same as other bicep steps).
     - name: Functions Budget (Deploy Bicep)
       id: bicepfunctionsbudgetdeploy
       uses: azure/bicep-deploy@v2.5.0
@@ -296,7 +301,7 @@ jobs:
         template-file: ./Infrastructure/functions-budget-subscription.bicep
         parameters: '{"enableAlerts":true, "suffix":"${{ env.suffix }}", "deploymentResourceGroupName":"${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}", "monthlyFunctionsBudgetAmount":${{ env.MONTHLY_FUNCTIONS_BUDGET_AMOUNT }}, "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
 
-    - name: Provision latch (set / clear / gate)
+- name: Provision latch (set / clear / gate)
       id: provision_latch
       if: always()
       env:

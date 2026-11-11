@@ -165,6 +165,39 @@ Local deploy scripts are **code-only**. App settings come from bicep ([`Infrastr
 
 Shipping Phase 1 code (or later keys such as `FileKeyClaims`) without those settings on every Function app is the same class of miss as the TitleCasingRules incident. The `FileKeyClaims` container must exist in Cosmos (`cosmos-db.bicep`) before code that validates `cosmosdb__FileKeyClaimsContainer` is live.
 
+### Provision order and the Functions budget
+
+The `provision` job in [`deploy.yml`](../.github/workflows/deploy.yml) applies Bicep in this order. Every `*-deploy` job has `needs: provision`, so any failing step blocks all code deploys; the order puts the steps code depends on first and the alerting-only budget last.
+
+```mermaid
+flowchart LR
+    A[Cosmos<br/>cosmos-db.bicep] --> B[Cosmos diagnostics]
+    B --> C[Storage]
+    C --> D[App Insights]
+    D --> E["Functions<br/>functions.bicep app settings"]
+    E --> F[Set Function State]
+    F --> G["Functions Budget<br/>subscription scope"]
+    G --> H[api / discover / indexer deploy]
+```
+
+| Step | Why it is here |
+|------|----------------|
+| Cosmos, Cosmos diagnostics | New containers (e.g. `FileKeyClaims`) must exist before code that validates their settings goes live. |
+| Storage, App Insights | Dependencies of the Function apps. |
+| Functions (`functions.bicep`) | Applies the `cosmosdb__*` app settings; code deploys never do. |
+| Set Function State | Optional start/stop from the `functionState` env. |
+| Functions Budget | Alerting only; nothing downstream depends on it. It still fails the job loudly, but only after Cosmos, Storage, App Insights and app settings are applied. Run 42307824897 failed on the budget first and blocked `FileKeyClaims` (#1295). |
+
+**Budget `startDate` is immutable and pinned.** Azure rejects a change to a budget's `startDate` after create ("Please delete and create a new budget"). [`functions-budget-subscription.bicep`](../Infrastructure/functions-budget-subscription.bicep) pins `budgetStartDate` to a literal (`2026-04-01T00:00:00Z`) that must equal the live `functions-cost-budget-infra` `timePeriod.startDate`. Do not default it to `utcNow()`: the value would change at month rollover and fail the deployment.
+
+To rotate the start date (rare, e.g. to restart the budget period):
+
+1. Delete the budget `functions-cost-budget-infra` in Azure (Cost Management → Budgets, or `az consumption budget delete`).
+2. Change the `budgetStartDate` default in `functions-budget-subscription.bicep` to the new first-of-month UTC date.
+3. Merge to `main`; the next Provision run creates the budget with the new start date.
+
+Do these in that order and close together: if the literal is bumped while the old budget still exists, the budget step fails (after the steps above have already been applied).
+
 ### Episode JSON cutover (Phase 1 dual-key queries)
 
 Phase 1 renames several Episode denorm wire names and adds `releaseSort`. **Deserialize bridges are not query-safe** — Cosmos SQL/LINQ evaluates stored JSON, not client setters. See epic § [Episode JSON cutover](./catalogue-content-types-epic.md#episode-json-cutover-phase-1).
