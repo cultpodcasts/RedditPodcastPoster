@@ -125,4 +125,4 @@ available for the guardrail scripts.
   pre-runs `dotnet restore` when the vendored project exists.
 - **Running the Functions** (`func start` in `Cloud/Api|Discovery|Indexer`) additionally needs Azure
   Functions Core Tools + Azurite + Cosmos DB + Auth0 + provider secrets — none are provisioned in the
-  local snapshot, so default to build + unit tests for local verification.
+  local snapshot, so default to build + unit tests for local verification.
