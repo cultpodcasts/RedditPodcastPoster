@@ -22,8 +22,9 @@ namespace RedditPodcastPoster.Discovery.Enrichers;
 /// video that is in its playlist; any other video on the channel stays matched and is not index-all.
 /// </para>
 /// <para>
-/// A news organisation owns each of its <c>additionalYouTubeChannelIds</c> as a whole channel, as it owns its main
-/// channel (#1370), so a video on one of them is matched to the organisation and is never playlist-scoped there.
+/// A news organisation owns each of its <c>additionalYouTubeChannels</c> as it owns its main channel (#1370): a video on
+/// one of them is matched to the organisation, and that channel's own optional playlist (never the main channel's)
+/// scopes it there and is the playlist reported for the result.
 /// </para>
 /// </summary>
 public class EpisodeResultsEnricher(

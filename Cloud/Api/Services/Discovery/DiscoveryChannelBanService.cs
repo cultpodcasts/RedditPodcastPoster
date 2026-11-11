@@ -282,8 +282,8 @@ public class DiscoveryChannelBanService(
             if (await newsOrganisationRepository
                     .GetAllBy(x => x.Indexing != null &&
                                    (x.Indexing.YouTubeChannelId == channel ||
-                                    (x.Indexing.AdditionalYouTubeChannelIds != null &&
-                                     x.Indexing.AdditionalYouTubeChannelIds.Contains(channel))))
+                                    (x.Indexing.AdditionalYouTubeChannels != null &&
+                                     x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channel))))
                     .AnyAsync(cancellationToken))
             {
                 return true;
@@ -292,8 +292,8 @@ public class DiscoveryChannelBanService(
             if (await tvShowRepository
                     .GetAllBy(x => x.Indexing != null &&
                                    (x.Indexing.YouTubeChannelId == channel ||
-                                    (x.Indexing.AdditionalYouTubeChannelIds != null &&
-                                     x.Indexing.AdditionalYouTubeChannelIds.Contains(channel))))
+                                    (x.Indexing.AdditionalYouTubeChannels != null &&
+                                     x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channel))))
                     .AnyAsync(cancellationToken))
             {
                 return true;

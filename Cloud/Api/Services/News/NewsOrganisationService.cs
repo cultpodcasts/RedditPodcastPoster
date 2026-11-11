@@ -14,8 +14,10 @@ namespace Api.Services.News;
 /// Curator GET/PATCH for a news organisation. Mirrors <c>TvShowService</c> for lookup (id, or a unique name).
 /// The editable set is the shared publisher fields, including publisher, description and removed (which cascades to
 /// the reports). Name is not part of PATCH: it is changed by <c>POST newsorganisation/name/{identifier}</c> (<c>CatalogueRenameService</c>), which records a redirect.
-/// A news organisation may also hold <c>additionalYouTubeChannelIds</c> (#1370, <see cref="AdditionalYouTubeChannels"/>):
-/// each one passes the same channel-wide claim guard and uniqueness check as the main channel before anything is saved.
+/// A news organisation may also hold <c>additionalYouTubeChannels</c> (#1370, <see cref="AdditionalYouTubeChannels"/>),
+/// each with an optional playlist on that channel: each new playlist is validated against its channel, and each channel
+/// passes the same channel-wide claim guard (when no playlist scopes it) and uniqueness check as the main channel before
+/// anything is saved.
 /// </summary>
 public class NewsOrganisationService(
     INewsOrganisationRepository newsOrganisationRepository,
@@ -96,6 +98,20 @@ public class NewsOrganisationService(
                     Code: refused.Code);
             }
 
+            if (await AdditionalYouTubeChannels.CheckPlaylists(
+                    organisation.Indexing, request.Change, youTubePlaylistGuard, cancellationToken) is
+                { } additionalPlaylistRefused)
+            {
+                logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                    organisation.Id, additionalPlaylistRefused.Code, additionalPlaylistRefused.Message);
+                return new NewsOrganisationUpdateResult(
+                    additionalPlaylistRefused.IsRetryable
+                        ? NewsOrganisationUpdateStatus.ServiceUnavailable
+                        : NewsOrganisationUpdateStatus.BadRequest,
+                    additionalPlaylistRefused.Message,
+                    Code: additionalPlaylistRefused.Code);
+            }
+
             if (ChannelWideYouTubeClaimProjection.ChangeAffectsClaim(request.Change))
             {
                 var (projectedChannel, projectedPlaylist, projectedRemoved) =
@@ -118,17 +134,17 @@ public class NewsOrganisationService(
                 }
             }
 
-            if (request.Change.AdditionalYouTubeChannelIds != null || request.Change.Removed != null)
+            if (AdditionalYouTubeChannels.ListRequested(request.Change) || request.Change.Removed != null)
             {
-                // An additional channel is always claimed channel-wide (no playlist scopes it).
+                // An additional channel is claimed channel-wide unless its own playlist scopes it.
                 var projectedRemoved = request.Change.Removed ?? organisation.IsRemoved();
                 foreach (var additionalChannel in AdditionalYouTubeChannels.Projected(organisation.Indexing, request.Change))
                 {
                     if (await channelWideYouTubeClaimGuard.Check(
                             organisation.Id,
                             ChannelWideYouTubeClaimKind.NewsOrganisation,
-                            additionalChannel,
-                            null,
+                            additionalChannel.YouTubeChannelId,
+                            additionalChannel.YouTubePlaylistId,
                             projectedRemoved,
                             cancellationToken) is { } additionalConflict)
                     {

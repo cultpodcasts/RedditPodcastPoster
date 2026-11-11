@@ -24,9 +24,11 @@ using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 namespace FunctionHost.Tests.Api.Services.News;
 
 /// <summary>
-/// #1370: a news organisation can hold more than one YouTube channel (<c>additionalYouTubeChannelIds</c> beside
-/// <c>youTubeChannelId</c>). The curator PATCH stores, replaces and clears the list; each additional channel passes the
-/// same uniqueness and channel-wide claim checks as the main channel, in both directions, before anything is saved.
+/// #1370: a news organisation can hold more than one YouTube channel (<c>additionalYouTubeChannels</c> beside
+/// <c>youTubeChannelId</c>, each with an optional playlist on that channel; the older <c>additionalYouTubeChannelIds</c>
+/// body is still accepted as whole channels). The curator PATCH stores, replaces and clears the list; each new playlist
+/// is validated against its channel, and each additional channel passes the same uniqueness and channel-wide claim
+/// checks as the main channel, in both directions, before anything is saved.
 /// </summary>
 public class NewsOrganisationAdditionalYouTubeChannelsRules
 {
@@ -54,6 +56,9 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
             .Setup(g => g.CheckChannelAgainstPlaylist(
                 It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
+            .ReturnsAsync((YouTubePlaylistValidation?)null);
+        _mocker.GetMock<IYouTubePlaylistGuard>()
+            .Setup(g => g.CheckChannelOwnsPlaylist(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((YouTubePlaylistValidation?)null);
 
         _mocker.GetMock<INewsOrganisationRepository>()
@@ -184,7 +189,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
         _savedOrganisation.Should().BeSameAs(organisation);
         organisation.Indexing!.YouTubeChannelId.Should().Be(mainChannelId);
-        organisation.Indexing.AdditionalYouTubeChannelIds.Should().Equal(archiveChannelId, clipsChannelId);
+        organisation.Indexing.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId, clipsChannelId);
         organisation.ToDto().AdditionalYouTubeChannelIds.Should().Equal(archiveChannelId, clipsChannelId);
     }
 
@@ -197,7 +202,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         var organisation = AddOrganisation(new CatalogueIndexingSource
         {
             YouTubeChannelId = mainChannelId,
-            AdditionalYouTubeChannelIds = [_fixture.CreateYouTubeChannelId()]
+            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(_fixture.CreateYouTubeChannelId())]
         });
 
         // Act
@@ -208,7 +213,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
 
         // Assert
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
-        organisation.Indexing!.AdditionalYouTubeChannelIds.Should().BeNull();
+        organisation.Indexing!.AdditionalYouTubeChannels.Should().BeNull();
         organisation.Indexing.YouTubeChannelId.Should().Be(mainChannelId);
         organisation.ToDto().AdditionalYouTubeChannelIds.Should().BeEmpty();
     }
@@ -222,7 +227,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         var organisation = AddOrganisation(new CatalogueIndexingSource
         {
             YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannelIds = [archiveChannelId]
+            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]
         });
 
         // Act
@@ -233,7 +238,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
 
         // Assert
         result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
-        organisation.Indexing!.AdditionalYouTubeChannelIds.Should().Equal(archiveChannelId);
+        organisation.Indexing!.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId);
     }
 
     [Fact(DisplayName =
@@ -253,7 +258,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         result.Status.Should().Be(NewsOrganisationUpdateStatus.BadRequest);
         result.Code.Should().Be(AdditionalYouTubeChannels.InvalidChannelIdCode);
         _savedOrganisation.Should().BeNull();
-        organisation.Indexing!.AdditionalYouTubeChannelIds.Should().BeNull();
+        organisation.Indexing!.AdditionalYouTubeChannels.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -285,7 +290,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         var organisation = AddOrganisation(new CatalogueIndexingSource
         {
             YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannelIds = [archiveChannelId]
+            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]
         });
 
         // Act
@@ -323,7 +328,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
     }
 
     [Fact(DisplayName =
-        "PATCH TV show channel-wide on a channel a news organisation holds as an additional channel is a BadRequest with channelWideYouTubeConflict naming the organisation, because an additional channel is always claimed channel-wide.")]
+        "PATCH TV show channel-wide on a channel a news organisation holds as a whole additional channel is a BadRequest with channelWideYouTubeConflict naming the organisation, because that additional channel is claimed channel-wide.")]
     public async Task tv_show_refused_on_an_additional_channel()
     {
         // Arrange
@@ -331,7 +336,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         var organisation = AddOrganisation(new CatalogueIndexingSource
         {
             YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
-            AdditionalYouTubeChannelIds = [archiveChannelId]
+            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]
         });
         var show = AddShow();
 
@@ -346,7 +351,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
     }
 
     [Fact(DisplayName =
-        "PATCH news organisation additional channel that a channel-wide podcast claims is a BadRequest with channelWideYouTubeConflict and nothing is saved, because an additional channel is always claimed channel-wide.")]
+        "PATCH news organisation whole additional channel that a channel-wide podcast claims is a BadRequest with channelWideYouTubeConflict and nothing is saved, because a whole additional channel is claimed channel-wide.")]
     public async Task additional_channel_refused_when_podcast_claims_channel_wide()
     {
         // Arrange
@@ -381,7 +386,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         {
             YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
             YouTubePlaylistId = _fixture.CreateYouTubePlaylistId(),
-            AdditionalYouTubeChannelIds = [archiveChannelId]
+            AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]
         });
         var podcast = AddPodcast(p =>
         {
@@ -397,5 +402,306 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         result.Code.Should().Be(ChannelWideYouTubeClaimConflict.Code);
         result.Error.Should().Contain(organisation.Id.ToString());
         _savedPodcast.Should().BeNull();
+    }
+
+    private void PlaylistOwnership(string channelId, string playlistId, YouTubePlaylistValidation? result) =>
+        _mocker.GetMock<IYouTubePlaylistGuard>()
+            .Setup(g => g.CheckChannelOwnsPlaylist(channelId, playlistId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result);
+
+    private void VerifyOwnershipChecks(Times times) =>
+        _mocker.GetMock<IYouTubePlaylistGuard>().Verify(
+            g => g.CheckChannelOwnsPlaylist(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            times);
+
+    [Fact(DisplayName =
+        "PATCH news organisation additionalYouTubeChannels stores each channel with its optional playlist once the playlist is confirmed to belong to that channel, and the GET returns the channels with their playlists (and the ids alone for older clients), because a news organisation may index one whole channel and only one playlist of another.")]
+    public async Task additional_channels_with_playlists_are_stored_and_returned()
+    {
+        // Arrange
+        var mainChannelId = _fixture.CreateYouTubeChannelId();
+        var archiveChannelId = _fixture.CreateYouTubeChannelId();
+        var clipsChannelId = _fixture.CreateYouTubeChannelId();
+        var clipsPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var organisation = AddOrganisation(new CatalogueIndexingSource { YouTubeChannelId = mainChannelId });
+        PlaylistOwnership(clipsChannelId, clipsPlaylistId, null);
+
+        // Act
+        var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels =
+            [
+                new AdditionalYouTubeChannelChange($" {archiveChannelId} "),
+                new AdditionalYouTubeChannelChange(clipsChannelId, $" {clipsPlaylistId} "),
+                new AdditionalYouTubeChannelChange(archiveChannelId, " ")
+            ]
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
+        _savedOrganisation.Should().BeSameAs(organisation);
+        organisation.Indexing!.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId, clipsChannelId);
+        organisation.Indexing.YouTubePlaylistIdOn(archiveChannelId).Should().BeNull();
+        organisation.Indexing.YouTubePlaylistIdOn(clipsChannelId).Should().Be(clipsPlaylistId);
+        var dto = organisation.ToDto();
+        dto.AdditionalYouTubeChannels.Select(x => (x.YouTubeChannelId, x.YouTubePlaylistId)).Should()
+            .Equal((archiveChannelId, null), (clipsChannelId, clipsPlaylistId));
+        dto.AdditionalYouTubeChannelIds.Should().Equal(archiveChannelId, clipsChannelId);
+        _mocker.GetMock<IYouTubePlaylistGuard>().Verify(
+            g => g.CheckChannelOwnsPlaylist(clipsChannelId, clipsPlaylistId, It.IsAny<CancellationToken>()), Times.Once);
+        VerifyOwnershipChecks(Times.Once());
+    }
+
+    [Theory(DisplayName =
+        "PATCH news organisation with a playlist on an additional channel that is malformed, missing or private, or owned by another channel is a BadRequest with the main-channel playlist code, and a playlist lookup that fails is a 503 youTubePlaylistLookupFailed; nothing is saved, because each channel's playlist must belong to that channel.")]
+    [InlineData(YouTubePlaylistValidationStatus.InvalidPlaylistId, "youTubePlaylistIdInvalid", NewsOrganisationUpdateStatus.BadRequest)]
+    [InlineData(YouTubePlaylistValidationStatus.PlaylistNotFound, "youTubePlaylistNotFound", NewsOrganisationUpdateStatus.BadRequest)]
+    [InlineData(YouTubePlaylistValidationStatus.ChannelMismatch, "youTubePlaylistChannelMismatch", NewsOrganisationUpdateStatus.BadRequest)]
+    [InlineData(YouTubePlaylistValidationStatus.LookupFailed, "youTubePlaylistLookupFailed", NewsOrganisationUpdateStatus.ServiceUnavailable)]
+    public async Task refused_additional_channel_playlist_is_not_saved(
+        YouTubePlaylistValidationStatus status,
+        string code,
+        NewsOrganisationUpdateStatus expected)
+    {
+        // Arrange
+        var clipsChannelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var organisation = AddOrganisation(new CatalogueIndexingSource { YouTubeChannelId = _fixture.CreateYouTubeChannelId() });
+        PlaylistOwnership(clipsChannelId, playlistId,
+            new YouTubePlaylistValidation(status, playlistId, _fixture.CreateYouTubeChannelId()));
+
+        // Act
+        var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels = [new AdditionalYouTubeChannelChange(clipsChannelId, playlistId)]
+        });
+
+        // Assert
+        result.Status.Should().Be(expected);
+        result.Code.Should().Be(code);
+        result.Message.Should().Contain(clipsChannelId);
+        _savedOrganisation.Should().BeNull();
+        organisation.Indexing!.AdditionalYouTubeChannels.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH news organisation re-sending an additional channel with its stored playlist makes no YouTube call and keeps that channel's indexer flags, while changing a channel's playlist validates the new playlist and drops only that channel's expensive-query flag, because the flags describe the playlist the indexer measured.")]
+    public async Task stored_playlists_and_indexer_flags_are_kept_until_the_playlist_changes()
+    {
+        // Arrange
+        var archiveChannelId = _fixture.CreateYouTubeChannelId();
+        var clipsChannelId = _fixture.CreateYouTubeChannelId();
+        var archivePlaylistId = _fixture.CreateYouTubePlaylistId();
+        var oldClipsPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var newClipsPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var archive = AdditionalYouTubeChannel.ForPlaylist(archiveChannelId, archivePlaylistId);
+        archive.YouTubePlaylistQueryIsExpensive = true;
+        archive.YouTubeChannelSearchForbidden = true;
+        var clips = AdditionalYouTubeChannel.ForPlaylist(clipsChannelId, oldClipsPlaylistId);
+        clips.YouTubePlaylistQueryIsExpensive = true;
+        clips.YouTubeChannelSearchForbidden = true;
+        var organisation = AddOrganisation(new CatalogueIndexingSource
+        {
+            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+            AdditionalYouTubeChannels = [archive, clips]
+        });
+        PlaylistOwnership(clipsChannelId, newClipsPlaylistId, null);
+
+        // Act
+        var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels =
+            [
+                new AdditionalYouTubeChannelChange(archiveChannelId, archivePlaylistId),
+                new AdditionalYouTubeChannelChange(clipsChannelId, newClipsPlaylistId)
+            ]
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
+        var storedArchive = organisation.Indexing!.AdditionalYouTubeChannelFor(archiveChannelId)!;
+        storedArchive.YouTubePlaylistId.Should().Be(archivePlaylistId);
+        storedArchive.YouTubePlaylistQueryIsExpensive.Should().BeTrue();
+        storedArchive.YouTubeChannelSearchForbidden.Should().BeTrue();
+        var storedClips = organisation.Indexing.AdditionalYouTubeChannelFor(clipsChannelId)!;
+        storedClips.YouTubePlaylistId.Should().Be(newClipsPlaylistId);
+        storedClips.YouTubePlaylistQueryIsExpensive.Should().BeNull();
+        storedClips.YouTubeChannelSearchForbidden.Should().BeTrue();
+        _mocker.GetMock<IYouTubePlaylistGuard>().Verify(
+            g => g.CheckChannelOwnsPlaylist(archiveChannelId, It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        VerifyOwnershipChecks(Times.Once());
+    }
+
+    [Fact(DisplayName =
+        "PATCH news organisation additionalYouTubeChannelIds (the older ids-only body) stores every channel whole, clearing a stored playlist on a re-sent channel, because that body cannot carry a playlist.")]
+    public async Task legacy_ids_body_stores_whole_channels()
+    {
+        // Arrange
+        var clipsChannelId = _fixture.CreateYouTubeChannelId();
+        var organisation = AddOrganisation(new CatalogueIndexingSource
+        {
+            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+            AdditionalYouTubeChannels =
+                [AdditionalYouTubeChannel.ForPlaylist(clipsChannelId, _fixture.CreateYouTubePlaylistId())]
+        });
+
+        // Act
+        var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannelIds = [clipsChannelId]
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
+        organisation.Indexing!.AdditionalYouTubeChannelFor(clipsChannelId)!.YouTubePlaylistId.Should().BeNull();
+        organisation.Indexing.ClaimsYouTubeChannelWide(clipsChannelId).Should().BeTrue();
+        VerifyOwnershipChecks(Times.Never());
+    }
+
+    public static TheoryData<string, AdditionalYouTubeChannelChange[]?, string[]?> MalformedRequests()
+    {
+        var fixture = new DomainTestFixture();
+        var channel = fixture.CreateYouTubeChannelId();
+        return new TheoryData<string, AdditionalYouTubeChannelChange[]?, string[]?>
+        {
+            { "both body fields", [new AdditionalYouTubeChannelChange(channel)], [channel] },
+            { "a playlist without a channel", [new AdditionalYouTubeChannelChange(" ", fixture.CreateYouTubePlaylistId())], null },
+            { "a malformed channel id", [new AdditionalYouTubeChannelChange("https://youtube.com/@x", fixture.CreateYouTubePlaylistId())], null },
+            {
+                "one channel with two playlists",
+                [
+                    new AdditionalYouTubeChannelChange(channel, fixture.CreateYouTubePlaylistId()),
+                    new AdditionalYouTubeChannelChange(channel, fixture.CreateYouTubePlaylistId())
+                ],
+                null
+            }
+        };
+    }
+
+    [Theory(DisplayName =
+        "PATCH news organisation with both additionalYouTubeChannels and additionalYouTubeChannelIds, a playlist without a channel id, a malformed channel id, or one channel listed with two different playlists is a BadRequest invalidAdditionalYouTubeChannelId with no YouTube call and nothing saved, because the stored channels would be ambiguous.")]
+    [MemberData(nameof(MalformedRequests))]
+    public async Task malformed_additional_channel_requests_are_refused(
+        string refusedCase,
+        AdditionalYouTubeChannelChange[]? channels,
+        string[]? ids)
+    {
+        // Arrange
+        var organisation = AddOrganisation(new CatalogueIndexingSource { YouTubeChannelId = _fixture.CreateYouTubeChannelId() });
+
+        // Act
+        var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels = channels,
+            AdditionalYouTubeChannelIds = ids
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.BadRequest);
+        result.Code.Should().Be(AdditionalYouTubeChannels.InvalidChannelIdCode, refusedCase);
+        _savedOrganisation.Should().BeNull();
+        VerifyOwnershipChecks(Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "PATCH news organisation with its main channel as a playlist-scoped additional channel is a BadRequest additionalYouTubeChannelIsMainChannel with no YouTube call, because a channel is either the main channel or an additional one whatever its playlist.")]
+    public async Task main_channel_cannot_be_a_playlist_scoped_additional_channel()
+    {
+        // Arrange
+        var mainChannelId = _fixture.CreateYouTubeChannelId();
+        var organisation = AddOrganisation(new CatalogueIndexingSource { YouTubeChannelId = mainChannelId });
+
+        // Act
+        var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels =
+                [new AdditionalYouTubeChannelChange(mainChannelId, _fixture.CreateYouTubePlaylistId())]
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.BadRequest);
+        result.Code.Should().Be(AdditionalYouTubeChannels.MainChannelCode);
+        _savedOrganisation.Should().BeNull();
+        VerifyOwnershipChecks(Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "PATCH news organisation playlist-scoped additional channel that another TV show holds is a 409 naming the show, because a channel is held by one news organisation or TV show whatever playlist scopes it.")]
+    public async Task playlist_scoped_additional_channel_held_by_a_show_conflicts()
+    {
+        // Arrange
+        var clipsChannelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var show = AddShow(new CatalogueIndexingSource
+        {
+            YouTubeChannelId = clipsChannelId,
+            YouTubePlaylistId = _fixture.CreateYouTubePlaylistId()
+        });
+        var organisation = AddOrganisation(new CatalogueIndexingSource { YouTubeChannelId = _fixture.CreateYouTubeChannelId() });
+        PlaylistOwnership(clipsChannelId, playlistId, null);
+
+        // Act
+        var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels = [new AdditionalYouTubeChannelChange(clipsChannelId, playlistId)]
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.Conflict);
+        result.ConflictingIds.Should().Equal(show.Id);
+        result.Message.Should().Contain("additionalYouTubeChannels");
+        _savedOrganisation.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH news organisation playlist-scoped additional channel that a playlist-scoped podcast shares is accepted, because submission routes those videos by playlist membership.")]
+    public async Task playlist_scoped_additional_channel_may_share_with_playlist_scoped_podcast()
+    {
+        // Arrange
+        var clipsChannelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        AddPodcast(p =>
+        {
+            p.YouTubeChannelId = clipsChannelId;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        });
+        var organisation = AddOrganisation(new CatalogueIndexingSource { YouTubeChannelId = _fixture.CreateYouTubeChannelId() });
+        PlaylistOwnership(clipsChannelId, playlistId, null);
+
+        // Act
+        var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels = [new AdditionalYouTubeChannelChange(clipsChannelId, playlistId)]
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
+        organisation.Indexing!.YouTubePlaylistIdOn(clipsChannelId).Should().Be(playlistId);
+    }
+
+    [Fact(DisplayName =
+        "PATCH podcast channel-wide on a channel a news organisation holds only through a playlist is not refused as a channel-wide claim conflict, because a playlist-scoped additional channel makes no channel-wide claim.")]
+    public async Task podcast_not_claim_refused_on_playlist_scoped_additional_channel()
+    {
+        // Arrange
+        var clipsChannelId = _fixture.CreateYouTubeChannelId();
+        AddOrganisation(new CatalogueIndexingSource
+        {
+            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+            AdditionalYouTubeChannels =
+                [AdditionalYouTubeChannel.ForPlaylist(clipsChannelId, _fixture.CreateYouTubePlaylistId())]
+        });
+        var podcast = AddPodcast(p =>
+        {
+            p.YouTubeChannelId = string.Empty;
+            p.YouTubePlaylistId = string.Empty;
+        });
+
+        // Act
+        var result = await PatchPodcast(podcast, new PodcastChangeRequest { YouTubeChannelId = clipsChannelId });
+
+        // Assert
+        result.Code.Should().NotBe(ChannelWideYouTubeClaimConflict.Code);
     }
 }

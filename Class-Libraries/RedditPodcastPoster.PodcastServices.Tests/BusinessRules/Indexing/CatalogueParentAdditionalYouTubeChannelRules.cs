@@ -143,7 +143,7 @@ public class CatalogueParentAdditionalYouTubeChannelRules
         podcast.YouTubePlaylistId = string.Empty;
         var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
         var additionalChannelId = _fixture.CreateYouTubeChannelId();
-        organisation.Indexing!.AdditionalYouTubeChannelIds = [additionalChannelId];
+        organisation.Indexing!.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         _organisations[organisation.Id] = organisation;
         return (organisation, podcast.YouTubeChannelId, additionalChannelId);
     }
@@ -197,10 +197,11 @@ public class CatalogueParentAdditionalYouTubeChannelRules
     }
 
     [Fact(DisplayName =
-        "Catalogue parent indexing: indexer state the additional channel pass changes (an expensive-query flag) is " +
-        "not written back to the organisation, because indexing.* bookmarks describe the main channel only; a " +
-        "warning names the channel so the repeated search / playlist cost is visible.")]
-    public async Task additional_channel_pass_does_not_write_indexer_state()
+        "Catalogue parent indexing: when YouTube refuses search for an additional channel or its playlist query is " +
+        "measured expensive, the flags are stored on that channel's indexing.additionalYouTubeChannels entry and " +
+        "patched, and the main channel's flags are left alone, because each channel's YouTube cost must be " +
+        "remembered so later passes do not repeat the refused or expensive query.")]
+    public async Task additional_channel_flags_are_persisted_per_channel()
     {
         // Arrange
         var (organisation, mainChannelId, additionalChannelId) = SeedMultiChannelOrganisation();
@@ -221,19 +222,134 @@ public class CatalogueParentAdditionalYouTubeChannelRules
         // Assert
         success.Should().BeTrue();
         var patch = _organisationPatches.Should().ContainSingle().Subject.Patch;
+        patch.ChangedIndexingProperties.Should().Contain("additionalYouTubeChannels");
         patch.ChangedIndexingProperties.Should().NotContain(["youTubePlaylistQueryIsExpensive", "youTubeChannelSearchForbidden"]);
+        var stored = patch.Indexing.AdditionalYouTubeChannelFor(additionalChannelId)!;
+        stored.YouTubePlaylistQueryIsExpensive.Should().BeTrue();
+        stored.YouTubeChannelSearchForbidden.Should().BeTrue();
         organisation.Indexing!.YouTubePlaylistQueryIsExpensive.Should().NotBe(true);
         organisation.Indexing.YouTubeChannelSearchForbidden.Should().NotBe(true);
-        organisation.Indexing.AdditionalYouTubeChannelIds.Should().Equal(additionalChannelId);
-        _mocker.GetMock<ILogger<CatalogueParentsUpdater>>().Verify(
-            x => x.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains(additionalChannelId) && v.ToString()!.Contains("not persisted")),
-                It.IsAny<Exception?>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        organisation.Indexing.AdditionalYouTubeChannelIdList().Should().Equal(additionalChannelId);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: an additional channel's stored search-forbidden and expensive-query flags are " +
+        "given to that channel's discovery pass (and not to the main channel's), and an unchanged flag is not " +
+        "patched again, because the provider must skip what YouTube already refused for that channel.")]
+    public async Task stored_additional_channel_flags_are_honoured_and_not_rewritten()
+    {
+        // Arrange
+        var (organisation, mainChannelId, additionalChannelId) = SeedMultiChannelOrganisation();
+        var channel = organisation.Indexing!.AdditionalYouTubeChannelFor(additionalChannelId)!;
+        channel.YouTubeChannelSearchForbidden = true;
+        channel.YouTubePlaylistQueryIsExpensive = true;
+        _discoveredByChannel[mainChannelId] = [];
+        _discoveredByChannel[additionalChannelId] = [NewVideo()];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        var mainPass = _providerCalls.Single(x => x.YouTubeChannelId == mainChannelId);
+        var additionalPass = _providerCalls.Single(x => x.YouTubeChannelId == additionalChannelId);
+        additionalPass.YouTubeChannelSearchForbidden.Should().BeTrue();
+        additionalPass.YouTubePlaylistQueryIsExpensive.Should().BeTrue();
+        mainPass.YouTubeChannelSearchForbidden.Should().NotBe(true);
+        _organisationPatches.Should().ContainSingle().Which.Patch.ChangedIndexingProperties
+            .Should().NotContain("additionalYouTubeChannels");
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: the main channel's search-forbidden flag found by the main pass is still patched " +
+        "as indexing.youTubeChannelSearchForbidden and is not copied onto an additional channel, because the main and " +
+        "additional channels' flags are stored separately.")]
+    public async Task main_channel_flags_stay_on_the_main_channel()
+    {
+        // Arrange
+        var (organisation, mainChannelId, additionalChannelId) = SeedMultiChannelOrganisation();
+        _discoveredByChannel[mainChannelId] = [NewVideo()];
+        _discoveredByChannel[additionalChannelId] = [];
+        _onProviderCall = podcast =>
+        {
+            if (podcast.YouTubeChannelId == mainChannelId)
+            {
+                podcast.YouTubeChannelSearchForbidden = true;
+            }
+        };
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        var patch = _organisationPatches.Should().ContainSingle().Subject.Patch;
+        patch.ChangedIndexingProperties.Should().Contain("youTubeChannelSearchForbidden");
+        patch.ChangedIndexingProperties.Should().NotContain("additionalYouTubeChannels");
+        patch.Indexing.YouTubeChannelSearchForbidden.Should().BeTrue();
+        patch.Indexing.AdditionalYouTubeChannelFor(additionalChannelId)!.YouTubeChannelSearchForbidden.Should().BeNull();
+        _providerCalls.Single(x => x.YouTubeChannelId == additionalChannelId)
+            .YouTubeChannelSearchForbidden.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: an additional channel scoped to its own playlist is discovered through that " +
+        "playlist (owned by that channel), not the main channel's playlist, and its videos are saved under the " +
+        "organisation, because a news organisation may index only one playlist of an extra channel.")]
+    public async Task playlist_scoped_additional_channel_is_discovered_through_its_playlist()
+    {
+        // Arrange
+        var (organisation, mainChannelId, additionalChannelId) = SeedMultiChannelOrganisation();
+        var mainPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var additionalPlaylistId = _fixture.CreateYouTubePlaylistId();
+        organisation.Indexing!.YouTubePlaylistId = mainPlaylistId;
+        organisation.Indexing.AdditionalYouTubeChannels =
+            [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
+        var video = NewVideo();
+        _discoveredByChannel[mainChannelId] = [];
+        _discoveredByChannel[additionalChannelId] = [video];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        var mainPass = _providerCalls.Single(x => x.YouTubeChannelId == mainChannelId);
+        var additionalPass = _providerCalls.Single(x => x.YouTubeChannelId == additionalChannelId);
+        mainPass.YouTubePlaylistId.Should().Be(mainPlaylistId);
+        additionalPass.YouTubePlaylistId.Should().Be(additionalPlaylistId);
+        additionalPass.YouTubePlaylistOwnerChannelId.Should().Be(additionalChannelId);
+        _savedReports.Should().ContainSingle().Which.Id.Should().Be(video.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: a video on a playlist-scoped additional channel is saved even when a " +
+        "playlist-scoped podcast of that channel holds it, because only a whole-channel parent defers to sibling " +
+        "playlist podcasts (same rule as the main channel); the organisation's playlist is its own claim.")]
+    public async Task playlist_scoped_additional_channel_skips_sibling_podcast_exclusion()
+    {
+        // Arrange
+        var (organisation, mainChannelId, additionalChannelId) = SeedMultiChannelOrganisation();
+        organisation.Indexing!.AdditionalYouTubeChannels =
+            [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, _fixture.CreateYouTubePlaylistId())];
+        var playlistShow = _fixture.CreatePodcast(p =>
+        {
+            p.YouTubeChannelId = additionalChannelId;
+            p.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+        });
+        _podcasts.Add(playlistShow);
+        var video = NewVideo();
+        _podcastEpisodes.Add(_fixture.CreateStoredEpisode(playlistShow,
+            e => e.Ids = new EpisodeIds { YouTube = video.Ids!.YouTube }));
+        _discoveredByChannel[mainChannelId] = [];
+        _discoveredByChannel[additionalChannelId] = [video];
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().ContainSingle().Which.Id.Should().Be(video.Id);
     }
 
     [Fact(DisplayName =

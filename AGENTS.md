@@ -88,7 +88,7 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - Use detached `Podcast` / `Episode` models and the `PodcastEpisode` pair. Canonical repositories are the split-container implementations in `RedditPodcastPoster.Persistence`. Do not reintroduce `Persistence.Legacy` or embedded-container repositories.
 - Episode ID is globally unique. Azure Search indexing does not use soft-delete.
 - Date-times are UTC. An unspecified-kind `DateTime` is UTC (`UtcDateTimes.ToUtc`). Never convert `DateTime` to `DateTimeOffset` implicitly or with `new DateTimeOffset(dateTime)`: both read unspecified as host-local time (#1191, #1194). Use `UtcDateTimes.ToUtcOffset`. The API writes every date-time as ISO-8601 with `Z` (contract: `FunctionHost.Tests` `UtcJsonDtoContractRules`); the only exception is the discovery schedule's UK-local `slotStartUk`. Date-only releases stay at midnight UTC on that date. Cross-hop audit + test matrix: [`docs/utc-datetime-contract.md`](docs/utc-datetime-contract.md) (#1212).
-- A news organisation may hold extra YouTube channels in `indexing.additionalYouTubeChannelIds` (news PATCH only, ids only, always channel-wide; the main playlist scopes only the main channel). Any owner lookup or uniqueness check on a YouTube channel must match main **or** additional channels. See [docs/news-organisation-multiple-youtube-channels.md](docs/news-organisation-multiple-youtube-channels.md) (#1370).
+- A news organisation may hold extra YouTube channels in `indexing.additionalYouTubeChannels` (`[{ youTubeChannelId, youTubePlaylistId? }]`, news PATCH only; each channel is channel-wide or scoped by its own playlist, and the main playlist scopes only the main channel). Any owner lookup or uniqueness check on a YouTube channel must match main **or** additional channels, and any playlist-scope decision must use `CatalogueIndexingSource.YouTubePlaylistIdOn(channelId)`, never the main `YouTubePlaylistId` alone. See [docs/news-organisation-multiple-youtube-channels.md](docs/news-organisation-multiple-youtube-channels.md) (#1370).
 - `podcast.Removed` is the removal flag. Do not trust episode-level `podcastRemoved` when deciding whether an episode can be posted.
 - Container factories are explicit: `CreatePodcastsContainer()` and `CreateEpisodesContainer()`.
 - Cosmos settings bind to the `cosmosdb` configuration section.
@@ -125,4 +125,4 @@ available for the guardrail scripts.
   pre-runs `dotnet restore` when the vendored project exists.
 - **Running the Functions** (`func start` in `Cloud/Api|Discovery|Indexer`) additionally needs Azure
   Functions Core Tools + Azurite + Cosmos DB + Auth0 + provider secrets — none are provisioned in the
-  local snapshot, so default to build + unit tests for local verification.
+  local snapshot, so default to build + unit tests for local verification.

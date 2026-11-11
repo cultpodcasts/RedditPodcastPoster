@@ -26,11 +26,11 @@ public class CatalogueIndexingSourceCoverageRules
 
     /// <summary>
     /// Indexing fields a podcast does not have: settings only a parent can hold. A podcast keeps one YouTube channel;
-    /// a news organisation may hold further whole channels (#1370).
+    /// a news organisation may hold further channels, each with an optional playlist (#1370).
     /// </summary>
     private static readonly string[] ParentOnlyFields =
     [
-        "additionalYouTubeChannelIds"
+        "additionalYouTubeChannels"
     ];
 
     private readonly DomainTestFixture _fixture = new();

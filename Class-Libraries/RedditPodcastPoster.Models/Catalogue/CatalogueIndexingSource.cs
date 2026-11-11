@@ -24,7 +24,7 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     private string? _descriptionRegex;
     private string? _episodeMatchRegex;
     private string? _episodeIncludeTitleRegex;
-    private List<string>? _additionalYouTubeChannelIds;
+    private List<AdditionalYouTubeChannel>? _additionalYouTubeChannels;
 
     [JsonPropertyName("hasBundledEpisodes")]
     public bool Bundles { get; set; }
@@ -107,18 +107,21 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     /// <summary>
     /// News organisation only (#1370): further YouTube channels the organisation owns and indexes beside
     /// <see cref="YouTubeChannelId"/>, for example an outlet's main channel and its archive channel. Each one is a whole
-    /// channel (never playlist-scoped; <see cref="YouTubePlaylistId"/> only scopes the main channel). The hourly indexer
-    /// discovers every one into the same organisation, and URL submission, discovery and the curator uniqueness /
-    /// channel-wide claim checks treat each one as they treat the main channel id. Set by the news organisation PATCH
-    /// only. Values are trimmed, blanks and repeats dropped; an empty list is stored as null (omitted). Not a podcast
-    /// field, so <see cref="FromPodcast"/> and <see cref="ToTransientPodcast"/> never carry it.
+    /// channel, or is scoped to its own optional <see cref="AdditionalYouTubeChannel.YouTubePlaylistId"/> on that channel
+    /// (<see cref="YouTubePlaylistId"/> only ever scopes the main channel). The hourly indexer discovers every one into
+    /// the same organisation, and URL submission, discovery and the curator uniqueness / channel-wide claim checks treat
+    /// each one as they treat the main channel and its playlist (<see cref="YouTubePlaylistIdOn"/>). Set by the news
+    /// organisation PATCH only; the indexer writes back each channel's own expensive-query / search-forbidden flags.
+    /// Entries with a blank channel id are dropped and a repeated channel keeps its first entry; an empty list is stored
+    /// as null (omitted). Not a podcast field, so <see cref="FromPodcast"/> and <see cref="ToTransientPodcast"/> never
+    /// carry it.
     /// </summary>
-    [JsonPropertyName("additionalYouTubeChannelIds")]
+    [JsonPropertyName("additionalYouTubeChannels")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? AdditionalYouTubeChannelIds
+    public List<AdditionalYouTubeChannel>? AdditionalYouTubeChannels
     {
-        get => _additionalYouTubeChannelIds;
-        set => _additionalYouTubeChannelIds = NormaliseChannelIds(value);
+        get => _additionalYouTubeChannels;
+        set => _additionalYouTubeChannels = NormaliseChannels(value);
     }
 
     [JsonPropertyName("youTubePlaylistIdHistory")]
@@ -179,7 +182,7 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
         IndexAllEpisodes || !string.IsNullOrWhiteSpace(EpisodeIncludeTitleRegex);
 
     /// <summary>
-    /// The main <see cref="YouTubeChannelId"/> (when set) followed by each of <see cref="AdditionalYouTubeChannelIds"/>,
+    /// The main <see cref="YouTubeChannelId"/> (when set) followed by each of <see cref="AdditionalYouTubeChannels"/>,
     /// without repeats: every YouTube channel this parent claims.
     /// </summary>
     public IReadOnlyList<string> AllYouTubeChannelIds()
@@ -190,11 +193,11 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
             all.Add(main);
         }
 
-        foreach (var additional in AdditionalYouTubeChannelIds ?? [])
+        foreach (var additional in AdditionalYouTubeChannels ?? [])
         {
-            if (!all.Contains(additional, StringComparer.Ordinal))
+            if (!all.Contains(additional.YouTubeChannelId, StringComparer.Ordinal))
             {
-                all.Add(additional);
+                all.Add(additional.YouTubeChannelId);
             }
         }
 
@@ -206,21 +209,42 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
         !string.IsNullOrWhiteSpace(channelId) &&
         AllYouTubeChannelIds().Contains(channelId.Trim(), StringComparer.Ordinal);
 
+    /// <summary>The ids of <see cref="AdditionalYouTubeChannels"/>, in order (empty when none).</summary>
+    public IReadOnlyList<string> AdditionalYouTubeChannelIdList() =>
+        AdditionalYouTubeChannels?.Select(x => x.YouTubeChannelId).ToList() ?? [];
+
+    /// <summary>The additional-channel entry for <paramref name="channelId"/>, or null when it is not one.</summary>
+    public AdditionalYouTubeChannel? AdditionalYouTubeChannelFor(string? channelId) =>
+        string.IsNullOrWhiteSpace(channelId)
+            ? null
+            : AdditionalYouTubeChannels?.FirstOrDefault(x =>
+                string.Equals(x.YouTubeChannelId, channelId.Trim(), StringComparison.Ordinal));
+
     /// <summary>True when this parent holds <paramref name="channelId"/> as one of its additional channels.</summary>
-    public bool HoldsAdditionalYouTubeChannel(string? channelId) =>
-        !string.IsNullOrWhiteSpace(channelId) &&
-        (AdditionalYouTubeChannelIds?.Contains(channelId.Trim(), StringComparer.Ordinal) ?? false);
+    public bool HoldsAdditionalYouTubeChannel(string? channelId) => AdditionalYouTubeChannelFor(channelId) != null;
 
     /// <summary>
-    /// The playlist that scopes this parent on <paramref name="channelId"/>: <see cref="YouTubePlaylistId"/> for the main
-    /// channel, null (whole channel) for an additional channel or a channel the parent does not hold.
+    /// The playlist that scopes this parent on <paramref name="channelId"/>: that additional channel's own optional
+    /// playlist when it is one of <see cref="AdditionalYouTubeChannels"/>, <see cref="YouTubePlaylistId"/> for the main
+    /// channel, and null (whole channel, or a channel the parent does not hold) otherwise. The main channel's playlist
+    /// never scopes an additional channel.
     /// </summary>
-    public string? YouTubePlaylistIdOn(string? channelId) =>
-        !HoldsAdditionalYouTubeChannel(channelId) &&
-        !string.IsNullOrWhiteSpace(channelId) &&
-        string.Equals(YouTubeChannelId, channelId.Trim(), StringComparison.Ordinal)
+    public string? YouTubePlaylistIdOn(string? channelId)
+    {
+        if (string.IsNullOrWhiteSpace(channelId))
+        {
+            return null;
+        }
+
+        if (AdditionalYouTubeChannelFor(channelId) is { } additional)
+        {
+            return additional.YouTubePlaylistId;
+        }
+
+        return string.Equals(YouTubeChannelId, channelId.Trim(), StringComparison.Ordinal)
             ? YouTubePlaylistId
             : null;
+    }
 
     /// <summary>True when this parent claims the whole of <paramref name="channelId"/> (held, and no playlist scopes it there).</summary>
     public bool ClaimsYouTubeChannelWide(string? channelId) =>
@@ -334,26 +358,30 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
     }
 
     /// <summary>
-    /// The transient podcast the indexer runs for one of <see cref="AdditionalYouTubeChannelIds"/> (#1370): the
+    /// The transient podcast the indexer runs for one of <see cref="AdditionalYouTubeChannels"/> (#1370): the
     /// <see cref="ToTransientPodcast"/> of this parent with <paramref name="channelId"/> as its only source, as a whole
-    /// channel. The main channel's playlist, playlist history and hints, its expensive-query and search-forbidden
-    /// flags, and the Spotify / Apple ids are not carried, so the pass is a YouTube-only channel discovery and the
-    /// main channel's indexer state is never read or moved by it. The discovery, filter and duration rules are the
-    /// parent's.
+    /// channel or through that channel's own optional playlist (owned by the channel, so
+    /// <see cref="Podcast.YouTubePlaylistOwnerChannelId"/> is the channel). That channel's own expensive-query and
+    /// search-forbidden flags are carried, so a refusal or an expensive playlist measured on an earlier pass is honoured.
+    /// The main channel's playlist, playlist history, order and hints, its flags, and the Spotify / Apple ids are not
+    /// carried, so the pass is a YouTube-only discovery and the main channel's indexer state is never read or moved by
+    /// it. The discovery, filter and duration rules are the parent's. A channel that is not one of
+    /// <see cref="AdditionalYouTubeChannels"/> is read as a whole channel with no flags.
     /// </summary>
     public Podcast ToTransientPodcastForAdditionalYouTubeChannel(Publisher parent, string channelId)
     {
         ArgumentNullException.ThrowIfNull(parent);
         ArgumentException.ThrowIfNullOrWhiteSpace(channelId);
+        var channel = AdditionalYouTubeChannelFor(channelId);
         var podcast = ToTransientPodcast(parent);
         podcast.YouTubeChannelId = channelId.Trim();
-        podcast.YouTubePlaylistId = string.Empty;
-        podcast.YouTubePlaylistOwnerChannelId = null;
+        podcast.YouTubePlaylistId = channel?.YouTubePlaylistId ?? string.Empty;
+        podcast.YouTubePlaylistOwnerChannelId = channel?.YouTubePlaylistId is null ? null : podcast.YouTubeChannelId;
         podcast.YouTubePlaylistIdHistory = null;
         podcast.YouTubePlaylistOrder = null;
-        podcast.YouTubePlaylistQueryIsExpensive = null;
+        podcast.YouTubePlaylistQueryIsExpensive = channel?.YouTubePlaylistQueryIsExpensive;
         podcast.YouTubeIndexingHints = null;
-        podcast.YouTubeChannelSearchForbidden = null;
+        podcast.YouTubeChannelSearchForbidden = channel?.YouTubeChannelSearchForbidden;
         podcast.SkipEnrichingFromYouTube = null;
         podcast.SpotifyId = string.Empty;
         podcast.SpotifyEpisodesQueryIsExpensive = null;
@@ -380,25 +408,24 @@ public sealed class CatalogueIndexingSource : IYouTubeIndexingSettings
 
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
-    private static List<string>? NormaliseChannelIds(IEnumerable<string?>? values)
+    private static List<AdditionalYouTubeChannel>? NormaliseChannels(IEnumerable<AdditionalYouTubeChannel?>? values)
     {
         if (values is null)
         {
             return null;
         }
 
-        var normalised = new List<string>();
+        var normalised = new List<AdditionalYouTubeChannel>();
         foreach (var value in values)
         {
-            if (string.IsNullOrWhiteSpace(value))
+            if (value is null || string.IsNullOrWhiteSpace(value.YouTubeChannelId))
             {
                 continue;
             }
 
-            var trimmed = value.Trim();
-            if (!normalised.Contains(trimmed, StringComparer.Ordinal))
+            if (normalised.All(x => !string.Equals(x.YouTubeChannelId, value.YouTubeChannelId, StringComparison.Ordinal)))
             {
-                normalised.Add(trimmed);
+                normalised.Add(value);
             }
         }
 

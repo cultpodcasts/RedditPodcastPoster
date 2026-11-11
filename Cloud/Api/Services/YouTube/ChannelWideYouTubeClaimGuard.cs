@@ -52,12 +52,13 @@ public class ChannelWideYouTubeClaimGuard(
             Expression<Func<NewsOrganisation, bool>> match = x =>
                 x.Id != entityId && x.Indexing != null &&
                 (x.Indexing.YouTubeChannelId == channelId ||
-                 (x.Indexing.AdditionalYouTubeChannelIds != null &&
-                  x.Indexing.AdditionalYouTubeChannelIds.Contains(channelId)));
+                 (x.Indexing.AdditionalYouTubeChannels != null &&
+                  x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId)));
             await foreach (var organisation in newsOrganisationRepository.GetAllBy(match)
                                .WithCancellation(cancellationToken))
             {
-                // An additional channel (#1370) is always claimed channel-wide, whatever the main playlist.
+                // An additional channel (#1370) is channel-wide unless its own playlist scopes it; the main playlist
+                // never scopes it.
                 if (organisation.IsRemoved() || organisation.Indexing?.ClaimsYouTubeChannelWide(channelId) != true)
                 {
                     continue;
@@ -72,8 +73,8 @@ public class ChannelWideYouTubeClaimGuard(
             Expression<Func<TvShow, bool>> match = x =>
                 x.Id != entityId && x.Indexing != null &&
                 (x.Indexing.YouTubeChannelId == channelId ||
-                 (x.Indexing.AdditionalYouTubeChannelIds != null &&
-                  x.Indexing.AdditionalYouTubeChannelIds.Contains(channelId)));
+                 (x.Indexing.AdditionalYouTubeChannels != null &&
+                  x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId)));
             await foreach (var show in tvShowRepository.GetAllBy(match).WithCancellation(cancellationToken))
             {
                 if (show.IsRemoved() || show.Indexing?.ClaimsYouTubeChannelWide(channelId) != true)

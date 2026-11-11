@@ -1288,7 +1288,7 @@ public class CatalogueParentRoutingRules
         {
             i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
             i.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
-            i.AdditionalYouTubeChannelIds = [additionalChannelId];
+            i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         });
         var url = YouTubeUrl();
         OwnerIs(url, null, new EpisodeUrlOwnerIds(YouTubeChannelId: additionalChannelId));
@@ -1305,7 +1305,7 @@ public class CatalogueParentRoutingRules
     }
 
     [Fact(DisplayName =
-        "With a video URL on a news organisation's additional channel, a playlist-scoped TV show on that channel whose playlist holds the video wins, and otherwise the organisation keeps it, because the additional channel is claimed channel-wide and the main playlist does not scope it.")]
+        "With a video URL on a news organisation's whole additional channel, a playlist-scoped TV show on that channel whose playlist holds the video wins, and otherwise the organisation keeps it, because that additional channel is claimed channel-wide and the main playlist does not scope it.")]
     public async Task additional_channel_is_channel_wide_in_playlist_tie_break()
     {
         // Arrange
@@ -1316,7 +1316,7 @@ public class CatalogueParentRoutingRules
         {
             i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
             i.YouTubePlaylistId = mainPlaylistId;
-            i.AdditionalYouTubeChannelIds = [additionalChannelId];
+            i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         });
         var show = AddShow(i =>
         {
@@ -1352,7 +1352,9 @@ public class CatalogueParentRoutingRules
     {
         // Arrange
         var name = "Synthetic Outlet " + _fixture.CreateTitle();
-        var organisation = AddOrganisation(i => i.AdditionalYouTubeChannelIds = [_fixture.CreateYouTubeChannelId()], name);
+        var organisation = AddOrganisation(
+            i => i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(_fixture.CreateYouTubeChannelId())],
+            name);
         var url = YouTubeUrl();
         OwnerIs(url, null,
             new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(), YouTubeChannelTitle: name));
@@ -1363,6 +1365,74 @@ public class CatalogueParentRoutingRules
 
         // Assert
         VerifyRoutedTo(organisation.Id, Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "With a video URL on a news organisation's additional channel that the organisation scopes to its own playlist, the organisation wins when that playlist holds the video and a channel-wide TV show on the channel keeps any other video; without a URL the channel-wide show wins, because the additional channel's playlist scopes the organisation there and the main playlist never does (#1370).")]
+    public async Task playlist_scoped_additional_channel_in_tie_break()
+    {
+        // Arrange
+        var additionalChannelId = _fixture.CreateYouTubeChannelId();
+        var mainPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var additionalPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            i.YouTubePlaylistId = mainPlaylistId;
+            i.AdditionalYouTubeChannels =
+                [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
+        });
+        var show = AddShow(i => i.YouTubeChannelId = additionalChannelId);
+        var inPlaylist = YouTubeUrl();
+        var outsidePlaylist = YouTubeUrl();
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.IsVideoInPlaylist(It.IsAny<IYouTubeServiceWrapper>(), additionalPlaylistId, inPlaylist, It.IsAny<bool>()))
+            .ReturnsAsync(true);
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.IsVideoInPlaylist(It.IsAny<IYouTubeServiceWrapper>(), additionalPlaylistId, outsidePlaylist, It.IsAny<bool>()))
+            .ReturnsAsync(false);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+        var ids = new EpisodeUrlOwnerIds(YouTubeChannelId: additionalChannelId);
+
+        // Act
+        var inside = await sut.FindByOwner(ids, inPlaylist, new IndexingContext());
+        var outside = await sut.FindByOwner(ids, outsidePlaylist, new IndexingContext());
+        var withoutUrl = await sut.FindByOwner(ids);
+
+        // Assert
+        inside!.Parent.Id.Should().Be(organisation.Id);
+        outside!.Parent.Id.Should().Be(show.Id);
+        withoutUrl!.Parent.Id.Should().Be(show.Id);
+        _mocker.GetMock<IYouTubePlaylistMembership>().Verify(m => m.IsVideoInPlaylist(
+            It.IsAny<IYouTubeServiceWrapper>(), mainPlaylistId, It.IsAny<Uri>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the organisation's playlist on its additional channel cannot be checked and a channel-wide TV show shares the channel, the parent lookup fails closed, because routing must not guess which parent owns the video (#1370).")]
+    public async Task unknown_additional_playlist_membership_fails_closed_in_tie_break()
+    {
+        // Arrange
+        var additionalChannelId = _fixture.CreateYouTubeChannelId();
+        var additionalPlaylistId = _fixture.CreateYouTubePlaylistId();
+        AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            i.AdditionalYouTubeChannels =
+                [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
+        });
+        AddShow(i => i.YouTubeChannelId = additionalChannelId);
+        var url = YouTubeUrl();
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.IsVideoInPlaylist(It.IsAny<IYouTubeServiceWrapper>(), additionalPlaylistId, url, It.IsAny<bool>()))
+            .ReturnsAsync((bool?) null);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var act = () => sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: additionalChannelId), url, new IndexingContext());
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Could not check*");
     }
 
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)

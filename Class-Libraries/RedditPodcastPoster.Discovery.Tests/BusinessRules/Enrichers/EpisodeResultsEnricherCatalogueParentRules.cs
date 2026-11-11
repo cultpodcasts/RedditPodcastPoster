@@ -482,7 +482,7 @@ public class EpisodeResultsEnricherCatalogueParentRules
         {
             i.YouTubeChannelId = _fixture.Create<string>();
             i.YouTubePlaylistId = CreatePlaylistId();
-            i.AdditionalYouTubeChannelIds = [additionalChannelId];
+            i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
             i.IndexAllEpisodes = true;
         });
         var result = CreateEpisodeResult(ids => ids.YouTube = additionalChannelId);
@@ -511,7 +511,7 @@ public class EpisodeResultsEnricherCatalogueParentRules
             i.SpotifyId = spotifyId;
             i.YouTubeChannelId = _fixture.Create<string>();
             i.YouTubePlaylistId = CreatePlaylistId();
-            i.AdditionalYouTubeChannelIds = [additionalChannelId];
+            i.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
         });
         var result = CreateEpisodeResult(ids =>
         {
@@ -527,6 +527,76 @@ public class EpisodeResultsEnricherCatalogueParentRules
         var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
         match.PodcastId.Should().Be(organisation.Id);
         match.YouTubePlaylistId.Should().BeEmpty();
+    }
+
+    [Theory(DisplayName =
+        "A news organisation that indexes every episode and scopes one of its additional YouTube channels to a playlist eliminates a discovered video on that channel only when the video is in that channel's playlist (never the main playlist), and reports that playlist, including when membership cannot be checked.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    [InlineData(null)]
+    public async Task playlist_scoped_additional_channel_eliminates_only_videos_in_its_playlist(bool? inPlaylist)
+    {
+        // Arrange
+        var additionalChannelId = _fixture.Create<string>();
+        var mainPlaylistId = CreatePlaylistId();
+        var additionalPlaylistId = CreatePlaylistId();
+        var videoId = CreateVideoId();
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.Create<string>();
+            i.YouTubePlaylistId = mainPlaylistId;
+            i.AdditionalYouTubeChannels =
+                [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
+            i.IndexAllEpisodes = true;
+        });
+        var result = CreateEpisodeResult(ids => ids.YouTube = additionalChannelId);
+        AttachYouTube(result, videoId);
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.Contains(It.IsAny<IYouTubeServiceWrapper>(), additionalPlaylistId, videoId))
+            .ReturnsAsync(inPlaylist);
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(organisation.Id);
+        match.IndexAllEpisodes.Should().Be(inPlaylist == true);
+        match.YouTubePlaylistId.Should().Be(additionalPlaylistId);
+        _mocker.GetMock<IYouTubePlaylistMembership>().Verify(m => m.Contains(
+            It.IsAny<IYouTubeServiceWrapper>(), mainPlaylistId, It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a news organisation is matched by its Spotify id and the discovered video is on one of its playlist-scoped additional YouTube channels, the match reports that channel's playlist, not the main channel's (#1370).")]
+    public async Task spotify_matched_organisation_on_playlist_scoped_additional_channel_reports_that_playlist()
+    {
+        // Arrange
+        var spotifyId = _fixture.Create<string>();
+        var additionalChannelId = _fixture.Create<string>();
+        var additionalPlaylistId = CreatePlaylistId();
+        var organisation = AddOrganisation(i =>
+        {
+            i.SpotifyId = spotifyId;
+            i.YouTubeChannelId = _fixture.Create<string>();
+            i.YouTubePlaylistId = CreatePlaylistId();
+            i.AdditionalYouTubeChannels =
+                [AdditionalYouTubeChannel.ForPlaylist(additionalChannelId, additionalPlaylistId)];
+        });
+        var result = CreateEpisodeResult(ids =>
+        {
+            ids.Spotify = spotifyId;
+            ids.YouTube = additionalChannelId;
+        });
+        AttachYouTube(result, CreateVideoId());
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(organisation.Id);
+        match.YouTubePlaylistId.Should().Be(additionalPlaylistId);
     }
 
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)

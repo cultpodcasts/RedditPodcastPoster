@@ -522,7 +522,7 @@ public class PodcastServiceYouTubeChannelRoutingRules
         VerifyContains(parentPlaylist, Times.Once());
     }
 
-    private void ChannelIsAdditionalChannelOf(string mainPlaylistId)
+    private NewsOrganisation ChannelIsAdditionalChannelOf(string mainPlaylistId, string? additionalPlaylistId = null)
     {
         var organisation = new NewsOrganisation(_fixture.CreateTitle())
         {
@@ -530,7 +530,7 @@ public class PodcastServiceYouTubeChannelRoutingRules
             {
                 YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
                 YouTubePlaylistId = mainPlaylistId,
-                AdditionalYouTubeChannelIds = [_channelId]
+                AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ForPlaylist(_channelId, additionalPlaylistId)]
             }
         };
         _mocker.GetMock<ICatalogueParentLookup>()
@@ -539,6 +539,7 @@ public class PodcastServiceYouTubeChannelRoutingRules
                 It.IsAny<Uri>(),
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync(CatalogueParentMatch.For(organisation));
+        return organisation;
     }
 
     [Fact(DisplayName =
@@ -587,5 +588,242 @@ public class PodcastServiceYouTubeChannelRoutingRules
         route.Podcast.Should().BeNull();
         route.Parent!.Kind.Should().Be(CatalogueParentKind.NewsOrganisation);
         VerifyContains(mainPlaylist, Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "A video on a news organisation's additional channel that is in a playlist-scoped podcast's playlist stays with the podcast, even when the organisation also scopes that channel to a playlist holding the video, because a podcast whose playlist contains the video owns it (#1370).")]
+    public async Task podcast_playlist_member_beats_organisation_additional_playlist()
+    {
+        // Arrange
+        var podcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        var additionalPlaylist = _fixture.CreateYouTubePlaylistId();
+        var podcast = await AddPodcast(podcastPlaylist);
+        InPlaylist(podcastPlaylist, true);
+        InPlaylist(additionalPlaylist, true);
+        ChannelIsAdditionalChannelOf(_fixture.CreateYouTubePlaylistId(), additionalPlaylist);
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var result = await sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        result.Podcast!.Id.Should().Be(podcast.Id);
+        result.Parent.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A video on a news organisation's additional channel that is not in the playlist-scoped podcast's playlist but is in the organisation's own playlist on that channel goes to the organisation, checking that channel's playlist and never the main channel's (#1370).")]
+    public async Task organisation_additional_playlist_member_goes_to_organisation()
+    {
+        // Arrange
+        var podcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        var mainPlaylist = _fixture.CreateYouTubePlaylistId();
+        var additionalPlaylist = _fixture.CreateYouTubePlaylistId();
+        await AddPodcast(podcastPlaylist);
+        InPlaylist(podcastPlaylist, false);
+        InPlaylist(mainPlaylist, false);
+        InPlaylist(additionalPlaylist, true);
+        var organisation = ChannelIsAdditionalChannelOf(mainPlaylist, additionalPlaylist);
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var result = await sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        result.Podcast.Should().BeNull();
+        result.Parent!.Parent.Id.Should().Be(organisation.Id);
+        result.ChannelRouteDecided.Should().BeTrue();
+        VerifyContains(additionalPlaylist, Times.Once());
+        VerifyContains(mainPlaylist, Times.Never());
+    }
+
+    [Fact(DisplayName =
+        "A video on a news organisation's additional channel that is in neither the playlist-scoped podcast's playlist nor the organisation's playlist on that channel stays with the only podcast (legacy rule), because a playlist-scoped organisation never takes a video outside its playlist (#1370).")]
+    public async Task video_outside_both_playlists_stays_with_lone_playlist_podcast()
+    {
+        // Arrange
+        var podcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        var additionalPlaylist = _fixture.CreateYouTubePlaylistId();
+        var podcast = await AddPodcast(podcastPlaylist);
+        InPlaylist(podcastPlaylist, false);
+        InPlaylist(additionalPlaylist, false);
+        ChannelIsAdditionalChannelOf(_fixture.CreateYouTubePlaylistId(), additionalPlaylist);
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var result = await sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        result.Podcast!.Id.Should().Be(podcast.Id);
+        result.Parent.Should().BeNull();
+        VerifyContains(additionalPlaylist, Times.Once());
+    }
+
+    [Theory(DisplayName =
+        "With a channel-wide podcast on a news organisation's additional channel, the organisation takes a video only when its own playlist on that channel holds it (or it claims the channel whole); otherwise the channel-wide podcast keeps it (#1370).")]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, null)]
+    public async Task channel_wide_podcast_versus_organisation_on_additional_channel(
+        bool organisationScopedToPlaylist,
+        bool? videoInOrganisationPlaylist)
+    {
+        // Arrange
+        var channelWide = await AddPodcast(string.Empty);
+        var additionalPlaylist = organisationScopedToPlaylist ? _fixture.CreateYouTubePlaylistId() : null;
+        if (additionalPlaylist != null)
+        {
+            InPlaylist(additionalPlaylist, videoInOrganisationPlaylist);
+        }
+
+        var otherPodcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        await AddPodcast(otherPodcastPlaylist);
+        InPlaylist(otherPodcastPlaylist, false);
+        var organisation = ChannelIsAdditionalChannelOf(_fixture.CreateYouTubePlaylistId(), additionalPlaylist);
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var result = await sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        var organisationWins = !organisationScopedToPlaylist || videoInOrganisationPlaylist == true;
+        if (organisationWins)
+        {
+            result.Podcast.Should().BeNull();
+            result.Parent!.Parent.Id.Should().Be(organisation.Id);
+        }
+        else
+        {
+            result.Podcast!.Id.Should().Be(channelWide.Id);
+            result.Parent.Should().BeNull();
+        }
+    }
+
+    [Fact(DisplayName =
+        "When the organisation's playlist on its additional channel cannot be checked (quota, outage), URL submission fails closed rather than guessing, as for the main channel's playlist (#1370).")]
+    public async Task unknown_additional_playlist_membership_fails_closed()
+    {
+        // Arrange
+        var podcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        var additionalPlaylist = _fixture.CreateYouTubePlaylistId();
+        var secondPlaylist = _fixture.CreateYouTubePlaylistId();
+        await AddPodcast(podcastPlaylist);
+        await AddPodcast(secondPlaylist);
+        InPlaylist(podcastPlaylist, false);
+        InPlaylist(secondPlaylist, false);
+        InPlaylist(additionalPlaylist, null);
+        ChannelIsAdditionalChannelOf(_fixture.CreateYouTubePlaylistId(), additionalPlaylist);
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var act = () => sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Could not check*");
+    }
+
+    [Fact(DisplayName =
+        "A video on a news organisation's main channel is still scoped by the main channel's playlist when the organisation also scopes an additional channel to a different playlist, because each channel's playlist scopes only that channel (#1370).")]
+    public async Task main_channel_playlist_still_scopes_main_channel()
+    {
+        // Arrange
+        var podcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        var mainPlaylist = _fixture.CreateYouTubePlaylistId();
+        var additionalPlaylist = _fixture.CreateYouTubePlaylistId();
+        var secondPlaylist = _fixture.CreateYouTubePlaylistId();
+        await AddPodcast(podcastPlaylist);
+        await AddPodcast(secondPlaylist);
+        InPlaylist(podcastPlaylist, false);
+        InPlaylist(secondPlaylist, false);
+        InPlaylist(mainPlaylist, true);
+        InPlaylist(additionalPlaylist, false);
+        var organisation = new NewsOrganisation(_fixture.CreateTitle())
+        {
+            Indexing = new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _channelId,
+                YouTubePlaylistId = mainPlaylist,
+                AdditionalYouTubeChannels =
+                [
+                    AdditionalYouTubeChannel.ForPlaylist(_fixture.CreateYouTubeChannelId(), additionalPlaylist)
+                ]
+            }
+        };
+        _mocker.GetMock<ICatalogueParentLookup>()
+            .Setup(x => x.FindByOwner(
+                It.Is<EpisodeUrlOwnerIds>(ids => ids.YouTubeChannelId == _channelId),
+                It.IsAny<Uri>(),
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync(CatalogueParentMatch.For(organisation));
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var result = await sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        result.Parent!.Parent.Id.Should().Be(organisation.Id);
+        VerifyContains(mainPlaylist, Times.Once());
+        VerifyContains(additionalPlaylist, Times.Never());
+    }
+
+    [Theory(DisplayName =
+        "End to end through the real CatalogueParentLookup and PodcastService: a video on a news organisation's playlist-scoped additional channel goes to the organisation only when that channel's playlist holds it, and otherwise stays with the podcast on that channel, because the stored additionalYouTubeChannels entry drives both the owner query and the playlist check (#1370).")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task real_lookup_and_podcast_service_route_by_additional_channel_playlist(bool inOrganisationPlaylist)
+    {
+        // Arrange
+        var podcastPlaylist = _fixture.CreateYouTubePlaylistId();
+        var mainPlaylist = _fixture.CreateYouTubePlaylistId();
+        var additionalPlaylist = _fixture.CreateYouTubePlaylistId();
+        var podcast = await AddPodcast(podcastPlaylist);
+        InPlaylist(podcastPlaylist, false);
+        InPlaylist(mainPlaylist, true);
+        InPlaylist(additionalPlaylist, inOrganisationPlaylist);
+        var organisation = new NewsOrganisation(_fixture.CreateTitle())
+        {
+            Indexing = new CatalogueIndexingSource
+            {
+                YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+                YouTubePlaylistId = mainPlaylist,
+                AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ForPlaylist(_channelId, additionalPlaylist)]
+            }
+        };
+        NewsOrganisation[] organisations = [organisation];
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<System.Linq.Expressions.Expression<Func<NewsOrganisation, bool>>>()))
+            .Returns((System.Linq.Expressions.Expression<Func<NewsOrganisation, bool>> p) =>
+                ToAsync(organisations.Where(p.Compile())));
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<System.Linq.Expressions.Expression<Func<RedditPodcastPoster.Models.TvShows.TvShow, bool>>>()))
+            .Returns(ToAsync(Array.Empty<RedditPodcastPoster.Models.TvShows.TvShow>()));
+        _mocker.Use<ICatalogueParentLookup>(_mocker.CreateInstance<CatalogueParentLookup>());
+        var sut = _mocker.CreateInstance<PodcastService>();
+
+        // Act
+        var result = await sut.GetEpisodeUrlOwner(_url, new IndexingContext());
+
+        // Assert
+        if (inOrganisationPlaylist)
+        {
+            result.Podcast.Should().BeNull();
+            result.Parent!.Parent.Id.Should().Be(organisation.Id);
+        }
+        else
+        {
+            result.Podcast!.Id.Should().Be(podcast.Id);
+            result.Parent.Should().BeNull();
+        }
+
+        VerifyContains(mainPlaylist, Times.Never());
+    }
+
+    private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)
+    {
+        foreach (var item in items.ToList())
+        {
+            yield return item;
+            await Task.Yield();
+        }
     }
 }

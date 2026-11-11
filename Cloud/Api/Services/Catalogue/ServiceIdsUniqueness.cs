@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Api.Models;
+using Api.Services.News;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
@@ -22,15 +23,17 @@ public sealed record ServiceIdConflict(string Field, string Value, IReadOnlyList
 /// <list type="bullet">
 /// <item>Another news organisation or TV show with the same <c>youTubeChannelId</c>, <c>spotifyId</c> or
 /// <c>appleId</c>: conflict. A YouTube channel is held by a parent as its main <c>youTubeChannelId</c> or as one of a news
-/// organisation's <c>additionalYouTubeChannelIds</c> (#1370); both kinds of hold conflict, both ways.</item>
+/// organisation's <c>additionalYouTubeChannels</c> (#1370), whatever playlist scopes it; both kinds of hold conflict,
+/// both ways.</item>
 /// <item>A podcast with the same <c>spotifyId</c> / <c>appleId</c>, or a channel-wide podcast (no playlist) on the same
 /// <c>youTubeChannelId</c>: conflict, because that podcast would win every submit and the parent's id would be dead.</item>
 /// <item>A playlist-scoped podcast on the same channel: allowed with a Warning. A show podcast with its own playlist
 /// on an outlet's channel is legitimate (for example "Here's the Scoop" on NBC News); submission routes by playlist
 /// membership (#1054).</item>
 /// </list>
-/// Removed podcasts are ignored, as submission ignores them. Each of a news organisation's
-/// <c>additionalYouTubeChannelIds</c> is checked like <c>youTubeChannelId</c> (field <c>additionalYouTubeChannelIds</c>).
+/// Removed podcasts are ignored, as submission ignores them. Each channel of a news organisation's
+/// <c>additionalYouTubeChannels</c> (or the older <c>additionalYouTubeChannelIds</c>) is checked like
+/// <c>youTubeChannelId</c> (field named as the body sent it).
 /// </summary>
 public interface IServiceIdsUniqueness
 {
@@ -52,12 +55,15 @@ public class ServiceIdsUniqueness(
             return channelConflict;
         }
 
-        if (change is NewsOrganisationChangeRequest { AdditionalYouTubeChannelIds: { } additionalChannelIds })
+        if (change is NewsOrganisationChangeRequest organisationChange &&
+            AdditionalYouTubeChannels.ListRequested(organisationChange))
         {
-            foreach (var additionalChannelId in new CatalogueIndexingSource
-                         { AdditionalYouTubeChannelIds = [.. additionalChannelIds] }.AdditionalYouTubeChannelIds ?? [])
+            // A playlist on an additional channel does not share the channel: the channel itself is held once, as the
+            // main channel is whatever its playlist.
+            var field = AdditionalYouTubeChannels.FieldName(organisationChange);
+            foreach (var additionalChannel in AdditionalYouTubeChannels.Projected(null, organisationChange))
             {
-                if (await FindYouTubeChannelConflict(parentId, "additionalYouTubeChannelIds", additionalChannelId) is
+                if (await FindYouTubeChannelConflict(parentId, field, additionalChannel.YouTubeChannelId) is
                     { } additionalConflict)
                 {
                     return additionalConflict;
@@ -98,12 +104,12 @@ public class ServiceIdsUniqueness(
         var owners = await ParentOwners(
             x => x.Id != parentId && x.Indexing != null &&
                  (x.Indexing.YouTubeChannelId == channelId ||
-                  (x.Indexing.AdditionalYouTubeChannelIds != null &&
-                   x.Indexing.AdditionalYouTubeChannelIds.Contains(channelId))),
+                  (x.Indexing.AdditionalYouTubeChannels != null &&
+                   x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId))),
             x => x.Id != parentId && x.Indexing != null &&
                  (x.Indexing.YouTubeChannelId == channelId ||
-                  (x.Indexing.AdditionalYouTubeChannelIds != null &&
-                   x.Indexing.AdditionalYouTubeChannelIds.Contains(channelId))));
+                  (x.Indexing.AdditionalYouTubeChannels != null &&
+                   x.Indexing.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId))));
         var podcasts = await Podcasts(x => x.YouTubeChannelId == channelId);
         owners.AddRange(podcasts.Where(p => string.IsNullOrEmpty(p.YouTubePlaylistId)).Select(p => p.Id));
         if (owners.Count > 0)
