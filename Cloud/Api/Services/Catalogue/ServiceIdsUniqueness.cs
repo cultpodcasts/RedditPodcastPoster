@@ -105,9 +105,7 @@ public class ServiceIdsUniqueness(
         // A news organisation holds a channel as its main channel or as one of its own additional channels; a TV show
         // only ever holds its main channel.
         var owners = await ParentOwners(
-
             NewsOrganisationCosmosFilters.OtherHoldsYouTubeChannel(parentId, channelId),
-
             x => x.Id != parentId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId);
         var podcasts = await Podcasts(x => x.YouTubeChannelId == channelId);
         owners.AddRange(podcasts.Where(p => string.IsNullOrEmpty(p.YouTubePlaylistId)).Select(p => p.Id));

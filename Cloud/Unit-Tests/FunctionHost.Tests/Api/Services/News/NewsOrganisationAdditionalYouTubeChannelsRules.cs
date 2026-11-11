@@ -47,7 +47,6 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
     public NewsOrganisationAdditionalYouTubeChannelsRules()
     {
         _mocker.Use(System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(SearchClient)) as SearchClient);
-        _mocker.Use(NullLogger<NewsOrganisationService>.Instance);
         _mocker.Use(NullLogger<TvShowService>.Instance);
         _mocker.Use(NullLogger<PodcastUpdateService>.Instance);
         _mocker.Use(_search.Cleanup);
@@ -772,8 +771,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
         _mocker.GetMock<IYouTubePlaylistGuard>()
             .Setup(g => g.Check(It.IsAny<string?>(), playlistId, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new YouTubePlaylistValidation(YouTubePlaylistValidationStatus.Valid, playlistId, archiveChannelId));
-        var logger = new Mock<ILogger<NewsOrganisationService>>();
-        _mocker.Use(logger.Object);
+        var logger = _mocker.GetMock<ILogger<NewsOrganisationService>>();
 
         // Act
         var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest

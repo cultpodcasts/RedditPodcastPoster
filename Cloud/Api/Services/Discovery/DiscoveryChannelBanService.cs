@@ -281,9 +281,7 @@ public class DiscoveryChannelBanService(
         if (identity.YouTubeChannelId is { } channel)
         {
             if (await newsOrganisationRepository
-
                     .GetAllBy(NewsOrganisationCosmosFilters.HoldsYouTubeChannel(channel))
-
                     .AnyAsync(cancellationToken))
             {
                 return true;

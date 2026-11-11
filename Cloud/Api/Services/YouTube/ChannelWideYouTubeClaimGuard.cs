@@ -51,9 +51,7 @@ public class ChannelWideYouTubeClaimGuard(
 
         if (kind != ChannelWideYouTubeClaimKind.NewsOrganisation)
         {
-
             var match = NewsOrganisationCosmosFilters.OtherHoldsYouTubeChannel(entityId, channelId);
-
             await foreach (var organisation in newsOrganisationRepository.GetAllBy(match)
                                .WithCancellation(cancellationToken))
             {

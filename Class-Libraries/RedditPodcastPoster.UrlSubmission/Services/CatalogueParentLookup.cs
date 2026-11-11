@@ -120,9 +120,7 @@ public class CatalogueParentLookup(
         {
             var channelId = ids.YouTubeChannelId;
             matches.AddRange((await newsOrganisations
-
                     .GetAllBy(NewsOrganisationCosmosFilters.HoldsYouTubeChannel(channelId))
-
                     .ToListAsync())
                 .Select(CatalogueParentMatch.For));
             matches.AddRange((await tvShows
