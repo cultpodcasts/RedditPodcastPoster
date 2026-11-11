@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.Azure.Cosmos;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
-using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Repositories;
 
 namespace RedditPodcastPoster.Persistence.Tests;

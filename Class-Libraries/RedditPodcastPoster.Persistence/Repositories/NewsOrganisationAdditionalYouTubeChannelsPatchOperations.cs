@@ -1,13 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Azure.Cosmos;
-using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.News;
 
 namespace RedditPodcastPoster.Persistence.Repositories;
 
 /// <summary>
 /// The indexer's write-back of a news organisation's per-channel YouTube flags on
-/// <see cref="Models.News.NewsOrganisation.AdditionalYouTubeChannels"/> (#1370, <c>/additionalYouTubeChannels</c> on the
+/// <see cref="NewsOrganisation.AdditionalYouTubeChannels"/> (#1370, <c>/additionalYouTubeChannels</c> on the
 /// news organisation document). The list holds curator-owned channel and playlist ids beside the indexer-owned
 /// <c>youTubeChannelSearchForbidden</c> / <c>youTubePlaylistQueryIsExpensive</c>, and can only be set as a whole, so it is
 /// one single-operation patch guarded by <see cref="UnchangedFilter"/>: it only applies while the stored channels and
@@ -17,7 +17,7 @@ namespace RedditPodcastPoster.Persistence.Repositories;
 /// </summary>
 public static class NewsOrganisationAdditionalYouTubeChannelsPatchOperations
 {
-    /// <summary>JSON name of <see cref="Models.News.NewsOrganisation.AdditionalYouTubeChannels"/>.</summary>
+    /// <summary>JSON name of <see cref="NewsOrganisation.AdditionalYouTubeChannels"/>.</summary>
     public const string Member = "additionalYouTubeChannels";
 
     public const string Path = "/" + Member;

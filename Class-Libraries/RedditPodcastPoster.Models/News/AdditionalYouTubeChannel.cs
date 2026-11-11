@@ -1,10 +1,11 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Catalogue;
 
-namespace RedditPodcastPoster.Models.Catalogue;
+namespace RedditPodcastPoster.Models.News;
 
 /// <summary>
 /// One of a news organisation's YouTube channels beside its main <see cref="CatalogueIndexingSource.YouTubeChannelId"/>
-/// (#1370, <see cref="News.NewsOrganisation.AdditionalYouTubeChannels"/>, JSON <c>additionalYouTubeChannels[]</c> on the
+/// (#1370, <see cref="NewsOrganisation.AdditionalYouTubeChannels"/>, JSON <c>additionalYouTubeChannels[]</c> on the
 /// news organisation document). Only a news organisation holds these. The channel is indexed and owned as a whole channel, or,
 /// when <see cref="YouTubePlaylistId"/> is set, only through that playlist (which must belong to this channel). The
 /// curator sets <see cref="YouTubeChannelId"/> and <see cref="YouTubePlaylistId"/> through the news organisation PATCH;
