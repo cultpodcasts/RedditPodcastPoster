@@ -425,6 +425,7 @@ var twitter= {
     twitter__TwitterId: twitterTwitterId
     twitter__WithEpisodeUrl: 'true'
     twitter__ShortUrlOnlyWhenShareImage: 'false'
+    twitter__IncludeAtMentions: 'false'
     twitter__AuthMode: twitterAuthMode
     twitter__OAuth2ClientId: twitterOAuth2ClientId
     twitter__OAuth2ClientSecret: twitterOAuth2ClientSecret

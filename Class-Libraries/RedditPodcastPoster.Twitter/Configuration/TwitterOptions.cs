@@ -40,6 +40,15 @@ public class TwitterOptions
     /// (no platform link). Default false — ship dark until SEO/social rollout is ready.
     /// </summary>
     public bool ShortUrlOnlyWhenShareImage { get; set; }
+
+    /// <summary>
+    /// When true, tweets append the podcast and guest X @handles (programmatic
+    /// mentions). Default false — X restricts unsolicited programmatic @mentions
+    /// on self-serve tiers (#1202 / Feb 2026 changelog); failed posts otherwise
+    /// retry hourly without saving.
+    /// </summary>
+    public bool IncludeAtMentions { get; set; }
+
     public long TwitterId { get; set; }
 }
 
