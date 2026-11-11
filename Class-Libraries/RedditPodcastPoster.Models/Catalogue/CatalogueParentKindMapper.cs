@@ -79,6 +79,24 @@ public static class CatalogueParentKindMapper
     }
 
     /// <summary>
+    /// A news report moved to a TV show (#1368): same id, playable fields copied as for an episode, the show's
+    /// denormalised fields set. A news report has Services only, so its compact YouTube id is copied as is.
+    /// </summary>
+    public static TvShowEpisode ToTvShowEpisode(NewsReport report, TvShow tvShow)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        ArgumentNullException.ThrowIfNull(tvShow);
+        var playable = new TvShowEpisode(report.Title)
+        {
+            Id = report.Id
+        };
+        CopyPlayable(report, playable);
+        playable.SetTvShowProperties(tvShow);
+        playable.ModelType = ModelType.TvShowEpisode;
+        return playable;
+    }
+
+    /// <summary>
     /// One-off film: keep the episode id (playable identity). Name and description
     /// come from the episode; publisher social fields come from the podcast.
     /// </summary>
@@ -86,34 +104,51 @@ public static class CatalogueParentKindMapper
     {
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(episode);
-        var film = new Film(episode.Title)
+        return ToFilm(podcast, episode, EpisodeServicePresence.CatalogueYouTubeIdForCreate(episode));
+    }
+
+    /// <summary>
+    /// A news report moved to a film (#1368), the same way as <see cref="ToFilm(Podcast, Episode)"/>: keep the report
+    /// id; name and description come from the report; publisher social fields come from the news organisation. A news
+    /// report has Services only, so its compact YouTube id is copied as is.
+    /// </summary>
+    public static Film ToFilm(NewsOrganisation organisation, NewsReport report)
+    {
+        ArgumentNullException.ThrowIfNull(organisation);
+        ArgumentNullException.ThrowIfNull(report);
+        return ToFilm(organisation, report, report.YouTubeId);
+    }
+
+    private static Film ToFilm(Publisher publisher, Playable playable, string? youTubeId)
+    {
+        var film = new Film(playable.Title)
         {
-            Id = episode.Id
+            Id = playable.Id
         };
-        CopyPublisher(podcast, film);
-        film.Name = episode.Title;
-        film.Description = episode.Description;
-        film.Language = episode.Language;
-        film.SearchTerms = episode.SearchTerms;
-        film.HashTag = episode.HashTag ?? podcast.HashTag;
-        film.FileKey = FileKeyFactory.GetFilmFileKey(episode.Title, episode.Id);
+        CopyPublisher(publisher, film);
+        film.Name = playable.Title;
+        film.Description = playable.Description;
+        film.Language = playable.Language;
+        film.SearchTerms = playable.SearchTerms;
+        film.HashTag = playable.HashTag ?? publisher.HashTag;
+        film.FileKey = FileKeyFactory.GetFilmFileKey(playable.Title, playable.Id);
         film.ModelType = ModelType.Film;
-        film.SetRelease(episode.Release);
-        film.Length = episode.Length;
-        film.Explicit = episode.Explicit;
-        film.Posted = episode.Posted;
-        film.OldTweeted = episode.OldTweeted;
-        film.TweetPost = episode.TweetPost;
-        film.TweetSkipReason = episode.TweetSkipReason;
-        film.OldBlueskyPosted = episode.OldBlueskyPosted;
-        film.BlueskyPost = episode.BlueskyPost;
-        film.Ignored = episode.Ignored;
-        film.Subjects = [.. episode.Subjects];
-        film.RemovedSubjects = [.. episode.RemovedSubjects];
-        film.Matches = episode.Matches.Select(CloneMatch).ToList();
-        film.Services = CloneServices(episode.Services);
-        film.YouTubeId = EpisodeServicePresence.CatalogueYouTubeIdForCreate(episode);
-        film.Guests = CloneArray(episode.Guests);
+        film.SetRelease(playable.Release);
+        film.Length = playable.Length;
+        film.Explicit = playable.Explicit;
+        film.Posted = playable.Posted;
+        film.OldTweeted = playable.OldTweeted;
+        film.TweetPost = playable.TweetPost;
+        film.TweetSkipReason = playable.TweetSkipReason;
+        film.OldBlueskyPosted = playable.OldBlueskyPosted;
+        film.BlueskyPost = playable.BlueskyPost;
+        film.Ignored = playable.Ignored;
+        film.Subjects = [.. playable.Subjects];
+        film.RemovedSubjects = [.. playable.RemovedSubjects];
+        film.Matches = playable.Matches.Select(CloneMatch).ToList();
+        film.Services = CloneServices(playable.Services);
+        film.YouTubeId = string.IsNullOrWhiteSpace(youTubeId) ? null : youTubeId;
+        film.Guests = CloneArray(playable.Guests);
         return film;
     }
 

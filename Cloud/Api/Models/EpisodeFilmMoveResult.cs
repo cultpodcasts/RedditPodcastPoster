@@ -21,10 +21,15 @@ public enum EpisodeFilmMoveStatus
     Cancelled
 }
 
+/// <param name="EmptiedNewsOrganisationId">
+/// Move of a news report only: the source news organisation when the move left it with no reports, so the curator can
+/// retire it (PATCH <c>newsorganisation/{id}</c> with <c>removed: true</c>). Null otherwise.
+/// </param>
 public record EpisodeFilmMoveResult(
     EpisodeFilmMoveStatus Status,
     Guid? FilmId = null,
     string? Name = null,
     string? Error = null,
     bool FailureIndexing = false,
-    CatalogueIdentityHold? IdentityHold = null);
+    CatalogueIdentityHold? IdentityHold = null,
+    Guid? EmptiedNewsOrganisationId = null);
