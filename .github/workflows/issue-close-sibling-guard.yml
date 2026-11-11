@@ -8,6 +8,10 @@
 # Board writes need repo secret PROJECT_TOKEN: a classic PAT with `project` scope.
 # GITHUB_TOKEN cannot see user-owned Projects V2, so without it the issue is
 # reopened but the card stays Done (job warning + issue comment say so).
+#
+# github-script MUST be v9+: `getOctokit` (used for the PROJECT_TOKEN board client)
+# is only injected into the script context from actions/github-script v9.0.0.
+# On v7/v8 the script dies with "ReferenceError: getOctokit is not defined" (cultpodcasts/RedditPodcastPoster#1394).
 
 name: Issue close sibling guard
 
@@ -31,7 +35,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Reopen when companion Closes PRs are still open
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
         with:

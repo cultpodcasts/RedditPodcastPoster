@@ -145,6 +145,14 @@ async function run({ github, context, core, getOctokit, projectToken, sleep = (m
   let board;
   if (!projectToken) {
     board = { restored: false, reason: 'PROJECT_TOKEN secret is not set' };
+  } else if (typeof getOctokit !== 'function') {
+    // actions/github-script injects getOctokit only from v9
+    // (cultpodcasts/RedditPodcastPoster#1394). Never let a missing factory stop
+    // the reopen + comment; just report the board gap.
+    board = {
+      restored: false,
+      reason: 'getOctokit is not available in the github-script context (needs actions/github-script v9+)',
+    };
   } else {
     try {
       const projectOctokit = getOctokit(projectToken);

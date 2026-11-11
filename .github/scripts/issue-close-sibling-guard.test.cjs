@@ -1,6 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const g = require('./issue-close-sibling-guard.cjs');
 
 const OPTIONS = [{ id: 'todo', name: 'Todo' }, { id: 'rfr', name: 'Ready For Review' }, { id: 'done', name: 'Done' }];
@@ -70,7 +72,7 @@ test('restore: not on board -> not restored, no write', async () => {
   assert.match(r.reason, /not on cultpodcasts project 1/);
 });
 
-function harness({ nodes, projectToken, board }) {
+function harness({ nodes, projectToken, board, omitGetOctokit = false }) {
   const calls = { update: [], comment: [], warn: [] };
   const github = {
     graphql: async () => ({ repository: { issue: { closedByPullRequestsReferences: { nodes } } } }),
@@ -87,7 +89,9 @@ function harness({ nodes, projectToken, board }) {
     assert.equal(tok, projectToken);
     return { graphql: board.graphql };
   };
-  return { calls, args: { github, context, core, getOctokit, projectToken, sleep: noSleep } };
+  const args = { github, context, core, getOctokit, projectToken, sleep: noSleep };
+  if (omitGetOctokit) delete args.getOctokit;
+  return { calls, args };
 }
 const OPEN_247 = [
   { number: 649, state: 'MERGED', url: 'u1', title: 'site', repository: { nameWithOwner: 'cultpodcasts/website' } },
@@ -123,4 +127,31 @@ test('run: no open companions -> leaves closed', async () => {
   assert.equal(r.reopened, false);
   assert.equal(h.calls.update.length, 0);
   assert.equal(h.calls.comment.length, 0);
+});
+
+test('run: getOctokit missing (github-script < v9) still reopens and comments, warns about board', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({ nodes: OPEN_247, projectToken: 'pat', board, omitGetOctokit: true });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, true);
+  assert.equal(h.calls.update.length, 1);
+  assert.equal(h.calls.update[0].state, 'open');
+  assert.equal(board.writes.length, 0);
+  assert.match(h.calls.warn[0], /getOctokit is not available/);
+  assert.match(h.calls.comment[0].body, /NOT restored \(getOctokit is not available/);
+});
+
+// cultpodcasts/RedditPodcastPoster#1394: on actions/github-script v7/v8 `getOctokit`
+// is not injected, so the inline script threw "ReferenceError: getOctokit is not defined" before run() executed.
+test('workflow: github-script major injects getOctokit when the script uses it', () => {
+  const yml = fs.readFileSync(
+    path.join(__dirname, '..', 'workflows', 'issue-close-sibling-guard.yml'),
+    'utf8'
+  );
+  const m = yml.match(/uses:\s*actions\/github-script@v(\d+)/);
+  assert.ok(m, 'guard workflow must use actions/github-script@vN');
+  const script = yml.slice(yml.indexOf('script: |'));
+  assert.match(script, /\bgetOctokit\b/, 'guard script passes getOctokit to run()');
+  assert.ok(Number(m[1]) >= 9, `actions/github-script@v${m[1]} does not inject getOctokit; need v9+`);
+  assert.match(script, /run\(\{[^}]*\bgetOctokit\b[^}]*\}\)/);
 });
