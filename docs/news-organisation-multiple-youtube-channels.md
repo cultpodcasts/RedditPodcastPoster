@@ -28,7 +28,9 @@ on the main channel are. The curator API never sets them.
   first entry, and an empty list is not stored (the field is omitted in Cosmos and in `indexing` JSON).
 - **Only the news organisation PATCH sets it** (`PATCH /newsorganisation/{id}`):
   - `additionalYouTubeChannels: [{ "youTubeChannelId": "UC…", "youTubePlaylistId": "PL…" | null }]`, or
-  - the older `additionalYouTubeChannelIds: ["UC…"]` (each id stored channel-wide, no playlist).
+  - the older `additionalYouTubeChannelIds: ["UC…"]` (ids only, so it cannot set or clear a
+    playlist: a channel that is already stored keeps its playlist and flags, a new id is stored channel-wide, and an id
+    left out is removed). Only `additionalYouTubeChannels` sets or clears a playlist.
 
   Omitted or `null` leaves the list unchanged, a list replaces it, and `[]` clears it. Sending both fields is refused.
   A channel that stays keeps its indexer flags (`youTubePlaylistQueryIsExpensive` only while its playlist is unchanged).

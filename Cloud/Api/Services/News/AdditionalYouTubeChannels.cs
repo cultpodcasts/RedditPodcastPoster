@@ -15,8 +15,10 @@ public sealed record AdditionalYouTubeChannelsRefusal(string Code, string Messag
 /// The news organisation PATCH rules for <c>indexing.additionalYouTubeChannels</c> (#1370): an outlet with more than
 /// one YouTube channel (for example a main channel and an archive channel) indexes and owns each of them, as a whole
 /// channel or through that channel's own optional playlist. The body sends <c>additionalYouTubeChannels</c>
-/// (<c>[{ youTubeChannelId, youTubePlaylistId? }]</c>) or the older <c>additionalYouTubeChannelIds</c> (ids only, each a
-/// whole channel), never both. A list replaces the stored list and <c>[]</c> clears it; ids and playlists are trimmed,
+/// (<c>[{ youTubeChannelId, youTubePlaylistId? }]</c>) or the older <c>additionalYouTubeChannelIds</c> (ids only), never
+/// both. Only <c>additionalYouTubeChannels</c> sets or clears a playlist: in the ids-only form a channel that is already
+/// stored keeps its playlist and flags, and a new id is a whole channel. A list replaces the stored list (an id left out
+/// is removed) and <c>[]</c> clears it; ids and playlists are trimmed,
 /// entries with neither are dropped and an exact repeat is dropped. Each channel id must look like a YouTube channel id
 /// (<c>UC</c> + 22 characters), so a handle or URL pasted by mistake is refused instead of silently indexing nothing,
 /// and none may be the organisation's main channel after the PATCH. A new or changed playlist must exist and belong to
@@ -43,12 +45,16 @@ public static partial class AdditionalYouTubeChannels
     public static bool ChangeAffectsChannels(NewsOrganisationChangeRequest change) =>
         ListRequested(change) || change.YouTubeChannelId != null;
 
-    /// <summary>The additional channels the organisation will hold after the PATCH (channel and playlist ids only).</summary>
+    /// <summary>
+    /// The additional channels the organisation will hold after the PATCH (channel and playlist ids only). In the ids-only
+    /// form a channel already on <paramref name="indexing"/> keeps its stored playlist; pass null to ignore stored
+    /// playlists (channel ids only).
+    /// </summary>
     public static IReadOnlyList<AdditionalYouTubeChannel> Projected(
         CatalogueIndexingSource? indexing,
         NewsOrganisationChangeRequest change)
     {
-        if (Requested(change) is { } requested)
+        if (Requested(indexing, change) is { } requested)
         {
             return new CatalogueIndexingSource
                 {
@@ -81,7 +87,7 @@ public static partial class AdditionalYouTubeChannels
                 "Send additionalYouTubeChannels or the older additionalYouTubeChannelIds, not both.");
         }
 
-        if (Requested(change) is { } requested)
+        if (Requested(indexing, change) is { } requested)
         {
             var seen = new Dictionary<string, string?>(StringComparer.Ordinal);
             foreach (var entry in requested)
@@ -190,7 +196,7 @@ public static partial class AdditionalYouTubeChannels
             return indexing;
         }
 
-        var channels = Projected(null, change)
+        var channels = Projected(indexing, change)
             .Select(channel =>
             {
                 if (indexing?.AdditionalYouTubeChannelFor(channel.YouTubeChannelId) is { } stored)
@@ -216,14 +222,21 @@ public static partial class AdditionalYouTubeChannels
         return indexing;
     }
 
-    private static IReadOnlyList<AdditionalYouTubeChannelChange>? Requested(NewsOrganisationChangeRequest change)
+    private static IReadOnlyList<AdditionalYouTubeChannelChange>? Requested(
+        CatalogueIndexingSource? indexing,
+        NewsOrganisationChangeRequest change)
     {
         if (change.AdditionalYouTubeChannels is { } channels)
         {
             return channels.Where(x => x != null).ToList();
         }
 
-        return change.AdditionalYouTubeChannelIds?.Select(id => new AdditionalYouTubeChannelChange(id)).ToList();
+        // The ids-only form cannot express a playlist, so it must not clear one: a channel that is already stored keeps
+        // its playlist (and, in Apply, its flags, because the playlist is unchanged). A new id is a whole channel.
+        return change.AdditionalYouTubeChannelIds?
+            .Select(id => new AdditionalYouTubeChannelChange(
+                id, indexing?.AdditionalYouTubeChannelFor(id)?.YouTubePlaylistId))
+            .ToList();
     }
 
     private static string? Trimmed(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

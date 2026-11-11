@@ -22,9 +22,10 @@ public class NewsOrganisationChangeRequest : ServiceIdsChangeRequest
     public AdditionalYouTubeChannelDto[]? AdditionalYouTubeChannels { get; set; }
 
     /// <summary>
-    /// Older channel-id-only form (#1370): each id is stored as a whole channel with no playlist, with the same rules
-    /// as <see cref="AdditionalYouTubeChannels"/>. Sending both fields is refused (400
-    /// <c>invalidAdditionalYouTubeChannelId</c>).
+    /// Older channel-id-only form (#1370), with the same rules as <see cref="AdditionalYouTubeChannels"/>. It cannot set
+    /// or clear a playlist: a channel that is already stored keeps its playlist and flags, a new id is stored as a whole
+    /// channel, and an id left out is removed. Use <see cref="AdditionalYouTubeChannels"/> to set or clear a playlist.
+    /// Sending both fields is refused (400 <c>invalidAdditionalYouTubeChannelId</c>).
     /// </summary>
     [JsonPropertyName("additionalYouTubeChannelIds")]
     public string[]? AdditionalYouTubeChannelIds { get; set; }
