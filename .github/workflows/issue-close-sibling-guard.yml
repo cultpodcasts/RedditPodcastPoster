@@ -2,7 +2,8 @@
 # Cross-repo stacks (RPP + Api + website) often still have open companions.
 # This guard reopens the issue when open PRs that still Closes/Fixes it remain,
 # and puts the features board card (user cultpodcasts project 1) back on
-# Ready For Review. Logic + tests: .github/scripts/issue-close-sibling-guard*.cjs
+# In Progress (Ready For Review means the PRs are ready to merge).
+# Logic + tests: .github/scripts/issue-close-sibling-guard*.cjs
 # Mirrored across RedditPodcastPoster, website, and Api.
 #
 # Board writes need repo secret PROJECT_TOKEN: a classic PAT with `project` scope.
@@ -11,7 +12,9 @@
 #
 # github-script MUST be v9+: `getOctokit` (used for the PROJECT_TOKEN board client)
 # is only injected into the script context from actions/github-script v9.0.0.
-# On v7/v8 the script dies with "ReferenceError: getOctokit is not defined" (cultpodcasts/RedditPodcastPoster#1394).
+# Pass `typeof getOctokit === 'function' ? getOctokit : undefined` so an accidental
+# downgrade to v7/v8 does not throw ReferenceError before run() (cultpodcasts/RedditPodcastPoster#1394);
+# the .cjs fail-safe then skips the board write.
 
 name: Issue close sibling guard
 
@@ -41,4 +44,10 @@ jobs:
         with:
           script: |
             const { run } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/issue-close-sibling-guard.cjs`);
-            await run({ github, context, core, getOctokit, projectToken: process.env.PROJECT_TOKEN });
+            await run({
+              github,
+              context,
+              core,
+              getOctokit: typeof getOctokit === 'function' ? getOctokit : undefined,
+              projectToken: process.env.PROJECT_TOKEN
+            });

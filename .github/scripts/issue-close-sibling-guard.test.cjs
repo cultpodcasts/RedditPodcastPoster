@@ -5,7 +5,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const g = require('./issue-close-sibling-guard.cjs');
 
-const OPTIONS = [{ id: 'todo', name: 'Todo' }, { id: 'rfr', name: 'Ready For Review' }, { id: 'done', name: 'Done' }];
+const OPTIONS = [
+  { id: 'todo', name: 'Todo' },
+  { id: 'in-progress', name: 'In Progress' },
+  { id: 'rfr', name: 'Ready For Review' },
+  { id: 'done', name: 'Done' },
+];
 function item(status, { owner = 'cultpodcasts', number = 1 } = {}) {
   return {
     id: 'ITEM',
@@ -22,7 +27,7 @@ function fakeBoard(initial, automationDoneBeforeRead = []) {
   const graphql = async (q, vars) => {
     if (q.includes('updateProjectV2ItemFieldValue')) {
       writes.push(vars);
-      status = 'Ready For Review';
+      status = 'In Progress';
       return {};
     }
     if (automationDoneBeforeRead.includes(reads)) status = 'Done';
@@ -32,6 +37,10 @@ function fakeBoard(initial, automationDoneBeforeRead = []) {
   return { graphql, writes };
 }
 const noSleep = async () => {};
+
+test('RESTORE_STATUS is In Progress (Ready For Review means ready to merge)', () => {
+  assert.equal(g.RESTORE_STATUS, 'In Progress');
+});
 
 test('openCompanions keeps only OPEN PRs, cross-repo', () => {
   const out = g.openCompanions([
@@ -49,17 +58,17 @@ test('pickBoardItem ignores other projects', () => {
   assert.equal(g.pickBoardItem([item('Done', { number: 2 })]), undefined);
 });
 
-test('restore: Done already set by automation -> writes RFR', async () => {
+test('restore: Done already set by automation -> writes In Progress', async () => {
   const b = fakeBoard('Done');
   const r = await g.restoreBoardStatus({ graphql: b.graphql, owner: 'cultpodcasts', repo: 'Api', number: 244, sleep: noSleep });
   assert.equal(r.restored, true);
   assert.equal(b.writes.length, 1);
-  assert.deepEqual(b.writes[0], { project: 'PROJ', item: 'ITEM', field: 'FIELD', option: 'rfr' });
+  assert.deepEqual(b.writes[0], { project: 'PROJ', item: 'ITEM', field: 'FIELD', option: 'in-progress' });
 });
 
-test('restore: automation lands after first write -> re-asserts RFR', async () => {
-  const b = fakeBoard('Ready For Review', [1]);
-  // read0 RFR (stable 1), automation sets Done before read1 -> write, then RFR stable
+test('restore: automation lands after first write -> re-asserts In Progress', async () => {
+  const b = fakeBoard('In Progress', [1]);
+  // read0 In Progress (stable 1), automation sets Done before read1 -> write, then In Progress stable
   const r = await g.restoreBoardStatus({ graphql: b.graphql, owner: 'cultpodcasts', repo: 'Api', number: 244, sleep: noSleep });
   assert.equal(r.restored, true);
   assert.equal(b.writes.length, 1);
@@ -106,7 +115,7 @@ test('run: Api#244 scenario reopens and restores board via PROJECT_TOKEN', async
   assert.equal(h.calls.update[0].state, 'open');
   assert.equal(board.writes.length, 1);
   assert.match(h.calls.comment[0].body, /cultpodcasts\/Api#247/);
-  assert.match(h.calls.comment[0].body, /restored to \*\*Ready For Review\*\*/);
+  assert.match(h.calls.comment[0].body, /restored to \*\*In Progress\*\*/);
   assert.equal(h.calls.warn.length, 0);
 });
 
@@ -142,7 +151,8 @@ test('run: getOctokit missing (github-script < v9) still reopens and comments, w
 });
 
 // cultpodcasts/RedditPodcastPoster#1394: on actions/github-script v7/v8 `getOctokit`
-// is not injected, so the inline script threw "ReferenceError: getOctokit is not defined" before run() executed.
+// is not injected, so a bare `getOctokit` identifier threw "ReferenceError: getOctokit is not defined"
+// before run() executed. The workflow passes it via `typeof` so a downgrade still reaches the .cjs fail-safe.
 test('workflow: github-script major injects getOctokit when the script uses it', () => {
   const yml = fs.readFileSync(
     path.join(__dirname, '..', 'workflows', 'issue-close-sibling-guard.yml'),
@@ -154,4 +164,11 @@ test('workflow: github-script major injects getOctokit when the script uses it',
   assert.match(script, /\bgetOctokit\b/, 'guard script passes getOctokit to run()');
   assert.ok(Number(m[1]) >= 9, `actions/github-script@v${m[1]} does not inject getOctokit; need v9+`);
   assert.match(script, /run\(\{[^}]*\bgetOctokit\b[^}]*\}\)/);
+  // typeof does not throw when getOctokit is undeclared, so an accidental @v7 downgrade
+  // still reaches run()'s fail-safe instead of dying at argument evaluation.
+  assert.match(
+    script,
+    /getOctokit:\s*typeof getOctokit === 'function' \? getOctokit : undefined/,
+    'script must not evaluate a bare getOctokit identifier'
+  );
 });

@@ -3,7 +3,8 @@
 // GitHub auto-closes an issue when ANY linked PR with Closes/Fixes merges, and the
 // features board's built-in "Item closed" workflow then sets Status = Done.
 // When other PRs that still Closes/Fixes the issue are open, this reopens the issue
-// and puts the board card back on Ready For Review.
+// and puts the board card back on In Progress (Ready For Review means the PRs are
+// ready to merge).
 //
 // Board writes need PROJECT_TOKEN (classic PAT with `project` scope): the
 // repo-scoped GITHUB_TOKEN cannot see user-owned Projects V2
@@ -14,7 +15,7 @@
 const BOARD_OWNER = 'cultpodcasts';
 const BOARD_NUMBER = 1;
 const STATUS_FIELD = 'Status';
-const RESTORE_STATUS = 'Ready For Review';
+const RESTORE_STATUS = 'In Progress';
 
 function openCompanions(nodes) {
   return (nodes ?? [])
@@ -87,7 +88,7 @@ const SET_STATUS = `
 `;
 
 // The board's "Item closed" automation can land before OR after this job, so keep
-// re-asserting Ready For Review until it reads back stable twice in a row.
+// re-asserting In Progress until it reads back stable twice in a row.
 async function restoreBoardStatus({ graphql, owner, repo, number, sleep, attempts = 8, delayMs = 5000, log = () => {} }) {
   let stable = 0;
   let wrote = false;
@@ -96,8 +97,8 @@ async function restoreBoardStatus({ graphql, owner, repo, number, sleep, attempt
     const item = pickBoardItem(res.repository?.issue?.projectItems?.nodes);
     if (!item) return { restored: false, reason: `issue is not on ${BOARD_OWNER} project ${BOARD_NUMBER}` };
     const field = item.project.field;
-    const rfr = field?.options?.find((o) => o.name === RESTORE_STATUS);
-    if (!field?.id || !rfr) return { restored: false, reason: `no "${RESTORE_STATUS}" option on ${STATUS_FIELD}` };
+    const restoreOption = field?.options?.find((o) => o.name === RESTORE_STATUS);
+    if (!field?.id || !restoreOption) return { restored: false, reason: `no "${RESTORE_STATUS}" option on ${STATUS_FIELD}` };
 
     const current = item.fieldValueByName?.name ?? null;
     if (current === RESTORE_STATUS) {
@@ -106,7 +107,7 @@ async function restoreBoardStatus({ graphql, owner, repo, number, sleep, attempt
     } else {
       stable = 0;
       log(`Board Status is ${current ?? '(empty)'}; setting ${RESTORE_STATUS}.`);
-      await graphql(SET_STATUS, { project: item.project.id, item: item.id, field: field.id, option: rfr.id });
+      await graphql(SET_STATUS, { project: item.project.id, item: item.id, field: field.id, option: restoreOption.id });
       wrote = true;
     }
     if (i < attempts - 1) await sleep(delayMs);
