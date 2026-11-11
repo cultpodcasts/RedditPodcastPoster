@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Discovery.Models;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -257,7 +258,7 @@ public class EpisodeResultsEnricher(
     private async Task<IReadOnlyList<CatalogueOwner>> LoadCatalogueOwners()
     {
         var organisations = await newsOrganisationRepository
-            .GetAllBy(x => x.Indexing != null || x.AdditionalYouTubeChannels != null).ToArrayAsync();
+            .GetAllBy(NewsOrganisationCosmosFilters.HasIndexingOrAdditionalYouTubeChannels()).ToArrayAsync();
         var shows = await tvShowRepository.GetAllBy(x => x.Indexing != null).ToArrayAsync();
         return
         [

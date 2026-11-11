@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.YouTube;
@@ -50,11 +51,9 @@ public class ChannelWideYouTubeClaimGuard(
 
         if (kind != ChannelWideYouTubeClaimKind.NewsOrganisation)
         {
-            Expression<Func<NewsOrganisation, bool>> match = x =>
-                x.Id != entityId &&
-                ((x.Indexing != null && x.Indexing.YouTubeChannelId == channelId) ||
-                 (x.AdditionalYouTubeChannels != null &&
-                  x.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId)));
+
+            var match = NewsOrganisationCosmosFilters.OtherHoldsYouTubeChannel(entityId, channelId);
+
             await foreach (var organisation in newsOrganisationRepository.GetAllBy(match)
                                .WithCancellation(cancellationToken))
             {

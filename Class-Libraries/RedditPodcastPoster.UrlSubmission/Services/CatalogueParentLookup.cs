@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Clients;
@@ -119,9 +120,9 @@ public class CatalogueParentLookup(
         {
             var channelId = ids.YouTubeChannelId;
             matches.AddRange((await newsOrganisations
-                    .GetAllBy(x => (x.Indexing != null && x.Indexing.YouTubeChannelId == channelId) ||
-                                   (x.AdditionalYouTubeChannels != null &&
-                                    x.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId)))
+
+                    .GetAllBy(NewsOrganisationCosmosFilters.HoldsYouTubeChannel(channelId))
+
                     .ToListAsync())
                 .Select(CatalogueParentMatch.For));
             matches.AddRange((await tvShows

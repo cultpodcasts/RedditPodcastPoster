@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.Catalogue;
@@ -104,10 +105,9 @@ public class ServiceIdsUniqueness(
         // A news organisation holds a channel as its main channel or as one of its own additional channels; a TV show
         // only ever holds its main channel.
         var owners = await ParentOwners(
-            x => x.Id != parentId &&
-                 ((x.Indexing != null && x.Indexing.YouTubeChannelId == channelId) ||
-                  (x.AdditionalYouTubeChannels != null &&
-                   x.AdditionalYouTubeChannels.Any(c => c.YouTubeChannelId == channelId))),
+
+            NewsOrganisationCosmosFilters.OtherHoldsYouTubeChannel(parentId, channelId),
+
             x => x.Id != parentId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId);
         var podcasts = await Podcasts(x => x.YouTubeChannelId == channelId);
         owners.AddRange(podcasts.Where(p => string.IsNullOrEmpty(p.YouTubePlaylistId)).Select(p => p.Id));
