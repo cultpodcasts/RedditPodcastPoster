@@ -20,7 +20,8 @@ public static class EpisodeFilmMoveExtensions
             Error = result.Error,
             FailureIndexing = result.FailureIndexing,
             IdentityDecision = result.IdentityHold is { } hold ? ToIdentityDecision(hold) : null,
-            Cancelled = result.Status == EpisodeFilmMoveStatus.Cancelled
+            Cancelled = result.Status == EpisodeFilmMoveStatus.Cancelled,
+            EmptiedNewsOrganisationId = result.EmptiedNewsOrganisationId
         };
 
     private static SubmitUrlResponse.IdentityDecisionBody ToIdentityDecision(CatalogueIdentityHold hold) =>

@@ -21,6 +21,7 @@ public static class EpisodeTvShowMoveExtensions
             EpisodeId = result.EpisodeId,
             CreatedShow = result.CreatedShow,
             Error = result.Error,
-            FailureIndexing = result.FailureIndexing
+            FailureIndexing = result.FailureIndexing,
+            EmptiedNewsOrganisationId = result.EmptiedNewsOrganisationId
         };
 }

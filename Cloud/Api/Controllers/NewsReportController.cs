@@ -19,6 +19,8 @@ public class NewsReportController(
     IPostNewsReportHandler postNewsReportHandler,
     IDeleteNewsReportHandler deleteNewsReportHandler,
     IPublishEpisodeHandler publishEpisodeHandler,
+    IPostNewsReportTvShowMoveHandler postNewsReportTvShowMoveHandler,
+    IPostNewsReportFilmMoveHandler postNewsReportFilmMoveHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<NewsReportController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -69,6 +71,45 @@ public class NewsReportController(
             new EpisodePublishRequestWrapper(
                 null, reportId, episodePostRequest.ToModel(), ContentKind.NewsReport),
             publishEpisodeHandler.Handle,
+            Unauthorised,
+            ct);
+
+    /// <summary>
+    /// Moves one news report into a TV show as a TV episode (same id, #1368). Body as Move to TV show for an episode:
+    /// <c>tvShowId</c> or <c>tvShowName</c>, optional <c>createShow</c> + <c>publisher</c>, optional <c>title</c>.
+    /// The news organisation is kept, even when empty (docs/move-news-report.md).
+    /// </summary>
+    [Function("NewsReportMoveToTvShow")]
+    public Task<HttpResponseData> MoveToTvShow(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "newsreport/{reportId:guid}/tvshow")]
+        HttpRequestData req,
+        Guid reportId,
+        [FromBody] Dtos.EpisodeTvShowMoveRequest? request,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["curate"],
+            new NewsReportTvShowMoveCommand(reportId, request.ToModel()),
+            postNewsReportTvShowMoveHandler.Handle,
+            Unauthorised,
+            ct);
+
+    /// <summary>
+    /// Moves one news report into a new film (same id, #1368). Body as Move to film for an episode: optional
+    /// <c>title</c>, and <c>identityDecision</c> + <c>selectedIdentityKey</c> after an ambiguous-identity prompt.
+    /// </summary>
+    [Function("NewsReportMoveToFilm")]
+    public Task<HttpResponseData> MoveToFilm(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "newsreport/{reportId:guid}/film")]
+        HttpRequestData req,
+        Guid reportId,
+        [FromBody] Dtos.EpisodeFilmMoveRequest? request,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["curate"],
+            new NewsReportFilmMoveCommand(reportId, request.ToModel()),
+            postNewsReportFilmMoveHandler.Handle,
             Unauthorised,
             ct);
 }
