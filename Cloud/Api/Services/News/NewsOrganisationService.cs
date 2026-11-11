@@ -167,9 +167,18 @@ public class NewsOrganisationService(
 
             organisation.Indexing = ServiceIdsApplier.Apply(organisation.Indexing, request.Change, organisation, logger);
             AdditionalYouTubeChannels.Apply(organisation, request.Change);
-            if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
-                    playlistCheck, organisation.Indexing?.YouTubeChannelId) is { } derivedOwner &&
-                !organisation.HoldsAdditionalYouTubeChannel(derivedOwner))
+            var derivedOwner = YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
+                playlistCheck, organisation.Indexing?.YouTubeChannelId);
+            if (derivedOwner != null && organisation.HoldsAdditionalYouTubeChannel(derivedOwner))
+            {
+                // The main playlist only ever scopes the main channel (#1370), so a channel this organisation already
+                // holds as an additional channel is not also made its main channel. Like the conflict branch below,
+                // this is a soft fill: warn and still save the playlist rather than refuse the PATCH.
+                logger.LogWarning(
+                    "{method}: not deriving youTubeChannelId for '{id}': main youTubePlaylistId '{playlistId}' belongs to its additional YouTube channel '{channelId}'; set that playlist on the additional channel's entry instead.",
+                    nameof(UpdateAsync), organisation.Id, organisation.Indexing?.YouTubePlaylistId, derivedOwner);
+            }
+            else if (derivedOwner != null)
             {
                 // Derive runs after Apply, so request.Change never included this channel for FindConflict.
                 // On conflict, skip derive + warn and still save the playlist — playlist-only edits stay

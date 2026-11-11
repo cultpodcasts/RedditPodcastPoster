@@ -8,6 +8,7 @@ using Api.Services.TvShows;
 using Api.Services.YouTube;
 using Azure.Search.Documents;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
@@ -756,5 +757,44 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
 
         // Assert
         result.Code.Should().NotBe(ChannelWideYouTubeClaimConflict.Code);
+    }
+
+    [Fact(DisplayName =
+        "PATCH news organisation with a blank main channel and a main youTubePlaylistId owned by one of its additional channels is accepted and saves the playlist, but does not fill the main channel and logs a warning, because the main playlist only scopes the main channel and a channel the organisation already holds as an additional channel is not also made its main channel.")]
+    public async Task main_playlist_owned_by_additional_channel_does_not_derive_main_channel()
+    {
+        // Arrange
+        var archiveChannelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var organisation = AddOrganisation(
+            new CatalogueIndexingSource { YouTubeChannelId = string.Empty },
+            additionalYouTubeChannels: [AdditionalYouTubeChannel.ChannelWide(archiveChannelId)]);
+        _mocker.GetMock<IYouTubePlaylistGuard>()
+            .Setup(g => g.Check(It.IsAny<string?>(), playlistId, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new YouTubePlaylistValidation(YouTubePlaylistValidationStatus.Valid, playlistId, archiveChannelId));
+        var logger = new Mock<ILogger<NewsOrganisationService>>();
+        _mocker.Use(logger.Object);
+
+        // Act
+        var result = await PatchOrganisation(organisation, new NewsOrganisationChangeRequest
+        {
+            YouTubePlaylistId = playlistId
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsOrganisationUpdateStatus.Accepted);
+        _savedOrganisation.Should().BeSameAs(organisation);
+        organisation.Indexing!.YouTubePlaylistId.Should().Be(playlistId);
+        organisation.Indexing.YouTubeChannelId.Should().BeNullOrEmpty();
+        organisation.AdditionalYouTubeChannelIdList().Should().Equal(archiveChannelId);
+        CatalogueParentYouTubeChannels.Of(organisation).PlaylistIdOn(archiveChannelId).Should().BeNull();
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains(archiveChannelId) && v.ToString()!.Contains(playlistId)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 }
