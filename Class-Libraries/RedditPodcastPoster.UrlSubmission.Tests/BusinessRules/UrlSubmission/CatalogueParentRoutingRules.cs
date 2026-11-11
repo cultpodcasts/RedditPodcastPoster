@@ -1278,6 +1278,93 @@ public class CatalogueParentRoutingRules
         organisation.Indexing!.BypassShortEpisodeChecking.Should().Be(stored);
     }
 
+    [Fact(DisplayName =
+        "A YouTube URL on a channel a news organisation lists as an additional YouTube channel is stored under that organisation and never reaches the podcast pipeline, because an additional channel is owned exactly like the main one.")]
+    public async Task additional_channel_routes_to_news_organisation()
+    {
+        // Arrange
+        var additionalChannelId = _fixture.CreateYouTubeChannelId();
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            i.YouTubePlaylistId = _fixture.CreateYouTubePlaylistId();
+            i.AdditionalYouTubeChannelIds = [additionalChannelId];
+        });
+        var url = YouTubeUrl();
+        OwnerIs(url, null, new EpisodeUrlOwnerIds(YouTubeChannelId: additionalChannelId));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(organisation.Id, Times.Once());
+        VerifyNoPodcastPipeline();
+        _mocker.GetMock<IYouTubePlaylistMembership>().Verify(m => m.IsVideoInPlaylist(
+            It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<Uri>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "With a video URL on a news organisation's additional channel, a playlist-scoped TV show on that channel whose playlist holds the video wins, and otherwise the organisation keeps it, because the additional channel is claimed channel-wide and the main playlist does not scope it.")]
+    public async Task additional_channel_is_channel_wide_in_playlist_tie_break()
+    {
+        // Arrange
+        var additionalChannelId = _fixture.CreateYouTubeChannelId();
+        var mainPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var showPlaylistId = _fixture.CreateYouTubePlaylistId();
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+            i.YouTubePlaylistId = mainPlaylistId;
+            i.AdditionalYouTubeChannelIds = [additionalChannelId];
+        });
+        var show = AddShow(i =>
+        {
+            i.YouTubeChannelId = additionalChannelId;
+            i.YouTubePlaylistId = showPlaylistId;
+        });
+        var inShowPlaylist = YouTubeUrl();
+        var outsideShowPlaylist = YouTubeUrl();
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.IsVideoInPlaylist(It.IsAny<IYouTubeServiceWrapper>(), showPlaylistId, inShowPlaylist, It.IsAny<bool>()))
+            .ReturnsAsync(true);
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.IsVideoInPlaylist(It.IsAny<IYouTubeServiceWrapper>(), showPlaylistId, outsideShowPlaylist, It.IsAny<bool>()))
+            .ReturnsAsync(false);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var inShow = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: additionalChannelId), inShowPlaylist, new IndexingContext());
+        var outsideShow = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: additionalChannelId), outsideShowPlaylist, new IndexingContext());
+
+        // Assert
+        inShow!.Parent.Id.Should().Be(show.Id);
+        outsideShow!.Parent.Id.Should().Be(organisation.Id);
+        _mocker.GetMock<IYouTubePlaylistMembership>().Verify(m => m.IsVideoInPlaylist(
+            It.IsAny<IYouTubeServiceWrapper>(), mainPlaylistId, It.IsAny<Uri>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A news organisation with only additional YouTube channels is not unclaimed, so a URL from another channel whose title is its name is not routed to it by title.")]
+    public async Task organisation_with_additional_channels_is_not_matched_by_title()
+    {
+        // Arrange
+        var name = "Synthetic Outlet " + _fixture.CreateTitle();
+        var organisation = AddOrganisation(i => i.AdditionalYouTubeChannelIds = [_fixture.CreateYouTubeChannelId()], name);
+        var url = YouTubeUrl();
+        OwnerIs(url, null,
+            new EpisodeUrlOwnerIds(YouTubeChannelId: _fixture.CreateYouTubeChannelId(), YouTubeChannelTitle: name));
+        var sut = _mocker.CreateInstance<UrlSubmitter>();
+
+        // Act
+        await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        VerifyRoutedTo(organisation.Id, Times.Never());
+    }
+
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)
     {
         foreach (var item in items.ToList())

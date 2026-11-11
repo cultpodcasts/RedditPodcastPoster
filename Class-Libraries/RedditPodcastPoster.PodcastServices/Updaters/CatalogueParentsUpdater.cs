@@ -690,13 +690,23 @@ public class CatalogueParentsUpdater(
         PodcastRunScope.Current.ReportStage("discover-episodes", $"stored-in-window={stored.Count}");
         var newEpisodes = await episodeProvider.GetEpisodes(podcast, existing, indexingContext);
         cancellationToken.ThrowIfCancellationRequested();
+        var additionalChannelIds = AdditionalYouTubeChannelIds(source);
+        newEpisodes = await DiscoverAdditionalYouTubeChannels(
+            parent, source, additionalChannelIds, existing, newEpisodes, indexingContext, cancellationToken);
         ApplyMinimumDuration(podcast, newEpisodes, indexingContext);
 
         PodcastRunScope.Current.ReportStage("merge", $"discovered={newEpisodes.Count}");
         var merge = episodeMerger.MergeEpisodes(podcast, existing, newEpisodes);
         PodcastRunScope.Current.ReportStage("sibling-podcast-check", $"added={merge.AddedEpisodes.Count}");
         var addedEpisodes = await ExcludeSiblingPodcastVideos(
-            parent, podcast, merge.AddedEpisodes, repositoryReleasedSince, cancellationToken);
+            parent, podcast.YouTubeChannelId, podcast.YouTubePlaylistId, merge.AddedEpisodes, repositoryReleasedSince,
+            cancellationToken);
+        foreach (var additionalChannelId in additionalChannelIds)
+        {
+            addedEpisodes = await ExcludeSiblingPodcastVideos(
+                parent, additionalChannelId, null, addedEpisodes, repositoryReleasedSince, cancellationToken);
+        }
+
         if (podcast.HasIgnoreAllEpisodes())
         {
             foreach (var added in addedEpisodes)
@@ -779,9 +789,11 @@ public class CatalogueParentsUpdater(
             source.YouTubeIndexingHints = youTubeIndexingHintsBefore;
         }
 
+        // An additional channel is a YouTube-only source, so a pass that skipped YouTube did not discover it.
         var bypassed = initialSkipSpotify != discoverySkipSpotify ||
                        initialSkipYouTube != discoverySkipYouTube ||
-                       podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext);
+                       podcast.IsScheduledYouTubeDiscoveryBypassed(indexingContext) ||
+                       (additionalChannelIds.Count > 0 && initialSkipYouTube);
         var succeeded = !bypassed && !merge.FailedEpisodes.Any();
         if (succeeded)
         {
@@ -1137,25 +1149,96 @@ public class CatalogueParentsUpdater(
         EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Apple) == null ||
         EpisodeServicePresence.AppleEpisodeId(episode) is null or 0;
 
+    /// <summary>Stable log prefix for one additional YouTube channel's discovery line (#1370).</summary>
+    public const string AdditionalYouTubeChannelMessagePrefix = "IndexerCatalogueAdditionalYouTubeChannel";
+
+    /// <summary>The parent's additional YouTube channels to discover this pass, without its main channel.</summary>
+    private static IReadOnlyList<string> AdditionalYouTubeChannelIds(CatalogueIndexingSource source) =>
+        (source.AdditionalYouTubeChannelIds ?? [])
+        .Where(id => !string.Equals(id, source.YouTubeChannelId, StringComparison.Ordinal))
+        .ToList();
+
+    /// <summary>
+    /// Multi-channel news organisations (#1370): after the main discovery, each of
+    /// <see cref="CatalogueIndexingSource.AdditionalYouTubeChannelIds"/> is discovered as a whole channel through the
+    /// same <see cref="IEpisodeProvider"/>, on the transient podcast
+    /// <see cref="CatalogueIndexingSource.ToTransientPodcastForAdditionalYouTubeChannel"/> builds. Its videos join this
+    /// pass's discovered list, so the merge, duration, sibling-podcast and elimination rules, the save and the hero
+    /// promotion are the ones the main channel gets. A video already discovered this pass is not added twice. The
+    /// additional pass never writes indexer state back (only the main channel's settings are captured), and a pass
+    /// that skips YouTube skips these channels too.
+    /// </summary>
+    private async Task<IList<Episode>> DiscoverAdditionalYouTubeChannels(
+        Publisher parent,
+        CatalogueIndexingSource source,
+        IReadOnlyList<string> additionalChannelIds,
+        IReadOnlyList<Episode> existing,
+        IList<Episode> discovered,
+        IndexingContext indexingContext,
+        CancellationToken cancellationToken)
+    {
+        if (additionalChannelIds.Count == 0 || indexingContext.SkipYouTubeUrlResolving)
+        {
+            return discovered;
+        }
+
+        var combined = new List<Episode>(discovered);
+        var discoveredYouTubeIds = combined
+            .Select(EpisodeServicePresence.YouTubeEpisodeId)
+            .Where(id => id != null)
+            .ToHashSet();
+        foreach (var channelId in additionalChannelIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (indexingContext.SkipYouTubeUrlResolving)
+            {
+                break;
+            }
+
+            PodcastRunScope.Current.ReportStage("discover-additional-youtube-channel", $"channel={channelId}");
+            var transient = source.ToTransientPodcastForAdditionalYouTubeChannel(parent, channelId);
+            var found = await episodeProvider.GetEpisodes(transient, existing, indexingContext);
+            var added = 0;
+            foreach (var episode in found)
+            {
+                if (EpisodeServicePresence.YouTubeEpisodeId(episode) is { } youTubeId &&
+                    !discoveredYouTubeIds.Add(youTubeId))
+                {
+                    continue;
+                }
+
+                combined.Add(episode);
+                added++;
+            }
+
+            logger.LogInformation(
+                "{Prefix} parent-id='{ParentId}' name='{ParentName}' channel='{ChannelId}' discovered='{Discovered}' added='{Added}'.",
+                AdditionalYouTubeChannelMessagePrefix, parent.Id, parent.Name, channelId, found.Count, added);
+        }
+
+        return combined;
+    }
+
     /// <summary>
     /// A parent indexing a whole YouTube channel can share it with podcasts scoped to one playlist of that
     /// channel (e.g. a news outlet and one of its shows). A video those podcasts already hold as an episode is
     /// theirs, so it is not also saved as a NewsReport / TvShowEpisode. Only stored episodes are checked: a
-    /// video the podcast has not indexed yet can still be taken by the parent first (see PR notes).
+    /// video the podcast has not indexed yet can still be taken by the parent first (see PR notes). Run once for
+    /// the main channel and once for each additional channel (always whole-channel, #1370).
     /// </summary>
     private async Task<List<Episode>> ExcludeSiblingPodcastVideos(
         Publisher parent,
-        Podcast transient,
+        string? channelId,
+        string? playlistId,
         IList<Episode> added,
         DateTime releasedSince,
         CancellationToken cancellationToken)
     {
-        var channelId = transient.YouTubeChannelId;
         var addedYouTubeIds = added
             .Select(EpisodeServicePresence.YouTubeEpisodeId)
             .Where(id => id != null)
             .ToHashSet();
-        if (string.IsNullOrWhiteSpace(channelId) || !string.IsNullOrWhiteSpace(transient.YouTubePlaylistId) ||
+        if (string.IsNullOrWhiteSpace(channelId) || !string.IsNullOrWhiteSpace(playlistId) ||
             addedYouTubeIds.Count == 0)
         {
             return [.. added];

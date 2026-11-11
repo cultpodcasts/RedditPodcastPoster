@@ -21,6 +21,10 @@ namespace RedditPodcastPoster.Discovery.Enrichers;
 /// one, the same tie-break as <c>CatalogueParentLookup.FindByOwner</c>. A playlist-scoped owner eliminates only a
 /// video that is in its playlist; any other video on the channel stays matched and is not index-all.
 /// </para>
+/// <para>
+/// A news organisation owns each of its <c>additionalYouTubeChannelIds</c> as a whole channel, as it owns its main
+/// channel (#1370), so a video on one of them is matched to the organisation and is never playlist-scoped there.
+/// </para>
 /// </summary>
 public class EpisodeResultsEnricher(
     IEpisodeResultEnricher episodeResultEnricher,
@@ -93,7 +97,7 @@ public class EpisodeResultsEnricher(
                 var parent = FindYouTubeParent(catalogueOwners, channelId);
                 if (Add(parents, parent))
                 {
-                    youTubePlaylistByOwner[parent!.Id] = parent.Indexing.YouTubePlaylistId;
+                    youTubePlaylistByOwner[parent!.Id] = parent.Indexing.YouTubePlaylistIdOn(channelId);
                 }
             }
 
@@ -107,7 +111,9 @@ public class EpisodeResultsEnricher(
                             parent.Id,
                             parent.IndexAllEpisodes,
                             parent.Removed,
-                            parent.Indexing.YouTubePlaylistId ?? string.Empty,
+                            (youTubePlaylistByOwner.TryGetValue(parent.Id, out var youTubePlaylistId)
+                                ? youTubePlaylistId
+                                : parent.Indexing.YouTubePlaylistId) ?? string.Empty,
                             suppressesUnrelatedShows: parent.Removed)))
                     .ToArray();
             yield return new EnrichedEpisodeResult(
@@ -257,9 +263,9 @@ public class EpisodeResultsEnricher(
 
     private static CatalogueOwner? FindYouTubeParent(IReadOnlyList<CatalogueOwner> owners, string channelId)
     {
-        var matches = owners.Where(x => x.Indexing.YouTubeChannelId == channelId).ToArray();
+        var matches = owners.Where(x => x.Indexing.HoldsYouTubeChannel(channelId)).ToArray();
         return FirstAutoOrSingle(
-            PreferChannelWide(matches, x => x.Indexing.YouTubePlaylistId),
+            PreferChannelWide(matches, x => x.Indexing.YouTubePlaylistIdOn(channelId)),
             x => x.Indexing.IsAutoIndexed);
     }
 

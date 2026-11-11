@@ -24,6 +24,15 @@ public class CatalogueIndexingSourceCoverageRules
         "youTubeNotificationSubscriptionLeaseExpiry"
     ];
 
+    /// <summary>
+    /// Indexing fields a podcast does not have: settings only a parent can hold. A podcast keeps one YouTube channel;
+    /// a news organisation may hold further whole channels (#1370).
+    /// </summary>
+    private static readonly string[] ParentOnlyFields =
+    [
+        "additionalYouTubeChannelIds"
+    ];
+
     private readonly DomainTestFixture _fixture = new();
 
     private static Dictionary<string, PropertyInfo> WireProperties(Type type) =>
@@ -44,11 +53,11 @@ public class CatalogueIndexingSourceCoverageRules
 
         // Act
         var unclassified = podcastFields.Except(indexingFields).Except(PodcastOnlyFields).ToList();
-        var unknownIndexing = indexingFields.Except(podcastFields).ToList();
+        var unknownIndexing = indexingFields.Except(podcastFields).Except(ParentOnlyFields).ToList();
 
         // Assert
         unclassified.Should().BeEmpty("each podcast field must be carried on indexing or listed as podcast-only");
-        unknownIndexing.Should().BeEmpty("indexing wire names must match podcast wire names");
+        unknownIndexing.Should().BeEmpty("indexing wire names must match podcast wire names or be listed as parent-only");
     }
 
     [Fact(DisplayName =

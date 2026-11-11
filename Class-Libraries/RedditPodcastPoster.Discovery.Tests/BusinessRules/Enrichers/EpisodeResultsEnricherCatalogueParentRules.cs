@@ -472,6 +472,33 @@ public class EpisodeResultsEnricherCatalogueParentRules
         return prefix + new string(chars);
     }
 
+    [Fact(DisplayName =
+        "A discovered video on a news organisation's additional YouTube channel is matched to the organisation, and when the organisation indexes every episode it is index-all without a playlist lookup, because the main playlist does not scope an additional channel.")]
+    public async Task additional_channel_is_matched_channel_wide()
+    {
+        // Arrange
+        var additionalChannelId = _fixture.Create<string>();
+        var organisation = AddOrganisation(i =>
+        {
+            i.YouTubeChannelId = _fixture.Create<string>();
+            i.YouTubePlaylistId = CreatePlaylistId();
+            i.AdditionalYouTubeChannelIds = [additionalChannelId];
+            i.IndexAllEpisodes = true;
+        });
+        var result = CreateEpisodeResult(ids => ids.YouTube = additionalChannelId);
+        AttachYouTube(result, CreateVideoId());
+
+        // Act
+        var enriched = await Enrich(result);
+
+        // Assert
+        var match = enriched.Single().PodcastResults.Should().ContainSingle().Subject;
+        match.PodcastId.Should().Be(organisation.Id);
+        match.IndexAllEpisodes.Should().BeTrue();
+        _mocker.GetMock<IYouTubePlaylistMembership>().Verify(m => m.Contains(
+            It.IsAny<IYouTubeServiceWrapper>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)
     {
         foreach (var item in items.ToList())

@@ -21,14 +21,16 @@ public sealed record ServiceIdConflict(string Field, string Value, IReadOnlyList
 /// owner per id. Only ids the PATCH sets are checked (clearing never conflicts).
 /// <list type="bullet">
 /// <item>Another news organisation or TV show with the same <c>youTubeChannelId</c>, <c>spotifyId</c> or
-/// <c>appleId</c>: conflict.</item>
+/// <c>appleId</c>: conflict. A YouTube channel is held by a parent as its main <c>youTubeChannelId</c> or as one of a news
+/// organisation's <c>additionalYouTubeChannelIds</c> (#1370); both kinds of hold conflict, both ways.</item>
 /// <item>A podcast with the same <c>spotifyId</c> / <c>appleId</c>, or a channel-wide podcast (no playlist) on the same
 /// <c>youTubeChannelId</c>: conflict, because that podcast would win every submit and the parent's id would be dead.</item>
 /// <item>A playlist-scoped podcast on the same channel: allowed with a Warning. A show podcast with its own playlist
 /// on an outlet's channel is legitimate (for example "Here's the Scoop" on NBC News); submission routes by playlist
 /// membership (#1054).</item>
 /// </list>
-/// Removed podcasts are ignored, as submission ignores them.
+/// Removed podcasts are ignored, as submission ignores them. Each of a news organisation's
+/// <c>additionalYouTubeChannelIds</c> is checked like <c>youTubeChannelId</c> (field <c>additionalYouTubeChannelIds</c>).
 /// </summary>
 public interface IServiceIdsUniqueness
 {
@@ -44,23 +46,22 @@ public class ServiceIdsUniqueness(
     public async Task<ServiceIdConflict?> FindConflict(Guid parentId, ServiceIdsChange change)
     {
         var channelId = change.YouTubeChannelId?.Trim();
-        if (!string.IsNullOrEmpty(channelId))
+        if (!string.IsNullOrEmpty(channelId) &&
+            await FindYouTubeChannelConflict(parentId, "youTubeChannelId", channelId) is { } channelConflict)
         {
-            var owners = await ParentOwners(
-                x => x.Id != parentId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId,
-                x => x.Id != parentId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId);
-            var podcasts = await Podcasts(x => x.YouTubeChannelId == channelId);
-            owners.AddRange(podcasts.Where(p => string.IsNullOrEmpty(p.YouTubePlaylistId)).Select(p => p.Id));
-            if (owners.Count > 0)
-            {
-                return new ServiceIdConflict("youTubeChannelId", channelId, owners);
-            }
+            return channelConflict;
+        }
 
-            foreach (var podcast in podcasts)
+        if (change is NewsOrganisationChangeRequest { AdditionalYouTubeChannelIds: { } additionalChannelIds })
+        {
+            foreach (var additionalChannelId in new CatalogueIndexingSource
+                         { AdditionalYouTubeChannelIds = [.. additionalChannelIds] }.AdditionalYouTubeChannelIds ?? [])
             {
-                logger.LogWarning(
-                    "Parent '{ParentId}' shares youTubeChannelId '{ChannelId}' with playlist-scoped podcast '{PodcastId}' ('{PodcastName}', playlist '{PlaylistId}'); submission routes by playlist membership.",
-                    parentId, channelId, podcast.Id, podcast.Name, podcast.YouTubePlaylistId);
+                if (await FindYouTubeChannelConflict(parentId, "additionalYouTubeChannelIds", additionalChannelId) is
+                    { } additionalConflict)
+                {
+                    return additionalConflict;
+                }
             }
         }
 
@@ -87,6 +88,34 @@ public class ServiceIdsUniqueness(
             {
                 return new ServiceIdConflict("appleId", appleId.ToString(), owners);
             }
+        }
+
+        return null;
+    }
+
+    private async Task<ServiceIdConflict?> FindYouTubeChannelConflict(Guid parentId, string field, string channelId)
+    {
+        var owners = await ParentOwners(
+            x => x.Id != parentId && x.Indexing != null &&
+                 (x.Indexing.YouTubeChannelId == channelId ||
+                  (x.Indexing.AdditionalYouTubeChannelIds != null &&
+                   x.Indexing.AdditionalYouTubeChannelIds.Contains(channelId))),
+            x => x.Id != parentId && x.Indexing != null &&
+                 (x.Indexing.YouTubeChannelId == channelId ||
+                  (x.Indexing.AdditionalYouTubeChannelIds != null &&
+                   x.Indexing.AdditionalYouTubeChannelIds.Contains(channelId))));
+        var podcasts = await Podcasts(x => x.YouTubeChannelId == channelId);
+        owners.AddRange(podcasts.Where(p => string.IsNullOrEmpty(p.YouTubePlaylistId)).Select(p => p.Id));
+        if (owners.Count > 0)
+        {
+            return new ServiceIdConflict(field, channelId, owners);
+        }
+
+        foreach (var podcast in podcasts)
+        {
+            logger.LogWarning(
+                "Parent '{ParentId}' shares {Field} '{ChannelId}' with playlist-scoped podcast '{PodcastId}' ('{PodcastName}', playlist '{PlaylistId}'); submission routes by playlist membership.",
+                parentId, field, channelId, podcast.Id, podcast.Name, podcast.YouTubePlaylistId);
         }
 
         return null;

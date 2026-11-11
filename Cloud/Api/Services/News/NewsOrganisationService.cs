@@ -14,6 +14,8 @@ namespace Api.Services.News;
 /// Curator GET/PATCH for a news organisation. Mirrors <c>TvShowService</c> for lookup (id, or a unique name).
 /// The editable set is the shared publisher fields, including publisher, description and removed (which cascades to
 /// the reports). Name is not part of PATCH: it is changed by <c>POST newsorganisation/name/{identifier}</c> (<c>CatalogueRenameService</c>), which records a redirect.
+/// A news organisation may also hold <c>additionalYouTubeChannelIds</c> (#1370, <see cref="AdditionalYouTubeChannels"/>):
+/// each one passes the same channel-wide claim guard and uniqueness check as the main channel before anything is saved.
 /// </summary>
 public class NewsOrganisationService(
     INewsOrganisationRepository newsOrganisationRepository,
@@ -71,6 +73,14 @@ public class NewsOrganisationService(
                 return new NewsOrganisationUpdateResult(NewsOrganisationUpdateStatus.NotFound);
             }
 
+            if (AdditionalYouTubeChannels.Check(organisation.Indexing, request.Change) is { } channelsRefused)
+            {
+                logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                    organisation.Id, channelsRefused.Code, channelsRefused.Message);
+                return new NewsOrganisationUpdateResult(
+                    NewsOrganisationUpdateStatus.BadRequest, channelsRefused.Message, Code: channelsRefused.Code);
+            }
+
             var playlistCheck = await youTubePlaylistGuard.Check(
                 organisation.Indexing?.YouTubePlaylistId,
                 request.Change.YouTubePlaylistId,
@@ -108,6 +118,30 @@ public class NewsOrganisationService(
                 }
             }
 
+            if (request.Change.AdditionalYouTubeChannelIds != null || request.Change.Removed != null)
+            {
+                // An additional channel is always claimed channel-wide (no playlist scopes it).
+                var projectedRemoved = request.Change.Removed ?? organisation.IsRemoved();
+                foreach (var additionalChannel in AdditionalYouTubeChannels.Projected(organisation.Indexing, request.Change))
+                {
+                    if (await channelWideYouTubeClaimGuard.Check(
+                            organisation.Id,
+                            ChannelWideYouTubeClaimKind.NewsOrganisation,
+                            additionalChannel,
+                            null,
+                            projectedRemoved,
+                            cancellationToken) is { } additionalConflict)
+                    {
+                        logger.LogWarning("{method}: '{id}' refused: {code}. {message}", nameof(UpdateAsync),
+                            organisation.Id, ChannelWideYouTubeClaimConflict.Code, additionalConflict.Message);
+                        return new NewsOrganisationUpdateResult(
+                            NewsOrganisationUpdateStatus.BadRequest,
+                            additionalConflict.Message,
+                            Code: ChannelWideYouTubeClaimConflict.Code);
+                    }
+                }
+            }
+
             PublisherChangeApplier.Apply(organisation, request.Change);
             if (await serviceIdsUniqueness.FindConflict(organisation.Id, request.Change) is { } conflict)
             {
@@ -116,8 +150,10 @@ public class NewsOrganisationService(
             }
 
             organisation.Indexing = ServiceIdsApplier.Apply(organisation.Indexing, request.Change, organisation, logger);
+            organisation.Indexing = AdditionalYouTubeChannels.Apply(organisation.Indexing, request.Change);
             if (YouTubePlaylistOwnerChannel.DerivedOwnerIfChannelBlank(
-                    playlistCheck, organisation.Indexing?.YouTubeChannelId) is { } derivedOwner)
+                    playlistCheck, organisation.Indexing?.YouTubeChannelId) is { } derivedOwner &&
+                organisation.Indexing?.HoldsAdditionalYouTubeChannel(derivedOwner) != true)
             {
                 // Derive runs after Apply, so request.Change never included this channel for FindConflict.
                 // On conflict, skip derive + warn and still save the playlist — playlist-only edits stay

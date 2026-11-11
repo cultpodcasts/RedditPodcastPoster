@@ -50,12 +50,15 @@ public class ChannelWideYouTubeClaimGuard(
         if (kind != ChannelWideYouTubeClaimKind.NewsOrganisation)
         {
             Expression<Func<NewsOrganisation, bool>> match = x =>
-                x.Id != entityId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId;
+                x.Id != entityId && x.Indexing != null &&
+                (x.Indexing.YouTubeChannelId == channelId ||
+                 (x.Indexing.AdditionalYouTubeChannelIds != null &&
+                  x.Indexing.AdditionalYouTubeChannelIds.Contains(channelId)));
             await foreach (var organisation in newsOrganisationRepository.GetAllBy(match)
                                .WithCancellation(cancellationToken))
             {
-                if (organisation.IsRemoved() ||
-                    !string.IsNullOrWhiteSpace(organisation.Indexing?.YouTubePlaylistId))
+                // An additional channel (#1370) is always claimed channel-wide, whatever the main playlist.
+                if (organisation.IsRemoved() || organisation.Indexing?.ClaimsYouTubeChannelWide(channelId) != true)
                 {
                     continue;
                 }
@@ -67,10 +70,13 @@ public class ChannelWideYouTubeClaimGuard(
         if (kind != ChannelWideYouTubeClaimKind.TvShow)
         {
             Expression<Func<TvShow, bool>> match = x =>
-                x.Id != entityId && x.Indexing != null && x.Indexing.YouTubeChannelId == channelId;
+                x.Id != entityId && x.Indexing != null &&
+                (x.Indexing.YouTubeChannelId == channelId ||
+                 (x.Indexing.AdditionalYouTubeChannelIds != null &&
+                  x.Indexing.AdditionalYouTubeChannelIds.Contains(channelId)));
             await foreach (var show in tvShowRepository.GetAllBy(match).WithCancellation(cancellationToken))
             {
-                if (show.IsRemoved() || !string.IsNullOrWhiteSpace(show.Indexing?.YouTubePlaylistId))
+                if (show.IsRemoved() || show.Indexing?.ClaimsYouTubeChannelWide(channelId) != true)
                 {
                     continue;
                 }
