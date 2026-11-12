@@ -20,7 +20,7 @@ public static class BbcNewsSubmitRejection
     /// <see cref="SubmitContentClassifier.IsBbcNews"/>), the bare <c>/news</c> section page on those hosts,
     /// and any page on the legacy <c>news.bbc.co.uk</c> host, except <c>/news/av-embeds/…</c> media embeds (iPlayer
     /// catalogue, see <c>BBCUrlMatcher.IsIplayerCatalogUrl</c>). Deliberately wider than <c>IsBbcNews</c>, which
-    /// the classifier and catalogue migrate still use unchanged.
+    /// the classifier still uses unchanged.
     /// </summary>
     public static bool Applies(Uri url)
     {

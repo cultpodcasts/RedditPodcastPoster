@@ -1,6 +1,6 @@
 # GATE 5 — Corpus migrate + close
 
-**Status:** locked. The writer is in code (PR #1049): `CatalogueMigrate --apply` writes **only** with the exact human consent phrase. Without it, `--apply` exits 2. Agents must never pass `--consent` or `--apply` (see [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../../.cursor/rules/catalogue-migrate-cli-dry-run.mdc)). Dry-run is allowed.
+**Status:** locked. The writer is in code (PR #1049): `CatalogueMigrate --apply` writes **only** with the exact human consent phrase. Without it, `--apply` exits 2. Agents must never pass `--consent` or `--apply` (the `catalogue-migrate-cli-dry-run` agent rule was retired in #1369). Dry-run is allowed.
 
 **Checklist with exact commands:** [definition-of-done.md](./definition-of-done.md)
 

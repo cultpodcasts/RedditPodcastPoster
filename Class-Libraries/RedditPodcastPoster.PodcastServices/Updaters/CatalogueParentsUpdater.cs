@@ -111,7 +111,7 @@ public class CatalogueParentsUpdater(
 
     /// <summary>
     /// Stable log prefix for a parent skipped because the podcast it was migrated from (same id) still exists: a
-    /// half-finished CatalogueMigrate move (App Insights keys off it).
+    /// half-finished kind transfer (App Insights keys off it).
     /// </summary>
     public const string SourcePodcastExistsMessagePrefix = "IndexerCatalogueParentSourcePodcastExists";
 
@@ -445,11 +445,11 @@ public class CatalogueParentsUpdater(
     }
 
     /// <summary>
-    /// CatalogueMigrate keeps the podcast id for the parent and deletes the podcast last. If a move stopped after the
+    /// Kind transfer keeps the podcast id for the parent and deletes the podcast last. If a transfer stopped after the
     /// parent was written (search quota, verify, or the source changed mid-move), the podcast and the parent both exist
     /// and both are auto-indexed. Indexing the parent too would save each new video twice (an Episode on the podcast
-    /// and a NewsReport / TvShowEpisode on the parent), and a re-run of the move would then hold both. The podcast stays
-    /// the indexed source until the move finishes or is rolled back, so the parent is skipped (not a failure).
+    /// and a NewsReport / TvShowEpisode on the parent), and a re-run of the transfer would then hold both. The podcast stays
+    /// the indexed source until the transfer finishes, so the parent is skipped (not a failure).
     /// A same-id podcast the podcast pass would not index (removed, or not auto-indexed) does not defer the parent:
     /// skipping then would leave nothing indexed.
     /// </summary>
@@ -462,7 +462,7 @@ public class CatalogueParentsUpdater(
 
         logger.LogWarning(
             SourcePodcastExistsMessagePrefix +
-            " kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}'. The podcast with the same id still exists (CatalogueMigrate move not finished); the podcast is indexed instead. Re-run the move or roll it back.",
+            " kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}'. The podcast with the same id still exists (kind transfer not finished); the podcast is indexed instead. Re-send the kind transfer to finish it.",
             kind, parent.Id, parent.Name);
         return true;
     }
@@ -471,7 +471,7 @@ public class CatalogueParentsUpdater(
     /// Whether the hourly podcast pass would index <paramref name="podcast"/>: selected by <c>IndexIdProvider</c>
     /// (<c>Removed</c> undefined, null or false, and <c>IndexAllEpisodes</c> or a title regex) and then indexed by
     /// <c>PodcastsUpdater</c> (not removed, and <c>IndexAllEpisodes</c> or a non-blank regex). A whitespace-only regex is
-    /// blank, as in <c>PodcastsUpdater</c>, <c>CatalogueMigratePlanner.IsAutoIndexed</c> and
+    /// blank, as in <c>PodcastsUpdater</c> and
     /// <c>CatalogueIndexingSource.IsAutoIndexed</c>.
     /// <para>
     /// <c>Removed == null</c> counts as not removed. In C# a podcast without a <c>removed</c> property and one with a

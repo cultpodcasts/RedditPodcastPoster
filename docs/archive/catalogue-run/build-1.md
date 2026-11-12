@@ -72,8 +72,8 @@ Parked (not required for Build 1 done): [#989](https://github.com/cultpodcasts/R
 | Topic | Where |
 |-------|--------|
 | **Rewrite console requirements** | [build-1-rewrite-console-requirements.md](./build-1-rewrite-console-requirements.md) |
-| Tool README | [films-refactor/README.md](../../films-refactor/README.md) |
-| **Repair if rollback fails** | [films-refactor/REPAIR.md](../../films-refactor/REPAIR.md) |
+| Tool README | [films-refactor/README.md](../../../films-refactor/README.md) |
+| **Repair if rollback fails** | [films-refactor/REPAIR.md](../../../films-refactor/REPAIR.md) |
 | Why dual-key / field renames | Epic § Episode JSON cutover |
 | What ships in the PR | PR #988 description |
-| Deploy scripts (used in GATE 1, not now) | [deployment.md](../deployment.md) |
+| Deploy scripts (used in GATE 1, not now) | [deployment.md](../../deployment.md) |

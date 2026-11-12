@@ -56,7 +56,7 @@ Deploy Build 1 safely against today’s Episode data, then rename Episode fields
 | Search | Step 8 only — not in this wave |
 | Worker / Site | No |
 
-Scripts: [deployment.md](../deployment.md)
+Scripts: [deployment.md](../../deployment.md)
 
 ---
 
@@ -103,10 +103,10 @@ Open **only** [build-2.md](./build-2.md).
 | Topic | Where |
 |-------|--------|
 | Tool build requirements (already shipped in Build 1) | [build-1-rewrite-console-requirements.md](./build-1-rewrite-console-requirements.md) |
-| **Repair evidence / fixer contract** | [films-refactor/REPAIR.md](../../films-refactor/REPAIR.md) |
+| **Repair evidence / fixer contract** | [films-refactor/REPAIR.md](../../../films-refactor/REPAIR.md) |
 | Field rename table | Below |
 | Why day-to-day Save is not enough | Cold episodes never get rewritten without the tool |
-| Deploy how-to | [deployment.md](../deployment.md) |
+| Deploy how-to | [deployment.md](../../deployment.md) |
 
 ### Fields renamed (this GATE)
 

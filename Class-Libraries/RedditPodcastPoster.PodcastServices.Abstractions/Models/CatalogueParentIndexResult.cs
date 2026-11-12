@@ -11,7 +11,7 @@ public enum CatalogueParentIndexStatus
     /// <summary>The parent is removed, or its <c>indexing</c> settings do not auto-index (no index-all, no title regex).</summary>
     NotIndexable,
 
-    /// <summary>The podcast it was migrated from (same id) still exists and is indexed instead (unfinished CatalogueMigrate).</summary>
+    /// <summary>The podcast it was migrated from (same id) still exists and is indexed instead (unfinished kind transfer).</summary>
     SourcePodcastStillExists,
 
     /// <summary>

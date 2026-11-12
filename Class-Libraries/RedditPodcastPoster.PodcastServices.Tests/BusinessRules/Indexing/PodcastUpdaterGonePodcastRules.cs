@@ -15,7 +15,7 @@ using RedditPodcastPoster.PodcastServices.Updaters;
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
 /// <summary>
-/// CatalogueMigrate deletes the source podcast after moving it. A pass that already read the podcast must not
+/// Kind transfer deletes the source podcast after moving it. A pass that already read the podcast must not
 /// write that row back or save episodes under it.
 /// </summary>
 public class PodcastUpdaterGonePodcastRules
@@ -52,7 +52,7 @@ public class PodcastUpdaterGonePodcastRules
         "When the podcast row is deleted before save-episodes, no episodes are saved, the podcast is not " +
         "re-created, and the result carries no added, merged, updated, or filtered episodes, and the warning names " +
         "IndexerPodcastGone with the podcast id and stage save-episodes, because a pass that read the row before " +
-        "CatalogueMigrate deleted it must not write it back or hand those episodes to Indexer to save.")]
+        "a kind transfer deleted it must not write it back or hand those episodes to Indexer to save.")]
     public async Task deleted_before_save_episodes_writes_nothing()
     {
         // Arrange
@@ -130,7 +130,7 @@ public class PodcastUpdaterGonePodcastRules
     [Fact(DisplayName =
         "When the podcast row disappears after the save-episodes point-read and before save-podcast, the podcast is " +
         "not re-created, and the warning names IndexerPodcastGone with stage save-podcast, because that upsert would " +
-        "restore a row CatalogueMigrate already removed.")]
+        "restore a row a kind transfer already removed.")]
     public async Task deleted_before_save_podcast_does_not_recreate_the_podcast()
     {
         // Arrange

@@ -3,7 +3,7 @@ namespace RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 /// <summary>
 /// Copy-path rule for a stored <c>youTubeChannelId</c> / <c>youTubePlaylistId</c> pair: when both are set, the
 /// channel must own the playlist (discovery / URL-routing identity). A channel-only or playlist-only parent is fine
-/// (with a playlist, the playlist alone is the YouTube source). Used by kind transfer and CatalogueMigrate before they
+/// (with a playlist, the playlist alone is the YouTube source). Used by kind transfer before it
 /// copy the pair onto a TV / news parent; edit-time channel changes use
 /// <c>IYouTubePlaylistGuard.CheckChannelAgainstPlaylist</c>, which applies the same ownership comparison.
 /// </summary>

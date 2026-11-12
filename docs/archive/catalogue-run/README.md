@@ -10,8 +10,8 @@
 
 Pattern: **Build** (code on `main`) → **GATE** (deploy + ops) → next Build.
 
-Design / glossary (not the runbook): [catalogue-content-types-epic.md](../catalogue-content-types-epic.md)  
-How to deploy Functions: [deployment.md](../deployment.md)
+Design / glossary (not the runbook): [catalogue-content-types-epic.md](../../catalogue-content-types-epic.md)  
+How to deploy Functions: [deployment.md](../../deployment.md)
 
 ---
 

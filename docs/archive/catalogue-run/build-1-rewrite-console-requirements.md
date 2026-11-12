@@ -86,7 +86,7 @@ GATE 1 must pause Indexer + Discover + Api writes before `--apply`.
 
 ## Tests (mandatory)
 
-Follow [`.cursor/rules/unit-tests.mdc`](../../.cursor/rules/unit-tests.mdc) and the always-on enforcement rule.
+Follow [`.cursor/rules/unit-tests.mdc`](../../../.cursor/rules/unit-tests.mdc) and the always-on enforcement rule.
 
 | Layer | Required |
 |-------|----------|

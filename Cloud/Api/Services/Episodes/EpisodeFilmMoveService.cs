@@ -17,14 +17,14 @@ using RedditPodcastPoster.UrlSubmission.Services;
 namespace Api.Services.Episodes;
 
 /// <summary>
-/// Moves one podcast episode into a new Film, the way CatalogueMigrate moves a one-episode podcast to a film:
+/// Moves one podcast episode into a new Film, the way the retired catalogue migration moved a one-episode podcast to a film:
 /// <list type="number">
 /// <item>Map with <see cref="CatalogueParentKindMapper.ToFilm"/>, so the film keeps the episode id, services, subjects,
 /// and posted / tweeted / Bluesky state. The name is the episode title unless the request gives one.</item>
 /// <item>Write the film, then swap the search document under the same id to ContentKind Film
 /// (<see cref="CatalogueSearchDocuments"/>), then delete the source episode row.</item>
 /// </list>
-/// As in the migrator, a failed search swap stops before the source row is deleted. Re-sending the request then
+/// As in kind transfer, a failed search swap stops before the source row is deleted. Re-sending the request then
 /// resumes: a film with the episode id while the episode row still exists is the interrupted move, so the film is
 /// reused rather than reported as a conflict.
 /// After the episode row is deleted, the episode's short-link record is deleted (best effort), as catalogue edits do,

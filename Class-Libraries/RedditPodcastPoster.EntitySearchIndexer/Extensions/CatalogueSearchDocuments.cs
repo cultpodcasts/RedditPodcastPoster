@@ -8,7 +8,7 @@ using RedditPodcastPoster.Search.Models;
 namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 
 /// <summary>
-/// Same-id search swap documents for catalogue migrate / kind transfer.
+/// Same-id search swap documents for catalogue playables: kind transfer, Move to film and submit-url indexing.
 /// MergeOrUpload keeps the episode (or Film) GUID as the search key.
 /// </summary>
 public static class CatalogueSearchDocuments

@@ -1,6 +1,6 @@
 # Catalogue content types — definition of done
 
-This is the close-out checklist for the TV show / Film / News migration epic. **Nothing here has been run.** Every production step needs Jon to name it in the conversation. For `CatalogueMigrate --apply` and `--rollback --apply`, he must also type the consent phrase himself. Agents never supply `--consent` (see [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../../.cursor/rules/catalogue-migrate-cli-dry-run.mdc)).
+This is the close-out checklist for the TV show / Film / News migration epic. **Nothing here has been run.** Every production step needs Jon to name it in the conversation. For `CatalogueMigrate --apply` and `--rollback --apply`, he must also type the consent phrase himself. Agents never supply `--consent` (the `catalogue-migrate-cli-dry-run` agent rule was retired in #1369).
 
 Commands are PowerShell from the RedditPodcastPoster repo root on Jon's machine, with production user-secrets. `CatalogueMigrate` and `CatalogueMigrateIdentify` mean the published exes in `artifacts\tools` (on PATH).
 
@@ -99,7 +99,7 @@ CatalogueMigrate --rollback catalogue-migrate-evidence\<file>.jsonl --apply --co
 
 ## G. Drop the Episode dual-key / bridges (GATE 5 step 5)
 
-Only after F is green for all three kinds and the audit in [gate-5.md](./gate-5.md) is still green. This is a separate PR: remove the `podcastRemoved`/`releaseSort` dual-key predicates and the deserialize bridges, then redeploy: (tracked in [#1151](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1151); re-run the read-only audit in [deployment.md](../deployment.md#episode-json-cutover-phase-1-dual-key-queries) first)
+Only after F is green for all three kinds and the audit in [gate-5.md](./gate-5.md) is still green. This is a separate PR: remove the `podcastRemoved`/`releaseSort` dual-key predicates and the deserialize bridges, then redeploy: (tracked in [#1151](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1151); re-run the read-only audit in [deployment.md](../../deployment.md#episode-json-cutover-phase-1-dual-key-queries) first)
 
 Redeploy happens on merge: the GitHub Actions **Provision and Deploy** workflow (`.github/workflows/deploy.yml`, on push to `main`) auto-deploys the `indexer`, `discover` and `api` Function apps. The local scripts are a fallback only, if Actions is unavailable:
 

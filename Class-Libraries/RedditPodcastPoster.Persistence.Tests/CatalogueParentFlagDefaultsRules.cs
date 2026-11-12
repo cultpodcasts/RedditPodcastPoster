@@ -58,7 +58,7 @@ public class CatalogueParentFlagDefaultsRules
     }
 
     [Theory(DisplayName =
-        "Catalogue parent flags: a podcast transferred to a news organisation (Move to news, CatalogueMigrate) is " +
+        "Catalogue parent flags: a podcast transferred to a news organisation (Move to news, kind transfer) is " +
         "saved with bypass-short and always-promote-as-hero on whatever the podcast had, because those are the news " +
         "defaults.")]
     [InlineData(null, null)]
