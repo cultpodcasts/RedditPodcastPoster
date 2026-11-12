@@ -449,6 +449,8 @@ FilmSearchPusher
 
 **Purpose:** Push film search documents from the Cosmos `Films` container into the search index, in place of a Film pull indexer (the Free tier's three data sources are used by episodes, TV and news). Run locally, once a day.
 
+**Why this exists / do not remove (Jon, 12 Nov 2026):** the Azure AI Search tier limits data sources (3 on Free), and episodes, TV show episodes and news reports use all three, so films have no pull indexer. This console, with the `FilmSearchPush` library (`RedditPodcastPoster.EntitySearchIndexer/FilmSearchPush`) and the `FilmSearchPushWatermark` store, is the **only bulk path** that gets films into search, for example after an index rebuild (`CreateSearchIndex --teardown-index`) and for `--full` orphan-film cleanup. Curator saves only push one film at a time. **Do not remove until the D1 search migration (search-platform epic) is online and films are indexed another way.** Rule: [`.cursor/rules/film-search-pusher-keep.mdc`](../.cursor/rules/film-search-pusher-keep.mdc).
+
 **Run:** `dotnet run --project Console-Apps/FilmSearchPusher --` · PATH: `FilmSearchPusher`
 
 | Option | Description |

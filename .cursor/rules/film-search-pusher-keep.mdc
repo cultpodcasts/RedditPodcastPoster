@@ -1,0 +1,18 @@
+---
+description: HARD - keep FilmSearchPusher and the FilmSearchPush library until D1 search is online
+alwaysApply: true
+---
+
+# Keep FilmSearchPusher until D1 (HARD GUARDRAIL)
+
+Do **not** retire, delete or "clean up" any of these until the D1 search migration (search-platform epic) is online and films are indexed another way:
+
+- `Console-Apps/FilmSearchPusher` and `Console-Apps/FilmSearchPusher.Tests`
+- `Class-Libraries/RedditPodcastPoster.EntitySearchIndexer/FilmSearchPush/*` and `AddFilmSearchPush`
+- `IFilmSearchPushWatermarkStore` / `FilmSearchPushWatermarkStore`, the `FilmSearchPushWatermark` model, `ModelType.FilmSearchPushWatermark` and the LookUps document
+
+## Why
+
+The Azure AI Search tier limits data sources (3 on Free). Episodes, TV show episodes and news reports use all three, so films have no pull indexer. Curator saves (film edit, trailer attach, Move to film) push one film at a time. FilmSearchPusher is the **only bulk path** that gets films into search, for example after `CreateSearchIndex --teardown-index`, and the only orphan-film cleanup (`--full`).
+
+Decision: Jon, 12 Nov 2026 (#1369 / PR #1405), after a retirement attempt left a film search gap.
