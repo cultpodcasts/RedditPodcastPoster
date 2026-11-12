@@ -254,7 +254,6 @@
 
     <Project Path="Console-Apps/DeleteSearchDocument/DeleteSearchDocument.csproj" />
 
-
     <Project Path="Console-Apps/Discover/Discover.csproj" />
 
     <Project Path="Console-Apps/DiscoveryScoreBackfill/DiscoveryScoreBackfill.csproj" />
