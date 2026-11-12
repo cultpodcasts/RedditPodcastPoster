@@ -158,7 +158,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<INewsReportOrganisationMoveService, NewsReportOrganisationMoveService>()
             .AddScoped<IPostNewsReportOrganisationMoveHandler, PostNewsReportOrganisationMoveHandler>()
             .AddScoped<INewsOrganisationDeleteService, NewsOrganisationDeleteService>()
-            .AddScoped<IDeleteNewsOrganisationHandler, DeleteNewsOrganisationHandler>();
+            .AddScoped<IDeleteNewsOrganisationHandler, DeleteNewsOrganisationHandler>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
         services

@@ -29,7 +29,7 @@ public sealed class NewsReportOrganisationMoveResponse
     [JsonPropertyName("notFoundReportIds")]
     public Guid[] NotFoundReportIds { get; init; } = [];
 
-    /// <summary>Requested ids that are a report of another organisation, a TV episode or a film. Refuses the request.</summary>
+    /// <summary>Requested ids that are a report of another organisation, a TV episode, a film, or a YouTube video the target already has as another report. Refuses the request.</summary>
     [JsonPropertyName("conflictReportIds")]
     public Guid[] ConflictReportIds { get; init; } = [];
 
@@ -43,11 +43,11 @@ public sealed class NewsReportOrganisationMoveResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Guid? EmptiedNewsOrganisationId { get; init; }
 
-    /// <summary>YouTube channel ids moved to the target's additional channels by this request.</summary>
+    /// <summary>YouTube channel ids this request added to the target's additional channels (ones it already held are left out).</summary>
     [JsonPropertyName("movedYouTubeChannelIds")]
     public string[] MovedYouTubeChannelIds { get; init; } = [];
 
-    /// <summary>True when the channel move was asked for and failed; the report move still succeeded.</summary>
+    /// <summary>True when the channel move was asked for and failed or was refused; the report move still succeeded. Error says whether to re-send or use PATCH.</summary>
     [JsonPropertyName("youTubeChannelMoveFailed")]
     public bool YouTubeChannelMoveFailed { get; init; }
 

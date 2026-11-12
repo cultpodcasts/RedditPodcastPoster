@@ -81,5 +81,5 @@ The issue's target is one **Associated Press** organisation (`88acfa0c…`) hold
 **Moving the existing `ff5bb494…` reports:** use the merge tool from #1397, described in
 [move-news-reports-between-organisations.md](move-news-reports-between-organisations.md).
 `POST newsorganisation/ff5bb494…/reports/move` with `"moveYouTubeChannels": true` moves the reports and
-does steps 1 and 2 in one call. Then the admin `DELETE newsorganisation/ff5bb494…` retires the emptied
+does steps 1 and 2 in one call. Then the admin `DELETE newsorganisation/ff5bb494…?redirectToNewsOrganisationId=88acfa0c…` retires the emptied
 organisation.

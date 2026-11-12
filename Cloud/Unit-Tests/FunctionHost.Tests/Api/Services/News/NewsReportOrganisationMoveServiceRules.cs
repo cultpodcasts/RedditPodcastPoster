@@ -8,6 +8,7 @@ using Api.Models;
 using Api.Services.News;
 using RedditPodcastPoster.Cloudflare.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
@@ -41,6 +42,12 @@ public class NewsReportOrganisationMoveServiceRules
     private readonly List<IReadOnlyList<EpisodeSearchRecord>> _uploads = [];
     private readonly List<IReadOnlyList<Guid>> _searchDeletes = [];
     private readonly List<Guid> _shortLinkDeletes = [];
+    private readonly HashSet<Guid> _organisationSaveThrowsFor = [];
+    private readonly HashSet<Guid> _reportDeleteThrowsFor = [];
+    private readonly InMemoryParentIndexingLockStore _locks = new();
+
+    // The service saves and deletes in parallel, so the fake store is guarded.
+    private readonly object _gate = new();
     private bool _searchUploadSucceeds = true;
     private bool _organisationSaveThrows;
 
@@ -67,8 +74,16 @@ public class NewsReportOrganisationMoveServiceRules
             .Setup(r => r.Delete(It.IsAny<Guid>(), It.IsAny<Guid>()))
             .Callback<Guid, Guid>((organisationId, reportId) =>
             {
-                _reportDeletes.Add((organisationId, reportId));
-                _stored.Remove((organisationId, reportId));
+                lock (_gate)
+                {
+                    if (_reportDeleteThrowsFor.Remove(reportId))
+                    {
+                        throw new InvalidOperationException(reportId.ToString());
+                    }
+
+                    _reportDeletes.Add((organisationId, reportId));
+                    _stored.Remove((organisationId, reportId));
+                }
             })
             .Returns(Task.CompletedTask);
         reports
@@ -82,7 +97,7 @@ public class NewsReportOrganisationMoveServiceRules
             .Setup(r => r.Save(It.IsAny<NewsOrganisation>()))
             .Callback<NewsOrganisation>(organisation =>
             {
-                if (_organisationSaveThrows)
+                if (_organisationSaveThrows || _organisationSaveThrowsFor.Contains(organisation.Id))
                 {
                     throw new InvalidOperationException(_fixture.Create<string>());
                 }
@@ -114,13 +129,21 @@ public class NewsReportOrganisationMoveServiceRules
             .Setup(s => s.Delete(It.IsAny<PodcastEpisode>()))
             .Callback<PodcastEpisode>(target => _shortLinkDeletes.Add(target.Episode.Id))
             .ReturnsAsync(new DeleteResult(true));
+        _mocker.Use<IParentIndexingLockStore>(_locks);
+        _mocker.Use(TimeProvider.System);
         _mocker.GetMock<ILogger<NewsReportOrganisationMoveService>>();
     }
 
     private static NewsReport Read(string json) => JsonSerializer.Deserialize<NewsReport>(json)!;
 
-    private void Store(NewsReport report) =>
-        _stored[(report.NewsOrganisationId, report.Id)] = JsonSerializer.Serialize(report);
+    private void Store(NewsReport report)
+    {
+        var json = JsonSerializer.Serialize(report);
+        lock (_gate)
+        {
+            _stored[(report.NewsOrganisationId, report.Id)] = json;
+        }
+    }
 
     private List<NewsReport> StoredReports() => _stored.Values.Select(Read).ToList();
 
@@ -482,5 +505,214 @@ public class NewsReportOrganisationMoveServiceRules
         result.MovedReportIds.Should().Equal(report.Id);
         result.YouTubeChannelMoveFailed.Should().BeTrue();
         result.Error.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact(DisplayName =
+        "An explicit empty reportIds, more than 500 ids, or an empty guid is a 400 and nothing is written; only an omitted list means the next batch.")]
+    public async Task bad_report_id_lists_are_refused()
+    {
+        // Arrange
+        var source = CreateOrganisation();
+        var target = CreateOrganisation();
+        SeedReport(source);
+        var tooMany = Enumerable.Range(0, NewsReportOrganisationMoveLimits.MaxReportsPerRequest + 1)
+            .Select(_ => _fixture.CreateGuid())
+            .ToList();
+
+        // Act
+        var empty = await Move(source, target, []);
+        var overLimit = await Move(source, target, tooMany);
+        var emptyGuid = await Move(source, target, [Guid.Empty]);
+
+        // Assert
+        empty.Status.Should().Be(NewsReportOrganisationMoveStatus.BadRequest);
+        overLimit.Status.Should().Be(NewsReportOrganisationMoveStatus.BadRequest);
+        emptyGuid.Status.Should().Be(NewsReportOrganisationMoveStatus.BadRequest);
+        ReportsIn(source).Should().ContainSingle();
+        ReportsIn(target).Should().BeEmpty();
+        _uploads.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a source-row delete fails part-way the result is Failed and lists only the reports that really moved, and a re-send finishes the move and clears the short links and raises latestReleased for the reports the first attempt already moved.")]
+    public async Task partial_source_delete_reports_truthfully_and_a_resend_converges()
+    {
+        // Arrange
+        var source = CreateOrganisation();
+        var target = CreateOrganisation();
+        var first = SeedReport(source);
+        var stuck = SeedReport(source);
+        _reportDeleteThrowsFor.Add(stuck.Id);
+
+        // Act
+        var failed = await Move(source, target, [first.Id, stuck.Id]);
+        _shortLinkDeletes.Clear();
+        _raises.Clear();
+        var resent = await Move(source, target, [first.Id, stuck.Id]);
+
+        // Assert
+        failed.Status.Should().Be(NewsReportOrganisationMoveStatus.Failed);
+        failed.MovedReportIds.Should().Equal(first.Id);
+        failed.Error.Should().Contain("1 of 2");
+        failed.RemainingReportCount.Should().Be(1);
+        resent.Status.Should().Be(NewsReportOrganisationMoveStatus.Accepted);
+        resent.MovedReportIds.Should().Equal(stuck.Id);
+        resent.AlreadyMovedReportIds.Should().Equal(first.Id);
+        _shortLinkDeletes.Should().BeEquivalentTo([first.Id, stuck.Id]);
+        _raises.Should().ContainSingle().Which.OrganisationId.Should().Be(target.Id);
+        ReportsIn(source).Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "latestReleased is patched on the target to the newest moved report's release, and not patched when the target already has a newer one, so it is never lowered.")]
+    public async Task latest_released_is_raised_to_the_newest_moved_report_and_never_lowered()
+    {
+        // Arrange
+        var source = CreateOrganisation();
+        var target = CreateOrganisation();
+        var older = SeedReport(source);
+        var newer = SeedReport(source);
+        var newest = new[] { older, newer }.Max(report => report.ReleaseSort);
+        var laterSource = CreateOrganisation();
+        var laterReport = SeedReport(laterSource);
+        var newerTarget = CreateOrganisation(item => item.LatestReleased = laterReport.ReleaseSort.AddDays(1));
+
+        // Act
+        var first = await Move(source, target, [older.Id, newer.Id]);
+        var raisesAfterFirst = _raises.ToList();
+        await Move(laterSource, newerTarget, [laterReport.Id]);
+
+        // Assert
+        first.Status.Should().Be(NewsReportOrganisationMoveStatus.Accepted, first.Error);
+        target.LatestReleased.Should().BeNull();
+        newest.Should().NotBe(default);
+        raisesAfterFirst.Should().Equal((target.Id, newest));
+        _raises.Should().Equal((target.Id, newest));
+    }
+
+    [Fact(DisplayName =
+        "A report whose YouTube video the target already has as a different report refuses the request with 409 and writes nothing, so one organisation never ends up with two reports for one video.")]
+    public async Task duplicate_video_in_the_target_is_a_conflict()
+    {
+        // Arrange
+        var source = CreateOrganisation();
+        var target = CreateOrganisation();
+        var videoId = _fixture.CreateYouTubeId();
+        var report = SeedReport(source, item => item.YouTubeId = videoId);
+        SeedReport(target, item => item.YouTubeId = videoId);
+
+        // Act
+        var result = await Move(source, target, [report.Id]);
+
+        // Assert
+        result.Status.Should().Be(NewsReportOrganisationMoveStatus.Conflict);
+        result.ConflictReportIds.Should().Equal(report.Id);
+        ReportsIn(source).Should().ContainSingle().Which.Id.Should().Be(report.Id);
+        _uploads.Should().BeEmpty();
+        _reportDeletes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "While either organisation is being indexed (its indexing lease is held) the move is refused with 409 and nothing is written, and the move releases its own leases when done.")]
+    public async Task move_is_refused_while_an_organisation_is_being_indexed()
+    {
+        // Arrange
+        var source = CreateOrganisation();
+        var target = CreateOrganisation();
+        var report = SeedReport(source);
+        var held = await _locks.TryAcquire(target.Id, DateTime.UtcNow, TimeSpan.FromMinutes(5),
+            ParentIndexingLock.SourceHourly);
+
+        // Act
+        var refused = await Move(source, target, [report.Id]);
+        await _locks.Release(held.Handle!);
+        var accepted = await Move(source, target, [report.Id]);
+
+        // Assert
+        refused.Status.Should().Be(NewsReportOrganisationMoveStatus.Conflict);
+        refused.Error.Should().Contain("being indexed");
+        accepted.Status.Should().Be(NewsReportOrganisationMoveStatus.Accepted);
+        (await _locks.TryGet(source.Id)).Should().BeNull();
+        (await _locks.TryGet(target.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When saving the channels on the target fails, the source's channels are restored and saved back, the result says to re-send, and no channel is lost.")]
+    public async Task failed_target_save_restores_the_source_channels()
+    {
+        // Arrange
+        var mainChannel = _fixture.CreateYouTubeChannelId();
+        var playlist = _fixture.Create<string>();
+        var extraChannel = _fixture.CreateYouTubeChannelId();
+        var source = CreateOrganisation(item =>
+        {
+            item.Indexing = new CatalogueIndexingSource { YouTubeChannelId = mainChannel, YouTubePlaylistId = playlist };
+            item.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(extraChannel)];
+        });
+        var target = CreateOrganisation();
+        _organisationSaveThrowsFor.Add(target.Id);
+
+        // Act
+        var result = await Move(source, target, moveYouTubeChannels: true);
+
+        // Assert
+        result.Status.Should().Be(NewsReportOrganisationMoveStatus.Accepted);
+        result.YouTubeChannelMoveFailed.Should().BeTrue();
+        result.Error.Should().Be(NewsReportOrganisationMoveService.ChannelMoveRetryError);
+        result.MovedYouTubeChannelIds.Should().BeEmpty();
+        source.Indexing!.YouTubeChannelId.Should().Be(mainChannel);
+        source.Indexing.YouTubePlaylistId.Should().Be(playlist);
+        source.HoldsAdditionalYouTubeChannel(extraChannel).Should().BeTrue();
+        _savedOrganisations.Select(item => item.Id).Should().Equal(source.Id, source.Id);
+    }
+
+    [Fact(DisplayName =
+        "A source main channel that indexes a playlist owned by another channel is not moved (the target would index the whole channel); no organisation is written and the error points to the organisation PATCH.")]
+    public async Task main_channel_with_a_foreign_playlist_is_refused()
+    {
+        // Arrange
+        var mainChannel = _fixture.CreateYouTubeChannelId();
+        var source = CreateOrganisation(item => item.Indexing = new CatalogueIndexingSource
+        {
+            YouTubeChannelId = mainChannel,
+            YouTubePlaylistId = _fixture.Create<string>(),
+            YouTubePlaylistOwnerChannelId = _fixture.CreateYouTubeChannelId()
+        });
+        var target = CreateOrganisation();
+        var report = SeedReport(source);
+
+        // Act
+        var result = await Move(source, target, moveYouTubeChannels: true);
+
+        // Assert
+        result.Status.Should().Be(NewsReportOrganisationMoveStatus.Accepted);
+        result.MovedReportIds.Should().Equal(report.Id);
+        result.YouTubeChannelMoveFailed.Should().BeTrue();
+        result.Error.Should().Be(NewsReportOrganisationMoveService.ForeignPlaylistError);
+        _savedOrganisations.Should().BeEmpty();
+        source.Indexing!.YouTubeChannelId.Should().Be(mainChannel);
+    }
+
+    [Fact(DisplayName =
+        "movedYouTubeChannelIds lists only the channels added to the target, not ones it already held.")]
+    public async Task moved_channel_ids_are_only_the_ones_added()
+    {
+        // Arrange
+        var held = _fixture.CreateYouTubeChannelId();
+        var added = _fixture.CreateYouTubeChannelId();
+        var source = CreateOrganisation(item =>
+        {
+            item.Indexing = new CatalogueIndexingSource { YouTubeChannelId = held };
+            item.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(added)];
+        });
+        var target = CreateOrganisation(item =>
+            item.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(held)]);
+
+        // Act
+        var result = await Move(source, target, moveYouTubeChannels: true);
+
+        // Assert
+        result.MovedYouTubeChannelIds.Should().Equal(added);
+        target.AdditionalYouTubeChannels.Should().HaveCount(2);
     }
 }

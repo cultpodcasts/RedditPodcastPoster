@@ -1,7 +1,10 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.CloudflareRedirect.Models;
+using RedditPodcastPoster.CloudflareRedirect.Services;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.News;
 
@@ -12,7 +15,14 @@ namespace Api.Services.News;
 /// delete is the only way to clear that.
 /// <list type="bullet">
 /// <item>Refused (nothing written) while the organisation has any report, removed ones included, so no report is ever
-/// orphaned.</item>
+/// orphaned. The count and the delete run under the parent indexing lease (<see cref="IParentIndexingLockStore"/>),
+/// so an indexer pass cannot add a report in between; while the organisation is being indexed the delete is refused
+/// (409).</item>
+/// <item>With <c>redirectToNewsOrganisationId</c> (the organisation its reports went to), when the names differ the old
+/// name route is redirected to the target's, with the same Cloudflare KV redirect and loop guard as the admin rename
+/// (<see cref="IRedirectService"/>). As in rename, no redirect is written while another news organisation still has the
+/// old name (the old URL still belongs to it). The redirect is written before the delete, so a failed delete can be
+/// retried with the same request; an unsafe redirect refuses the delete (400).</item>
 /// <item>The organisation's file-key claim is released after the delete (best effort), so the key can be reused.</item>
 /// </list>
 /// Admin only (as <c>DELETE newsreport/{id}</c> and rename): a delete cannot be undone. Take a backup of the document
@@ -22,10 +32,16 @@ public class NewsOrganisationDeleteService(
     INewsOrganisationRepository newsOrganisationRepository,
     INewsReportRepository newsReportRepository,
     IFileKeyAllocator fileKeyAllocator,
+    IRedirectService redirectService,
+    IParentIndexingLockStore indexingLockStore,
+    TimeProvider timeProvider,
     ILogger<NewsOrganisationDeleteService> logger) : INewsOrganisationDeleteService
 {
+    public const string LockSource = "NewsOrganisationDelete";
+
     public async Task<NewsOrganisationDeleteResult> DeleteAsync(
         Guid newsOrganisationId,
+        Guid? redirectToNewsOrganisationId,
         CancellationToken cancellationToken)
     {
         try
@@ -34,6 +50,70 @@ public class NewsOrganisationDeleteService(
             if (organisation is null)
             {
                 return new NewsOrganisationDeleteResult(NewsOrganisationDeleteStatus.NotFound);
+            }
+
+            CatalogueRedirect? redirect = null;
+            if (redirectToNewsOrganisationId is { } redirectToId)
+            {
+                if (redirectToId == newsOrganisationId)
+                {
+                    return BadRequest("redirectToNewsOrganisationId is the organisation being deleted");
+                }
+
+                var redirectTo = await newsOrganisationRepository.GetNewsOrganisation(redirectToId);
+                if (redirectTo is null)
+                {
+                    return BadRequest("The redirectToNewsOrganisationId news organisation was not found");
+                }
+
+                if (redirectTo.Removed == true)
+                {
+                    return BadRequest("Cannot redirect to a removed news organisation");
+                }
+
+                var oldName = organisation.Name.Trim();
+                var newName = redirectTo.Name.Trim();
+                if (string.Equals(oldName, newName, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogInformation(
+                        "{method}: News organisation '{organisationId}' has the same name as '{redirectToId}'; no redirect needed.",
+                        nameof(DeleteAsync), newsOrganisationId, redirectToId);
+                }
+                else
+                {
+                    var homonyms = await PublisherNameAttachLookup.FindByName(
+                        newsOrganisationRepository, oldName, cancellationToken);
+                    if (homonyms.Any(item => item.Id != newsOrganisationId))
+                    {
+                        logger.LogWarning(
+                            "{method}: Not redirecting news organisation '{oldName}' -> '{newName}': another news organisation still has the old name.",
+                            nameof(DeleteAsync), oldName, newName);
+                    }
+                    else
+                    {
+                        redirect = new CatalogueRedirect(CatalogueRedirectKind.NewsOrganisation, oldName, newName);
+                        if (!await redirectService.IsCatalogueRedirectSafe(redirect))
+                        {
+                            return BadRequest(
+                                $"A redirect from '{oldName}' to '{newName}' would loop. Nothing was deleted");
+                        }
+                    }
+                }
+            }
+
+            await using var lease = await ParentIndexingLease.TryStart(
+                indexingLockStore,
+                timeProvider,
+                newsOrganisationId,
+                NewsReportOrganisationMoveService.LockStaleAfter,
+                NewsReportOrganisationMoveService.LockHeartbeatInterval,
+                LockSource,
+                logger);
+            if (lease is null)
+            {
+                logger.LogWarning("{method}: News organisation '{organisationId}' is being indexed; not deleted.",
+                    nameof(DeleteAsync), newsOrganisationId);
+                return new NewsOrganisationDeleteResult(NewsOrganisationDeleteStatus.Busy);
             }
 
             var remaining = await newsReportRepository.Count(newsOrganisationId);
@@ -46,13 +126,21 @@ public class NewsOrganisationDeleteService(
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+            if (redirect is not null && !await redirectService.CreateCatalogueRedirect(redirect))
+            {
+                return BadRequest($"The redirect from '{redirect.OldName}' to '{redirect.NewName}' could not be recorded. Nothing was deleted");
+            }
+
             logger.LogWarning(
-                "{method}: Deleting empty news organisation '{name}' ('{organisationId}', file key '{fileKey}', youtube-channel '{channelId}', removed '{removed}').",
+                "{method}: Deleting empty news organisation '{name}' ('{organisationId}', file key '{fileKey}', youtube-channel '{channelId}', removed '{removed}', redirect-to '{redirectTo}').",
                 nameof(DeleteAsync), organisation.Name, organisation.Id, organisation.FileKey,
-                organisation.Indexing?.YouTubeChannelId, organisation.Removed);
+                organisation.Indexing?.YouTubeChannelId, organisation.Removed, redirect?.NewName);
             await newsOrganisationRepository.Delete(newsOrganisationId);
             await ReleaseFileKey(organisation.FileKey, organisation.Id);
-            return new NewsOrganisationDeleteResult(NewsOrganisationDeleteStatus.Deleted);
+            return new NewsOrganisationDeleteResult(NewsOrganisationDeleteStatus.Deleted)
+            {
+                RedirectedToName = redirect?.NewName
+            };
         }
         catch (Exception ex)
         {
@@ -61,6 +149,9 @@ public class NewsOrganisationDeleteService(
             return new NewsOrganisationDeleteResult(NewsOrganisationDeleteStatus.Failed);
         }
     }
+
+    private static NewsOrganisationDeleteResult BadRequest(string error) =>
+        new(NewsOrganisationDeleteStatus.BadRequest) { Error = error };
 
     private async Task ReleaseFileKey(string? fileKey, Guid organisationId)
     {

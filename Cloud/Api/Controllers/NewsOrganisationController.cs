@@ -129,7 +129,9 @@ public class NewsOrganisationController(
 
     /// <summary>
     /// Deletes an empty news organisation (#1397): admin only, like <c>NewsReportDelete</c> and rename, because it cannot
-    /// be undone. Refused (409) while it has any report.
+    /// be undone. Refused (409) while it has any report or is being indexed. Optional query
+    /// <c>redirectToNewsOrganisationId</c>: the organisation its reports went to; when the names differ the old name route is
+    /// redirected to it, as an admin rename does.
     /// </summary>
     [Function("NewsOrganisationDelete")]
     public Task<HttpResponseData> Delete(

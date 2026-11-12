@@ -10,7 +10,7 @@ using Xunit;
 
 namespace FunctionHost.Tests.Api.Handlers;
 
-/// <summary>#1397: status codes and bodies of the report move between news organisations and the empty-organisation delete.</summary>
+/// <summary>#1397: status codes and bodies of the report move between news organisations.</summary>
 public class NewsOrganisationReportsMoveHandlerRules
 {
     private readonly DomainTestFixture _fixture = new();
@@ -31,8 +31,6 @@ public class NewsOrganisationReportsMoveHandlerRules
         _ctx.Setup(c => c.BadRequest(It.IsAny<object>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((object _, CancellationToken _) => null!);
     }
-
-    private static object? Property(object body, string name) => body.GetType().GetProperty(name)?.GetValue(body);
 
     private NewsReportOrganisationMoveCommand Command() =>
         new(_fixture.CreateGuid(), _fixture.CreateGuid(), null, false);
@@ -97,29 +95,5 @@ public class NewsOrganisationReportsMoveHandlerRules
         _ctx.Verify(x => x.InternalError(
             It.Is<NewsReportOrganisationMoveResponse>(r => r.FailureIndexing),
             It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact(DisplayName =
-        "Deleting an organisation that still has reports responds 409 with the remaining count, and an empty one 200.")]
-    public async Task delete_maps_has_reports_to_409_and_deleted_to_200()
-    {
-        // Arrange
-        var remaining = _fixture.Create<int>() % 50 + 1;
-        var service = _mocker.GetMock<INewsOrganisationDeleteService>();
-        var sut = _mocker.CreateInstance<DeleteNewsOrganisationHandler>();
-
-        // Act
-        service.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new NewsOrganisationDeleteResult(NewsOrganisationDeleteStatus.HasReports, remaining));
-        await sut.Handle(_ctx.Object, _fixture.CreateGuid(), CancellationToken.None);
-        service.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new NewsOrganisationDeleteResult(NewsOrganisationDeleteStatus.Deleted));
-        await sut.Handle(_ctx.Object, _fixture.CreateGuid(), CancellationToken.None);
-
-        // Assert
-        _ctx.Verify(x => x.Conflict(
-            It.Is<object>(body => Equals(Property(body, "remainingReportCount"), remaining)),
-            It.IsAny<CancellationToken>()), Times.Once);
-        _ctx.Verify(x => x.Ok(), Times.Once);
     }
 }

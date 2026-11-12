@@ -9,7 +9,7 @@ public class NewsReportOrganisationMoveRequest
     [JsonPropertyName("targetNewsOrganisationId")]
     public Guid? TargetNewsOrganisationId { get; set; }
 
-    /// <summary>Report ids to move (1-500). Omitted or empty: the source's next 500 reports.</summary>
+    /// <summary>Report ids to move (1-500). Omitted or null: the source's next 500 reports. An empty array is a 400.</summary>
     [JsonPropertyName("reportIds")]
     public Guid[]? ReportIds { get; set; }
 
