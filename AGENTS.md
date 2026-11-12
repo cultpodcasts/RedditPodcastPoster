@@ -17,9 +17,9 @@ After a failed Actions **provision** (`run_provision` / `Infrastructure/**` appl
 
 Authoritative: [`docs/deployment.md`](docs/deployment.md) § Provision latch · [`.cursor/rules/production-deploy-truth.mdc`](.cursor/rules/production-deploy-truth.mdc).
 
-## FilmSearchPusher / FilmSearchPush - keep until D1 (HARD)
+## FilmSearchPusher / FilmSearchPush - keep until search is on Cloudflare D1 (HARD)
 
-Do **not** retire, delete or "clean up" the `FilmSearchPusher` console (+ Tests), the `FilmSearchPush` library in `RedditPodcastPoster.EntitySearchIndexer`, `IFilmSearchPushWatermarkStore` / `FilmSearchPushWatermark` or `ModelType.FilmSearchPushWatermark` until the D1 search migration (search-platform epic) is online and films are indexed another way. The Azure AI Search tier's data sources (3 on Free) are all used by episodes, TV and news, so films have no pull indexer, and this is the only bulk path that gets films into search (for example after an index rebuild). Jon, 12 Nov 2026 (#1369 / PR #1405). Rule: [`.cursor/rules/film-search-pusher-keep.mdc`](.cursor/rules/film-search-pusher-keep.mdc).
+Do **not** retire, delete or "clean up" the `FilmSearchPusher` console (+ Tests), the `FilmSearchPush` library in `RedditPodcastPoster.EntitySearchIndexer`, `IFilmSearchPushWatermarkStore` / `FilmSearchPushWatermark` or `ModelType.FilmSearchPushWatermark` until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408). The Azure AI Search tier's data sources (3 on Free) are all used by episodes, TV and news, so films have no pull indexer, and this is the only bulk path that gets films into search (for example after an index rebuild). Jon, 12 Nov 2026 (#1369 / PR #1405). Rule: [`.cursor/rules/film-search-pusher-keep.mdc`](.cursor/rules/film-search-pusher-keep.mdc).
 
 ## Unit tests (HARD)
 

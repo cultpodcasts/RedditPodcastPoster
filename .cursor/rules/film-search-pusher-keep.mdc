@@ -1,11 +1,11 @@
 ---
-description: HARD - keep FilmSearchPusher and the FilmSearchPush library until D1 search is online
+description: HARD - keep FilmSearchPusher and the FilmSearchPush library until search moves off Azure AI Search to Cloudflare D1
 alwaysApply: true
 ---
 
-# Keep FilmSearchPusher until D1 (HARD GUARDRAIL)
+# Keep FilmSearchPusher until search is on Cloudflare D1 (HARD GUARDRAIL)
 
-Do **not** retire, delete or "clean up" any of these until the D1 search migration (search-platform epic) is online and films are indexed another way:
+Do **not** retire, delete or "clean up" any of these until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408):
 
 - `Console-Apps/FilmSearchPusher` and `Console-Apps/FilmSearchPusher.Tests`
 - `Class-Libraries/RedditPodcastPoster.EntitySearchIndexer/FilmSearchPush/*` and `AddFilmSearchPush`

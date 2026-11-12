@@ -1,6 +1,6 @@
 // DO NOT REMOVE: the only bulk path that pushes films into search. The Azure AI Search tier limits data sources
 // (3 on Free) and episodes, TV and news use them all, so films have no pull indexer; this console restores film
-// documents after an index rebuild and cleans up orphans (--full). Do not remove until the D1 search migration (search-platform epic) is online and films are indexed another way.
+// documents after an index rebuild and cleans up orphans (--full). Do not remove until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408).
 // See .cursor/rules/film-search-pusher-keep.mdc.
 using System.Reflection;
 using CommandLine;

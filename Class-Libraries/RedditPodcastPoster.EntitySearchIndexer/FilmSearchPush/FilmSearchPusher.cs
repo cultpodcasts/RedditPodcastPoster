@@ -26,7 +26,7 @@ namespace RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 /// <remarks>
 /// DO NOT REMOVE: with the FilmSearchPusher console and the <c>FilmSearchPushWatermark</c> store, this is the only bulk
 /// path that gets films into search (the search tier's data sources are all used by episodes, TV and news, so films
-/// have no pull indexer), for example after an index rebuild. Do not remove until the D1 search migration (search-platform epic) is online and films are indexed another way.
+/// have no pull indexer), for example after an index rebuild. Do not remove until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408).
 /// See <c>.cursor/rules/film-search-pusher-keep.mdc</c>.
 /// </remarks>
 public sealed class FilmSearchPusher(
