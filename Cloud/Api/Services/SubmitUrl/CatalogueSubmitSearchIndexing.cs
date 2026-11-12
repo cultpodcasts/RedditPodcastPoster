@@ -26,7 +26,7 @@ public static class CatalogueSubmitSearchIndexing
             : SearchContentKind.TvShowEpisode;
         try
         {
-            var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+            var documents = CatalogueSearchDocuments.FromPodcastEpisodes(
                 source.Parent, [source.Episode], contentKind);
             if (await playableSearch.UploadAsync(documents, cancellationToken))
             {

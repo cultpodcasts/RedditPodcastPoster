@@ -721,7 +721,7 @@ public class PodcastKindTransferService(
             .Where(episode => EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
             .Select(episode => episode.Id)
             .ToList();
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(podcast, episodes, contentKind);
+        var documents = CatalogueSearchDocuments.FromPodcastEpisodes(podcast, episodes, contentKind);
         var uploaded = await searchSwap.UploadAsync(documents, CancellationToken.None);
         if (excluded.Count == 0)
         {

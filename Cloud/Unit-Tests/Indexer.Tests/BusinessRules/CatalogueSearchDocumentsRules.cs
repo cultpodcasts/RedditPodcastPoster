@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Indexer.Tests.BusinessRules;
 
-public class CatalogueMigrateSearchDocumentsRules
+public class CatalogueSearchDocumentsRules
 {
     private readonly DomainTestFixture _fixture = new();
 
@@ -22,7 +22,7 @@ public class CatalogueMigrateSearchDocumentsRules
         var episode = _fixture.CreateStoredEpisode(podcast);
 
         // Act
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var documents = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast,
             [episode],
             SearchContentKind.NewsReport);
@@ -45,7 +45,7 @@ public class CatalogueMigrateSearchDocumentsRules
         var episode = _fixture.CreateStoredEpisode(podcast);
 
         // Act
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var documents = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast,
             [episode],
             SearchContentKind.NewsReport);
@@ -64,7 +64,7 @@ public class CatalogueMigrateSearchDocumentsRules
         var episode = _fixture.CreateStoredEpisode(podcast);
 
         // Act
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var documents = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast,
             [episode],
             SearchContentKind.TvShowEpisode);
@@ -87,7 +87,7 @@ public class CatalogueMigrateSearchDocumentsRules
         var episode = _fixture.CreateStoredEpisode(podcast);
 
         // Act
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var documents = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast,
             [episode],
             SearchContentKind.TvShowEpisode);
@@ -110,7 +110,7 @@ public class CatalogueMigrateSearchDocumentsRules
         episode.Description = new string('a', Constants.DescriptionSize - 10) + " extra words beyond the search cap";
 
         // Act
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var documents = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast,
             [episode],
             SearchContentKind.Film);
@@ -135,7 +135,7 @@ public class CatalogueMigrateSearchDocumentsRules
         var podcast = _fixture.CreatePodcast();
 
         // Act
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var documents = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast,
             [],
             SearchContentKind.NewsReport);
@@ -155,11 +155,11 @@ public class CatalogueMigrateSearchDocumentsRules
         var removed = _fixture.CreateStoredEpisode(podcast, episode => episode.Removed = true);
 
         // Act
-        var news = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var news = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast, [kept, removed], SearchContentKind.NewsReport);
-        var tv = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var tv = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast, [kept, removed], SearchContentKind.TvShowEpisode);
-        var film = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var film = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast, [kept, removed], SearchContentKind.Film);
 
         // Assert
@@ -178,7 +178,7 @@ public class CatalogueMigrateSearchDocumentsRules
         var episode = _fixture.CreateStoredEpisode(podcast);
 
         // Act
-        var documents = CatalogueMigrateSearchDocuments.FromPodcastEpisodes(
+        var documents = CatalogueSearchDocuments.FromPodcastEpisodes(
             podcast, [episode], SearchContentKind.NewsReport);
 
         // Assert

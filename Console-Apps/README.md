@@ -297,55 +297,6 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 | `<channel-name>` | YouTube channel name |
 | `<most-recent-upload-name>` | Title of the channel’s most recent upload |
 
-### CatalogueMigrateIdentify
-
-**Purpose:** Dry-run corpus identify. URL scan: BBC `/news/` → News candidate (S-008). There are no hard-coded curator name lists (stay-podcast names, named TV programmes and news channel aliases were retired in #1359), so a curator reviews every candidate. Podcast-level: YouTube-only publishers whose names look like news organisations (four-letter call sign, a News word, 24/7 rolling news, or ABC/NBC/CBS/FOX plus a channel number; names that say Podcast stay podcasts; newspaper masthead and international brand lists were retired in #1359) with YouTube-only episodes → News candidate (`requiresPodcastId=true`); **two or more** stored BBC iPlayer episode URLs (no Spotify/Apple ids) → TV, even when some other episodes lack iPlayer. Film is not discovered here (use `CatalogueMigrate --kind Film --podcast-id`). Mixed Spotify plus `/news/` is planned with `PartialNews` (split before apply). The TV scan reads `episode.Services` only; leftover-only iPlayer in Cosmos `urls.bbc` is not on the typed Episode and needs EpisodeServiceBackfill first. Signal-identified TV and film rows are checked against TMDB and TheTVDB only when that set is at most 50. A larger set is reported and not sent. News is not sent. A unique agreeing title is the only match. When the publisher name is not one programme, programmes come from the episodes: an iPlayer series or season slug, a repeated title (including parts), or a brand shared by two or more episodes. Each of those is checked the same way, up to 50 programmes on that publisher. A single remaining title is its own programme and is tried as a film when it is not a series. A shorter clause with several hits does not replace the full title. **`--apply` always exits 2.** Dry-run only; agent run-gate: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
-
-**Run:** `dotnet run --project Console-Apps/CatalogueMigrateIdentify --` · PATH: `CatalogueMigrateIdentify`
-
-| Option | Description |
-|--------|-------------|
-| `--podcast-id` | Identify a single podcast GUID. Default is every podcast |
-| `--apply` | Always refused (exit 2). Dry-run only; does not write Cosmos |
-
-### CatalogueMigrate
-
-**Purpose:** Corpus **move** from Podcast/Episode into News, Film and TV (S-007: run News, then Film, then TV). Keeps GUIDs. Dry-run by default: it logs one `Catalogue migrate plan … apply= block=` line per podcast, and apply uses the same planner. News apply moves only a curator-named podcast: pass `--podcast-id` (S-008). An untargeted News run still discovers candidates via Identify heuristics, but every line is blocked with `NewsRequiresPodcastId`; plan lines log `targeted=`. The 299-name allowlist was retired in #1359. A TV show or news organisation keeps the podcast's own name (no curator rename map). Auto-indexed podcasts (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`) move to News and TV with their discovery settings in the parent's `indexing` block (blank text stored as null), and the hourly indexer keeps indexing them. Only Film refuses an auto-indexed podcast. Film is a one-off (episode id, no parent) and requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
-
-`--apply` writes **only** with `--consent "I approve CatalogueMigrate --kind <Kind> production writes"`, otherwise it exits 2. Each podcast: destination upsert → verify count → same-id Search swap (`contentKind`) → delete episodes → delete podcast. Evidence goes to one JSONL per batch, with full before-snapshots. Re-running resumes. `--rollback <file>` previews a restore. Add `--apply --consent "I approve CatalogueMigrate rollback of <file name> in production"` to restore. Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 a podcast failed (run stopped, source kept). Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc). Ops: [`docs/catalogue-run/gate-5.md`](../docs/catalogue-run/gate-5.md).
-
-**Indexer window (auto-indexed podcasts only):** the Indexer's `Hourly` run starts at :03 and `HourlyCatchUp` at :08. A pass that read a podcast before the move would save it again after the move and re-create the deleted row. So `--apply` skips an auto-indexed podcast at minutes :00–:14 and :55–:59 (plan line `block=` says so; the run carries on with other podcasts). Re-run between :15 and :54 to move it. Dry-run is not affected. Separately, just before deleting the source, apply re-reads it: if the podcast was indexed (`lastIndexed` changed) or an episode arrived during the move, the source is kept and the run stops with exit 3, and a re-run moves the current rows. Each podcast is re-read just before it is planned, so a long run never moves (or snapshots for rollback) a copy read at the start. While a move is unfinished (parent written, podcast not yet deleted), the hourly indexer skips the parent (`IndexerCatalogueParentSourcePodcastExists`) and keeps indexing the podcast, so new videos are not saved twice.
-
-**Run:** `dotnet run --project Console-Apps/CatalogueMigrate --` · PATH: `CatalogueMigrate`
-
-| Option | Description |
-|--------|-------------|
-| `--kind` | `NewsReport`, `Film`, or `TvShowEpisode` (required unless `--rollback`) |
-| `--podcast-id` | One podcast GUID. Required for Film. Optional for News and TV (default is identify-scan) |
-| `--apply` | Write. Needs the exact `--consent` phrase, else exit 2. Auto-indexed podcasts move only at minutes :15–:54 |
-| `--consent` | Human approval phrase (see above). Never default it or script it |
-| `--batch-size` | Podcasts per evidence file (default 25, max 500) |
-| `--limit` | Stop after this many eligible podcasts |
-| `--evidence-dir` | Evidence folder (default `catalogue-migrate-evidence`) |
-| `--rollback` | Evidence JSONL to restore from. Previews unless `--apply` |
-
-### CataloguePlayableServicesBackfill
-
-**Purpose:** Cosmos-first repair of Film / TvShowEpisode / NewsReport `services` (url + image) from episode backup JSON (`episode/{guid}.json`). Scans live playables, diffs backup service maps, and carries discrepant **non-null** backup url/image onto the entity. Dry-run by default (JSONL change log only). `--apply` writes only with `--consent` (human-held consent phrase, not documented) (else exit 2). Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 failed writes. Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
-
-**Run:** `dotnet run --project Console-Apps/CataloguePlayableServicesBackfill --` · PATH: `CataloguePlayableServicesBackfill`
-
-| Option | Description |
-|--------|-------------|
-| `--episode-backup-dir` | CosmosDbDownloader export root (or `episode` folder) |
-| `--kind` | `film` \| `tvshowepisode` \| `newsreport` \| `all` |
-| `--ids` | Comma-separated GUIDs |
-| `--limit` | Stop after N discrepancy candidates (`0` = no limit) |
-| `--change-log` | JSONL path |
-| `--snapshot-dir` | Optional before-`services` JSON slices |
-| `--apply` | Write. Needs the exact `--consent` phrase, else exit 2 |
-| `--consent` | Human approval phrase. Never default it or script it |
-
 ### CategorisePodcastEpisodes
 
 **Purpose:** Categorise / subject-tag podcast episodes.
@@ -369,16 +320,6 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 | Option | Description |
 |--------|-------------|
 | `-a, --apply` | Apply changes; without this flag, report only |
-
-### NewsOrganisationDefaultsBackfill
-
-**Purpose:** One-off: store `indexing.bypassShortEpisodeChecking = true` and `indexing.alwaysPromoteAsHero = true` on every news organisation (the defaults new news organisations are created with). Dry-run unless `--apply`; each write is a Cosmos partial patch of those two members only, and news organisations that already have both are skipped (idempotent). Run only after the release that saves these defaults at creation is deployed. Do not run `--apply` against production without explicit approval.
-
-**Run:** `dotnet run --project Console-Apps/NewsOrganisationDefaultsBackfill --` · PATH: `NewsOrganisationDefaultsBackfill`
-
-| Option | Description |
-|--------|-------------|
-| `-a, --apply` | Patch the two flags; without this flag, report counts only |
 
 ### UnusableFileKeyAudit
 
@@ -521,7 +462,7 @@ How it works:
 - **Incremental (default):** reads films with `_ts >=` the saved watermark (the boundary second is re-pushed so a film saved later in that second is not missed), merge-or-uploads each document built by `CataloguePlayableSearchDocument.For(Film)` (the curator edit's document, description cut to `Constants.DescriptionSize`), and deletes the document of any film marked removed.
 - **Becomes a full push** when `--full` is given, when no watermark has been saved, or when the index holds no film documents (straight after a teardown).
 - **Watermark:** the `FilmSearchPushWatermark` singleton in Cosmos `LookUps` (`highWaterMark` = highest film `_ts` pushed, plus `updatedUtc` and last-run counts). It advances only after every push and delete succeeded, so a failed incremental run is retried; a failed full run (failed documents or a request that throws part-way) clears it, so the next run is full again. Exit code `1` on any failure.
-- Curator film edits and Move to film still push their document straight away; this run catches anything else (CatalogueMigrate film applies, rebuilds) within a day.
+- Curator film edits and Move to film still push their document straight away; this run catches anything else (index rebuilds) within a day.
 
 ```powershell
 FilmSearchPusher --dry-run   # what would change

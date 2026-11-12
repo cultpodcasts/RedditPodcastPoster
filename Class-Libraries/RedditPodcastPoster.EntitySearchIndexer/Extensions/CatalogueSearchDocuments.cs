@@ -11,7 +11,7 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 /// Same-id search swap documents for catalogue migrate / kind transfer.
 /// MergeOrUpload keeps the episode (or Film) GUID as the search key.
 /// </summary>
-public static class CatalogueMigrateSearchDocuments
+public static class CatalogueSearchDocuments
 {
     public static IReadOnlyList<EpisodeSearchRecord> FromPodcastEpisodes(
         Podcast podcast,
