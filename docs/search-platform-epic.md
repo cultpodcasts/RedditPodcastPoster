@@ -723,8 +723,8 @@ URLs into SP-E, then board-add every URL.
 3. **No production `wrangler deploy` / website Pages deploy / Azure Function production
    deploy** from an agent unless the user names that exact deploy in the conversation
    (existing hard rules).
-4. **CatalogueMigrate `--apply` remains refused** in this checkout — unrelated, but do
-   not conflate search rebuild with catalogue migrate.
+4. *(Historical)* The CatalogueMigrate consoles were retired in #1369; search rebuild was
+   never part of the catalogue migration.
 5. When creating further tickets under this epic, mint the next free `SP-{gate}.{n}` ID
    and add it to SP-E's checklist in the same PR/commit that opens the issue.
 

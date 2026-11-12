@@ -17,12 +17,9 @@ After a failed Actions **provision** (`run_provision` / `Infrastructure/**` appl
 
 Authoritative: [`docs/deployment.md`](docs/deployment.md) § Provision latch · [`.cursor/rules/production-deploy-truth.mdc`](.cursor/rules/production-deploy-truth.mdc).
 
-## Catalogue migrate / playable-services CLIs (HARD)
+## FilmSearchPusher / FilmSearchPush - keep until search is on Cloudflare D1 (HARD)
 
-1. **This checkout:** `CatalogueMigrateIdentify --apply` always exits 2. `CatalogueMigrate` has a writer (#1049). `--apply` / `--rollback --apply` write only with the exact `--consent` phrase, otherwise they exit 2. Never weaken that gate. News apply moves only a curator-named podcast (`--podcast-id`, S-008). `CataloguePlayableServicesBackfill --apply` likewise writes only with its exact `--consent` phrase (else exit 2).
-2. **Agents never pass `--apply` or `--consent`** to `CatalogueMigrateIdentify`, `CatalogueMigrate`, or `CataloguePlayableServicesBackfill`. The human runs apply and types the phrase. GATE 5 / “continue” / deploy / merge is **not** consent. Checklist: [`docs/catalogue-run/definition-of-done.md`](docs/catalogue-run/definition-of-done.md).
-
-Rule: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
+Do **not** retire, delete or "clean up" the `FilmSearchPusher` console (+ Tests), the `FilmSearchPush` library in `RedditPodcastPoster.EntitySearchIndexer`, `IFilmSearchPushWatermarkStore` / `FilmSearchPushWatermark` or `ModelType.FilmSearchPushWatermark` until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408). The Azure AI Search tier's data sources (3 on Free) are all used by episodes, TV and news, so films have no pull indexer, and this is the only bulk path that gets films into search (for example after an index rebuild). Jon, 12 Nov 2026 (#1369 / PR #1405). Rule: [`.cursor/rules/film-search-pusher-keep.mdc`](.cursor/rules/film-search-pusher-keep.mdc).
 
 ## Unit tests (HARD)
 

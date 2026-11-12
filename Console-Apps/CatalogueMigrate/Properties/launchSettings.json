@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "CatalogueMigrate (dry-run News)": {
-      "commandName": "Project",
-      "commandLineArgs": "--kind NewsReport"
-    }
-  }
-}
