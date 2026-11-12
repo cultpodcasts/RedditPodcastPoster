@@ -25,7 +25,7 @@ Existing trailers written before these fields keep YouTube-only matching until a
 Trailers get **no search documents of their own** (the index is at the Free-tier quota). The film's document carries
 a retrievable, non-searchable `trailers` string list, one `{duration}|{url}|{title}` token per trailer
 (`FilmTrailerSearchToken`). The title is last, so a reader splits on the first two `|` only. Films are pushed, not
-pulled: the curator edit / attach and Move to film build the document with
+pulled: the curator edit / attach and the FilmSearchPusher console (#1081) all build the document with
 `CataloguePlayableSearchDocument.For(Film)`, which sets `trailers`. There is no film data source or indexer, so no
 Cosmos query change.
 
@@ -39,8 +39,8 @@ CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcas
 ```
 
 `--update-existing` adds any `EpisodeSearchRecord` field the index lacks and keeps every document. The episode, TV
-and news indexers need no change (they never project `trailers`). Once the field exists, each film's next curator save
-fills it (there is currently no bulk film push). The push is merge-or-upload, so a film whose last trailer was removed outside the
+and news indexers need no change (they never project `trailers`). Once the field exists, a FilmSearchPusher run (or
+any film save) fills it. FilmSearchPusher merge-or-uploads, so a film whose last trailer was removed outside the
 curator edit keeps its old tokens until its next curator save (the edit pushes `[]`).
 
 Run this **before** the first attach. If the field is missing, the attach's film push fails and the attach stops

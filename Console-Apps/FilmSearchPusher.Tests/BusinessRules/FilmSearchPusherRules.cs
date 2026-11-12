@@ -9,9 +9,8 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
-using Xunit;
 
-namespace Indexer.Tests.BusinessRules;
+namespace FilmSearchPusher.Tests.BusinessRules;
 
 /// <summary>
 /// Film search push rules against an in-memory films container, watermark and search index (synthetic films only).

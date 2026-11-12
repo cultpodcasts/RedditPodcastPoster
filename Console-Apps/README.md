@@ -401,14 +401,14 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 
 **Purpose:** Create / tear down Azure AI Search index, data source, and indexer; optionally run the indexer.
 
-**Standard layout (fits the Free tier: 3 data sources / 3 indexers / 3 indexes):** one index, `cultpodcasts`, fed by three pull indexers: episodes (`--datasource` / `--indexer`, e.g. `cultpodcasts-ds` / `cultpodcasts-indexer`), TV show episodes (`<index>-tvshowepisode-ds` / `-indexer`) and news reports (`<index>-newsreport-ds` / `-indexer`). **Films have no pull indexer**; the curator film edit, trailer attach and Move to film push each film's document when it is saved. Any run that sets up the siblings deletes a leftover `<index>-film-ds` / `<index>-film-indexer` pair from earlier versions.
+**Standard layout (fits the Free tier: 3 data sources / 3 indexers / 3 indexes):** one index, `cultpodcasts`, fed by three pull indexers: episodes (`--datasource` / `--indexer`, e.g. `cultpodcasts-ds` / `cultpodcasts-indexer`), TV show episodes (`<index>-tvshowepisode-ds` / `-indexer`) and news reports (`<index>-newsreport-ds` / `-indexer`). **Films have no pull indexer**; [FilmSearchPusher](#filmsearchpusher) pushes them by Cosmos `_ts`. Any run that sets up the siblings deletes a leftover `<index>-film-ds` / `<index>-film-indexer` pair from earlier versions.
 
 **Run:** `dotnet run --project Console-Apps/CreateSearchIndex --` · PATH: `CreateSearchIndex`
 
 | Option | Description |
 |--------|-------------|
 | `-i, --index` | Index name |
-| `-t, --teardown-index` | Tear down index. Always tears down and recreates the TvShowEpisode and NewsReport sibling datasources and indexers too (with or without `--all-playables`), because the deleted index held their documents; with `-r`, the siblings are run as well. Film documents are not restored by this. There is currently no bulk film push, so each film comes back only when a curator next saves it |
+| `-t, --teardown-index` | Tear down index. Always tears down and recreates the TvShowEpisode and NewsReport sibling datasources and indexers too (with or without `--all-playables`), because the deleted index held their documents; with `-r`, the siblings are run as well. Film documents are not restored by this; run `FilmSearchPusher` afterwards (it sees the empty index and pushes every film) |
 | `--update-existing` | Keep index; upsert Cosmos datasource SQL from current `SearchEncodedKeys`. With `--all-playables`, also CreateOrUpdate sibling datasources and indexers. Does not copy `episodeTitle` / `podcastName` / `episodeDescription` onto a new index. **Not** a recreate |
 | `--all-playables` | CreateOrUpdate the TvShowEpisode and NewsReport datasources and indexers on the same index **without a teardown** (adds them to an index that has only the episode pair), and delete a leftover Film pair. Works with a fresh run and with `--update-existing`. With `--run-indexer`, each sibling is run through the same retry monitor as `--indexer`. With `--update-existing --reset-indexer`, each sibling indexer is reset too. A teardown or `--all-playables` stops before changing anything when the service allows fewer than three data sources or indexers |
 | `--reset-indexer` | With `--update-existing` + `--indexer`: reset pull high-water mark (slow on free tier; prefer `Index --reindex-search` for spot fixes) |
@@ -436,15 +436,39 @@ Add the scheduled TV and news indexers to the existing index (no teardown; they 
 CreateSearchIndex --index cultpodcasts --all-playables
 ```
 
-Full rebuild (for example after changing `Constants.DescriptionSize`), with the Hourly indexer paused:
+Full rebuild (for example after changing `Constants.DescriptionSize`), with the Hourly indexer paused, then put films back:
 
 ```powershell
 CreateSearchIndex --index cultpodcasts --datasource cultpodcasts-ds --indexer cultpodcasts-indexer --teardown-index --run-indexer
+FilmSearchPusher
 ```
 
-**Film gap:** There is currently no bulk film push: after a teardown, film documents come back one film at a time when a curator saves that film (film edit, trailer attach, Move to film).
-
 `--transient-playables` (one-at-a-time TV / Film / News loads) was removed: TV and news are now permanent indexers, and a transient Film indexer would need a fourth data source on the Free tier.
+
+### FilmSearchPusher
+
+**Purpose:** Push film search documents from the Cosmos `Films` container into the search index, in place of a Film pull indexer (the Free tier's three data sources are used by episodes, TV and news). Run locally, once a day.
+
+**Run:** `dotnet run --project Console-Apps/FilmSearchPusher --` · PATH: `FilmSearchPusher`
+
+| Option | Description |
+|--------|-------------|
+| `--full` | Push every film and delete `contentKind eq 'Film'` documents whose film no longer exists in Cosmos (hard deletes leave no `_ts`; orphans are found from Cosmos live ids via `not search.in` / set difference, then each is re-read before deletion so a film created mid-run is kept), ignoring the watermark |
+| `-n, --dry-run` | Read and plan only: logs what would be pushed and deleted. No search writes, no watermark save |
+| `-b, --batch-size` | Documents per index request, 1–1000 (default `500`) |
+
+How it works:
+
+- **Incremental (default):** reads films with `_ts >=` the saved watermark (the boundary second is re-pushed so a film saved later in that second is not missed), merge-or-uploads each document built by `CataloguePlayableSearchDocument.For(Film)` (the curator edit's document, description cut to `Constants.DescriptionSize`), and deletes the document of any film marked removed.
+- **Becomes a full push** when `--full` is given, when no watermark has been saved, or when the index holds no film documents (straight after a teardown).
+- **Watermark:** the `FilmSearchPushWatermark` singleton in Cosmos `LookUps` (`highWaterMark` = highest film `_ts` pushed, plus `updatedUtc` and last-run counts). It advances only after every push and delete succeeded, so a failed incremental run is retried; a failed full run (failed documents or a request that throws part-way) clears it, so the next run is full again. Exit code `1` on any failure.
+- Curator film edits and Move to film still push their document straight away; this run catches anything else (index rebuilds) within a day.
+
+```powershell
+FilmSearchPusher --dry-run   # what would change
+FilmSearchPusher             # daily incremental push
+FilmSearchPusher --full      # push all films and remove orphaned film documents
+```
 
 ### DeleteSearchDocument
 
