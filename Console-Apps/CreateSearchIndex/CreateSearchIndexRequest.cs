@@ -19,7 +19,7 @@ public class CreateSearchIndexRequest
     public bool ResetIndexer { get; set; }
 
     [Option("all-playables", Required = false, Default = false,
-        HelpText = "CreateOrUpdate the TvShowEpisode and NewsReport datasources and indexers on the same index without a teardown (both a fresh run and --update-existing), and delete a leftover Film pair. With --run-indexer, run each sibling through the same retry monitor. Episode datasource stays --datasource. Films are pushed by FilmSearchPusher.")]
+        HelpText = "CreateOrUpdate the TvShowEpisode and NewsReport datasources and indexers on the same index without a teardown (both a fresh run and --update-existing), and delete a leftover Film pair. With --run-indexer, run each sibling through the same retry monitor. Episode datasource stays --datasource. Films are pushed by curator film saves.")]
     public bool AllPlayables { get; set; }
 
     [Option('d', "datasource", Required = false, Default = null, HelpText = "Data-source name")]

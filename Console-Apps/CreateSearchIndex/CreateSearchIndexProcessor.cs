@@ -119,7 +119,7 @@ public partial class CreateSearchIndexProcessor(
         if (plan.TearDownSiblings)
         {
             logger.LogWarning(
-                "The recreated index has no film documents. Run 'FilmSearchPusher' (it detects the empty index and pushes every film) or 'FilmSearchPusher --full'.");
+                "The recreated index has no film documents, and there is currently no bulk film push. Each film comes back when a curator next saves it (film edit, trailer attach, Move to film).");
         }
 
         if (plan.ResetSiblings)
@@ -601,7 +601,7 @@ public partial class CreateSearchIndexProcessor(
     }
 
     /// <summary>
-    /// Deletes the Film data source and indexer an earlier version scheduled. Films are pushed by FilmSearchPusher, and
+    /// Deletes the Film data source and indexer an earlier version scheduled. Films are pushed by the curator saves, and
     /// on a Free-tier service the Film pair would take the slot the TV or news sibling needs.
     /// </summary>
     private async Task RetireFilmPullIndexer(string indexName)
@@ -617,7 +617,7 @@ public partial class CreateSearchIndexProcessor(
         await DeleteIndexerIfPresent(indexerName);
         await DeleteDataSourceIfPresent(dataSourceName);
         logger.LogWarning(
-            "Deleted the retired Film pull indexer '{IndexerName}' / data source '{DataSourceName}'. Film documents already in the index stay; FilmSearchPusher keeps them current.",
+            "Deleted the retired Film pull indexer '{IndexerName}' / data source '{DataSourceName}'. Film documents already in the index stay; curator film saves keep them current.",
             indexerName, dataSourceName);
     }
 

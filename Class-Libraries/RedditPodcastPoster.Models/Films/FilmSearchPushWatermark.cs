@@ -4,7 +4,7 @@ using RedditPodcastPoster.Models.Cosmos;
 namespace RedditPodcastPoster.Models.Films;
 
 /// <summary>
-/// Cosmos LookUps singleton for the FilmSearchPusher console: the highest film Cosmos <c>_ts</c> whose search
+/// Cosmos LookUps singleton for <c>IFilmSearchPusher</c> (no host since the FilmSearchPusher console was retired in #1369): the highest film Cosmos <c>_ts</c> whose search
 /// document was pushed by the last successful run. The next run reads films with <c>_ts &gt;=</c> this value
 /// (the boundary second is re-pushed, because a film saved later in that same second would otherwise be missed).
 /// A missing document or a null <see cref="HighWaterMark"/> means "push every film".

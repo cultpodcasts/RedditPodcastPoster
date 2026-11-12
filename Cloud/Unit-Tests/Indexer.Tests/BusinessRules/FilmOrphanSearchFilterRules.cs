@@ -2,8 +2,9 @@ using FluentAssertions;
 using RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Search.Models;
+using Xunit;
 
-namespace FilmSearchPusher.Tests.BusinessRules;
+namespace Indexer.Tests.BusinessRules;
 
 /// <summary>
 /// Rules for building the Azure Search orphan filter from Cosmos live film ids (source of truth).

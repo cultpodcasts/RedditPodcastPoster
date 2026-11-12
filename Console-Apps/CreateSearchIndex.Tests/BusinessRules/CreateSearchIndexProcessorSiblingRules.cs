@@ -130,7 +130,7 @@ public class CreateSearchIndexProcessorSiblingRules
     }
 
     [Fact(DisplayName =
-        "When the index is torn down without --all-playables, then the TV and news indexers and data sources are deleted and created again and the retired Film pair is deleted and not recreated, because the recreated index needs TV and news back while films are pushed by FilmSearchPusher.")]
+        "When the index is torn down without --all-playables, then the TV and news indexers and data sources are deleted and created again and the retired Film pair is deleted and not recreated, because the recreated index needs TV and news back while films are pushed by curator film saves.")]
     public async Task teardown_without_all_playables_deletes_and_recreates_siblings()
     {
         // Arrange
