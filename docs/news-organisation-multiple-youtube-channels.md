@@ -78,8 +78,8 @@ The issue's target is one **Associated Press** organisation (`88acfa0c…`) hold
    edit dialog.
 3. From the next indexer pass, new AP Archive videos are stored under `88acfa0c…`.
 
-**Not covered by this change:** moving the existing `ff5bb494…` reports. `NewsReport` is partitioned by
-`newsOrganisationId` and there is no tool that moves reports between organisations, rewrites their search
-documents, or redirects the old organisation's page and short links. Until a merge tool exists, the old
-reports stay under `ff5bb494…`. Removing `ff5bb494…` would hide them. Merging needs a product decision
-and a follow-up ticket.
+**Moving the existing `ff5bb494…` reports:** use the merge tool from #1397, described in
+[move-news-reports-between-organisations.md](move-news-reports-between-organisations.md).
+`POST newsorganisation/ff5bb494…/reports/move` with `"moveYouTubeChannels": true` moves the reports and
+does steps 1 and 2 in one call. Then the admin `DELETE newsorganisation/ff5bb494…` retires the emptied
+organisation.

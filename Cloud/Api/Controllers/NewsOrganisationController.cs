@@ -18,6 +18,8 @@ public class NewsOrganisationController(
     IPostNewsOrganisationHandler postNewsOrganisationHandler,
     ICatalogueRenameHandler catalogueRenameHandler,
     ICatalogueIndexHandler catalogueIndexHandler,
+    IPostNewsReportOrganisationMoveHandler postNewsReportOrganisationMoveHandler,
+    IDeleteNewsOrganisationHandler deleteNewsOrganisationHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<NewsOrganisationController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -103,4 +105,37 @@ public class NewsOrganisationController(
         string newsOrganisationIdentifier,
         CancellationToken ct) =>
         Index(req, newsOrganisationIdentifier, ct);
+
+    /// <summary>
+    /// Moves news reports from this organisation to another, keeping their ids (#1397): curate, like the other report
+    /// moves. Body: <c>targetNewsOrganisationId</c>, optional <c>reportIds</c> (1-500; omitted: the next 500), optional
+    /// <c>moveYouTubeChannels</c>. Search documents are swapped and short-link records deleted
+    /// (docs/move-news-reports-between-organisations.md).
+    /// </summary>
+    [Function("NewsOrganisationReportsMove")]
+    public Task<HttpResponseData> MoveReports(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "newsorganisation/{newsOrganisationId:guid}/reports/move")]
+        HttpRequestData req,
+        Guid newsOrganisationId,
+        [FromBody] Dtos.NewsReportOrganisationMoveRequest? request,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["curate"],
+            request.ToCommand(newsOrganisationId),
+            postNewsReportOrganisationMoveHandler.Handle,
+            Unauthorised,
+            ct);
+
+    /// <summary>
+    /// Deletes an empty news organisation (#1397): admin only, like <c>NewsReportDelete</c> and rename, because it cannot
+    /// be undone. Refused (409) while it has any report.
+    /// </summary>
+    [Function("NewsOrganisationDelete")]
+    public Task<HttpResponseData> Delete(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "newsorganisation/{newsOrganisationId:guid}")]
+        HttpRequestData req,
+        Guid newsOrganisationId,
+        CancellationToken ct) =>
+        HandleRequest(req, ["admin"], newsOrganisationId, deleteNewsOrganisationHandler.Handle, Unauthorised, ct);
 }

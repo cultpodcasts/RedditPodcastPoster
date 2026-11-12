@@ -154,7 +154,11 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<INewsReportTvShowMoveService, NewsReportTvShowMoveService>()
             .AddScoped<IPostNewsReportTvShowMoveHandler, PostNewsReportTvShowMoveHandler>()
             .AddScoped<INewsReportFilmMoveService, NewsReportFilmMoveService>()
-            .AddScoped<IPostNewsReportFilmMoveHandler, PostNewsReportFilmMoveHandler>();
+            .AddScoped<IPostNewsReportFilmMoveHandler, PostNewsReportFilmMoveHandler>()
+            .AddScoped<INewsReportOrganisationMoveService, NewsReportOrganisationMoveService>()
+            .AddScoped<IPostNewsReportOrganisationMoveHandler, PostNewsReportOrganisationMoveHandler>()
+            .AddScoped<INewsOrganisationDeleteService, NewsOrganisationDeleteService>()
+            .AddScoped<IDeleteNewsOrganisationHandler, DeleteNewsOrganisationHandler>();
 
     public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
         services
