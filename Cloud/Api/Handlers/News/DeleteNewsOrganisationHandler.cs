@@ -8,7 +8,7 @@ namespace Api.Handlers.News;
 /// <summary>
 /// DELETE newsorganisation/{id}[?redirectToNewsOrganisationId={guid}] (admin): 200 deleted (empty body), 404 not found
 /// (empty body), 400 for a bad or unsafe redirect target, 409 with <c>remainingReportCount</c> while it still has
-/// reports or with only <c>message</c> while it is being indexed (nothing deleted), 500 failed.
+/// reports or with <c>message</c> and <c>retryable: true</c> while it is being indexed (nothing deleted), 500 failed.
 /// </summary>
 public class DeleteNewsOrganisationHandler(INewsOrganisationDeleteService deleteService) : IDeleteNewsOrganisationHandler
 {
@@ -42,7 +42,8 @@ public class DeleteNewsOrganisationHandler(INewsOrganisationDeleteService delete
             }, c),
             NewsOrganisationDeleteStatus.Busy => await ctx.Conflict(new
             {
-                message = "The news organisation is being indexed. Retry in a few minutes"
+                message = "The news organisation is being indexed. Retry in a few minutes",
+                retryable = true
             }, c),
             _ => await ctx.InternalError(ApiErrorResponse.Failure("Unable to delete news organisation"), c)
         };

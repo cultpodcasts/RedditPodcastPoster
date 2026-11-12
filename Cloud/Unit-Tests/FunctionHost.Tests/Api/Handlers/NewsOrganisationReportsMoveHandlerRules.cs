@@ -65,7 +65,7 @@ public class NewsOrganisationReportsMoveHandlerRules
     }
 
     [Fact(DisplayName =
-        "A refused move responds 409 or 404 with the per-id lists, an invalid one 400, and a failed one 500 with failureIndexing.")]
+        "A refused move responds 409 or 404 with the per-id lists (a transient 409 carries retryable true), an invalid one 400, and a failed one 500 with failureIndexing.")]
     public async Task refused_and_failed_moves_map_to_their_status_codes()
     {
         // Arrange
@@ -75,6 +75,8 @@ public class NewsOrganisationReportsMoveHandlerRules
         // Act
         MoveReturns(new NewsReportOrganisationMoveResult(NewsReportOrganisationMoveStatus.Conflict,
             ConflictReportIds: [conflictId]));
+        await sut.Handle(_ctx.Object, Command(), CancellationToken.None);
+        MoveReturns(new NewsReportOrganisationMoveResult(NewsReportOrganisationMoveStatus.Conflict) { Retryable = true });
         await sut.Handle(_ctx.Object, Command(), CancellationToken.None);
         MoveReturns(new NewsReportOrganisationMoveResult(NewsReportOrganisationMoveStatus.NotFound));
         await sut.Handle(_ctx.Object, Command(), CancellationToken.None);
@@ -87,7 +89,10 @@ public class NewsOrganisationReportsMoveHandlerRules
 
         // Assert
         _ctx.Verify(x => x.Conflict(
-            It.Is<NewsReportOrganisationMoveResponse>(r => r.ConflictReportIds.Single() == conflictId),
+            It.Is<NewsReportOrganisationMoveResponse>(r => r.Retryable == null && r.ConflictReportIds.SingleOrDefault() == conflictId),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _ctx.Verify(x => x.Conflict(
+            It.Is<NewsReportOrganisationMoveResponse>(r => r.Retryable == true),
             It.IsAny<CancellationToken>()), Times.Once);
         _ctx.Verify(x => x.NotFound(It.IsAny<NewsReportOrganisationMoveResponse>(), It.IsAny<CancellationToken>()),
             Times.Once);

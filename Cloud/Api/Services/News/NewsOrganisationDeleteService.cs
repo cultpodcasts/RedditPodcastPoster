@@ -4,6 +4,7 @@ using RedditPodcastPoster.CloudflareRedirect.Models;
 using RedditPodcastPoster.CloudflareRedirect.Services;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.News;
@@ -105,7 +106,7 @@ public class NewsOrganisationDeleteService(
                 indexingLockStore,
                 timeProvider,
                 newsOrganisationId,
-                NewsReportOrganisationMoveService.LockStaleAfter,
+                CatalogueParentsUpdater.IndexingLockStaleAfter,
                 NewsReportOrganisationMoveService.LockHeartbeatInterval,
                 LockSource,
                 logger);

@@ -85,4 +85,10 @@ public record NewsReportOrganisationMoveResult(
     /// <c>Error</c> says whether to re-send or set the channels with PATCH.
     /// </summary>
     public bool YouTubeChannelMoveFailed { get; init; }
+
+    /// <summary>
+    /// True only for a <see cref="NewsReportOrganisationMoveStatus.Conflict"/> that is transient (an organisation is being
+    /// indexed): re-send the same request shortly. False for id conflicts, which a re-send cannot fix.
+    /// </summary>
+    public bool Retryable { get; init; }
 }

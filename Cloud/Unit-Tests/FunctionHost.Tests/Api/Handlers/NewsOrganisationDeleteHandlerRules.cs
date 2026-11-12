@@ -37,7 +37,7 @@ public class NewsOrganisationDeleteHandlerRules
             .ReturnsAsync(result);
 
     [Fact(DisplayName =
-        "Deleting an organisation that still has reports responds 409 with the remaining count, one being indexed 409 with a message only, and an empty one 200.")]
+        "Deleting an organisation that still has reports responds 409 with the remaining count, one being indexed 409 with retryable true and no count, and an empty one 200.")]
     public async Task delete_maps_has_reports_and_busy_to_409_and_deleted_to_200()
     {
         // Arrange
@@ -57,7 +57,7 @@ public class NewsOrganisationDeleteHandlerRules
             It.Is<object>(body => Equals(Property(body, "remainingReportCount"), remaining)),
             It.IsAny<CancellationToken>()), Times.Once);
         _ctx.Verify(x => x.Conflict(
-            It.Is<object>(body => Property(body, "remainingReportCount") == null && Property(body, "message") != null),
+            It.Is<object>(body => Property(body, "remainingReportCount") == null && Equals(Property(body, "retryable"), true)),
             It.IsAny<CancellationToken>()), Times.Once);
         _ctx.Verify(x => x.Ok(), Times.Once);
     }

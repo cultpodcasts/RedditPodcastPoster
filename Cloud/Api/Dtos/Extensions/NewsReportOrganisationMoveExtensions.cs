@@ -28,6 +28,7 @@ public static class NewsReportOrganisationMoveExtensions
             MovedYouTubeChannelIds = [.. result.MovedYouTubeChannelIds ?? []],
             YouTubeChannelMoveFailed = result.YouTubeChannelMoveFailed,
             Error = result.Error,
-            FailureIndexing = result.FailureIndexing
+            FailureIndexing = result.FailureIndexing,
+            Retryable = result.Retryable ? true : null
         };
 }

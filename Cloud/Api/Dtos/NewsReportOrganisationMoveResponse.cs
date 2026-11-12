@@ -57,4 +57,12 @@ public sealed class NewsReportOrganisationMoveResponse
 
     [JsonPropertyName("failureIndexing")]
     public bool FailureIndexing { get; init; }
+
+    /// <summary>
+    /// True when the 409 is transient (an organisation is being indexed; nothing written): re-send shortly. Omitted for
+    /// id conflicts (conflictReportIds), which a re-send cannot fix. Same meaning as <c>ApiErrorResponse.retryable</c>.
+    /// </summary>
+    [JsonPropertyName("retryable")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Retryable { get; init; }
 }

@@ -8,6 +8,7 @@ using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.UrlShortening.Services;
 
 namespace Api.Services.News;
@@ -66,10 +67,10 @@ public class NewsReportOrganisationMoveService(
     /// <summary>Lock-marker source, so a log of a refused index names the move.</summary>
     public const string LockSource = "NewsReportOrganisationMove";
 
-    /// <summary>Same stale window as the indexers' markers.</summary>
-    public static readonly TimeSpan LockStaleAfter = TimeSpan.FromMinutes(5);
-
-    /// <summary>Renews the marker well inside <see cref="LockStaleAfter"/> while a batch runs.</summary>
+    /// <summary>
+    /// Renews the marker well inside the indexers' stale window (<see cref="CatalogueParentsUpdater.IndexingLockStaleAfter"/>,
+    /// shared so a live marker is never taken over) while a batch runs.
+    /// </summary>
     public static readonly TimeSpan LockHeartbeatInterval = TimeSpan.FromMinutes(1);
 
     public const string ChannelMoveRetryError =
@@ -282,7 +283,7 @@ public class NewsReportOrganisationMoveService(
             indexingLockStore,
             timeProvider,
             organisationId,
-            LockStaleAfter,
+            CatalogueParentsUpdater.IndexingLockStaleAfter,
             LockHeartbeatInterval,
             LockSource,
             logger);
@@ -294,7 +295,10 @@ public class NewsReportOrganisationMoveService(
             nameof(MoveAsync), sourceId, target.Id);
         return new NewsReportOrganisationMoveResult(NewsReportOrganisationMoveStatus.Conflict, sourceId, target.Id,
             target.Name.Trim(), [], [], [], [],
-            Error: "One of the news organisations is being indexed. Nothing was moved; retry in a few minutes");
+            Error: "One of the news organisations is being indexed. Nothing was moved; retry in a few minutes")
+        {
+            Retryable = true
+        };
     }
 
     /// <summary>The source's next batch of report ids (removed reports included), when the request names none.</summary>

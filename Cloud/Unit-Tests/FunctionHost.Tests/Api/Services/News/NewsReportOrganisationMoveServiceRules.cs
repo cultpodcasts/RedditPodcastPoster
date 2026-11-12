@@ -607,6 +607,7 @@ public class NewsReportOrganisationMoveServiceRules
         // Assert
         result.Status.Should().Be(NewsReportOrganisationMoveStatus.Conflict);
         result.ConflictReportIds.Should().Equal(report.Id);
+        result.Retryable.Should().BeFalse();
         ReportsIn(source).Should().ContainSingle().Which.Id.Should().Be(report.Id);
         _uploads.Should().BeEmpty();
         _reportDeletes.Should().BeEmpty();
@@ -631,6 +632,7 @@ public class NewsReportOrganisationMoveServiceRules
         // Assert
         refused.Status.Should().Be(NewsReportOrganisationMoveStatus.Conflict);
         refused.Error.Should().Contain("being indexed");
+        refused.Retryable.Should().BeTrue();
         accepted.Status.Should().Be(NewsReportOrganisationMoveStatus.Accepted);
         (await _locks.TryGet(source.Id)).Should().BeNull();
         (await _locks.TryGet(target.Id)).Should().BeNull();

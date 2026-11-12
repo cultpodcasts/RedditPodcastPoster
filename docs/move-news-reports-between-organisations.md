@@ -43,7 +43,8 @@ client is not given either new scope.
 
 1. Validates the request: the target is required, differs from the source, exists and is not removed.
 2. Takes the parent indexing lease (the indexers' single-flight marker) on both organisations for the whole request.
-   If either is being indexed, the request is refused with 409 and nothing is written; retry in a few minutes. This
+   If either is being indexed, the request is refused with 409 and `retryable: true` and nothing is written; retry in a few
+   minutes (an id conflict 409 has no `retryable`). The lease uses the indexers' own stale window. This
    stops an indexer pass from updating a source row that is about to be deleted, or indexing the source's channel
    mid-move.
 3. Plans every id before any write. An id is:
@@ -78,7 +79,7 @@ A soft remove isn't enough: name lookups include removed organisations, so the o
 return 409 duplicate. Call `DELETE newsorganisation/{id}` (admin).
 
 - It returns 409 with `remainingReportCount` while any report (removed ones included) is still in the
-  organisation, and 409 with only `message` while it is being indexed. The count and delete run under the parent
+  organisation, and 409 with `message` and `retryable: true` while it is being indexed. The count and delete run under the parent
   indexing lease, so an indexer cannot add a report in between.
 - Pass `?redirectToNewsOrganisationId={targetId}` (the organisation the reports went to). When the names differ, the
   delete records a news-organisation redirect from the old name route to the target's, using the same Cloudflare KV
