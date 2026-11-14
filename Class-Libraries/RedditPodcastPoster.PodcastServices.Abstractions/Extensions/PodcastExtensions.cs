@@ -48,6 +48,19 @@ public static class PodcastExtensions
         return !hasSpotifyDiscovery && !hasAppleDiscovery;
     }
 
+    /// <summary>
+    /// True while an episode is waiting for its delayed YouTube upload, so social posting holds it back.
+    /// <para>
+    /// A positive <see cref="Podcast.YouTubePublicationOffset"/> means YouTube publishes that long
+    /// <em>after</em> the audio. For a YouTube release-authority podcast the episode release is already
+    /// the YouTube publish time, and the audio went out <c>release - offset</c>
+    /// (see <c>EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup</c>), so there is nothing left to
+    /// wait for once the YouTube episode exists (#1375).
+    /// </para>
+    /// <para>
+    /// Podcasts with no Spotify or Apple id are never held: there is no audio episode to wait on.
+    /// </para>
+    /// </summary>
     public static bool IsDelayedYouTubePublishing(this Podcast podcast, Episode episode)
     {
         if (!HasAudioPlatformConfigured(podcast))
@@ -55,24 +68,12 @@ public static class PodcastExtensions
             return false;
         }
 
-        if (!IsAudioPodcastAwaitingYouTubeRelease(podcast, episode) &&
-            !IsYouTubeAuthorityAwaitingAudioRelease(podcast) &&
-            !IsYouTubePodcastWithDelayedPosting(podcast))
+        if (!IsAudioPodcastAwaitingYouTubeRelease(podcast, episode))
         {
             return false;
         }
 
         return GetYouTubePublishingDelayExpiry(podcast, episode.ReleaseUtc, episode.Length) > DateTime.UtcNow;
-    }
-
-    public static bool IsAwaitingDelayedAudioRelease(this Podcast podcast, DateTime release, TimeSpan length)
-    {
-        if (!HasAudioPlatformConfigured(podcast) || !IsYouTubeAuthorityAwaitingAudioRelease(podcast))
-        {
-            return false;
-        }
-
-        return GetYouTubePublishingDelayExpiry(podcast, release, length) > DateTime.UtcNow;
     }
 
     private static bool HasAudioPlatformConfigured(Podcast podcast)
@@ -83,9 +84,9 @@ public static class PodcastExtensions
     private static DateTime GetYouTubePublishingDelayExpiry(Podcast podcast, DateTime release, TimeSpan length)
     {
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
-        // Episode length extends the delay only for YouTube-authority podcasts awaiting delayed
-        // audio release. Audio-first podcasts publish to YouTube after release + delay regardless
-        // of episode duration.
+        // Episode length extends the delay only for YouTube-authority podcasts (an audio-discovered
+        // episode still missing its YouTube upload). Audio-first podcasts publish to YouTube after
+        // release + delay regardless of episode duration.
         if (podcast.ReleaseAuthority == Service.YouTube &&
             youTubePublishingDelay > TimeSpan.Zero &&
             length > TimeSpan.Zero)
@@ -99,19 +100,6 @@ public static class PodcastExtensions
     private static bool IsAudioPodcastAwaitingYouTubeRelease(Podcast podcast, Episode episode)
     {
         return !EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube) &&
-               podcast.YouTubePublishingDelay() > TimeSpan.Zero;
-    }
-
-    private static bool IsYouTubeAuthorityAwaitingAudioRelease(Podcast podcast)
-    {
-        return podcast.ReleaseAuthority == Service.YouTube && podcast.YouTubePublishingDelay() > TimeSpan.Zero;
-    }
-
-    private static bool IsYouTubePodcastWithDelayedPosting(Podcast podcast)
-    {
-        return string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
-               !podcast.AppleId.HasValue &&
-               podcast.HasYouTubeSource() &&
                podcast.YouTubePublishingDelay() > TimeSpan.Zero;
     }
 }

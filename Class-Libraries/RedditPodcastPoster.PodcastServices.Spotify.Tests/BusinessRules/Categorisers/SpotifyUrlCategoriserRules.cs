@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using FluentAssertions;
 using Moq;
+using Moq.AutoMock;
 using SpotifyAPI.Web;
 using RedditPodcastPoster.Episodes;
 using RedditPodcastPoster.Episodes.Matching;
@@ -23,6 +25,13 @@ namespace RedditPodcastPoster.PodcastServices.Spotify.Tests.BusinessRules.Catego
 public class SpotifyUrlCategoriserRules
 {
     private readonly DomainTestFixture _fixture = new();
+    private readonly AutoMocker _mocker = new();
+
+    public SpotifyUrlCategoriserRules()
+    {
+        _mocker.Use<IHtmlSanitiser>(new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance));
+        _mocker.Use<ILogger<SpotifyUrlCategoriser>>(NullLogger<SpotifyUrlCategoriser>.Instance);
+    }
 
     [Fact(DisplayName =
         "When the matching podcast has an expensive Spotify query and SkipExpensiveSpotifyQueries is set, Resolve returns null without calling FindEpisode " +
@@ -36,8 +45,8 @@ public class SpotifyUrlCategoriserRules
             p.SpotifyId = _fixture.CreateSpotifyId();
         });
         var criteria = CreateCriteria();
-        var resolver = new Mock<ISpotifyEpisodeResolver>(MockBehavior.Strict);
-        var sut = CreateSut(resolver.Object);
+        var resolver = _mocker.GetMock<ISpotifyEpisodeResolver>();
+        var sut = _mocker.CreateInstance<SpotifyUrlCategoriser>();
         var indexingContext = new IndexingContext(SkipExpensiveSpotifyQueries: true);
 
         // Act
@@ -66,8 +75,8 @@ public class SpotifyUrlCategoriserRules
             p.SpotifyId = _fixture.CreateSpotifyId();
         });
         var criteria = CreateCriteria();
-        var resolver = new Mock<ISpotifyEpisodeResolver>(MockBehavior.Strict);
-        var sut = CreateSut(resolver.Object);
+        var resolver = _mocker.GetMock<ISpotifyEpisodeResolver>();
+        var sut = _mocker.CreateInstance<SpotifyUrlCategoriser>();
         var indexingContext = new IndexingContext(
             ReleasedSince: DomainTestFixture.UtcDateDaysAgo(2),
             SkipExpensiveSpotifyQueries: true);
@@ -97,14 +106,14 @@ public class SpotifyUrlCategoriserRules
             p.SpotifyId = _fixture.CreateSpotifyId();
         });
         var criteria = CreateCriteria();
-        var resolver = new Mock<ISpotifyEpisodeResolver>();
+        var resolver = _mocker.GetMock<ISpotifyEpisodeResolver>();
         resolver
             .Setup(x => x.FindEpisode(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()))
             .ReturnsAsync(new FindEpisodeResponse(null));
-        var sut = CreateSut(resolver.Object);
+        var sut = _mocker.CreateInstance<SpotifyUrlCategoriser>();
         var indexingContext = new IndexingContext(SkipExpensiveSpotifyQueries: false);
 
         // Act
@@ -121,9 +130,9 @@ public class SpotifyUrlCategoriserRules
     }
 
     [Fact(DisplayName =
-        "When a YouTube-authority podcast is still inside the positive publishing delay, Resolve returns null without FindEpisode " +
-        "because audio is not expected on Spotify until after the delayed-release window.")]
-    public async Task Resolve_skips_while_awaiting_delayed_audio_release()
+        "When a YouTube-authority podcast is still inside the positive publishing delay, Resolve still calls FindEpisode " +
+        "because a positive delay means the audio was released before YouTube (#1375).")]
+    public async Task Resolve_queries_spotify_inside_positive_youtube_publishing_delay()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
@@ -134,8 +143,14 @@ public class SpotifyUrlCategoriserRules
         var criteria = CreateCriteria(
             release: DomainTestFixture.UtcToday,
             duration: TimeSpan.FromMinutes(60));
-        var resolver = new Mock<ISpotifyEpisodeResolver>(MockBehavior.Strict);
-        var sut = CreateSut(resolver.Object);
+        var resolver = _mocker.GetMock<ISpotifyEpisodeResolver>();
+        resolver
+            .Setup(x => x.FindEpisode(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<Func<SimpleEpisode, bool>?>()))
+            .ReturnsAsync(new FindEpisodeResponse(null));
+        var sut = _mocker.CreateInstance<SpotifyUrlCategoriser>();
 
         // Act
         var result = await sut.Resolve(criteria, podcast, new IndexingContext(SkipExpensiveSpotifyQueries: false));
@@ -147,7 +162,7 @@ public class SpotifyUrlCategoriserRules
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()),
-            Times.Never);
+            Times.AtLeastOnce);
     }
 
     [Fact(DisplayName =
@@ -165,7 +180,7 @@ public class SpotifyUrlCategoriserRules
         var episodeId = _fixture.CreateSpotifyId();
         var fullEpisode = CreateFullEpisode(episodeId, appleTitle);
         var requestedTitles = new List<string>();
-        var resolver = new Mock<ISpotifyEpisodeResolver>();
+        var resolver = _mocker.GetMock<ISpotifyEpisodeResolver>();
         resolver
             .Setup(x => x.FindEpisode(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
@@ -180,7 +195,7 @@ public class SpotifyUrlCategoriserRules
                             ? new FindEpisodeResponse(fullEpisode)
                             : new FindEpisodeResponse(null));
                 });
-        var sut = CreateSut(resolver.Object);
+        var sut = _mocker.CreateInstance<SpotifyUrlCategoriser>();
 
         // Act
         var result = await sut.Resolve(criteria, podcast, new IndexingContext(SkipExpensiveSpotifyQueries: false));
@@ -208,14 +223,14 @@ public class SpotifyUrlCategoriserRules
         podcast.SpotifyEpisodesQueryIsExpensive = false;
         var criteria = CreateCriteria();
         criteria.AppleTitle = null;
-        var resolver = new Mock<ISpotifyEpisodeResolver>();
+        var resolver = _mocker.GetMock<ISpotifyEpisodeResolver>();
         resolver
             .Setup(x => x.FindEpisode(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()))
             .ReturnsAsync(new FindEpisodeResponse(null));
-        var sut = CreateSut(resolver.Object);
+        var sut = _mocker.CreateInstance<SpotifyUrlCategoriser>();
 
         // Act
         var result = await sut.Resolve(criteria, podcast, new IndexingContext(SkipExpensiveSpotifyQueries: false));
@@ -249,7 +264,7 @@ public class SpotifyUrlCategoriserRules
             factoryRequest.ReleaseAuthority);
         Func<SimpleEpisode, bool>? capturedReducer = null;
         DateTime? capturedReleased = null;
-        var resolver = new Mock<ISpotifyEpisodeResolver>();
+        var resolver = _mocker.GetMock<ISpotifyEpisodeResolver>();
         resolver
             .Setup(x => x.FindEpisode(
                 It.IsAny<FindSpotifyEpisodeRequest>(),
@@ -262,7 +277,7 @@ public class SpotifyUrlCategoriserRules
                     capturedReleased = request.Released;
                 })
             .ReturnsAsync(new FindEpisodeResponse(null));
-        var sut = CreateSut(resolver.Object);
+        var sut = _mocker.CreateInstance<SpotifyUrlCategoriser>();
 
         // Act
         await sut.Resolve(criteria, podcast, new IndexingContext(SkipExpensiveSpotifyQueries: false));
@@ -334,10 +349,4 @@ public class SpotifyUrlCategoriserRules
             Type = ItemType.Episode,
             IsPlayable = true
         };
-
-    private static SpotifyUrlCategoriser CreateSut(ISpotifyEpisodeResolver resolver) =>
-        new(
-            resolver,
-            new HtmlSanitiser(NullLogger<HtmlSanitiser>.Instance),
-            NullLogger<SpotifyUrlCategoriser>.Instance);
 }
