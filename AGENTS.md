@@ -97,6 +97,12 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - Azure Functions Flex Consumption `instanceMemoryMB` is 512, 2048, or 4096.
 - Memory probing goes through `IMemoryProbeOrchestrator`: `Start(nameof(Class))` and `End()`. `MemoryProbeOptions` decides whether a session is created.
 
+## Linking PRs to tickets (HARD)
+
+- Every PR for a ticket links it with a **closing keyword** so it shows under the issue's **Development** panel: same repo `Closes #N`; another repo `Closes cultpodcasts/<repo>#N` (e.g. Api / website companions of an RPP ticket: `Closes cultpodcasts/RedditPodcastPoster#N`). Do **not** use `Refs` for the ticket a PR delivers — `Refs` PRs are invisible under Development.
+- A ticket with PRs in several repos stays **open until ALL of its PRs are merged**. GitHub closes it on the first `Closes` merge; `.github/workflows/issue-close-sibling-guard.yml` (mirrored in RedditPodcastPoster, Api and website) reopens it while any PR for it is still open (Development links, cross-references incl. `Refs`, trio search) and restores the board card to In Progress (cultpodcasts/RedditPodcastPoster#1423).
+- List companion PRs in the PR body (`Companions: cultpodcasts/Api#…, cultpodcasts/website#…`) with the merge order.
+
 ## Cursor Cloud specific instructions
 
 Multi-repo workspace: this repo is at `/agent/repos/redditpodcastposter` alongside `/agent/repos/api`

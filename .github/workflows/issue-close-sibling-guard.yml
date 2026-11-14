@@ -1,8 +1,18 @@
 # GitHub auto-closes an issue when ANY linked PR with Closes/Fixes merges.
 # Cross-repo stacks (RPP + Api + website) often still have open companions.
-# This guard reopens the issue when open PRs that still Closes/Fixes it remain,
-# and puts the features board card (user cultpodcasts project 1) back on
-# In Progress (Ready For Review means the PRs are ready to merge).
+# Rule: a ticket with PRs in several repos stays open until ALL of its PRs are
+# merged. This guard reopens the issue when ANY open PR in a cultpodcasts repo
+# closes it: a Development link, or a timeline/search candidate whose live
+# title/body says `Closes|Fixes|Resolves #N` (same repo) or `... owner/repo#N`
+# (any repo). Prose, `Refs`, comment- and commit-only mentions do not count
+# (cultpodcasts/RedditPodcastPoster#1423: #1400 closed while Api#259 + website#667,
+# which said `Refs`, were open and unlinked). It then puts the features board card
+# (user cultpodcasts project 1) back on In Progress (Ready For Review means the
+# PRs are ready to merge). Any incomplete lookup (GraphQL, search, PR fetch) fails
+# the job, never a silent "no companions"; the job summary says what was decided.
+#
+# Convention: cross-repo PRs say `Closes cultpodcasts/<repo>#N` so they show under
+# the issue's Development panel.
 # Logic + tests: .github/scripts/issue-close-sibling-guard*.cjs
 # Mirrored across RedditPodcastPoster, website, and Api.
 #
@@ -37,7 +47,7 @@ jobs:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
 
-      - name: Reopen when companion Closes PRs are still open
+      - name: Reopen while any PR for the issue is still open
         uses: actions/github-script@v9
         env:
           PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
