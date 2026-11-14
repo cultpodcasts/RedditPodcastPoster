@@ -121,9 +121,9 @@ public class SpotifyUrlCategoriserRules
     }
 
     [Fact(DisplayName =
-        "When a YouTube-authority podcast is still inside the positive publishing delay, Resolve returns null without FindEpisode " +
-        "because audio is not expected on Spotify until after the delayed-release window.")]
-    public async Task Resolve_skips_while_awaiting_delayed_audio_release()
+        "When a YouTube-authority podcast is still inside the positive publishing delay, Resolve still calls FindEpisode " +
+        "because a positive delay means the audio was released before YouTube (#1375).")]
+    public async Task Resolve_queries_spotify_inside_positive_youtube_publishing_delay()
     {
         // Arrange
         var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(
@@ -134,7 +134,13 @@ public class SpotifyUrlCategoriserRules
         var criteria = CreateCriteria(
             release: DomainTestFixture.UtcToday,
             duration: TimeSpan.FromMinutes(60));
-        var resolver = new Mock<ISpotifyEpisodeResolver>(MockBehavior.Strict);
+        var resolver = new Mock<ISpotifyEpisodeResolver>();
+        resolver
+            .Setup(x => x.FindEpisode(
+                It.IsAny<FindSpotifyEpisodeRequest>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<Func<SimpleEpisode, bool>?>()))
+            .ReturnsAsync(new FindEpisodeResponse(null));
         var sut = CreateSut(resolver.Object);
 
         // Act
@@ -147,7 +153,7 @@ public class SpotifyUrlCategoriserRules
                 It.IsAny<FindSpotifyEpisodeRequest>(),
                 It.IsAny<IndexingContext>(),
                 It.IsAny<Func<SimpleEpisode, bool>?>()),
-            Times.Never);
+            Times.AtLeastOnce);
     }
 
     [Fact(DisplayName =

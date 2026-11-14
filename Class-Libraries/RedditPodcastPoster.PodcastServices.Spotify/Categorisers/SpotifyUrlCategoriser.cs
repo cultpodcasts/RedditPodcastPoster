@@ -70,15 +70,6 @@ public class SpotifyUrlCategoriser(
         PodcastServiceSearchCriteria criteria,
         IndexingContext indexingContext)
     {
-        if (matchingPodcast != null &&
-            matchingPodcast.IsAwaitingDelayedAudioRelease(criteria.Release, criteria.Duration))
-        {
-            logger.LogInformation(
-                "Skipping Spotify episode lookup for '{CriteriaEpisodeTitle}' as audio is not expected until after the YouTube publishing delay.",
-                criteria.EpisodeTitle);
-            return null;
-        }
-
         var request = FindSpotifyEpisodeRequestFactory.Create(matchingPodcast, criteria);
         var ticks = EpisodeReleaseTolerance.GetToleranceTicks(
             matchingPodcast,

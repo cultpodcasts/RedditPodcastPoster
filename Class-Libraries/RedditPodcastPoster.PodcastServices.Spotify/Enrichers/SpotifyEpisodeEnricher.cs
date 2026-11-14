@@ -34,11 +34,6 @@ public class SpotifyEpisodeEnricher(
         IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
-        if (IsAudioCatalogueEnrichmentBypassedByDelayedYouTubePublishing(request, "Spotify", logger))
-        {
-            return;
-        }
-
         var findSpotifyEpisodeRequest = FindSpotifyEpisodeRequestFactory.Create(request.Podcast, request.Episode);
         var probeEpisode = new Episode
         {

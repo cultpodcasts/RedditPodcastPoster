@@ -818,8 +818,8 @@ public class CatalogueSocialPostRules
     }
 
     [Fact(DisplayName =
-        "When a YouTube news report is still inside its parent's YouTube publishing delay, then it is not tweet-ready, because catalogue candidates share IPodcastEpisodeFilter readiness with podcast episodes.")]
-    public async Task delayed_youtube_news_report_is_not_tweet_ready()
+        "When a YouTube-authority news report is inside its parent's positive YouTube publishing delay, then it is still tweet-ready, because a positive delay means the audio was released before YouTube and there is nothing to wait for (#1375).")]
+    public async Task positive_delay_youtube_authority_news_report_is_tweet_ready()
     {
         // Arrange
         var delay = TimeSpan.FromDays(1);
@@ -831,7 +831,8 @@ public class CatalogueSocialPostRules
         var result = await sut.GetUntweeted();
 
         // Assert
-        result.Should().BeEmpty();
+        result.Should().ContainSingle();
+        result[0].Episode.Id.Should().Be(report.Id);
     }
 
     [Fact(DisplayName =
@@ -853,8 +854,8 @@ public class CatalogueSocialPostRules
     }
 
     [Fact(DisplayName =
-        "When a YouTube news report is still inside its parent's YouTube publishing delay, then it is not Bluesky-ready, because GetBlueskyReady shares FilterReady and IsDelayedYouTubePublishing with GetUntweeted.")]
-    public async Task delayed_youtube_news_report_is_not_bluesky_ready()
+        "When a YouTube-authority news report is inside its parent's positive YouTube publishing delay, then it is still Bluesky-ready, because GetBlueskyReady shares FilterReady and IsDelayedYouTubePublishing with GetUntweeted (#1375).")]
+    public async Task positive_delay_youtube_authority_news_report_is_bluesky_ready()
     {
         // Arrange
         var delay = TimeSpan.FromDays(1);
@@ -866,7 +867,8 @@ public class CatalogueSocialPostRules
         var result = await sut.GetBlueskyReady();
 
         // Assert
-        result.Should().BeEmpty();
+        result.Should().ContainSingle();
+        result[0].Episode.Id.Should().Be(report.Id);
     }
 
     [Fact(DisplayName =

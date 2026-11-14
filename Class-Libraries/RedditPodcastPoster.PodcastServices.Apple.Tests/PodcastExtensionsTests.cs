@@ -86,8 +86,12 @@ public class PodcastExtensionsTests
         podcast.DependsOnYouTubeForEpisodeDiscovery().Should().BeFalse();
     }
 
+    /// <summary>
+    /// #1375: a positive offset means the audio went out before YouTube; for a YouTube-authority show the
+    /// release is the YouTube publish time, so a YouTube episode inside the offset window is not delayed.
+    /// </summary>
     [Fact]
-    public void IsDelayedYouTubePublishing_WhenYouTubeIsReleaseAuthorityAndAudioNotYetDue_ReturnsTrue()
+    public void IsDelayedYouTubePublishing_WhenYouTubeIsReleaseAuthorityWithPositiveDelayInsideWindow_ReturnsFalse()
     {
         var podcast = new Podcast
         {
@@ -102,7 +106,46 @@ public class PodcastExtensionsTests
             Urls = { YouTube = new Uri("https://www.youtube.com/watch?v=test") }
         };
 
+        podcast.IsDelayedYouTubePublishing(episode).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsDelayedYouTubePublishing_WhenYouTubeIsReleaseAuthorityAndAudioEpisodeAwaitingYouTubeUpload_ReturnsTrue()
+    {
+        var podcast = new Podcast
+        {
+            SpotifyId = "spotify",
+            YouTubeChannelId = "channel",
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = TimeSpan.FromHours(6).Ticks
+        };
+        var episode = new Episode
+        {
+            ReleaseUtc = DateTime.UtcNow.AddHours(-2),
+            Length = TimeSpan.FromHours(1),
+            Urls = new ServiceUrls()
+        };
+
         podcast.IsDelayedYouTubePublishing(episode).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsDelayedYouTubePublishing_WhenYouTubeIsReleaseAuthorityWithNegativeDelay_ReturnsFalse()
+    {
+        var podcast = new Podcast
+        {
+            AppleId = 123,
+            ReleaseAuthority = Service.YouTube,
+            YouTubePublicationOffset = TimeSpan.FromHours(-6).Ticks
+        };
+        var episode = new Episode
+        {
+            ReleaseUtc = DateTime.UtcNow.AddHours(-2),
+            Length = TimeSpan.FromHours(1),
+            Urls = { YouTube = new Uri("https://www.youtube.com/watch?v=test") }
+        };
+
+        podcast.IsDelayedYouTubePublishing(episode).Should().BeFalse();
     }
 
     [Fact]
@@ -124,21 +167,6 @@ public class PodcastExtensionsTests
         podcast.IsDelayedYouTubePublishing(episode).Should().BeFalse();
     }
 
-    [Fact]
-    public void IsAwaitingDelayedAudioRelease_WhenYouTubeIsReleaseAuthorityAndAudioNotYetDue_ReturnsTrue()
-    {
-        var podcast = new Podcast
-        {
-            AppleId = 123,
-            ReleaseAuthority = Service.YouTube,
-            YouTubePublicationOffset = TimeSpan.FromDays(1).Ticks
-        };
-
-        podcast.IsAwaitingDelayedAudioRelease(
-                DateTime.UtcNow.AddHours(-2),
-                TimeSpan.FromHours(1))
-            .Should().BeTrue();
-    }
 
     [Fact]
     public void IsDelayedYouTubePublishing_WhenAudioPodcastAwaitingYouTubeAndDelayHasPassed_IgnoresEpisodeLength()
