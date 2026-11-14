@@ -184,6 +184,37 @@ public class CatalogueParentAdditionalYouTubeChannelRules
     }
 
     [Fact(DisplayName =
+        "On-demand enrich-only (#1400): when a curator indexes a news organisation that is not auto-indexed but has a " +
+        "Spotify show and an additional YouTube channel, then neither the main nor the additional channel is " +
+        "discovered and no channel flag is patched, because an enrich-only pass only fills Spotify / Apple links.")]
+    public async Task on_demand_enrich_only_skips_additional_channel_discovery()
+    {
+        // Arrange
+        var podcast = _fixture.CreateYouTubeReleaseAuthorityPodcast(_fixture.CreateYouTubeChannelId(), 0);
+        podcast.IndexAllEpisodes = false;
+        podcast.EpisodeIncludeTitleRegex = string.Empty;
+        podcast.YouTubePlaylistId = string.Empty;
+        podcast.SpotifyId = _fixture.CreateSpotifyId();
+        var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+        var additionalChannelId = _fixture.CreateYouTubeChannelId();
+        organisation.AdditionalYouTubeChannels = [AdditionalYouTubeChannel.ChannelWide(additionalChannelId)];
+        _organisations[organisation.Id] = organisation;
+        _discoveredByChannel[podcast.YouTubeChannelId] = [NewVideo()];
+        _discoveredByChannel[additionalChannelId] = [NewVideo()];
+
+        // Act
+        var result = await Sut.IndexParent(organisation, Context());
+
+        // Assert
+        result.EnrichOnly.Should().BeTrue();
+        result.Status.Should().Be(CatalogueParentIndexStatus.NothingToEnrich);
+        _providerCalls.Should().BeEmpty();
+        _channelFlagPatches.Should().BeEmpty();
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "Catalogue parent indexing: a video returned by both the main and an additional channel discovery is saved " +
         "once, because one YouTube video is one news report.")]
     public async Task video_found_on_two_channels_is_saved_once()
