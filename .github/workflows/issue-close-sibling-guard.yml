@@ -49,7 +49,8 @@ concurrency:
 
 jobs:
   reopen-if-siblings-open:
-    if: github.event.issue.state_reason != 'not_planned'
+    # Only completed (or reason-less) closes are guarded; never not_planned / duplicate (#1425).
+    if: github.event.issue.state_reason != 'not_planned' && github.event.issue.state_reason != 'duplicate'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

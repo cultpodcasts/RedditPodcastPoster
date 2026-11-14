@@ -97,7 +97,9 @@ function pr(repo, number, state, body = '', title = `t${number}`) {
 // `issueStates`: successive live issue states from issues.get (last repeats).
 // `pulls[repo#n]`: a live PR, or an array of successive live PRs (last repeats); a
 // companion with no entry reads as open. `searchTotal`: override search total_count.
-function harness({ nodes, projectToken, board, omitGetOctokit = false, timeline = [[]], search = {}, pulls = {}, graphqlError, searchError, searchTotal, repo = 'Api', number = 244, issueStates = ['closed'] }) {
+// `issueStates` entries are 'open' | 'closed' (completed) or { state, state_reason }.
+// `reopenError` makes the reopen call throw; `deleteCommentError` makes deleteComment throw.
+function harness({ nodes, projectToken, board, omitGetOctokit = false, timeline = [[]], search = {}, pulls = {}, graphqlError, searchError, searchTotal, repo = 'Api', number = 244, issueStates = ['closed'], reopenError, deleteCommentError }) {
   const calls = { update: [], comment: [], warn: [], graphql: [], search: [], summary: [], order: [], editComment: [], issueGets: 0 };
   const pullReads = {};
   const github = {
@@ -123,9 +125,11 @@ function harness({ nodes, projectToken, board, omitGetOctokit = false, timeline 
         get: async () => {
           const st = issueStates[Math.min(calls.issueGets, issueStates.length - 1)];
           calls.issueGets++;
-          return { data: { state: st } };
+          if (typeof st === 'object') return { data: st };
+          return { data: { state: st, state_reason: st === 'closed' ? 'completed' : null } };
         },
         update: async (a) => {
+          if (reopenError && a.state === 'open') throw new Error(reopenError);
           calls.update.push(a);
           calls.order.push(a.state === 'open' ? 'reopen' : 'close');
         },
@@ -137,6 +141,10 @@ function harness({ nodes, projectToken, board, omitGetOctokit = false, timeline 
         updateComment: async (a) => {
           calls.editComment.push(a);
           calls.order.push('editComment');
+        },
+        deleteComment: async (a) => {
+          if (deleteCommentError) throw new Error(deleteCommentError);
+          calls.order.push(`deleteComment:${a.comment_id}`);
         },
       },
       search: {
@@ -543,4 +551,57 @@ test('run: board warning comment is skipped when the issue was closed again mean
   const r = await g.run(h.args);
   assert.equal(r.reopened, true);
   assert.deepEqual(h.calls.order, ['comment', 'reopen'], 'no late "NOT restored" comment on a re-closed issue');
+});
+
+test('workflow: the job skips not_planned AND duplicate closes', () => {
+  const yml = fs.readFileSync(path.join(__dirname, '..', 'workflows', 'issue-close-sibling-guard.yml'), 'utf8');
+  assert.match(yml, /if: github\.event\.issue\.state_reason != 'not_planned' && github\.event\.issue\.state_reason != 'duplicate'/);
+});
+
+test('run: issue closed as duplicate with an open Closes PR -> no comment, no reopen, card untouched', async () => {
+  const board = fakeBoard('In Progress', [], { issueState: 'CLOSED' });
+  const h = harness({ ...ISSUE_1423, board, nodes: COMPANIONS_1423, issueStates: [{ state: 'closed', state_reason: 'duplicate' }] });
+  const r = await g.run(h.args);
+  assert.equal(r.skipped, 'not-completed');
+  assert.deepEqual(h.calls.order, []);
+  assert.equal(board.writes.length, 0, 'card not moved (not even settled to Done)');
+});
+
+test('run: issue closed as not_planned is also left alone by the script', async () => {
+  const board = fakeBoard('Todo', [], { issueState: 'CLOSED' });
+  const h = harness({ ...ISSUE_1423, board, nodes: COMPANIONS_1423, issueStates: [{ state: 'closed', state_reason: 'not_planned' }] });
+  assert.equal((await g.run(h.args)).skipped, 'not-completed');
+  assert.deepEqual(h.calls.order, []);
+  assert.equal(board.writes.length, 0);
+});
+
+test('run: live reason changed to duplicate between the lookup and the side effects -> skip', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({
+    ...ISSUE_1423,
+    board,
+    nodes: COMPANIONS_1423,
+    issueStates: [{ state: 'closed', state_reason: 'completed' }, { state: 'closed', state_reason: 'duplicate' }],
+  });
+  const r = await g.run(h.args);
+  assert.equal(r.skipped, 'not-completed');
+  assert.deepEqual(h.calls.order, [], 'no comment, no reopen, no completed re-close over the duplicate reason');
+  assert.equal(board.writes.length, 0);
+});
+
+test('run: reopen fails after the comment -> comment deleted and the job still fails', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({ ...ISSUE_1423, board, nodes: COMPANIONS_1423, reopenError: 'Resource not accessible by integration' });
+  await assert.rejects(() => g.run(h.args), /reopen of cultpodcasts\/RedditPodcastPoster#1423 failed: Resource not accessible/);
+  assert.deepEqual(h.calls.order, ['comment', 'deleteComment:901']);
+  assert.equal(board.writes.length, 0);
+});
+
+test('run: reopen fails and the delete fails too -> comment edited to say the reopen failed, job fails', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({ ...ISSUE_1423, board, nodes: COMPANIONS_1423, reopenError: 'boom', deleteCommentError: 'nope' });
+  await assert.rejects(() => g.run(h.args), /reopen of .* failed: boom/);
+  assert.deepEqual(h.calls.order, ['comment', 'editComment']);
+  assert.match(h.calls.editComment[0].body, /reopen failed/);
+  assert.doesNotMatch(h.calls.editComment[0].body, /Reopening automatically/);
 });

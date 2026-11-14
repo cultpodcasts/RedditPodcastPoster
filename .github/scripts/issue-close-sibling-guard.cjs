@@ -35,6 +35,9 @@
 //   re-closed straight away;
 // - the board card is only ever moved to In Progress while the issue is open, and a
 //   closed issue's card is never moved off Done (a stray In Progress is put back).
+// Only issues closed as completed (or with no reason) are guarded: `not_planned` and
+// `duplicate` closes are skipped by the job condition AND by a live state_reason check
+// before any side effect, so a curator's reason is never overwritten.
 //
 // Board writes need PROJECT_TOKEN (classic PAT with `project` scope): the
 // repo-scoped GITHUB_TOKEN cannot see user-owned Projects V2
@@ -314,9 +317,14 @@ async function writeSummary(core, line) {
   }
 }
 
+const GUARDED_REASONS = new Set(['completed', null, undefined]);
+
+// Live issue state: 'open', 'closed' (completed / no reason, guarded), or 'other'
+// (closed as not_planned, duplicate or any future reason: never touched).
 async function liveIssueState(github, { owner, repo, number }) {
   const data = (await github.rest.issues.get({ owner, repo, issue_number: number })).data;
-  return data.state; // 'open' | 'closed'
+  if (data.state !== 'closed') return 'open';
+  return GUARDED_REASONS.has(data.state_reason) ? 'closed' : 'other';
 }
 
 // Re-read each companion PR's live state (the earlier lookup may be seconds old).
@@ -349,11 +357,18 @@ async function run({ github, context, core, getOctokit, projectToken, sleep = (m
   const ids = { owner, repo, number };
   const board = boardClient({ getOctokit, projectToken });
 
-  // Runs are serialised per issue, so an earlier run may already have reopened it.
-  if ((await liveIssueState(github, ids)) !== 'closed') {
+  // Runs are serialised per issue, so an earlier run may already have reopened it;
+  // a not_planned / duplicate close is never guarded.
+  const initial = await liveIssueState(github, ids);
+  if (initial === 'open') {
     core.info(`${full} is open again; nothing to do.`);
     await writeSummary(core, `${full} already open; skipped.`);
     return { reopened: false, skipped: 'issue-open' };
+  }
+  if (initial === 'other') {
+    core.info(`${full} is closed as not completed (not planned / duplicate); not guarded.`);
+    await writeSummary(core, `${full} closed as not completed; skipped.`);
+    return { reopened: false, skipped: 'not-completed' };
   }
 
   const companions = await findOpenCompanions({ github, ...ids });
@@ -374,10 +389,15 @@ async function run({ github, context, core, getOctokit, projectToken, sleep = (m
     return leaveClosed('No open PR closes the issue (Development links, confirmed cross-references, trio search)');
   }
 
-  // Immediately before the side effects: live issue + live companion states.
-  if ((await liveIssueState(github, ids)) !== 'closed') {
+  // Immediately before the side effects: live issue (state + reason) + live companion states.
+  const before = await liveIssueState(github, ids);
+  if (before === 'open') {
     core.info(`${full} was reopened meanwhile; nothing to do.`);
     return { reopened: false, skipped: 'issue-open' };
+  }
+  if (before === 'other') {
+    core.info(`${full} was re-closed as not completed (not planned / duplicate) meanwhile; not guarded.`);
+    return { reopened: false, skipped: 'not-completed' };
   }
   const open = await stillOpen(github, companions);
   if (open.length === 0) return leaveClosed('Every companion PR has merged or closed since the lookup');
@@ -387,7 +407,29 @@ async function run({ github, context, core, getOctokit, projectToken, sleep = (m
   const comment = (
     await github.rest.issues.createComment({ owner, repo, issue_number: number, body: buildComment(open) })
   ).data;
-  await github.rest.issues.update({ owner, repo, issue_number: number, state: 'open', state_reason: 'reopened' });
+  try {
+    await github.rest.issues.update({ owner, repo, issue_number: number, state: 'open', state_reason: 'reopened' });
+  } catch (e) {
+    // Never leave a "Reopening automatically" comment on an issue that stayed closed:
+    // delete it (or, failing that, say the reopen failed), then still fail the job.
+    if (comment?.id) {
+      try {
+        await github.rest.issues.deleteComment({ owner, repo, comment_id: comment.id });
+      } catch {
+        try {
+          await github.rest.issues.updateComment({
+            owner,
+            repo,
+            comment_id: comment.id,
+            body: `⚠️ The guard tried to reopen this (open PR(s): ${open.map((p) => `${p.repo}#${p.number}`).join(', ')}) but the reopen failed; see the workflow run.`,
+          });
+        } catch {
+          // best effort; the job failure below is the loud signal
+        }
+      }
+    }
+    throw new Error(`reopen of ${full} failed: ${e.message || e}`);
+  }
   core.info(`Reopened ${full}; ${open.length} open companion PR(s).`);
 
   // A companion that merged between the check and the reopen could not close the
