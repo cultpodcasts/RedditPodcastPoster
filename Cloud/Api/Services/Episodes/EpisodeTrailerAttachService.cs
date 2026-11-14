@@ -123,13 +123,14 @@ public class EpisodeTrailerAttachService(
                 return BadRequest("An episode moved to this film cannot also be its trailer");
             }
 
-            if (film.HasTrailer(episode.Id))
+            // A film created by this call already holds the trailer (it was in the film's only write).
+            if (film.HasTrailer(episode.Id) && !filmCreated)
             {
                 logger.LogWarning(
                     "{method}: Film '{filmId}' already holds trailer '{episodeId}' still in podcast '{podcastId}'; resuming.",
                     nameof(AttachAsync), film.Id, episode.Id, podcast.Id);
             }
-            else
+            else if (!film.HasTrailer(episode.Id))
             {
                 var trailer = FilmTrailerFactory.From(episode, command.Request.Title);
                 if (trailer is null)
@@ -214,6 +215,11 @@ public class EpisodeTrailerAttachService(
     /// <item>Otherwise the new film goes through the same name and identity gate as Move to film
     /// (<see cref="FilmMoveTarget"/>): an ambiguous IMDb/TMDB match returns the candidates and writes nothing. The film
     /// has no release, services or video (an unreleased film); the curator can add them later.</item>
+    /// <item>The new film is written once, already holding the trailer, with a conditional create under an id derived
+    /// from the name (<see cref="NewFilmId"/>). Overlapping creates of the same name converge on that one document
+    /// (the loser re-reads it and resumes), and no empty film is ever stored: any later failure leaves a film holding
+    /// the trailer with the episode row kept, which a re-send resumes. A film that took the same episode while this one
+    /// was created wins, and the film just created is deleted (409).</item>
     /// </list>
     /// Re-sending after a failure finds the film by its trailer or its name, so a film is never created twice.
     /// </summary>
@@ -242,7 +248,8 @@ public class EpisodeTrailerAttachService(
             return (null, false, BadRequest("A removed episode cannot be attached as a trailer"));
         }
 
-        if (FilmTrailerFactory.From(episode, command.Request.Title) is null)
+        var trailer = FilmTrailerFactory.From(episode, command.Request.Title);
+        if (trailer is null)
         {
             return (null, false, BadRequest("The episode has no link to play the trailer from"));
         }
@@ -284,19 +291,91 @@ public class EpisodeTrailerAttachService(
             identityEnricher,
             logger,
             cancellationToken);
+        if (stop is { Status: EpisodeFilmMoveStatus.Conflict, FilmId: Guid clashId } &&
+            await filmRepository.GetFilm(clashId) is { } created)
+        {
+            // Another request created the film between the name query above and this check: use it.
+            logger.LogInformation(
+                "{method}: Film '{filmId}' '{name}' appeared while checking the name; attaching to it.",
+                nameof(ResolveNamedFilm), created.Id, created.Name);
+            return (created, false, null);
+        }
+
         if (stop is not null)
         {
             return (null, false, ToTrailerResult(stop));
         }
 
-        var film = new Film(filmName) { Description = string.Empty };
+        // One write, already holding the trailer, under an id derived from the name: overlapping creates for the same
+        // name converge on one document, and no empty film is ever stored.
+        var film = new Film(filmName) { Id = NewFilmId(filmName), Description = string.Empty, Trailers = [trailer] };
         film.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.Film, filmName, film.Id);
         FilmMoveTarget.ApplyIdentity(film, admission, identityEnricher, logger);
-        await filmRepository.Save(film);
+        if (!await filmRepository.TryCreate(film))
+        {
+            return await ResolveCreateConflict(film.Id, filmName);
+        }
+
         logger.LogInformation(
-            "{method}: Created film '{filmId}' '{name}' (imdb={imdbId}, tmdb={tmdbId}) for trailer '{episodeId}'.",
+            "{method}: Created film '{filmId}' '{name}' (imdb={imdbId}, tmdb={tmdbId}) holding trailer '{episodeId}'.",
             nameof(ResolveNamedFilm), film.Id, film.Name, film.ImdbId, film.TmdbId, episode.Id);
+
+        // The trailer-owner check before the create is only a query. A film that took the same episode meanwhile
+        // (another attach) wins: drop the film this call just created (it holds nothing else) and report that film.
+        foreach (var holderId in await filmRepository.GetFilmIdsByTrailerId(episode.Id))
+        {
+            if (holderId != film.Id)
+            {
+                await filmRepository.Delete(film.Id);
+                logger.LogWarning(
+                    "{method}: Film '{otherFilmId}' took trailer '{episodeId}' while film '{filmId}' was created; deleted '{filmId}'.",
+                    nameof(ResolveNamedFilm), holderId, episode.Id, film.Id, film.Id);
+                return (null, false, Conflict(holderId, "This episode is already a trailer of another film"));
+            }
+        }
+
         return (film, true, null);
+    }
+
+    /// <summary>
+    /// Another call created the film for this name first (or the name's id belongs to a film renamed since). The same
+    /// name goes on through the normal attach, which resumes when that film already holds the trailer.
+    /// </summary>
+    private async Task<(Film? Film, bool Created, EpisodeTrailerAttachResult? Stop)> ResolveCreateConflict(
+        Guid filmId,
+        string filmName)
+    {
+        var existing = await filmRepository.GetFilm(filmId);
+        if (existing is null)
+        {
+            return (null, false, new EpisodeTrailerAttachResult(
+                EpisodeTrailerAttachStatus.Failed, Error: "The film changed while it was created; send again"));
+        }
+
+        if (!string.Equals(existing.Name.Trim(), filmName, StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, false, Conflict(existing.Id,
+                $"A film first created as '{filmName}' is now named '{existing.Name}'; attach to it by id or choose another name"));
+        }
+
+        logger.LogInformation(
+            "{method}: Film '{filmId}' '{name}' was created by another request; attaching to it.",
+            nameof(ResolveCreateConflict), existing.Id, existing.Name);
+        return (existing, false, null);
+    }
+
+    /// <summary>
+    /// The id of a film created by name: a name-based GUID (RFC 4122 version 5 layout over SHA-256) of the trimmed,
+    /// lower-case name, so every create of the same name targets the same document.
+    /// </summary>
+    internal static Guid NewFilmId(string filmName)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes("cultpodcasts:film-by-name:" + filmName.Trim().ToLowerInvariant()));
+        var id = bytes[..16];
+        id[6] = (byte)((id[6] & 0x0F) | 0x50);
+        id[8] = (byte)((id[8] & 0x3F) | 0x80);
+        return new Guid(id, bigEndian: true);
     }
 
     private static EpisodeTrailerAttachResult ToTrailerResult(EpisodeFilmMoveResult stop) => stop.Status switch

@@ -17,6 +17,12 @@ public interface IFilmRepository : IRepository<Film>, IFilterableRepository<Film
     Task<bool> TryReplace(Film film, string etag);
 
     /// <summary>
+    /// Creates the film only when no document has its id (Cosmos create, not upsert). False when one already does:
+    /// the caller re-reads it. Lets concurrent creates of the same deterministic id converge on one document.
+    /// </summary>
+    Task<bool> TryCreate(Film film);
+
+    /// <summary>
     /// Film ids whose <c>trailers[].id</c> equals <paramref name="trailerId"/>.
     /// Films are partitioned by their own id, so this reads across partitions.
     /// </summary>

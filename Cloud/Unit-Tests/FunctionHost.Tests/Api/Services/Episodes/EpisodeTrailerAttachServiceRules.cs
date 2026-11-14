@@ -47,6 +47,13 @@ public class EpisodeTrailerAttachServiceRules
     private readonly List<(Guid EpisodeId, string Path)> _redirects = [];
     private Func<WriteResult> _redirectResult = () => new WriteResult(true);
     private readonly List<Film> _createdFilms = [];
+    private int _createAttempts;
+    // Barriers: hold the first arriving call until the second arrives, so two attaches overlap at that step.
+    private TaskCompletionSource? _createGate;
+    private int _createArrivals;
+    private TaskCompletionSource? _nameLookupGate;
+    private int _nameLookupArrivals;
+    private Action<Film>? _afterCreate;
 
     public EpisodeTrailerAttachServiceRules()
     {
@@ -95,15 +102,13 @@ public class EpisodeTrailerAttachServiceRules
             });
         films
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
-            .Returns((Expression<Func<Film, bool>> selector) =>
-                _films.Keys.Select(id => Stored(id)!).Where(selector.Compile()).ToAsyncEnumerable());
+            .Returns((Expression<Func<Film, bool>> selector) => NameLookup(selector));
         films
-            .Setup(r => r.Save(It.IsAny<Film>()))
-            .Callback<Film>(film =>
-            {
-                _createdFilms.Add(film);
-                _films[film.Id] = (JsonSerializer.Serialize(film), 1);
-            })
+            .Setup(r => r.TryCreate(It.IsAny<Film>()))
+            .Returns((Film film) => TryCreate(film));
+        films
+            .Setup(r => r.Delete(It.IsAny<Guid>()))
+            .Callback<Guid>(id => _films.Remove(id))
             .Returns(Task.CompletedTask);
         _mocker.GetMock<IFileKeyAllocator>()
             .Setup(a => a.Allocate(FileKeyKind.Film, It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<string?>()))
@@ -138,6 +143,48 @@ public class EpisodeTrailerAttachServiceRules
         configure?.Invoke(film);
         _films[film.Id] = (JsonSerializer.Serialize(film), 1);
         return film;
+    }
+
+    /// <summary>Cosmos create: false when a document already has the id. Waits at <see cref="_createGate"/> when set.</summary>
+    private async Task<bool> TryCreate(Film film)
+    {
+        _createAttempts++;
+        await Arrive(_createGate, ref _createArrivals);
+        if (_films.ContainsKey(film.Id))
+        {
+            return false;
+        }
+
+        _createdFilms.Add(film);
+        _films[film.Id] = (JsonSerializer.Serialize(film), 1);
+        _afterCreate?.Invoke(film);
+        return true;
+    }
+
+    /// <summary>The query result is taken on arrival (before any barrier), as a Cosmos query already in flight.</summary>
+    private async IAsyncEnumerable<Film> NameLookup(Expression<Func<Film, bool>> selector)
+    {
+        var matches = _films.Keys.Select(id => Stored(id)!).Where(selector.Compile()).ToArray();
+        await Arrive(_nameLookupGate, ref _nameLookupArrivals);
+        foreach (var film in matches)
+        {
+            yield return film;
+        }
+    }
+
+    private static Task Arrive(TaskCompletionSource? gate, ref int arrivals)
+    {
+        if (gate is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (++arrivals == 2)
+        {
+            gate.TrySetResult();
+        }
+
+        return gate.Task;
     }
 
     private Film? Stored(Guid id) =>
@@ -640,6 +687,7 @@ public class EpisodeTrailerAttachServiceRules
         stored.Release.Should().BeNull();
         stored.Services.Should().BeNullOrEmpty();
         stored.FileKey.Should().Be($"allocated-{filmName.ToLowerInvariant()}");
+        stored.Id.Should().Be(EpisodeTrailerAttachService.NewFilmId(filmName));
         stored.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
         _uploads.Should().ContainSingle().Which.Should().ContainSingle().Which.Id.Should().Be(created.Id.ToString());
@@ -815,11 +863,151 @@ public class EpisodeTrailerAttachServiceRules
 
         // Assert
         first.Status.Should().Be(EpisodeTrailerAttachStatus.Failed);
+        first.FilmId.Should().Be(result.FilmId);
         result.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
         result.FilmCreated.Should().BeFalse();
         _createdFilms.Should().ContainSingle().Which.Id.Should().Be(result.FilmId!.Value);
         Stored(result.FilmId!.Value)!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "#1418: the new film is written once, by a conditional create that already holds the trailer, so no empty film is ever stored.")]
+    public async Task create_film_single_conditional_write_holds_trailer()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        Film? atCreate = null;
+        _afterCreate = film => atCreate = Stored(film.Id);
+
+        // Act
+        var result = await AttachCreating(podcast.Id, episode.Id, _fixture.CreateTitle());
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
+        atCreate!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
+        _createAttempts.Should().Be(1);
+        _filmSaves.Should().Be(0);
+        _mocker.GetMock<IFilmRepository>().Verify(r => r.Save(It.IsAny<Film>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "#1418: when the search push fails after the create, the new film still holds the trailer and the episode row is kept, so nothing is orphaned and a re-send resumes.")]
+    public async Task create_film_failure_after_create_leaves_film_with_trailer()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        _searchUploadSucceeds = false;
+
+        // Act
+        var result = await AttachCreating(podcast.Id, episode.Id, _fixture.CreateTitle());
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Failed);
+        result.FailureIndexing.Should().BeTrue();
+        Stored(result.FilmId!.Value)!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "#1418: two overlapping createFilm calls for the same name that both reach the create converge on one film with one trailer, and both are accepted.")]
+    public async Task create_film_overlapping_creates_converge_on_one_film()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var filmName = _fixture.CreateTitle();
+        _createGate = new TaskCompletionSource();
+
+        // Act
+        var results = await Task.WhenAll(
+            AttachCreating(podcast.Id, episode.Id, filmName),
+            AttachCreating(podcast.Id, episode.Id, filmName.ToUpperInvariant()));
+
+        // Assert
+        _createAttempts.Should().Be(2);
+        results.Should().OnlyContain(r => r.Status == EpisodeTrailerAttachStatus.Accepted);
+        results.Select(r => r.FilmId).Distinct().Should().ContainSingle();
+        results.Count(r => r.FilmCreated).Should().Be(1);
+        var film = _films.Keys.Select(Stored).Should().ContainSingle().Subject!;
+        film.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "#1418: when another call creates the film between this call's name query and its name check, this call attaches to that film instead of returning 409.")]
+    public async Task create_film_overlapping_name_checks_converge_on_one_film()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var filmName = _fixture.CreateTitle();
+        _nameLookupGate = new TaskCompletionSource();
+
+        // Act
+        var results = await Task.WhenAll(
+            AttachCreating(podcast.Id, episode.Id, filmName),
+            AttachCreating(podcast.Id, episode.Id, filmName));
+
+        // Assert
+        results.Should().OnlyContain(r => r.Status == EpisodeTrailerAttachStatus.Accepted);
+        results.Select(r => r.FilmId).Distinct().Should().ContainSingle();
+        _createdFilms.Should().ContainSingle();
+        _films.Keys.Select(Stored).Should().ContainSingle()
+            .Which!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
+    }
+
+    [Fact(DisplayName =
+        "#1418: when another film takes the episode as a trailer while the new film is created, the new film is deleted and the call returns 409 naming that film, so the episode has one owner.")]
+    public async Task create_film_trailer_taken_meanwhile_deletes_new_film()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        Film? other = null;
+        _afterCreate = _ => other = SeedFilm(film => film.Trailers = [FilmTrailerFactory.From(episode, null)!]);
+
+        // Act
+        var result = await AttachCreating(podcast.Id, episode.Id, _fixture.CreateTitle());
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Conflict);
+        result.FilmId.Should().Be(other!.Id);
+        _films.Keys.Should().Equal(other.Id);
+        _uploads.Should().BeEmpty();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "#1418: when the name's film id belongs to a film renamed since, the call returns 409 naming it and does not attach to it.")]
+    public async Task create_film_id_held_by_renamed_film_is_conflict()
+    {
+        // Arrange
+        var (podcast, episode) = SeedEpisode();
+        var filmName = _fixture.CreateTitle();
+        var renamed = SeedFilm(film => film.Id = EpisodeTrailerAttachService.NewFilmId(filmName));
+
+        // Act
+        var result = await AttachCreating(podcast.Id, episode.Id, filmName);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Conflict);
+        result.FilmId.Should().Be(renamed.Id);
+        Stored(renamed.Id)!.Trailers.Should().BeNullOrEmpty();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "#1418: the film id for a name ignores case and surrounding spaces, and differs between names.")]
+    public void new_film_id_is_derived_from_normalised_name()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+
+        // Act
+        var id = EpisodeTrailerAttachService.NewFilmId(name);
+
+        // Assert
+        EpisodeTrailerAttachService.NewFilmId($"  {name.ToUpperInvariant()} ").Should().Be(id);
+        EpisodeTrailerAttachService.NewFilmId(name + " 2").Should().NotBe(id);
+        id.ToString()[14].Should().Be('5');
     }
 
     [Fact(DisplayName =

@@ -87,6 +87,12 @@ Move to TV show's `createShow` works:
 - The film has no release, services or video. Search holds release `0001-01-01` for it (as for any playable with no
   release), the social-post and homepage release windows skip it, and the website shows no date. The curator adds the
   release and the main video later with the film edit.
+- The new film is written once, already holding the trailer, by a conditional create (`IFilmRepository.TryCreate`,
+  Cosmos create rather than upsert) under an id derived from the trimmed, lower-case name. Overlapping creates of the
+  same name converge on that one document (the loser re-reads it and resumes), and no empty film is ever stored: a
+  later failure leaves the film holding the trailer with the episode row kept. A film that took the same episode
+  while this one was created wins; the new film is deleted and the call is a 409. If the name's id belongs to a film
+  renamed since, the call is a 409 naming it.
 - A re-send finds the film by its trailer or its name, so the film is never created twice. `filmCreated: true` on the
   `202` says this call created it.
 
