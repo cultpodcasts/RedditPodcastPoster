@@ -5,12 +5,15 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace Api.Handlers.Catalogue;
 
 /// <summary>
 /// Maps a TV show / news organisation index to HTTP the way <c>IndexPodcastHandler</c> does: 200 with the indexed item
-/// ids and search state, 404 not found, 400 not indexable (body says why), 409 ambiguous name (body is the ids), 504
+/// ids and search state (<c>enrichOnly</c> when only Spotify / Apple links were filled in), 404 not found, 400 not
+/// indexable (<c>Removed</c>, <c>NotAutoIndexed</c>, <c>SourcePodcastStillExists</c>) or <c>NothingToEnrich</c> (body
+/// says why), 409 ambiguous name (body is the ids), 504
 /// <c>{ reason: "TimedOut" }</c> when the on-demand time budget cut it off (not a fault, so not a 500), and 500 when
 /// the index failed.
 /// </summary>
@@ -34,7 +37,8 @@ public class CatalogueIndexHandler(
                 return await ctx.Ok(new CatalogueIndexResponse
                 {
                     IndexedItemIds = result.IndexedIds?.ToArray() ?? [],
-                    SearchIndexerState = result.SearchIndexer?.ToDto() ?? SearchIndexerState.Unknown
+                    SearchIndexerState = result.SearchIndexer?.ToDto() ?? SearchIndexerState.Unknown,
+                    EnrichOnly = result.EnrichOnly
                 }, c);
             case CatalogueIndexStatus.NotFound:
                 return ctx.NotFound();
@@ -42,9 +46,25 @@ public class CatalogueIndexHandler(
                 return await ctx.Conflict(result.AmbiguousIds, c);
             case CatalogueIndexStatus.Conflict:
                 return ctx.Conflict();
+            case CatalogueIndexStatus.NotIndexable
+                when result.NotIndexableReason == CatalogueParentNotIndexableReason.Removed:
+                return await ctx.BadRequest(new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.Removed,
+                    Message = CatalogueIndexRejection.RemovedMessage
+                }, c);
             case CatalogueIndexStatus.NotIndexable:
-                return await ctx.BadRequest(
-                    new CatalogueIndexRejection { Reason = CatalogueIndexRejection.NotAutoIndexed }, c);
+                return await ctx.BadRequest(new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.NotAutoIndexed,
+                    Message = CatalogueIndexRejection.NotAutoIndexedMessage
+                }, c);
+            case CatalogueIndexStatus.NothingToEnrich:
+                return await ctx.BadRequest(new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.NothingToEnrich,
+                    Message = CatalogueIndexRejection.NothingToEnrichMessage
+                }, c);
             case CatalogueIndexStatus.SourcePodcastStillExists:
                 return await ctx.BadRequest(
                     new CatalogueIndexRejection { Reason = CatalogueIndexRejection.SourcePodcastStillExists }, c);

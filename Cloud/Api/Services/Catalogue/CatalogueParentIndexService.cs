@@ -17,7 +17,8 @@ namespace Api.Services.Catalogue;
 /// than one is Conflict with the candidate ids.</item>
 /// <item>Index it now with <see cref="ICatalogueParentsUpdater.IndexParent"/> (the hourly indexer's discovery, merge,
 /// filters, time budget and indexer-state patch) using the curator indexing context: every resolver and expensive
-/// query on, no YouTube indexing hints.</item>
+/// query on, no YouTube indexing hints. A parent that is not auto-indexed but has a Spotify or Apple id gets an
+/// enrich-only pass instead (#1400): Spotify / Apple links only.</item>
 /// <item>Push the saved items to search straight away (<see cref="CataloguePlayableSearchSync.AfterIndex"/>).</item>
 /// </list>
 /// Like the podcast index it can run at any time, including during the hourly pass. The index runs on its own bounded
@@ -81,9 +82,12 @@ public class CatalogueParentIndexService(
                 case CatalogueParentIndexStatus.Indexed:
                     var search = await searchSync.AfterIndex(entity, result.Changed, cancellationToken);
                     return new CatalogueIndexResult(CatalogueIndexStatus.Ok,
-                        result.Changed.Select(x => x.Id).ToArray(), search);
+                        result.Changed.Select(x => x.Id).ToArray(), search, EnrichOnly: result.EnrichOnly);
                 case CatalogueParentIndexStatus.NotIndexable:
-                    return new CatalogueIndexResult(CatalogueIndexStatus.NotIndexable);
+                    return new CatalogueIndexResult(CatalogueIndexStatus.NotIndexable,
+                        NotIndexableReason: result.NotIndexableReason);
+                case CatalogueParentIndexStatus.NothingToEnrich:
+                    return new CatalogueIndexResult(CatalogueIndexStatus.NothingToEnrich);
                 case CatalogueParentIndexStatus.SourcePodcastStillExists:
                     return new CatalogueIndexResult(CatalogueIndexStatus.SourcePodcastStillExists);
                 case CatalogueParentIndexStatus.TimedOut:

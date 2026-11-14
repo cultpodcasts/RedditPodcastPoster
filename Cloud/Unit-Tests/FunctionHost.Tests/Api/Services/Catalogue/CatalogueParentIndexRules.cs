@@ -203,11 +203,13 @@ public class CatalogueParentIndexRules
 
     [Theory(DisplayName =
         "A refused, busy, or timed-out index maps to its status and nothing is pushed to search: NotIndexable, " +
-        "SourcePodcastStillExists, AlreadyRunning (409), and TimedOut (what was saved is not known at the cut).")]
+        "SourcePodcastStillExists, AlreadyRunning (409), TimedOut (what was saved is not known at the cut), and " +
+        "NothingToEnrich (an enrich-only pass that filled no link, #1400).")]
     [InlineData(CatalogueParentIndexStatus.NotIndexable, CatalogueIndexStatus.NotIndexable)]
     [InlineData(CatalogueParentIndexStatus.SourcePodcastStillExists, CatalogueIndexStatus.SourcePodcastStillExists)]
     [InlineData(CatalogueParentIndexStatus.TimedOut, CatalogueIndexStatus.TimedOut)]
     [InlineData(CatalogueParentIndexStatus.AlreadyRunning, CatalogueIndexStatus.AlreadyRunning)]
+    [InlineData(CatalogueParentIndexStatus.NothingToEnrich, CatalogueIndexStatus.NothingToEnrich)]
     public async Task refused_index_maps_status(CatalogueParentIndexStatus indexStatus, CatalogueIndexStatus expected)
     {
         // Arrange
@@ -220,6 +222,47 @@ public class CatalogueParentIndexRules
         // Assert
         result.Status.Should().Be(expected);
         _uploaded.Should().BeEmpty();
+    }
+
+    [Theory(DisplayName =
+        "When the parent is not indexable, the reason (Removed or NotAutoIndexed) is passed through, because the hub " +
+        "page tells the curator why (#1400).")]
+    [InlineData(CatalogueParentNotIndexableReason.Removed)]
+    [InlineData(CatalogueParentNotIndexableReason.NotAutoIndexed)]
+    public async Task not_indexable_passes_reason_through(CatalogueParentNotIndexableReason reason)
+    {
+        // Arrange
+        var organisation = SeedOrganisation();
+        _indexResult = new CatalogueParentIndexResult(CatalogueParentIndexStatus.NotIndexable, NotIndexableReason: reason);
+
+        // Act
+        var result = await Sut.IndexNewsOrganisation(organisation.Name, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(CatalogueIndexStatus.NotIndexable);
+        result.NotIndexableReason.Should().Be(reason);
+        _uploaded.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When an enrich-only pass fills Spotify / Apple links on a news organisation that is not auto-indexed, the " +
+        "result is Ok with EnrichOnly set and the enriched reports pushed to search, because the hub page reports " +
+        "how many links were filled (#1400).")]
+    public async Task enrich_only_index_is_ok_and_flags_enrich_only()
+    {
+        // Arrange
+        var organisation = SeedOrganisation();
+        var report = ReportUnder(organisation);
+        _indexResult = new CatalogueParentIndexResult(CatalogueParentIndexStatus.Indexed, [report], EnrichOnly: true);
+
+        // Act
+        var result = await Sut.IndexNewsOrganisation(organisation.Name, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(CatalogueIndexStatus.Ok);
+        result.EnrichOnly.Should().BeTrue();
+        result.IndexedIds.Should().Equal(report.Id);
+        _uploaded.Should().ContainSingle().Which.Id.Should().Be(report.Id.ToString());
     }
 
     [Fact(DisplayName =

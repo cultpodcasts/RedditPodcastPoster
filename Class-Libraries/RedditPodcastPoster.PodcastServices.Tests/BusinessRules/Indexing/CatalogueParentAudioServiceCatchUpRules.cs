@@ -55,6 +55,7 @@ public class CatalogueParentAudioServiceCatchUpRules
     private Action<IReadOnlyList<Episode>> _onMerge = _ => { };
     private readonly List<(Episode Existing, Episode NewDetails)> _merged = [];
     private readonly SteppingTimeProvider _clock = new(DateTime.UtcNow);
+    private readonly List<CatalogueParentIndexerPatch> _organisationPatches = [];
 
     public CatalogueParentAudioServiceCatchUpRules()
     {
@@ -68,6 +69,7 @@ public class CatalogueParentAudioServiceCatchUpRules
         organisations.Setup(x => x.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
             .Returns(() => _organisations.Values.ToAsyncEnumerable());
         organisations.Setup(x => x.PatchIndexerState(It.IsAny<Guid>(), It.IsAny<CatalogueParentIndexerPatch>()))
+            .Callback((Guid _, CatalogueParentIndexerPatch patch) => _organisationPatches.Add(patch))
             .ReturnsAsync(true);
         var tvShows = _mocker.GetMock<ITvShowRepository>();
         tvShows.Setup(x => x.GetTvShow(It.IsAny<Guid>()))
@@ -672,5 +674,166 @@ public class CatalogueParentAudioServiceCatchUpRules
 
         public override long GetTimestamp() =>
             _startTimestamp + (long)(_offset.TotalSeconds * TimestampFrequency);
+    }
+
+    /// <summary>A news organisation that is not auto-indexed (index-all off, no title regex), like 427 live outlets.</summary>
+    private (NewsOrganisation Organisation, Podcast Podcast) SeedNotAutoIndexedOrganisation(
+        bool spotifyShow = true, bool applePodcast = true)
+    {
+        var podcast = ParentPodcast(spotifyShow, applePodcast);
+        podcast.IndexAllEpisodes = false;
+        podcast.EpisodeIncludeTitleRegex = string.Empty;
+        return SeedOrganisation(podcast);
+    }
+
+    /// <summary>The curator on-demand context: a short window, every resolver on.</summary>
+    private static IndexingContext OnDemand() => new(DomainTestFixture.UtcDateDaysAgo(3));
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): when a curator indexes a news organisation that is not auto-indexed but has a " +
+        "Spotify show, and a recent report has no Spotify link, then Spotify is looked up and the report is saved with " +
+        "the link, the result is Indexed and EnrichOnly with that report, and discovery never runs, because the outlet " +
+        "must not be discovered but its links can still be filled.")]
+    public async Task on_demand_enrich_only_fills_missing_spotify_without_discovery()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedNotAutoIndexedOrganisation(applePodcast: false);
+        var report = StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(1));
+        _storedReports = [report];
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(FullLength))];
+        var spotifyId = _fixture.CreateSpotifyId();
+        SpotifyFinds(spotifyId);
+
+        // Act
+        var result = await Sut.IndexParent(organisation, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        result.EnrichOnly.Should().BeTrue();
+        result.Changed.Should().ContainSingle().Which.Id.Should().Be(report.Id);
+        _spotifyCalls.Should().ContainSingle().Which.EpisodeId.Should().Be(report.Id);
+        var saved = _savedReports.Should().ContainSingle().Subject;
+        saved.Services![ServiceKeys.Spotify].Url.Should().Be(_fixture.DefaultSpotifyUrl(spotifyId));
+        _mocker.GetMock<IEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
+            Times.Never);
+        _mocker.GetMock<IEpisodeMerger>().Verify(
+            x => x.MergeEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IEnumerable<Episode>>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): lastIndexed, latestReleased and indexing are not patched and elimination terms " +
+        "do not run, because an enrich-only pass did not index the outlet and must leave indexAllEpisodes as stored.")]
+    public async Task on_demand_enrich_only_leaves_indexer_state_alone()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedNotAutoIndexedOrganisation();
+        var lastIndexedBefore = organisation.LastIndexed;
+        var report = StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(1));
+        _storedReports = [report];
+        SpotifyFinds(_fixture.CreateSpotifyId());
+        AppleFinds(_fixture.CreateAppleId());
+
+        // Act
+        var result = await Sut.IndexParent(organisation, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        _organisationPatches.Should().BeEmpty();
+        organisation.LastIndexed.Should().Be(lastIndexedBefore);
+        organisation.Indexing!.IndexAllEpisodes.Should().BeFalse();
+        _mocker.GetMock<IPodcastFilter>().Verify(
+            x => x.Filter(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<List<string>>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): when no recent report gains a Spotify or Apple link, then the result is " +
+        "NothingToEnrich and nothing is saved or patched, because the curator must hear that nothing was filled.")]
+    public async Task on_demand_enrich_only_with_no_match_is_nothing_to_enrich()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedNotAutoIndexedOrganisation();
+        _storedReports = [StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(1))];
+
+        // Act
+        var result = await Sut.IndexParent(organisation, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.NothingToEnrich);
+        result.EnrichOnly.Should().BeTrue();
+        result.Changed.Should().BeEmpty();
+        _spotifyCalls.Should().ContainSingle();
+        _appleCalls.Should().ContainSingle();
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): when every recent report already has its Spotify and Apple links, then no " +
+        "lookup is made and the result is NothingToEnrich, because there is nothing missing to fill.")]
+    public async Task on_demand_enrich_only_with_nothing_missing_makes_no_lookup()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedNotAutoIndexedOrganisation(applePodcast: false);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, DomainTestFixture.UtcDateDaysAgo(1), FullLength);
+        var ownSpotifyId = _fixture.CreateSpotifyId();
+        EpisodeServicePresence.SetSpotifyIdentity(episode, ownSpotifyId);
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, _fixture.DefaultSpotifyUrl(ownSpotifyId), null);
+        _storedReports = [CatalogueParentKindMapper.ToNewsReport(episode, organisation)];
+
+        // Act
+        var result = await Sut.IndexParent(organisation, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.NothingToEnrich);
+        _spotifyCalls.Should().BeEmpty();
+        _appleCalls.Should().BeEmpty();
+        _savedReports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): a TV show that is not auto-indexed but has an Apple podcast id gets the same " +
+        "enrich-only pass, so its missing Apple link is filled and the result is EnrichOnly.")]
+    public async Task on_demand_enrich_only_applies_to_tv_shows()
+    {
+        // Arrange
+        var podcast = ParentPodcast(spotifyShow: false, applePodcast: true);
+        podcast.IndexAllEpisodes = false;
+        var show = CatalogueParentKindMapper.ToTvShow(podcast);
+        _shows[show.Id] = show;
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast, DomainTestFixture.UtcDateDaysAgo(1), FullLength);
+        var stored = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
+        _storedTvEpisodes = [stored];
+        AppleFinds(_fixture.CreateAppleId());
+
+        // Act
+        var result = await Sut.IndexParent(show, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        result.EnrichOnly.Should().BeTrue();
+        result.Changed.Should().ContainSingle().Which.Id.Should().Be(stored.Id);
+        _savedTvEpisodes.Should().ContainSingle().Which.Services.Should().ContainKey(ServiceKeys.Apple);
+    }
+
+    [Fact(DisplayName =
+        "On-demand index of an auto-indexed news organisation is unchanged by #1400: discovery runs and the result is " +
+        "not EnrichOnly.")]
+    public async Task on_demand_auto_indexed_is_not_enrich_only()
+    {
+        // Arrange
+        var (organisation, _) = SeedOrganisation(ParentPodcast());
+
+        // Act
+        var result = await Sut.IndexParent(organisation, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        result.EnrichOnly.Should().BeFalse();
+        _mocker.GetMock<IEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
+            Times.AtLeastOnce);
     }
 }
