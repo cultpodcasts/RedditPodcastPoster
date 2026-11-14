@@ -10,6 +10,8 @@
 # (user cultpodcasts project 1) back on In Progress (Ready For Review means the
 # PRs are ready to merge). Any incomplete lookup (GraphQL, search, PR fetch) fails
 # the job, never a silent "no companions"; the job summary says what was decided.
+# Before each side effect the live issue and companion PR states are re-read; the
+# comment goes before the reopen; a closed issue's card is never moved off Done.
 #
 # Convention: cross-repo PRs say `Closes cultpodcasts/<repo>#N` so they show under
 # the issue's Development panel.
@@ -36,6 +38,14 @@ permissions:
   issues: write
   pull-requests: read
   contents: read
+
+# Serialise runs per issue (#1425): rapid merges close the issue several times in
+# seconds. cancel-in-progress is false so a running reopen is never killed half-way;
+# GitHub keeps at most one pending run per group (a newer one replaces an older
+# pending one), which is safe because every run re-reads live issue/PR state.
+concurrency:
+  group: issue-close-sibling-guard-${{ github.repository }}-${{ github.event.issue.number }}
+  cancel-in-progress: false
 
 jobs:
   reopen-if-siblings-open:

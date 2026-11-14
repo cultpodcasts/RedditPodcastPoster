@@ -19,22 +19,30 @@ function item(status, { owner = 'cultpodcasts', number = 1 } = {}) {
   };
 }
 // Fake board: `status` is the card's Status; `automationDoneBeforeRead` lists read
-// indices before which the board's "Item closed" automation sets Done (late landing).
-function fakeBoard(initial, automationDoneBeforeRead = []) {
+// indices before which the board's "Item closed" automation sets Done (late landing);
+// `closedBeforeRead` lists read indices before which a newer merge closes the issue
+// again (the automation then also sets Done). `issueState` is what the board query
+// sees for the issue (OPEN after the guard reopened it).
+function fakeBoard(initial, automationDoneBeforeRead = [], { issueState = 'OPEN', closedBeforeRead = [] } = {}) {
   let status = initial;
+  let state = issueState;
   let reads = 0;
   const writes = [];
   const graphql = async (q, vars) => {
     if (q.includes('updateProjectV2ItemFieldValue')) {
       writes.push(vars);
-      status = 'In Progress';
+      status = OPTIONS.find((o) => o.id === vars.option).name;
       return {};
     }
     if (automationDoneBeforeRead.includes(reads)) status = 'Done';
+    if (closedBeforeRead.includes(reads)) {
+      state = 'CLOSED';
+      status = 'Done';
+    }
     reads++;
-    return { repository: { issue: { projectItems: { nodes: [item(status)] } } } };
+    return { repository: { issue: { state, projectItems: { nodes: [item(status)] } } } };
   };
-  return { graphql, writes };
+  return { graphql, writes, get status() { return status; } };
 }
 const noSleep = async () => {};
 
@@ -86,8 +94,12 @@ function pr(repo, number, state, body = '', title = `t${number}`) {
 }
 // Fake GitHub. `nodes` = Development links; `timeline` = pages of PRs from cross-reference events;
 // `search` = { [repoName]: [{ number }] } hits; `pulls` = live PR (state/title/body) for search hits.
-function harness({ nodes, projectToken, board, omitGetOctokit = false, timeline = [[]], search = {}, pulls = {}, graphqlError, searchError, repo = 'Api', number = 244 }) {
-  const calls = { update: [], comment: [], warn: [], graphql: [], search: [], summary: [] };
+// `issueStates`: successive live issue states from issues.get (last repeats).
+// `pulls[repo#n]`: a live PR, or an array of successive live PRs (last repeats); a
+// companion with no entry reads as open. `searchTotal`: override search total_count.
+function harness({ nodes, projectToken, board, omitGetOctokit = false, timeline = [[]], search = {}, pulls = {}, graphqlError, searchError, searchTotal, repo = 'Api', number = 244, issueStates = ['closed'] }) {
+  const calls = { update: [], comment: [], warn: [], graphql: [], search: [], summary: [], order: [], editComment: [], issueGets: 0 };
+  const pullReads = {};
   const github = {
     graphql: async (q, vars) => {
       calls.graphql.push(vars);
@@ -108,19 +120,42 @@ function harness({ nodes, projectToken, board, omitGetOctokit = false, timeline 
     },
     rest: {
       issues: {
-        update: async (a) => calls.update.push(a),
-        createComment: async (a) => calls.comment.push(a),
+        get: async () => {
+          const st = issueStates[Math.min(calls.issueGets, issueStates.length - 1)];
+          calls.issueGets++;
+          return { data: { state: st } };
+        },
+        update: async (a) => {
+          calls.update.push(a);
+          calls.order.push(a.state === 'open' ? 'reopen' : 'close');
+        },
+        createComment: async (a) => {
+          calls.comment.push(a);
+          calls.order.push('comment');
+          return { data: { id: 900 + calls.comment.length } };
+        },
+        updateComment: async (a) => {
+          calls.editComment.push(a);
+          calls.order.push('editComment');
+        },
       },
       search: {
         issuesAndPullRequests: async ({ q }) => {
           calls.search.push(q);
           const r = q.match(/^repo:cultpodcasts\/(\S+)/)[1];
           if (searchError && searchError.repo === r) throw new Error(searchError.message);
-          return { data: { incomplete_results: false, items: (search[r] ?? []).map((i) => ({ ...i, pull_request: {} })) } };
+          const items = (search[r] ?? []).map((i) => ({ ...i, pull_request: {} }));
+          return { data: { incomplete_results: false, total_count: searchTotal?.[r] ?? items.length, items } };
         },
       },
       pulls: {
-        get: async ({ repo: r, pull_number }) => ({ data: pulls[`${r}#${pull_number}`] }),
+        get: async ({ repo: r, pull_number }) => {
+          const key = `${r}#${pull_number}`;
+          const v = pulls[key];
+          const n = (pullReads[key] = (pullReads[key] ?? 0) + 1) - 1;
+          const live = Array.isArray(v) ? v[Math.min(n, v.length - 1)] : v;
+          return { data: live ?? { number: pull_number, state: 'open', merged_at: null, html_url: `u${pull_number}`, title: `t${pull_number}`, body: '' } };
+        },
       },
     },
   };
@@ -151,18 +186,19 @@ test('run: Api#244 scenario reopens and restores board via PROJECT_TOKEN', async
   assert.equal(h.calls.update[0].state, 'open');
   assert.equal(board.writes.length, 1);
   assert.match(h.calls.comment[0].body, /cultpodcasts\/Api#247/);
-  assert.match(h.calls.comment[0].body, /restored to \*\*In Progress\*\*/);
+  assert.equal(h.calls.comment.length, 1, 'no board warning comment when the card was restored');
+  assert.equal(board.status, 'In Progress');
   assert.equal(h.calls.warn.length, 0);
 });
 
 test('run: missing PROJECT_TOKEN reopens but warns loudly in job and comment', async () => {
   const board = fakeBoard('Done');
-  const h = harness({ nodes: OPEN_247, projectToken: '', board });
+  const h = harness({ nodes: OPEN_247, projectToken: '', board, issueStates: ['closed', 'closed', 'open'] });
   await g.run(h.args);
   assert.equal(h.calls.update.length, 1);
   assert.equal(board.writes.length, 0);
   assert.match(h.calls.warn[0], /PROJECT_TOKEN secret is not set/);
-  assert.match(h.calls.comment[0].body, /NOT restored/);
+  assert.match(h.calls.comment[1].body, /NOT restored/);
 });
 
 test('run: no open companions -> leaves closed', async () => {
@@ -176,14 +212,14 @@ test('run: no open companions -> leaves closed', async () => {
 
 test('run: getOctokit missing (github-script < v9) still reopens and comments, warns about board', async () => {
   const board = fakeBoard('Done');
-  const h = harness({ nodes: OPEN_247, projectToken: 'pat', board, omitGetOctokit: true });
+  const h = harness({ nodes: OPEN_247, projectToken: 'pat', board, omitGetOctokit: true, issueStates: ['closed', 'closed', 'open'] });
   const r = await g.run(h.args);
   assert.equal(r.reopened, true);
   assert.equal(h.calls.update.length, 1);
   assert.equal(h.calls.update[0].state, 'open');
   assert.equal(board.writes.length, 0);
   assert.match(h.calls.warn[0], /getOctokit is not available/);
-  assert.match(h.calls.comment[0].body, /NOT restored \(getOctokit is not available/);
+  assert.match(h.calls.comment[1].body, /NOT restored \(getOctokit is not available/);
 });
 
 // cultpodcasts/RedditPodcastPoster#1394: on actions/github-script v7/v8 `getOctokit`
@@ -368,4 +404,143 @@ test('run: GraphQL failure rejects (job fails visibly) instead of leaving the is
   const h = harness({ nodes: [], graphqlError: 'Resource not accessible', projectToken: 'pat', board });
   await assert.rejects(() => g.run(h.args), /Resource not accessible/);
   assert.equal(h.calls.update.length, 0);
+});
+
+// ---- cultpodcasts/RedditPodcastPoster#1425: rapid multi-PR merges race ----
+
+const ISSUE_1423 = { repo: 'RedditPodcastPoster', number: 1423, projectToken: 'pat' };
+const COMPANIONS_1423 = [pr(RPP, 1424, 'MERGED'), pr('cultpodcasts/Api', 260, 'OPEN'), pr('cultpodcasts/website', 668, 'OPEN')];
+const MERGED = (n) => ({ number: n, state: 'closed', merged_at: '2026-11-14T20:54:33Z', html_url: `u${n}`, title: `t${n}`, body: '' });
+
+test('workflow: runs are serialised per issue without cancelling an in-progress run', () => {
+  const yml = fs.readFileSync(path.join(__dirname, '..', 'workflows', 'issue-close-sibling-guard.yml'), 'utf8');
+  assert.match(yml, /concurrency:\s*\n\s*group:\s*issue-close-sibling-guard-\$\{\{\s*github\.repository\s*\}\}-\$\{\{\s*github\.event\.issue\.number\s*\}\}/);
+  assert.match(yml, /cancel-in-progress:\s*false/);
+});
+
+test('run: issue already reopened by an earlier (serialised) run -> no side effects', async () => {
+  const board = fakeBoard('In Progress');
+  const h = harness({ ...ISSUE_1423, board, nodes: COMPANIONS_1423, issueStates: ['open'] });
+  const r = await g.run(h.args);
+  assert.equal(r.skipped, 'issue-open');
+  assert.deepEqual(h.calls.order, []);
+  assert.equal(board.writes.length, 0);
+});
+
+test('run: comment is posted before the reopen and lists only live-open companions', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({ ...ISSUE_1423, board, nodes: COMPANIONS_1423, pulls: { 'Api#260': MERGED(260) } });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, true);
+  assert.deepEqual(h.calls.order, ['comment', 'reopen']);
+  assert.doesNotMatch(h.calls.comment[0].body, /Api#260/, 'Api#260 merged after the lookup; not listed');
+  assert.match(h.calls.comment[0].body, /cultpodcasts\/website#668/);
+});
+
+test('run: every companion merged after the lookup -> no comment, no reopen (the newer close is final)', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({ ...ISSUE_1423, board, nodes: COMPANIONS_1423, pulls: { 'Api#260': MERGED(260), 'website#668': MERGED(668) } });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, false);
+  assert.deepEqual(h.calls.order, []);
+  assert.equal(board.writes.length, 0);
+});
+
+test('run: issue reopened by someone else between lookup and side effects -> skip', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({ ...ISSUE_1423, board, nodes: COMPANIONS_1423, issueStates: ['closed', 'open'] });
+  const r = await g.run(h.args);
+  assert.equal(r.skipped, 'issue-open');
+  assert.deepEqual(h.calls.order, []);
+});
+
+test('run: companion merges between the comment and the reopen -> issue closed again, comment updated', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({
+    ...ISSUE_1423,
+    board,
+    nodes: [pr(RPP, 1424, 'MERGED'), pr('cultpodcasts/website', 668, 'OPEN')],
+    // read 1: lookup-time recheck (open); read 2: after the reopen (merged)
+    pulls: { 'website#668': [{ number: 668, state: 'open', merged_at: null, html_url: 'u', title: 't', body: '' }, MERGED(668)] },
+  });
+  const r = await g.run(h.args);
+  assert.equal(r.reclosed, true);
+  assert.deepEqual(h.calls.order, ['comment', 'reopen', 'close', 'editComment']);
+  assert.equal(h.calls.update[1].state_reason, 'completed');
+  assert.match(h.calls.editComment[0].body, /closed again/);
+  assert.equal(board.writes.length, 0, 'card never moved off Done');
+});
+
+test('board: a newer merge closes the issue during the restore loop -> stop and put the card back on Done', async () => {
+  // read0: OPEN/Done -> write In Progress; read1: newer merge closed it (automation set Done) -> stop, no write
+  const board = fakeBoard('Done', [], { closedBeforeRead: [1] });
+  const r = await g.restoreBoardStatus({ graphql: board.graphql, owner: 'cultpodcasts', repo: 'RedditPodcastPoster', number: 1423, sleep: noSleep });
+  assert.equal(r.restored, false);
+  assert.equal(r.closedAgain, true);
+  assert.equal(board.status, 'Done');
+  assert.equal(board.writes.length, 1, 'only the first In Progress write; never re-asserted on a closed issue');
+});
+
+test('board: closed issue whose card a late write left on In Progress is moved back to Done', async () => {
+  const board = fakeBoard('In Progress', [], { issueState: 'CLOSED' });
+  const r = await g.restoreBoardStatus({ graphql: board.graphql, owner: 'cultpodcasts', repo: 'RedditPodcastPoster', number: 1423, sleep: noSleep });
+  assert.equal(r.closedAgain, true);
+  assert.equal(board.status, 'Done');
+  assert.deepEqual(board.writes.map((w) => w.option), ['done']);
+});
+
+test('board: closed issue on Done is never written', async () => {
+  const board = fakeBoard('Done', [], { issueState: 'CLOSED' });
+  await g.restoreBoardStatus({ graphql: board.graphql, owner: 'cultpodcasts', repo: 'RedditPodcastPoster', number: 1423, sleep: noSleep });
+  assert.equal(board.writes.length, 0);
+});
+
+test('run: final close with no open companions settles a stray In Progress card to Done (the #1423 card)', async () => {
+  const board = fakeBoard('In Progress', [], { issueState: 'CLOSED' });
+  const h = harness({ ...ISSUE_1423, board, nodes: [pr(RPP, 1424, 'MERGED'), pr('cultpodcasts/Api', 260, 'MERGED'), pr('cultpodcasts/website', 668, 'MERGED')] });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, false);
+  assert.equal(r.settled, true);
+  assert.equal(board.status, 'Done');
+  assert.deepEqual(h.calls.order, []);
+});
+
+test('run: final close leaves a Ready For Review / Todo card alone (only stray In Progress is corrected)', async () => {
+  const board = fakeBoard('Ready For Review', [], { issueState: 'CLOSED' });
+  const h = harness({ ...ISSUE_1423, board, nodes: [] });
+  const r = await g.run(h.args);
+  assert.equal(r.settled, false);
+  assert.equal(board.writes.length, 0);
+});
+
+test('run: #1423 replay - three merges, each run sees live state; no stale comment after the final close', async () => {
+  // Run for the LAST close (website#668 merged): every companion is merged live.
+  const board = fakeBoard('In Progress', [], { issueState: 'CLOSED' });
+  const h = harness({
+    ...ISSUE_1423,
+    board,
+    // the lookup can still be stale (Development link says OPEN) ...
+    nodes: [pr(RPP, 1424, 'MERGED'), pr('cultpodcasts/Api', 260, 'OPEN'), pr('cultpodcasts/website', 668, 'OPEN')],
+    // ... but the live re-check right before side effects says merged
+    pulls: { 'Api#260': MERGED(260), 'website#668': MERGED(668) },
+  });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, false);
+  assert.deepEqual(h.calls.order, [], 'no comment, no reopen');
+  assert.equal(board.status, 'Done');
+});
+
+test('search: total_count above the results read fails loudly', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({ ...RPP_H, board, nodes: [], search: { Api: [{ number: 1 }] }, searchTotal: { Api: 101 }, pulls: { 'Api#1': livePr(1, '') } });
+  await assert.rejects(() => g.run(h.args), /cultpodcasts\/Api: search matched 101 PRs but only 1 were read/);
+  assert.deepEqual(h.calls.order, []);
+});
+
+test('run: board warning comment is skipped when the issue was closed again meanwhile', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({ nodes: OPEN_247, projectToken: '', board, issueStates: ['closed', 'closed', 'closed'] });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, true);
+  assert.deepEqual(h.calls.order, ['comment', 'reopen'], 'no late "NOT restored" comment on a re-closed issue');
 });

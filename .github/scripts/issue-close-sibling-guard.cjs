@@ -20,8 +20,21 @@
 // they were neither linked nor counted. Convention now: every companion says
 // `Closes ...#N` (so it is linked under Development); (2) only covers link lag.
 //
-// Fail loud: any lookup that cannot complete (GraphQL, search, PR fetch) throws, so
-// the job fails instead of reporting a green "no companions".
+// Fail loud: any lookup that cannot complete (GraphQL, search, PR fetch, a search
+// with more hits than were read) throws, so the job fails instead of reporting a
+// green "no companions".
+//
+// Races (cultpodcasts/RedditPodcastPoster#1425: three merges ~35 s apart left stale
+// reopen comments after the final close and a closed issue's card on In Progress):
+// - the workflow serialises runs per issue (concurrency group, no cancel-in-progress);
+// - every side effect is preceded by a LIVE re-check of the issue state and of each
+//   companion PR's state; the run skips when the issue is already open again, or
+//   when every companion has merged since (a newer close is then final);
+// - the comment is posted BEFORE the reopen, so it never lists a PR that had merged
+//   by the time the issue reopened; if a companion merges in the gap the issue is
+//   re-closed straight away;
+// - the board card is only ever moved to In Progress while the issue is open, and a
+//   closed issue's card is never moved off Done (a stray In Progress is put back).
 //
 // Board writes need PROJECT_TOKEN (classic PAT with `project` scope): the
 // repo-scoped GITHUB_TOKEN cannot see user-owned Projects V2
@@ -33,6 +46,7 @@ const BOARD_OWNER = 'cultpodcasts';
 const BOARD_NUMBER = 1;
 const STATUS_FIELD = 'Status';
 const RESTORE_STATUS = 'In Progress';
+const DONE_STATUS = 'Done';
 const TRIO = ['RedditPodcastPoster', 'Api', 'website'];
 
 function escapeRegExp(t) {
@@ -85,7 +99,7 @@ function pickBoardItem(projectItems, owner = BOARD_OWNER, number = BOARD_NUMBER)
   );
 }
 
-function buildComment(companions, board) {
+function buildComment(companions, board = {}) {
   const list = companions.map((p) => `- ${p.repo}#${p.number}: ${p.title} — ${p.url}`).join('\n');
   let boardLine;
   if (board.restored) {
@@ -96,7 +110,7 @@ function buildComment(companions, board) {
     boardLine = '';
   }
   return (
-    `Reopened automatically: this was closed while **open PR(s)** for it remain:\n\n` +
+    `Reopening automatically: this was closed while **open PR(s)** for it remain:\n\n` +
     `${list}\n\n` +
     `A ticket with PRs in several repos stays open until ALL of its PRs are merged (or unlinked). ` +
     `Every PR for a ticket says \`Closes #N\` (same repo) or \`Closes <owner>/<repo>#N\` (other repo) so it shows under Development; this guard undoes premature closes.` +
@@ -108,6 +122,7 @@ const ITEMS_QUERY = `
   query($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       issue(number: $number) {
+        state
         projectItems(first: 20, includeArchived: true) {
           nodes {
             id
@@ -138,32 +153,60 @@ const SET_STATUS = `
   }
 `;
 
+function boardContext(res) {
+  const issue = res.repository?.issue;
+  const item = pickBoardItem(issue?.projectItems?.nodes);
+  if (!item) return { error: `issue is not on ${BOARD_OWNER} project ${BOARD_NUMBER}` };
+  const field = item.project.field;
+  const option = (name) => field?.options?.find((o) => o.name === name);
+  if (!field?.id || !option(RESTORE_STATUS)) return { error: `no "${RESTORE_STATUS}" option on ${STATUS_FIELD}` };
+  return { issueState: issue.state, item, field, option, current: item.fieldValueByName?.name ?? null };
+}
+
 // The board's "Item closed" automation can land before OR after this job, so keep
-// re-asserting In Progress until it reads back stable twice in a row.
+// re-asserting In Progress until it reads back stable twice in a row. Each pass
+// re-reads the LIVE issue state: once the issue is closed again (a newer merge),
+// stop and never leave the card off Done (#1425).
 async function restoreBoardStatus({ graphql, owner, repo, number, sleep, attempts = 8, delayMs = 5000, log = () => {} }) {
   let stable = 0;
   let wrote = false;
   for (let i = 0; i < attempts; i++) {
-    const res = await graphql(ITEMS_QUERY, { owner, repo, number });
-    const item = pickBoardItem(res.repository?.issue?.projectItems?.nodes);
-    if (!item) return { restored: false, reason: `issue is not on ${BOARD_OWNER} project ${BOARD_NUMBER}` };
-    const field = item.project.field;
-    const restoreOption = field?.options?.find((o) => o.name === RESTORE_STATUS);
-    if (!field?.id || !restoreOption) return { restored: false, reason: `no "${RESTORE_STATUS}" option on ${STATUS_FIELD}` };
-
-    const current = item.fieldValueByName?.name ?? null;
+    const ctx = boardContext(await graphql(ITEMS_QUERY, { owner, repo, number }));
+    if (ctx.error) return { restored: false, reason: ctx.error };
+    const { issueState, item, field, option, current } = ctx;
+    if (issueState !== 'OPEN') {
+      const done = option(DONE_STATUS);
+      if (current !== DONE_STATUS && done && (wrote || current === RESTORE_STATUS)) {
+        log(`Issue is closed again; putting the card back on ${DONE_STATUS}.`);
+        await graphql(SET_STATUS, { project: item.project.id, item: item.id, field: field.id, option: done.id });
+      }
+      return { restored: false, closedAgain: true, reason: `issue was closed again; card left on ${DONE_STATUS}` };
+    }
     if (current === RESTORE_STATUS) {
       stable++;
       if (stable >= 2) return { restored: true, wrote };
     } else {
       stable = 0;
       log(`Board Status is ${current ?? '(empty)'}; setting ${RESTORE_STATUS}.`);
-      await graphql(SET_STATUS, { project: item.project.id, item: item.id, field: field.id, option: restoreOption.id });
+      await graphql(SET_STATUS, { project: item.project.id, item: item.id, field: field.id, option: option(RESTORE_STATUS).id });
       wrote = true;
     }
     if (i < attempts - 1) await sleep(delayMs);
   }
   return stable >= 1 ? { restored: true, wrote } : { restored: false, reason: 'status kept reverting' };
+}
+
+// Closed issue with no open companions: its card belongs on Done. Only a stray
+// In Progress (e.g. left by an older guard run) is corrected; other columns are
+// left to the board's own automation / humans.
+async function settleClosedCard({ graphql, owner, repo, number, log = () => {} }) {
+  const ctx = boardContext(await graphql(ITEMS_QUERY, { owner, repo, number }));
+  if (ctx.error || ctx.issueState === 'OPEN') return { settled: false };
+  const done = ctx.option(DONE_STATUS);
+  if (ctx.current !== RESTORE_STATUS || !done) return { settled: false };
+  log(`Closed issue's card is ${RESTORE_STATUS}; moving it to ${DONE_STATUS}.`);
+  await graphql(SET_STATUS, { project: ctx.item.project.id, item: ctx.item.id, field: ctx.field.id, option: done.id });
+  return { settled: true };
 }
 
 const LINKS_QUERY = `
@@ -230,6 +273,10 @@ async function searchTrio(github, { owner, repo, number }) {
     try {
       const data = (await github.rest.search.issuesAndPullRequests({ q, per_page: 100 })).data;
       if (data.incomplete_results) throw new Error('search returned incomplete_results');
+      const read = (data.items ?? []).length;
+      if (typeof data.total_count === 'number' && data.total_count > read) {
+        throw new Error(`search matched ${data.total_count} PRs but only ${read} were read`);
+      }
       for (const it of data.items ?? []) {
         if (!it.pull_request) continue;
         const pr = (await github.rest.pulls.get({ owner, repo: r, pull_number: it.number })).data;
@@ -267,58 +314,132 @@ async function writeSummary(core, line) {
   }
 }
 
+async function liveIssueState(github, { owner, repo, number }) {
+  const data = (await github.rest.issues.get({ owner, repo, issue_number: number })).data;
+  return data.state; // 'open' | 'closed'
+}
+
+// Re-read each companion PR's live state (the earlier lookup may be seconds old).
+async function stillOpen(github, companions) {
+  const out = [];
+  for (const p of companions) {
+    const [o, r] = p.repo.split('/');
+    const pr = (await github.rest.pulls.get({ owner: o, repo: r, pull_number: p.number })).data;
+    if (pr.state === 'open' && !pr.merged_at) out.push(p);
+  }
+  return out;
+}
+
+function boardClient({ getOctokit, projectToken }) {
+  if (!projectToken) return { reason: 'PROJECT_TOKEN secret is not set' };
+  // actions/github-script injects getOctokit only from v9
+  // (cultpodcasts/RedditPodcastPoster#1394). Never let a missing factory stop
+  // the reopen + comment; just report the board gap.
+  if (typeof getOctokit !== 'function') {
+    return { reason: 'getOctokit is not available in the github-script context (needs actions/github-script v9+)' };
+  }
+  return { graphql: getOctokit(projectToken).graphql };
+}
+
 async function run({ github, context, core, getOctokit, projectToken, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
   const number = context.payload.issue.number;
   const full = `${owner}/${repo}#${number}`;
+  const ids = { owner, repo, number };
+  const board = boardClient({ getOctokit, projectToken });
 
-  const companions = await findOpenCompanions({ github, owner, repo, number });
-  if (companions.length === 0) {
-    core.info(`No open PR closes ${full} (Development links, confirmed cross-references, trio search); leave closed.`);
-    await writeSummary(core, `No open PR closes ${full}; left closed.`);
-    return { reopened: false };
+  // Runs are serialised per issue, so an earlier run may already have reopened it.
+  if ((await liveIssueState(github, ids)) !== 'closed') {
+    core.info(`${full} is open again; nothing to do.`);
+    await writeSummary(core, `${full} already open; skipped.`);
+    return { reopened: false, skipped: 'issue-open' };
   }
 
-  await github.rest.issues.update({ owner, repo, issue_number: number, state: 'open', state_reason: 'reopened' });
-  core.info(`Reopened ${full}; ${companions.length} open companion PR(s).`);
+  const companions = await findOpenCompanions({ github, ...ids });
+  const leaveClosed = async (why) => {
+    core.info(`${why}; leave ${full} closed.`);
+    let settled = { settled: false };
+    if (board.graphql) {
+      try {
+        settled = await settleClosedCard({ graphql: board.graphql, ...ids, log: (m) => core.info(m) });
+      } catch (e) {
+        core.warning(`Could not check the board card for closed ${full}: ${e.message || e}`);
+      }
+    }
+    await writeSummary(core, `${why}; ${full} left closed.${settled.settled ? ` Card moved to ${DONE_STATUS}.` : ''}`);
+    return { reopened: false, settled: settled.settled };
+  };
+  if (companions.length === 0) {
+    return leaveClosed('No open PR closes the issue (Development links, confirmed cross-references, trio search)');
+  }
 
-  let board;
-  if (!projectToken) {
-    board = { restored: false, reason: 'PROJECT_TOKEN secret is not set' };
-  } else if (typeof getOctokit !== 'function') {
-    // actions/github-script injects getOctokit only from v9
-    // (cultpodcasts/RedditPodcastPoster#1394). Never let a missing factory stop
-    // the reopen + comment; just report the board gap.
-    board = {
-      restored: false,
-      reason: 'getOctokit is not available in the github-script context (needs actions/github-script v9+)',
-    };
-  } else {
-    try {
-      const projectOctokit = getOctokit(projectToken);
-      board = await restoreBoardStatus({
-        graphql: projectOctokit.graphql,
+  // Immediately before the side effects: live issue + live companion states.
+  if ((await liveIssueState(github, ids)) !== 'closed') {
+    core.info(`${full} was reopened meanwhile; nothing to do.`);
+    return { reopened: false, skipped: 'issue-open' };
+  }
+  const open = await stillOpen(github, companions);
+  if (open.length === 0) return leaveClosed('Every companion PR has merged or closed since the lookup');
+
+  // Comment first, then reopen, so the comment never lists a PR that had already
+  // merged when the issue reopened.
+  const comment = (
+    await github.rest.issues.createComment({ owner, repo, issue_number: number, body: buildComment(open) })
+  ).data;
+  await github.rest.issues.update({ owner, repo, issue_number: number, state: 'open', state_reason: 'reopened' });
+  core.info(`Reopened ${full}; ${open.length} open companion PR(s).`);
+
+  // A companion that merged between the check and the reopen could not close the
+  // (then closed) issue, so close it again rather than leave it open with no PRs.
+  const after = await stillOpen(github, open);
+  if (after.length === 0) {
+    await github.rest.issues.update({ owner, repo, issue_number: number, state: 'closed', state_reason: 'completed' });
+    if (comment?.id) {
+      await github.rest.issues.updateComment({
         owner,
         repo,
-        number,
-        sleep,
-        log: (m) => core.info(m),
+        comment_id: comment.id,
+        body: `${buildComment(open)}\n\n**Update:** those PR(s) merged while this was being reopened, so the issue was closed again.`,
       });
+    }
+    core.info(`Companions merged during the reopen; ${full} closed again.`);
+    await writeSummary(core, `${full}: companions merged during the reopen; closed again.`);
+    return { reopened: false, reclosed: true, companions: open };
+  }
+
+  let result;
+  if (!board.graphql) {
+    result = { restored: false, reason: board.reason };
+  } else {
+    try {
+      result = await restoreBoardStatus({ graphql: board.graphql, ...ids, sleep, log: (m) => core.info(m) });
     } catch (e) {
-      board = { restored: false, reason: `board update failed: ${e.message || e}` };
+      result = { restored: false, reason: `board update failed: ${e.message || e}` };
     }
   }
-  if (board.restored) core.info(`Board Status is ${RESTORE_STATUS}.`);
-  else core.warning(`Board Status not restored for ${full}: ${board.reason}`);
-
-  await github.rest.issues.createComment({ owner, repo, issue_number: number, body: buildComment(companions, board) });
+  if (result.restored) {
+    core.info(`Board Status is ${RESTORE_STATUS}.`);
+  } else if (result.closedAgain) {
+    core.info(`${full} was closed again by a newer merge; card left on ${DONE_STATUS}.`);
+  } else {
+    core.warning(`Board Status not restored for ${full}: ${result.reason}`);
+    // Only worth saying while the issue is still open.
+    if ((await liveIssueState(github, ids)) === 'open') {
+      await github.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: number,
+        body: `⚠️ Board card NOT restored (${result.reason}); set Status back to ${RESTORE_STATUS} by hand.`,
+      });
+    }
+  }
   await writeSummary(
     core,
-    `Reopened ${full}: ${companions.map((p) => `${p.repo}#${p.number}`).join(', ')} still open. ` +
-      (board.restored ? `Board ${RESTORE_STATUS}.` : `Board NOT restored: ${board.reason}.`)
+    `Reopened ${full}: ${after.map((p) => `${p.repo}#${p.number}`).join(', ')} still open. ` +
+      (result.restored ? `Board ${RESTORE_STATUS}.` : `Board NOT restored: ${result.reason}.`)
   );
-  return { reopened: true, board, companions };
+  return { reopened: true, board: result, companions: after };
 }
 
 module.exports = {
@@ -331,6 +452,9 @@ module.exports = {
   pickBoardItem,
   buildComment,
   restoreBoardStatus,
+  settleClosedCard,
+  stillOpen,
   RESTORE_STATUS,
+  DONE_STATUS,
   TRIO,
 };
