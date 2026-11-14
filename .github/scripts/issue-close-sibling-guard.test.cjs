@@ -81,11 +81,11 @@ test('restore: not on board -> not restored, no write', async () => {
   assert.match(r.reason, /not on cultpodcasts project 1/);
 });
 
-function pr(repo, number, state, title = `t${number}`) {
-  return { __typename: 'PullRequest', number, state, url: `https://github.com/${repo}/pull/${number}`, title, repository: { nameWithOwner: repo } };
+function pr(repo, number, state, body = '', title = `t${number}`) {
+  return { __typename: 'PullRequest', number, state, url: `https://github.com/${repo}/pull/${number}`, title, body, repository: { nameWithOwner: repo } };
 }
 // Fake GitHub. `nodes` = Development links; `timeline` = pages of PRs from cross-reference events;
-// `search` = { [repoName]: [{ number, title, body }] }; `pulls` = live PR state for search hits.
+// `search` = { [repoName]: [{ number }] } hits; `pulls` = live PR (state/title/body) for search hits.
 function harness({ nodes, projectToken, board, omitGetOctokit = false, timeline = [[]], search = {}, pulls = {}, graphqlError, searchError, repo = 'Api', number = 244 }) {
   const calls = { update: [], comment: [], warn: [], graphql: [], search: [], summary: [] };
   const github = {
@@ -114,9 +114,9 @@ function harness({ nodes, projectToken, board, omitGetOctokit = false, timeline 
       search: {
         issuesAndPullRequests: async ({ q }) => {
           calls.search.push(q);
-          if (searchError) throw new Error(searchError);
           const r = q.match(/^repo:cultpodcasts\/(\S+)/)[1];
-          return { data: { items: (search[r] ?? []).map((i) => ({ ...i, pull_request: {} })) } };
+          if (searchError && searchError.repo === r) throw new Error(searchError.message);
+          return { data: { incomplete_results: false, items: (search[r] ?? []).map((i) => ({ ...i, pull_request: {} })) } };
         },
       },
       pulls: {
@@ -209,21 +209,32 @@ test('workflow: github-script major injects getOctokit when the script uses it',
   );
 });
 
-// ---- cultpodcasts/RedditPodcastPoster#1423: every open PR for the issue keeps it open ----
+// ---- cultpodcasts/RedditPodcastPoster#1423: every open PR that CLOSES the issue keeps it open ----
 
 const RPP = 'cultpodcasts/RedditPodcastPoster';
 const RPP_1400 = { owner: 'cultpodcasts', repo: 'RedditPodcastPoster', number: 1400 };
+const CLOSES_1400 = 'Closes cultpodcasts/RedditPodcastPoster#1400. RPP: cultpodcasts/RedditPodcastPoster#1420.';
+const livePr = (number, body, state = 'open', merged_at = null) => ({ number, state, merged_at, html_url: `u${number}`, title: `t${number}`, body });
 
-test('referencesIssue: Refs/Closes full ref and URL from any repo; bare #N only in the same repo', () => {
-  const ref = (text, prRepo) => g.referencesIssue(text, { ...RPP_1400, prRepo });
-  assert.equal(ref('Refs cultpodcasts/RedditPodcastPoster#1400.', 'cultpodcasts/Api'), true);
-  assert.equal(ref('Closes cultpodcasts/RedditPodcastPoster#1400', 'cultpodcasts/website'), true);
-  assert.equal(ref('See https://github.com/cultpodcasts/RedditPodcastPoster/issues/1400', 'cultpodcasts/website'), true);
-  assert.equal(ref('Refs #1400', RPP), true);
-  assert.equal(ref('Refs #1400', 'cultpodcasts/Api'), false, 'bare #1400 in Api means Api#1400');
-  assert.equal(ref('Refs cultpodcasts/RedditPodcastPoster#14001', 'cultpodcasts/Api'), false);
-  assert.equal(ref('Refs #14000', RPP), false);
-  assert.equal(ref('', RPP), false);
+test('closesIssue: closing keyword + full ref / URL from any repo; bare #N only from the same repo', () => {
+  const c = (text, prRepo) => g.closesIssue(text, { ...RPP_1400, prRepo });
+  assert.equal(c('Closes cultpodcasts/RedditPodcastPoster#1400.', 'cultpodcasts/Api'), true);
+  assert.equal(c('Fixes: #1400', RPP), true);
+  assert.equal(c('resolves https://github.com/cultpodcasts/RedditPodcastPoster/issues/1400', 'cultpodcasts/website'), true);
+  assert.equal(c('Closes #1400', 'cultpodcasts/Api'), false, 'bare #1400 in Api means Api#1400');
+  assert.equal(c('Closes cultpodcasts/RedditPodcastPoster#14001', 'cultpodcasts/Api'), false);
+  assert.equal(c('encloses #1400', RPP), false);
+  assert.equal(c('', RPP), false);
+});
+
+test('closesIssue: Refs, prose, code spans and HTML comments are not companions', () => {
+  const c = (text, prRepo = RPP) => g.closesIssue(text, { ...RPP_1400, prRepo });
+  assert.equal(c('Refs cultpodcasts/RedditPodcastPoster#1400', 'cultpodcasts/Api'), false);
+  assert.equal(c('Refs #1400'), false);
+  assert.equal(c('see #1400; the #1400 toasts are separate'), false);
+  assert.equal(c('Api#259 said `Closes cultpodcasts/RedditPodcastPoster#1400`', 'cultpodcasts/Api'), false);
+  assert.equal(c('<!-- Closes #1400 -->'), false);
+  assert.equal(c('```\nCloses #1400\n```'), false);
 });
 
 test('openCompanions dedupes across sources and ignores PRs outside the owner', () => {
@@ -234,36 +245,73 @@ test('openCompanions dedupes across sources and ignores PRs outside the owner', 
   assert.deepEqual(out.map((p) => `${p.repo}#${p.number}`), ['cultpodcasts/Api#259']);
 });
 
-test('run: #1400 scenario - #1420 merged, Refs companions Api#259 + website#667 open -> reopens and lists both', async () => {
+const RPP_H = { repo: 'RedditPodcastPoster', number: 1400, projectToken: 'pat' };
+
+test('run: #1400 scenario - #1420 merged, Api#259 + website#667 linked under Development -> reopens and lists both', async () => {
   const board = fakeBoard('Done');
   const h = harness({
-    repo: 'RedditPodcastPoster',
-    number: 1400,
-    nodes: [pr(RPP, 1420, 'MERGED')], // only the Closes PR is a Development link
-    timeline: [[pr(RPP, 1420, 'MERGED'), pr('cultpodcasts/Api', 259, 'OPEN'), pr('cultpodcasts/website', 667, 'OPEN')]],
-    projectToken: 'pat',
+    ...RPP_H,
     board,
+    nodes: [pr(RPP, 1420, 'MERGED'), pr('cultpodcasts/Api', 259, 'OPEN'), pr('cultpodcasts/website', 667, 'OPEN')],
   });
   const r = await g.run(h.args);
   assert.equal(r.reopened, true);
-  assert.equal(h.calls.update.length, 1);
   assert.equal(h.calls.update[0].issue_number, 1400);
   assert.deepEqual(r.companions.map((p) => `${p.repo}#${p.number}`), ['cultpodcasts/Api#259', 'cultpodcasts/website#667']);
   assert.match(h.calls.comment[0].body, /cultpodcasts\/Api#259/);
-  assert.match(h.calls.comment[0].body, /cultpodcasts\/website#667/);
   assert.match(h.calls.comment[0].body, /ALL of its PRs are merged/);
   assert.match(h.calls.summary.join(''), /Reopened cultpodcasts\/RedditPodcastPoster#1400/);
 });
 
-test('run: timeline is paginated so a companion on a later page is still found', async () => {
+test('run: timeline candidate with a Closes line (link not yet indexed) reopens', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({ ...RPP_H, board, nodes: [pr(RPP, 1420, 'MERGED')], timeline: [[pr('cultpodcasts/Api', 259, 'OPEN', CLOSES_1400)]] });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, true);
+  assert.deepEqual(r.companions.map((p) => p.number), [259]);
+});
+
+test('run: Refs-only companion line does not hold the issue open (Closes is the convention)', async () => {
   const board = fakeBoard('Done');
   const h = harness({
-    repo: 'RedditPodcastPoster',
-    number: 1400,
-    nodes: [pr(RPP, 1420, 'MERGED')],
-    timeline: [[pr(RPP, 1420, 'MERGED')], [pr('cultpodcasts/website', 667, 'OPEN')]],
-    projectToken: 'pat',
+    ...RPP_H,
     board,
+    nodes: [pr(RPP, 1420, 'MERGED')],
+    timeline: [[pr('cultpodcasts/Api', 259, 'OPEN', 'Refs cultpodcasts/RedditPodcastPoster#1400.')]],
+  });
+  assert.equal((await g.run(h.args)).reopened, false);
+});
+
+test('run: prose-only mention ("see #N", "the #N") in an open PR body does not reopen', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({
+    ...RPP_H,
+    board,
+    nodes: [pr(RPP, 1420, 'MERGED')],
+    // e.g. the #1423 guard PRs, which explain the #1400 incident in prose
+    timeline: [[pr(RPP, 1424, 'OPEN', 'Closes #1423\n\nsee #1400; the #1400 companions said `Refs cultpodcasts/RedditPodcastPoster#1400`')]],
+  });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, false);
+  assert.equal(h.calls.update.length, 0);
+});
+
+test('run: comment-only / commit-only cross-reference (body never names the issue) does not reopen', async () => {
+  const board = fakeBoard('Done');
+  // GitHub adds a CrossReferencedEvent when a PR comment, review comment or commit names the issue;
+  // the PR's live title/body do not, so it is not a companion.
+  const h = harness({ ...RPP_H, board, nodes: [], timeline: [[pr('cultpodcasts/website', 665, 'OPEN', 'Refs #664 (website). Attach as trailer tidy-up.')]] });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, false);
+});
+
+test('run: timeline is paginated so a Closes companion on a later page is still found', async () => {
+  const board = fakeBoard('Done');
+  const h = harness({
+    ...RPP_H,
+    board,
+    nodes: [pr(RPP, 1420, 'MERGED')],
+    timeline: [[pr(RPP, 1420, 'MERGED')], [pr('cultpodcasts/website', 667, 'OPEN', CLOSES_1400)]],
   });
   const r = await g.run(h.args);
   assert.equal(r.reopened, true);
@@ -271,16 +319,14 @@ test('run: timeline is paginated so a companion on a later page is still found',
   assert.deepEqual(r.companions.map((p) => p.number), [667]);
 });
 
-test('run: search safety net finds an open Refs PR the timeline missed, confirmed by live state', async () => {
+test('run: search safety net reopens only for a hit whose LIVE body closes the issue', async () => {
   const board = fakeBoard('Done');
   const h = harness({
-    repo: 'RedditPodcastPoster',
-    number: 1400,
-    nodes: [pr(RPP, 1420, 'MERGED')],
-    search: { Api: [{ number: 259, title: 'api', body: 'Refs cultpodcasts/RedditPodcastPoster#1400.' }] },
-    pulls: { 'Api#259': { number: 259, state: 'open', merged_at: null, html_url: 'u259', title: 'api' } },
-    projectToken: 'pat',
+    ...RPP_H,
     board,
+    nodes: [pr(RPP, 1420, 'MERGED')],
+    search: { Api: [{ number: 259 }, { number: 260 }] },
+    pulls: { 'Api#259': livePr(259, CLOSES_1400), 'Api#260': livePr(260, 'Closes cultpodcasts/RedditPodcastPoster#1423 (mentions issue 1400 in prose)') },
   });
   const r = await g.run(h.args);
   assert.equal(r.reopened, true);
@@ -291,49 +337,30 @@ test('run: search safety net finds an open Refs PR the timeline missed, confirme
 test('run: stale search hit that is already merged does not reopen', async () => {
   const board = fakeBoard('Done');
   const h = harness({
-    repo: 'RedditPodcastPoster',
-    number: 1400,
-    nodes: [pr(RPP, 1420, 'MERGED')],
-    search: { website: [{ number: 667, title: 'web', body: 'Closes cultpodcasts/RedditPodcastPoster#1400' }] },
-    pulls: { 'website#667': { number: 667, state: 'closed', merged_at: '2026-11-14T00:00:00Z', html_url: 'u', title: 'web' } },
-    projectToken: 'pat',
+    ...RPP_H,
     board,
+    nodes: [pr(RPP, 1420, 'MERGED')],
+    search: { website: [{ number: 667 }] },
+    pulls: { 'website#667': livePr(667, CLOSES_1400, 'closed', '2026-11-14T00:00:00Z') },
   });
   const r = await g.run(h.args);
   assert.equal(r.reopened, false);
-  assert.equal(h.calls.update.length, 0);
   assert.match(h.calls.summary.join(''), /left closed/);
 });
 
-test('run: search hit whose body only says bare #1400 from another repo is not a companion', async () => {
+test('run: search hit whose body says bare "Fixes #1400" from another repo is not a companion', async () => {
   const board = fakeBoard('Done');
-  const h = harness({
-    repo: 'RedditPodcastPoster',
-    number: 1400,
-    nodes: [],
-    search: { Api: [{ number: 5, title: 'x', body: 'Fixes #1400' }] },
-    pulls: { 'Api#5': { number: 5, state: 'open', merged_at: null, html_url: 'u', title: 'x' } },
-    projectToken: 'pat',
-    board,
-  });
-  const r = await g.run(h.args);
-  assert.equal(r.reopened, false);
+  const h = harness({ ...RPP_H, board, nodes: [], search: { Api: [{ number: 5 }] }, pulls: { 'Api#5': livePr(5, 'Fixes #1400') } });
+  assert.equal((await g.run(h.args)).reopened, false);
 });
 
-test('run: search failure warns but Development links / cross-references still reopen', async () => {
+test('run: a failed search rejects (job fails) instead of a green "no companions"', async () => {
   const board = fakeBoard('Done');
-  const h = harness({
-    repo: 'RedditPodcastPoster',
-    number: 1400,
-    nodes: [pr(RPP, 1420, 'MERGED')],
-    timeline: [[pr('cultpodcasts/Api', 259, 'OPEN')]],
-    searchError: 'rate limited',
-    projectToken: 'pat',
-    board,
-  });
-  const r = await g.run(h.args);
-  assert.equal(r.reopened, true);
-  assert.ok(h.calls.warn.some((m) => /Search for open PRs .* failed: rate limited/.test(m)));
+  const h = harness({ ...RPP_H, board, nodes: [pr(RPP, 1420, 'MERGED')], searchError: { repo: 'website', message: 'rate limited' } });
+  await assert.rejects(() => g.run(h.args), /open-PR search incomplete.*cultpodcasts\/website: rate limited/);
+  assert.equal(h.calls.update.length, 0);
+  assert.equal(h.calls.comment.length, 0);
+  assert.equal(h.calls.search.length, 3, 'still tries every repo, then fails with all errors');
 });
 
 test('run: GraphQL failure rejects (job fails visibly) instead of leaving the issue closed silently', async () => {

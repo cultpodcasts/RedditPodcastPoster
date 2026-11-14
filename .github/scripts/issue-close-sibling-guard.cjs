@@ -8,16 +8,20 @@
 // (Ready For Review means the PRs are ready to merge).
 //
 // "PR for the issue" = an OPEN pull request in a cultpodcasts repo that is either
-//   1. a Development link (closedByPullRequestsReferences: `Closes owner/repo#N`
-//      or linked by hand), or
-//   2. a timeline cross-reference (body/title/commit mentions: `Refs owner/repo#N`,
-//      same-repo `#N`, full issue URL), or
-//   3. found by search across the app trio and confirmed by body text + live state.
-// #1423: since 6d890dda only (1) was checked, so `Refs` companions (Api#259,
-// website#667 on #1400) were missed and the issue stayed closed.
+//   1. a Development link (closedByPullRequestsReferences: a closing keyword in the
+//      PR body, or linked by hand), or
+//   2. a candidate from the issue timeline (cross-reference) or a search across the
+//      app trio whose LIVE title/body has an explicit closing keyword for the issue:
+//      `Closes|Fixes|Resolves #N` from the same repo, or
+//      `Closes|Fixes|Resolves owner/repo#N` (or the issue URL) from any repo.
+//      Prose mentions ("see #N", `Refs #N`) and comment- or commit-only mentions do
+//      NOT count, so a PR that merely talks about an issue cannot hold it open.
+// #1423: since 6d890dda only (1) was checked, and #1400's companions said `Refs`, so
+// they were neither linked nor counted. Convention now: every companion says
+// `Closes ...#N` (so it is linked under Development); (2) only covers link lag.
 //
-// Convention: cross-repo companions use `Closes cultpodcasts/RedditPodcastPoster#N`
-// so they show under Development; (2) and (3) are the safety net for `Refs`.
+// Fail loud: any lookup that cannot complete (GraphQL, search, PR fetch) throws, so
+// the job fails instead of reporting a green "no companions".
 //
 // Board writes need PROJECT_TOKEN (classic PAT with `project` scope): the
 // repo-scoped GITHUB_TOKEN cannot see user-owned Projects V2
@@ -35,19 +39,29 @@ function escapeRegExp(t) {
   return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Does `text` (a PR's title + body) reference owner/repo#number? `prRepo` is the
-// PR's own "owner/name": a bare `#N` only means this issue inside the same repo.
-function referencesIssue(text, { owner, repo, number, prRepo }) {
+// Remove text GitHub does not treat as closing keywords: HTML comments (PR template
+// guidance), fenced code blocks and inline code spans.
+function stripNonProse(text) {
+  return String(text)
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`\n]*`/g, ' ');
+}
+
+const CLOSING = '(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)';
+
+// Does `text` (a PR's live title + body) carry an explicit closing keyword for
+// owner/repo#number? `prRepo` is the PR's own "owner/name": a bare `#N` only means
+// this issue inside the same repo. Refs / prose mentions are not companions.
+function closesIssue(text, { owner, repo, number, prRepo }) {
   if (!text) return false;
-  const full = `${owner}/${repo}`;
+  const t = stripNonProse(text);
+  const full = escapeRegExp(`${owner}/${repo}`);
   const n = String(number);
-  const fullRef = new RegExp(`(^|[^\\w/.-])${escapeRegExp(full)}#${n}(?!\\d)`, 'i');
-  const url = new RegExp(`github\\.com/${escapeRegExp(full)}/issues/${n}(?!\\d)`, 'i');
-  if (fullRef.test(text) || url.test(text)) return true;
-  if (prRepo && prRepo.toLowerCase() === full.toLowerCase()) {
-    return new RegExp(`(^|[^\\w/&])#${n}(?!\\d)`).test(text);
-  }
-  return false;
+  const lead = `(?:^|[^\\w])${CLOSING}:?\\s+`;
+  const refs = [`${full}#${n}`, `https?://github\\.com/${full}/issues/${n}`];
+  if (prRepo && prRepo.toLowerCase() === `${owner}/${repo}`.toLowerCase()) refs.push(`#${n}`);
+  return new RegExp(`${lead}(?:${refs.join('|')})(?![\\w/])`, 'i').test(t);
 }
 
 function openCompanions(nodes, owner) {
@@ -85,7 +99,7 @@ function buildComment(companions, board) {
     `Reopened automatically: this was closed while **open PR(s)** for it remain:\n\n` +
     `${list}\n\n` +
     `A ticket with PRs in several repos stays open until ALL of its PRs are merged (or unlinked). ` +
-    `Cross-repo PRs should say \`Closes <owner>/<repo>#N\` so they show under Development; this guard undoes premature closes.` +
+    `Every PR for a ticket says \`Closes #N\` (same repo) or \`Closes <owner>/<repo>#N\` (other repo) so it shows under Development; this guard undoes premature closes.` +
     (boardLine ? `\n\n${boardLine}` : '')
   );
 }
@@ -159,15 +173,12 @@ const LINKS_QUERY = `
         closedByPullRequestsReferences(first: 50, includeClosedPrs: true) {
           nodes { number state url title repository { nameWithOwner } }
         }
-        timelineItems(first: 100, after: $after, itemTypes: [CROSS_REFERENCED_EVENT, CONNECTED_EVENT]) {
+        timelineItems(first: 100, after: $after, itemTypes: [CROSS_REFERENCED_EVENT]) {
           pageInfo { hasNextPage endCursor }
           nodes {
             __typename
             ... on CrossReferencedEvent {
-              source { __typename ... on PullRequest { number state url title repository { nameWithOwner } } }
-            }
-            ... on ConnectedEvent {
-              subject { __typename ... on PullRequest { number state url title repository { nameWithOwner } } }
+              source { __typename ... on PullRequest { number state url title body repository { nameWithOwner } } }
             }
           }
         }
@@ -176,66 +187,76 @@ const LINKS_QUERY = `
   }
 `;
 
-// Every PR the issue knows about: Development links + timeline cross-references
-// (paginated). GraphQL errors throw so the job fails visibly instead of leaving
-// the issue closed as a silent "no companions".
+// Development links (trusted) + timeline cross-reference candidates (paginated;
+// manual links already appear in closedByPullRequestsReferences, so CONNECTED /
+// DISCONNECTED events are not needed). GraphQL errors throw (job fails visibly).
 async function linkedPullRequests(graphql, { owner, repo, number }) {
-  const prs = [];
+  const linked = [];
+  const candidates = [];
   let after = null;
-  for (let page = 0; page < 10; page++) {
+  let complete = false;
+  for (let page = 0; page < 20; page++) {
     const res = await graphql(LINKS_QUERY, { owner, repo, number, after });
     const issue = res?.repository?.issue;
     if (!issue) throw new Error(`issue ${owner}/${repo}#${number} not found via GraphQL`);
-    if (page === 0) prs.push(...(issue.closedByPullRequestsReferences?.nodes ?? []));
+    if (page === 0) linked.push(...(issue.closedByPullRequestsReferences?.nodes ?? []));
     const tl = issue.timelineItems;
     for (const n of tl?.nodes ?? []) {
-      const pr = n?.source ?? n?.subject;
-      if (pr && pr.__typename === 'PullRequest') prs.push(pr);
+      const pr = n?.source;
+      if (pr && pr.__typename === 'PullRequest') candidates.push(pr);
     }
-    if (!tl?.pageInfo?.hasNextPage) break;
+    if (!tl?.pageInfo?.hasNextPage) {
+      complete = true;
+      break;
+    }
     after = tl.pageInfo.endCursor;
   }
-  return prs;
+  if (!complete) throw new Error(`timeline for ${owner}/${repo}#${number} has more than 2000 cross-references; refusing to guess`);
+  return { linked, candidates };
 }
 
-// Safety net: search the app trio for open PRs mentioning the issue (search index
-// can lag; hits are confirmed by body text and the PR's live state).
-async function searchTrio(github, { owner, repo, number, core }) {
+// Link-lag safety net: search the app trio for open PRs naming the issue. Every hit
+// is re-read live (pulls.get) and kept only if its title/body closes the issue.
+// Any search or fetch failure throws after all repos are tried (incomplete lookup
+// must never look like "no companions").
+async function searchTrio(github, { owner, repo, number }) {
   const full = `${owner}/${repo}#${number}`;
   const found = [];
+  const errors = [];
   for (const r of TRIO) {
     const terms = [`"${full}"`, `"github.com/${owner}/${repo}/issues/${number}"`];
     if (r.toLowerCase() === repo.toLowerCase()) terms.push(`"#${number}"`);
     const q = `repo:${owner}/${r} is:pr is:open (${terms.join(' OR ')})`;
-    let items;
     try {
-      items = (await github.rest.search.issuesAndPullRequests({ q, per_page: 50 })).data.items ?? [];
+      const data = (await github.rest.search.issuesAndPullRequests({ q, per_page: 100 })).data;
+      if (data.incomplete_results) throw new Error('search returned incomplete_results');
+      for (const it of data.items ?? []) {
+        if (!it.pull_request) continue;
+        const pr = (await github.rest.pulls.get({ owner, repo: r, pull_number: it.number })).data;
+        found.push({
+          number: pr.number,
+          state: pr.merged_at ? 'MERGED' : pr.state === 'open' ? 'OPEN' : 'CLOSED',
+          url: pr.html_url,
+          title: pr.title,
+          body: pr.body,
+          repository: { nameWithOwner: `${owner}/${r}` },
+        });
+      }
     } catch (e) {
-      core.warning(`Search for open PRs in ${owner}/${r} failed: ${e.message || e}`);
-      continue;
-    }
-    for (const it of items) {
-      if (!it.pull_request) continue;
-      const prRepo = `${owner}/${r}`;
-      if (!referencesIssue(`${it.title}\n${it.body || ''}`, { owner, repo, number, prRepo })) continue;
-      const pr = (await github.rest.pulls.get({ owner, repo: r, pull_number: it.number })).data;
-      found.push({
-        number: pr.number,
-        state: pr.merged_at ? 'MERGED' : pr.state === 'open' ? 'OPEN' : 'CLOSED',
-        url: pr.html_url,
-        title: pr.title,
-        repository: { nameWithOwner: prRepo },
-      });
+      errors.push(`${owner}/${r}: ${e.message || e}`);
     }
   }
+  if (errors.length) throw new Error(`open-PR search incomplete, refusing to leave the issue closed: ${errors.join('; ')}`);
   return found;
 }
 
-async function findOpenCompanions({ github, owner, repo, number, core }) {
-  const linked = await linkedPullRequests(github.graphql, { owner, repo, number });
-  const searched = github.rest?.search ? await searchTrio(github, { owner, repo, number, core }) : [];
-  // GraphQL state is live; prefer it over search for the same PR.
-  return openCompanions([...linked, ...searched], owner);
+async function findOpenCompanions({ github, owner, repo, number }) {
+  const { linked, candidates } = await linkedPullRequests(github.graphql, { owner, repo, number });
+  const searched = await searchTrio(github, { owner, repo, number });
+  const confirmed = [...candidates, ...searched].filter((p) =>
+    closesIssue(`${p.title ?? ''}\n${p.body ?? ''}`, { owner, repo, number, prRepo: p.repository?.nameWithOwner })
+  );
+  return openCompanions([...linked, ...confirmed], owner);
 }
 
 async function writeSummary(core, line) {
@@ -252,10 +273,10 @@ async function run({ github, context, core, getOctokit, projectToken, sleep = (m
   const number = context.payload.issue.number;
   const full = `${owner}/${repo}#${number}`;
 
-  const companions = await findOpenCompanions({ github, owner, repo, number, core });
+  const companions = await findOpenCompanions({ github, owner, repo, number });
   if (companions.length === 0) {
-    core.info(`No open PRs for ${full} (Development links, cross-references, trio search); leave closed.`);
-    await writeSummary(core, `No open PRs reference ${full}; left closed.`);
+    core.info(`No open PR closes ${full} (Development links, confirmed cross-references, trio search); leave closed.`);
+    await writeSummary(core, `No open PR closes ${full}; left closed.`);
     return { reopened: false };
   }
 
@@ -303,7 +324,8 @@ async function run({ github, context, core, getOctokit, projectToken, sleep = (m
 module.exports = {
   run,
   openCompanions,
-  referencesIssue,
+  closesIssue,
+  stripNonProse,
   linkedPullRequests,
   findOpenCompanions,
   pickBoardItem,
