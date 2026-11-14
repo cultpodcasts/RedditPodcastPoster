@@ -204,12 +204,14 @@ public class CatalogueParentIndexRules
     [Theory(DisplayName =
         "A refused, busy, or timed-out index maps to its status and nothing is pushed to search: NotIndexable, " +
         "SourcePodcastStillExists, AlreadyRunning (409), TimedOut (what was saved is not known at the cut), and " +
-        "NothingToEnrich (an enrich-only pass that filled no link, #1400).")]
+        "NothingToEnrich (an enrich-only pass that filled no link, #1400), and EnrichFailed (its lookups did not " +
+        "finish, #1400).")]
     [InlineData(CatalogueParentIndexStatus.NotIndexable, CatalogueIndexStatus.NotIndexable)]
     [InlineData(CatalogueParentIndexStatus.SourcePodcastStillExists, CatalogueIndexStatus.SourcePodcastStillExists)]
     [InlineData(CatalogueParentIndexStatus.TimedOut, CatalogueIndexStatus.TimedOut)]
     [InlineData(CatalogueParentIndexStatus.AlreadyRunning, CatalogueIndexStatus.AlreadyRunning)]
     [InlineData(CatalogueParentIndexStatus.NothingToEnrich, CatalogueIndexStatus.NothingToEnrich)]
+    [InlineData(CatalogueParentIndexStatus.EnrichFailed, CatalogueIndexStatus.EnrichFailed)]
     public async Task refused_index_maps_status(CatalogueParentIndexStatus indexStatus, CatalogueIndexStatus expected)
     {
         // Arrange

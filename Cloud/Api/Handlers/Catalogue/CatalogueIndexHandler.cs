@@ -13,7 +13,8 @@ namespace Api.Handlers.Catalogue;
 /// Maps a TV show / news organisation index to HTTP the way <c>IndexPodcastHandler</c> does: 200 with the indexed item
 /// ids and search state (<c>enrichOnly</c> when only Spotify / Apple links were filled in), 404 not found, 400 not
 /// indexable (<c>Removed</c>, <c>NotAutoIndexed</c>, <c>SourcePodcastStillExists</c>) or <c>NothingToEnrich</c> (body
-/// says why), 409 ambiguous name (body is the ids), 504
+/// says why), 503 <c>EnrichFailed</c> (enrich-only lookups did not finish; retryable), 409 ambiguous name (body is
+/// the ids), 504
 /// <c>{ reason: "TimedOut" }</c> when the on-demand time budget cut it off (not a fault, so not a 500), and 500 when
 /// the index failed.
 /// </summary>
@@ -64,6 +65,12 @@ public class CatalogueIndexHandler(
                 {
                     Reason = CatalogueIndexRejection.NothingToEnrich,
                     Message = CatalogueIndexRejection.NothingToEnrichMessage
+                }, c);
+            case CatalogueIndexStatus.EnrichFailed:
+                return await ctx.Json(HttpStatusCode.ServiceUnavailable, new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.EnrichFailed,
+                    Message = CatalogueIndexRejection.EnrichFailedMessage
                 }, c);
             case CatalogueIndexStatus.SourcePodcastStillExists:
                 return await ctx.BadRequest(

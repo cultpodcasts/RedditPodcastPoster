@@ -21,6 +21,8 @@ public enum CatalogueIndexStatus
     AlreadyRunning,
     /// <summary>Not auto-indexed, so only Spotify / Apple links were looked up, and no recent item gained one (#1400).</summary>
     NothingToEnrich,
+    /// <summary>Not auto-indexed; the Spotify / Apple lookups did not finish and nothing was saved. Retryable (#1400).</summary>
+    EnrichFailed,
     Failed
 }
 

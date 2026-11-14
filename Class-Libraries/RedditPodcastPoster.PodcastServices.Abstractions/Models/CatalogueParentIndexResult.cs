@@ -34,7 +34,14 @@ public enum CatalogueParentIndexStatus
     /// The parent is not auto-indexed, so an enrich-only pass ran (#1400), but no recent item gained a Spotify or Apple
     /// link: none was missing one, or none could be matched. Nothing was saved.
     /// </summary>
-    NothingToEnrich
+    NothingToEnrich,
+
+    /// <summary>
+    /// The parent is not auto-indexed, so an enrich-only pass ran (#1400), but its Spotify / Apple lookups did not
+    /// finish (a lookup threw, the time budget stopped them, or Spotify was skipped / rate-limited) and nothing was
+    /// saved. Retryable, unlike <see cref="NothingToEnrich"/>.
+    /// </summary>
+    EnrichFailed
 }
 
 /// <summary>Why a parent is <see cref="CatalogueParentIndexStatus.NotIndexable"/>.</summary>

@@ -88,6 +88,8 @@ public class CatalogueParentIndexService(
                         NotIndexableReason: result.NotIndexableReason);
                 case CatalogueParentIndexStatus.NothingToEnrich:
                     return new CatalogueIndexResult(CatalogueIndexStatus.NothingToEnrich);
+                case CatalogueParentIndexStatus.EnrichFailed:
+                    return new CatalogueIndexResult(CatalogueIndexStatus.EnrichFailed);
                 case CatalogueParentIndexStatus.SourcePodcastStillExists:
                     return new CatalogueIndexResult(CatalogueIndexStatus.SourcePodcastStillExists);
                 case CatalogueParentIndexStatus.TimedOut:

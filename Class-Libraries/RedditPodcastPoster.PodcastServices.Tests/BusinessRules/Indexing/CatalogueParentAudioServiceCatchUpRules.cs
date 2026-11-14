@@ -836,4 +836,115 @@ public class CatalogueParentAudioServiceCatchUpRules
             x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
             Times.AtLeastOnce);
     }
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): when the Spotify lookup throws and nothing is saved, then the result is " +
+        "EnrichFailed, not NothingToEnrich, because a lookup that failed says nothing about whether a link exists and " +
+        "the curator should try again.")]
+    public async Task on_demand_enrich_only_lookup_failure_is_enrich_failed()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedNotAutoIndexedOrganisation(applePodcast: false);
+        _storedReports = [StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(1))];
+        _onSpotifyLookup = _ => throw new InvalidOperationException("synthetic lookup failure");
+
+        // Act
+        var result = await Sut.IndexParent(organisation, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.EnrichFailed);
+        result.EnrichOnly.Should().BeTrue();
+        result.Changed.Should().BeEmpty();
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): when the first Spotify lookup hits the rate limit, then the next report is not " +
+        "looked up and the result is EnrichFailed, because the lookups did not finish.")]
+    public async Task on_demand_enrich_only_spotify_rate_limit_is_enrich_failed()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedNotAutoIndexedOrganisation(applePodcast: false);
+        _storedReports =
+        [
+            StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(1)),
+            StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(2))
+        ];
+        _onSpotifyLookup = context => context.SkipSpotifyUrlResolving = true;
+
+        // Act
+        var result = await Sut.IndexParent(organisation, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.EnrichFailed);
+        _spotifyCalls.Should().ContainSingle();
+        _savedReports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): when Spotify is already skipped for the pass (rate-limited earlier), then no " +
+        "Spotify lookup is made and the result is EnrichFailed, because a skipped lookup is not a completed one.")]
+    public async Task on_demand_enrich_only_spotify_skipped_is_enrich_failed()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedNotAutoIndexedOrganisation(applePodcast: false);
+        _storedReports = [StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(1))];
+        var context = OnDemand();
+        context.SkipSpotifyUrlResolving = true;
+
+        // Act
+        var result = await Sut.IndexParent(organisation, context);
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.EnrichFailed);
+        _spotifyCalls.Should().BeEmpty();
+        _savedReports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): when the catch-up's time budget stops it before every report is looked up and " +
+        "nothing is saved, then the result is EnrichFailed, because the remaining reports were never looked up.")]
+    public async Task on_demand_enrich_only_budget_stop_is_enrich_failed()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedNotAutoIndexedOrganisation(applePodcast: false);
+        _storedReports =
+        [
+            StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(1)),
+            StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(2))
+        ];
+        var options = new PodcastUpdateBudgetOptions();
+        var longest = new[] { options.BudgetFor(false), options.BudgetFor(true) }.Max()!.Value;
+        _onSpotifyLookup = _ => _clock.Advance(longest);
+
+        // Act
+        var result = await Sut.IndexParent(organisation, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.EnrichFailed);
+        _spotifyCalls.Should().ContainSingle();
+        _savedReports.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand enrich-only (#1400): when Spotify is rate-limited but Apple fills a link, then the result is " +
+        "Indexed with that report, because a partly failed pass still reports what it saved.")]
+    public async Task on_demand_enrich_only_partial_failure_still_reports_saved_links()
+    {
+        // Arrange
+        var (organisation, podcast) = SeedNotAutoIndexedOrganisation();
+        var report = StoredYouTubeOnlyReport(podcast, organisation, FullLength, DomainTestFixture.UtcDateDaysAgo(1));
+        _storedReports = [report];
+        _onSpotifyLookup = context => context.SkipSpotifyUrlResolving = true;
+        AppleFinds(_fixture.CreateAppleId());
+
+        // Act
+        var result = await Sut.IndexParent(organisation, OnDemand());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        result.EnrichOnly.Should().BeTrue();
+        result.Changed.Should().ContainSingle().Which.Id.Should().Be(report.Id);
+    }
 }

@@ -134,6 +134,26 @@ public class CatalogueIndexHandlerTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact(DisplayName =
+        "EnrichFailed is a 503 (retryable) with a message saying the Spotify / Apple lookup failed or was " +
+        "rate-limited, so the curator tries again instead of being told nothing could be filled (#1400).")]
+    public async Task enrich_failed_is_503_with_message()
+    {
+        // Arrange
+        _result = new CatalogueIndexResult(CatalogueIndexStatus.EnrichFailed);
+
+        // Act
+        await Handle("news");
+
+        // Assert
+        _ctx.Verify(x => x.Json(HttpStatusCode.ServiceUnavailable,
+            It.Is<CatalogueIndexRejection>(r =>
+                r.Reason == CatalogueIndexRejection.EnrichFailed &&
+                r.Message == CatalogueIndexRejection.EnrichFailedMessage),
+            It.IsAny<CancellationToken>()), Times.Once);
+        CatalogueIndexRejection.EnrichFailedMessage.Should().Contain("Try again");
+    }
+
     [Theory(DisplayName =
         "An enrich-only index is a 200 with enrichOnly true and the enriched item ids, so the hub page can say how " +
         "many links were filled (#1400).")]
