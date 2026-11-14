@@ -23,6 +23,9 @@ namespace Api.Services.Episodes;
 /// document only, so the episode stops being a playable. The order mirrors <see cref="EpisodeFilmMoveService"/>, so
 /// every failure stops before anything is lost:
 /// <list type="number">
+/// <item>Claim the episode for the film in LookUps (<see cref="IFilmTrailerClaimStore"/>, a conditional create). Of
+/// two attaches of one episode to different films exactly one wins; the other stops with 409 before writing any film,
+/// so nothing is ever undone and no film is deleted.</item>
 /// <item>Add a <see cref="FilmTrailer"/> (id = episode id) to the film and save it, ETag-guarded (re-read on a conflict).
 /// Before the add, films are queried across partitions for that id in <c>trailers[].id</c>. Another film that already
 /// holds it returns 409 naming that film and the episode stays, so one episode cannot be a trailer of two films.</item>
@@ -44,8 +47,16 @@ public class EpisodeTrailerAttachService(
     IShortnerService shortnerService,
     ICatalogueIdentityEnricher identityEnricher,
     IFileKeyAllocator fileKeyAllocator,
+    IFilmTrailerClaimStore trailerClaims,
+    TimeProvider timeProvider,
     ILogger<EpisodeTrailerAttachService> logger) : IEpisodeTrailerAttachService
 {
+    /// <summary>
+    /// A claim whose film does not hold the trailer is an attach still running (seconds) or one that failed. Only a
+    /// claim older than this is taken over.
+    /// </summary>
+    internal static readonly TimeSpan ClaimStaleAfter = TimeSpan.FromMinutes(10);
+
     public async Task<EpisodeTrailerAttachResult> AttachAsync(
         EpisodeTrailerAttachCommand command,
         CancellationToken cancellationToken)
@@ -136,6 +147,12 @@ public class EpisodeTrailerAttachService(
                 if (trailer is null)
                 {
                     return BadRequest("The episode has no link to play the trailer from");
+                }
+
+                var claimStop = await ClaimTrailer(episode.Id, film.Id);
+                if (claimStop is not null)
+                {
+                    return claimStop;
                 }
 
                 var (saved, stop) = await AddTrailer(film.Id, trailer);
@@ -308,9 +325,19 @@ public class EpisodeTrailerAttachService(
 
         // One write, already holding the trailer, under an id derived from the name: overlapping creates for the same
         // name converge on one document, and no empty film is ever stored.
-        var film = new Film(filmName) { Id = NewFilmId(filmName), Description = string.Empty, Trailers = [trailer] };
+        // The owner check above is only a query. The claim is the one conditional write that decides which film gets
+        // the episode; a call that loses it stops here, before writing anything else.
+        var filmId = NewFilmId(filmName);
+        var claimStop = await ClaimTrailer(episode.Id, filmId);
+        if (claimStop is not null)
+        {
+            return (null, false, claimStop);
+        }
+
+        var film = new Film(filmName) { Id = filmId, Description = string.Empty, Trailers = [trailer] };
         film.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.Film, filmName, film.Id);
         FilmMoveTarget.ApplyIdentity(film, admission, identityEnricher, logger);
+
         if (!await filmRepository.TryCreate(film))
         {
             return await ResolveCreateConflict(film.Id, filmName);
@@ -320,21 +347,40 @@ public class EpisodeTrailerAttachService(
             "{method}: Created film '{filmId}' '{name}' (imdb={imdbId}, tmdb={tmdbId}) holding trailer '{episodeId}'.",
             nameof(ResolveNamedFilm), film.Id, film.Name, film.ImdbId, film.TmdbId, episode.Id);
 
-        // The trailer-owner check before the create is only a query. A film that took the same episode meanwhile
-        // (another attach) wins: drop the film this call just created (it holds nothing else) and report that film.
-        foreach (var holderId in await filmRepository.GetFilmIdsByTrailerId(episode.Id))
+        return (film, true, null);
+    }
+
+    /// <summary>
+    /// Claims the episode as a trailer of <paramref name="filmId"/> (see <see cref="IFilmTrailerClaimStore"/>). Null
+    /// when this film owns it; otherwise a 409 naming the film that does. Called before the first write of the trailer
+    /// to any film, so a loser writes nothing and nothing has to be undone.
+    /// </summary>
+    private async Task<EpisodeTrailerAttachResult?> ClaimTrailer(Guid episodeId, Guid filmId)
+    {
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var attempt = await trailerClaims.TryClaim(episodeId, filmId, now);
+        if (attempt.Claimed)
         {
-            if (holderId != film.Id)
-            {
-                await filmRepository.Delete(film.Id);
-                logger.LogWarning(
-                    "{method}: Film '{otherFilmId}' took trailer '{episodeId}' while film '{filmId}' was created; deleted '{filmId}'.",
-                    nameof(ResolveNamedFilm), holderId, episode.Id, film.Id, film.Id);
-                return (null, false, Conflict(holderId, "This episode is already a trailer of another film"));
-            }
+            return null;
         }
 
-        return (film, true, null);
+        var holder = attempt.Holder!;
+        var holderFilm = await filmRepository.GetFilm(holder.FilmId);
+        if (holderFilm?.HasTrailer(episodeId) == true)
+        {
+            return Conflict(holder.FilmId, "This episode is already a trailer of another film");
+        }
+
+        if (now - holder.ClaimedUtc < ClaimStaleAfter || attempt.HolderETag is null ||
+            !await trailerClaims.TryTakeOver(episodeId, filmId, now, attempt.HolderETag))
+        {
+            logger.LogWarning(
+                "{method}: Episode '{episodeId}' is claimed as a trailer of film '{holderFilmId}' since {claimedUtc:O}; refusing film '{filmId}'.",
+                nameof(ClaimTrailer), episodeId, holder.FilmId, holder.ClaimedUtc, filmId);
+            return Conflict(holder.FilmId, "Another attach of this episode as a trailer is in progress; try again shortly");
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -133,6 +133,10 @@ public static class ServiceCollectionExtensions
                     new ParentKindTransferLockStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
                         s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ParentKindTransferLockStore>>()))
+                .AddSingleton<IFilmTrailerClaimStore>(s =>
+                    new FilmTrailerClaimStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FilmTrailerClaimStore>>()))
                 .AddSingleton<IParentIndexingLockStore>(s =>
                     new ParentIndexingLockStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),

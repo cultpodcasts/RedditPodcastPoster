@@ -82,7 +82,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IGetEpisodeHandler, GetEpisodeHandler>()
             .AddScoped<IGetOutgoingEpisodesHandler, GetOutgoingEpisodesHandler>()
             .AddScoped<IPostEpisodeHandler, PostEpisodeHandler>()
-            .AddScoped<IPublishEpisodeHandler, PublishEpisodeHandler>();
+            .AddScoped<IPublishEpisodeHandler, PublishEpisodeHandler>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiPodcasts(this IServiceCollection services) =>
         services

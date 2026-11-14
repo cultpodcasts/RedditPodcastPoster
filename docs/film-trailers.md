@@ -52,6 +52,13 @@ before the episode is deleted, so nothing is lost; re-send after adding the fiel
 success `202` with `{ filmId, name, failureIndexing }`; when another film already holds the episode, `409` with
 `filmId` of that film (as in step 1). Order (`EpisodeTrailerAttachService`):
 
+0. Claim the episode for the film: one LookUps document per episode (`FilmTrailerClaim`, id derived from the episode
+   id, written by `IFilmTrailerClaimStore` with a Cosmos create, never an upsert). Of two attaches of one episode to
+   different films exactly one create succeeds; the other is a 409 naming the claimed film and writes nothing, so
+   nothing has to be undone and no film is ever deleted. A claim that already names this film is a resume. A claim
+   is taken over (replace with If-Match on the etag read, so one taker wins) only when its film does not hold the
+   trailer **and** it is older than 10 minutes (a failed attach); a younger one is a 409 "in progress, try again
+   shortly". Claims expire by TTL after 7 days.
 1. Add the trailer (id = episode id) to the film and save it with an ETag-guarded replace. Before that add, films
    are queried across partitions for `trailers[].id` equal to the episode id. If another film already holds it
    (an earlier attach saved the film, then stopped), the attach is a 409 with that film's id and nothing is
@@ -90,9 +97,11 @@ Move to TV show's `createShow` works:
 - The new film is written once, already holding the trailer, by a conditional create (`IFilmRepository.TryCreate`,
   Cosmos create rather than upsert) under an id derived from the trimmed, lower-case name. Overlapping creates of the
   same name converge on that one document (the loser re-reads it and resumes), and no empty film is ever stored: a
-  later failure leaves the film holding the trailer with the episode row kept. A film that took the same episode
-  while this one was created wins; the new film is deleted and the call is a 409. If the name's id belongs to a film
-  renamed since, the call is a 409 naming it.
+  later failure leaves the film holding the trailer with the episode row kept. The episode is claimed (step 0) for
+  the name's film id before the create, so of two overlapping creates with different names only the claim winner
+  creates a film; the other is a 409 naming it and writes nothing. No attach path deletes a film, so a film that has
+  gained another trailer or a main video meanwhile is never touched. If the name's id belongs to a film renamed
+  since, the call is a 409 naming it.
 - A re-send finds the film by its trailer or its name, so the film is never created twice. `filmCreated: true` on the
   `202` says this call created it.
 
