@@ -29,11 +29,6 @@ public class AppleEpisodeEnricher(
         IndexingContext indexingContext,
         EnrichmentContext enrichmentContext)
     {
-        if (IsAudioCatalogueEnrichmentBypassedByDelayedYouTubePublishing(request, "Apple", logger))
-        {
-            return;
-        }
-
         if (request.Podcast.AppleId == null)
         {
             await applePodcastEnricher.AddId(request.Podcast);

@@ -181,9 +181,9 @@ public class SpotifyEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
-        "When a YouTube-authority podcast is still inside the delayed audio window, Spotify enrichment " +
-        "is bypassed and does not query the catalogue.")]
-    public async Task enrich_is_bypassed_for_youtube_authority_inside_delayed_audio_window()
+        "When a YouTube-authority podcast has a positive YouTube publishing delay and the episode is inside that window, " +
+        "Spotify enrichment still queries the catalogue because the audio was released before YouTube (#1375).")]
+    public async Task enrich_queries_catalogue_for_youtube_authority_inside_positive_delay_window()
     {
         // Arrange
         var publishingDelay = TimeSpan.FromDays(1);
@@ -209,8 +209,7 @@ public class SpotifyEpisodeEnricherCatalogueRules
             enrichmentContext);
 
         // Assert
-        resolver.FindEpisodeInvoked.Should().BeFalse();
-        enrichmentContext.SpotifyUrlUpdated.Should().BeFalse();
+        resolver.FindEpisodeInvoked.Should().BeTrue();
     }
 
     [Fact(DisplayName =
