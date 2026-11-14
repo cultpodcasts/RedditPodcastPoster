@@ -72,6 +72,24 @@ Re-sending resumes an interrupted attach without adding the trailer twice; after
 accepted again. A removed episode, a removed film, an episode with no link, or the film's own id is a 400. An
 episode that is already a trailer of another film is a 409 (body `filmId` is that film).
 
+### Attaching to a film that does not exist yet (#1418)
+
+A trailer often comes out before its film (for example an unreleased film with no main video). Send
+`{ "createFilm": true, "filmName": "...", "title": "optional" }` instead of `filmId` (giving both is a 400). The
+trailer goes to the film with that name (case-insensitive), and when no film has it a film is created first, the way
+Move to TV show's `createShow` works:
+
+- Every episode check (episode found, not removed, has a link, not a trailer of a film with another name) runs before
+  the film is created, so a refused attach never leaves an empty film behind. Two films with the name is a 409.
+- The new film goes through the same name and IMDb/TMDB identity gate as Move to film (`FilmMoveTarget`): an
+  ambiguous match is a `200` with `identityDecision` and nothing is written; re-POST with `identityDecision`
+  (`select` / `continue` / `cancel`) and `selectedIdentityKey`. A cancel is a `200` with `cancelled: true`.
+- The film has no release, services or video. Search holds release `0001-01-01` for it (as for any playable with no
+  release), the social-post and homepage release windows skip it, and the website shows no date. The curator adds the
+  release and the main video later with the film edit.
+- A re-send finds the film by its trailer or its name, so the film is never created twice. `filmCreated: true` on the
+  `202` says this call created it.
+
 Old trailer short links keep working: the Shortner KV record for the episode key now holds the film path. After a
 film rename the record still holds the old name in the path; the short id still resolves to the film.
 

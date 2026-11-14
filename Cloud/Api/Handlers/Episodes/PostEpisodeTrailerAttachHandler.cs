@@ -23,6 +23,11 @@ public class PostEpisodeTrailerAttachHandler(
         {
             EpisodeTrailerAttachStatus.Accepted =>
                 await ctx.Accepted(result.ToDto(), cancellationToken),
+            // Same as Move to film: ambiguous / cancel are 200 command outcomes, nothing written.
+            EpisodeTrailerAttachStatus.IdentityDecisionRequired =>
+                await ctx.Ok(result.ToDto(), cancellationToken),
+            EpisodeTrailerAttachStatus.Cancelled =>
+                await ctx.Ok(result.ToDto(), cancellationToken),
             EpisodeTrailerAttachStatus.NotFound =>
                 await ctx.NotFound(
                     new
