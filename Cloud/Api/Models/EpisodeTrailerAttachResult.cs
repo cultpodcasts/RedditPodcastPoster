@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Catalogue.Authority;
+
 namespace Api.Models;
 
 public enum EpisodeTrailerAttachStatus
@@ -9,7 +11,11 @@ public enum EpisodeTrailerAttachStatus
     BadRequest,
     /// <summary>Another film already holds this episode as a trailer (<c>FilmId</c> is that film).</summary>
     Conflict,
-    Failed
+    Failed,
+    /// <summary>With <c>createFilm</c>: the new film's identity is ambiguous; nothing was written (200 with candidates).</summary>
+    IdentityDecisionRequired,
+    /// <summary>With <c>createFilm</c>: the curator cancelled the identity prompt; nothing was written.</summary>
+    Cancelled
 }
 
 public record EpisodeTrailerAttachResult(
@@ -17,4 +23,6 @@ public record EpisodeTrailerAttachResult(
     Guid? FilmId = null,
     string? Name = null,
     string? Error = null,
-    bool FailureIndexing = false);
+    bool FailureIndexing = false,
+    bool FilmCreated = false,
+    CatalogueIdentityHold? IdentityHold = null);

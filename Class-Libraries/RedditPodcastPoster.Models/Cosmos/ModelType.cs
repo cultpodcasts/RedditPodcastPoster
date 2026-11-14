@@ -98,5 +98,8 @@ public enum ModelType
     FileKeyClaim = 31,
 
     [JsonPropertyName(nameof(XApiRateLimitState))]
-    XApiRateLimitState = 32
+    XApiRateLimitState = 32,
+
+    [JsonPropertyName(nameof(FilmTrailerClaim))]
+    FilmTrailerClaim = 33
 }

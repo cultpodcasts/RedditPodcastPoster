@@ -52,6 +52,13 @@ before the episode is deleted, so nothing is lost; re-send after adding the fiel
 success `202` with `{ filmId, name, failureIndexing }`; when another film already holds the episode, `409` with
 `filmId` of that film (as in step 1). Order (`EpisodeTrailerAttachService`):
 
+0. Claim the episode for the film: one LookUps document per episode (`FilmTrailerClaim`, id derived from the episode
+   id, written by `IFilmTrailerClaimStore` with a Cosmos create, never an upsert). Of two attaches of one episode to
+   different films exactly one create succeeds; the other is a 409 naming the claimed film and writes nothing, so
+   nothing has to be undone and no film is ever deleted. A claim that already names this film is a resume. A claim
+   is taken over (replace with If-Match on the etag read, so one taker wins) only when its film does not hold the
+   trailer **and** it is older than 10 minutes (a failed attach); a younger one is a 409 "in progress, try again
+   shortly". Claims expire by TTL after 7 days.
 1. Add the trailer (id = episode id) to the film and save it with an ETag-guarded replace. Before that add, films
    are queried across partitions for `trailers[].id` equal to the episode id. If another film already holds it
    (an earlier attach saved the film, then stopped), the attach is a 409 with that film's id and nothing is
@@ -71,6 +78,32 @@ not re-created.
 Re-sending resumes an interrupted attach without adding the trailer twice; after a completed attach a re-send is
 accepted again. A removed episode, a removed film, an episode with no link, or the film's own id is a 400. An
 episode that is already a trailer of another film is a 409 (body `filmId` is that film).
+
+### Attaching to a film that does not exist yet (#1418)
+
+A trailer often comes out before its film (for example an unreleased film with no main video). Send
+`{ "createFilm": true, "filmName": "...", "title": "optional" }` instead of `filmId` (giving both is a 400). The
+trailer goes to the film with that name (case-insensitive), and when no film has it a film is created first, the way
+Move to TV show's `createShow` works:
+
+- Every episode check (episode found, not removed, has a link, not a trailer of a film with another name) runs before
+  the film is created, so a refused attach never leaves an empty film behind. Two films with the name is a 409.
+- The new film goes through the same name and IMDb/TMDB identity gate as Move to film (`FilmMoveTarget`): an
+  ambiguous match is a `200` with `identityDecision` and nothing is written; re-POST with `identityDecision`
+  (`select` / `continue` / `cancel`) and `selectedIdentityKey`. A cancel is a `200` with `cancelled: true`.
+- The film has no release, services or video. Search holds release `0001-01-01` for it (as for any playable with no
+  release), the social-post and homepage release windows skip it, and the website shows no date. The curator adds the
+  release and the main video later with the film edit.
+- The new film is written once, already holding the trailer, by a conditional create (`IFilmRepository.TryCreate`,
+  Cosmos create rather than upsert) under an id derived from the trimmed, lower-case name. Overlapping creates of the
+  same name converge on that one document (the loser re-reads it and resumes), and no empty film is ever stored: a
+  later failure leaves the film holding the trailer with the episode row kept. The episode is claimed (step 0) for
+  the name's film id before the create, so of two overlapping creates with different names only the claim winner
+  creates a film; the other is a 409 naming it and writes nothing. No attach path deletes a film, so a film that has
+  gained another trailer or a main video meanwhile is never touched. If the name's id belongs to a film renamed
+  since, the call is a 409 naming it.
+- A re-send finds the film by its trailer or its name, so the film is never created twice. `filmCreated: true` on the
+  `202` says this call created it.
 
 Old trailer short links keep working: the Shortner KV record for the episode key now holds the film path. After a
 film rename the record still holds the old name in the path; the short id still resolves to the film.

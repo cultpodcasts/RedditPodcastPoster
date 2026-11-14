@@ -24,7 +24,7 @@ public static class EpisodeFilmMoveExtensions
             EmptiedNewsOrganisationId = result.EmptiedNewsOrganisationId
         };
 
-    private static SubmitUrlResponse.IdentityDecisionBody ToIdentityDecision(CatalogueIdentityHold hold) =>
+    internal static SubmitUrlResponse.IdentityDecisionBody ToIdentityDecision(CatalogueIdentityHold hold) =>
         new()
         {
             Target = hold.Target,
