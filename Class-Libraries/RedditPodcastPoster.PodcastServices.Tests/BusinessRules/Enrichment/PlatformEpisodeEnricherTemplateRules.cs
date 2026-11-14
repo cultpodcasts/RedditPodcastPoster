@@ -1,6 +1,4 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using RedditPodcastPoster.Episodes.Adapters;
 using RedditPodcastPoster.Episodes.Applying;
 using RedditPodcastPoster.Episodes.Domain;
@@ -16,63 +14,11 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Enrichment;
 
 /// <summary>
-/// Shared enricher template rules â€” delayed-publishing bypass and apply-to-context wiring.
+/// Shared enricher template rules: apply-to-context wiring.
 /// </summary>
 public class PlatformEpisodeEnricherTemplateRules
 {
-    private static readonly TimeSpan PublishingDelay = TimeSpan.FromDays(1);
-
     private readonly DomainTestFixture _fixture = new();
-
-    [Fact(DisplayName =
-        "When an episode is outside the delayed-publishing window, the shared enricher template " +
-        "does not bypass platform enrichment.")]
-    public void template_does_not_bypass_enrichment_outside_delayed_publishing_window()
-    {
-        // Arrange
-        var podcast = PodcastServicesEpisodeEnricherTestSupport.CreateDelayedPublishingPodcast(
-            _fixture.CreateSpotifyId(),
-            _fixture.CreateYouTubeChannelId(),
-            PublishingDelay);
-        var release = DomainTestFixture.UtcDateDaysAgo(30);
-        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(release)
-            .WithDuration(_fixture.CreateDuration()));
-        var request = new EnrichmentRequest(podcast, [episode], episode);
-        var enricher = new TestPlatformEpisodeEnricher(EpisodeDomainTestServices.CreateEnrichmentApplicator());
-
-        // Act
-        var bypassed = enricher.TryBypass(request, NullLogger.Instance);
-
-        // Assert
-        bypassed.Should().BeFalse();
-    }
-
-    [Fact(DisplayName =
-        "When an episode is still inside the delayed-publishing window, the shared enricher template " +
-        "bypasses platform enrichment because audio is not yet due on YouTube.")]
-    public void template_bypasses_enrichment_inside_delayed_publishing_window()
-    {
-        // Arrange
-        var podcast = PodcastServicesEpisodeEnricherTestSupport.CreateDelayedPublishingPodcast(
-            _fixture.CreateSpotifyId(),
-            _fixture.CreateYouTubeChannelId(),
-            PublishingDelay);
-        var release = DomainTestFixture.SpotifyCatalogueReleaseStillInsideDelayedPublishingWindow(PublishingDelay);
-        var episode = _fixture.CreateSpotifyCatalogueEpisode(b => b
-            .WithRelease(release)
-            .WithDuration(_fixture.CreateDuration()));
-        EpisodeServicePresence.SetSpotifyIdentity(episode, null);
-        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, null, null);
-        var request = new EnrichmentRequest(podcast, [episode], episode);
-        var enricher = new TestPlatformEpisodeEnricher(EpisodeDomainTestServices.CreateEnrichmentApplicator());
-
-        // Act
-        var bypassed = enricher.TryBypass(request, NullLogger.Instance);
-
-        // Assert
-        bypassed.Should().BeTrue();
-    }
 
     [Fact(DisplayName =
         "When ApplyResolvedCandidate applies a Spotify catalogue candidate, the enrichment context " +
@@ -110,9 +56,6 @@ public class PlatformEpisodeEnricherTemplateRules
     private sealed class TestPlatformEpisodeEnricher(IPlatformEnrichmentApplicator enrichmentApplicator)
         : PlatformEpisodeEnricherTemplate(enrichmentApplicator)
     {
-        public bool TryBypass(EnrichmentRequest request, ILogger logger) =>
-            IsBypassedByDelayedYouTubePublishing(request, "Test", logger);
-
 
         public PlatformEnrichmentResult ApplyCandidate(
             EnrichmentRequest request,

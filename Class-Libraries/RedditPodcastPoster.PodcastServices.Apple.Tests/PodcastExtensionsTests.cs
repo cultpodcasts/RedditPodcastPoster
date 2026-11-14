@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions;
@@ -10,6 +11,8 @@ namespace RedditPodcastPoster.PodcastServices.Apple.Tests;
 
 public class PodcastExtensionsTests
 {
+    private readonly DomainTestFixture _fixture = new();
+
     [Fact(DisplayName =
         "When YouTube is the release authority, the podcast depends on YouTube for episode discovery " +
         "even though Spotify and Apple ids are set.")]
@@ -137,7 +140,7 @@ public class PodcastExtensionsTests
         // Arrange
         var podcast = new Podcast
         {
-            AppleId = 123,
+            AppleId = _fixture.CreateAppleId(),
             ReleaseAuthority = Service.YouTube,
             YouTubePublicationOffset = TimeSpan.FromDays(1).Ticks
         };
@@ -145,7 +148,7 @@ public class PodcastExtensionsTests
         {
             ReleaseUtc = DateTime.UtcNow.AddHours(-2),
             Length = TimeSpan.FromHours(1),
-            Urls = { YouTube = new Uri("https://www.youtube.com/watch?v=test") }
+            Urls = { YouTube = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}") }
         };
 
         // Act
@@ -163,8 +166,8 @@ public class PodcastExtensionsTests
         // Arrange
         var podcast = new Podcast
         {
-            SpotifyId = "spotify",
-            YouTubeChannelId = "channel",
+            SpotifyId = _fixture.CreateSpotifyId(),
+            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
             ReleaseAuthority = Service.YouTube,
             YouTubePublicationOffset = TimeSpan.FromHours(6).Ticks
         };
@@ -189,7 +192,7 @@ public class PodcastExtensionsTests
         // Arrange
         var podcast = new Podcast
         {
-            AppleId = 123,
+            AppleId = _fixture.CreateAppleId(),
             ReleaseAuthority = Service.YouTube,
             YouTubePublicationOffset = TimeSpan.FromHours(-6).Ticks
         };
@@ -197,7 +200,7 @@ public class PodcastExtensionsTests
         {
             ReleaseUtc = DateTime.UtcNow.AddHours(-2),
             Length = TimeSpan.FromHours(1),
-            Urls = { YouTube = new Uri("https://www.youtube.com/watch?v=test") }
+            Urls = { YouTube = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}") }
         };
 
         // Act
@@ -214,7 +217,7 @@ public class PodcastExtensionsTests
         // Arrange
         var podcast = new Podcast
         {
-            AppleId = 123,
+            AppleId = _fixture.CreateAppleId(),
             ReleaseAuthority = Service.YouTube,
             YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks
         };
@@ -222,7 +225,7 @@ public class PodcastExtensionsTests
         {
             ReleaseUtc = DateTime.UtcNow.AddDays(-2),
             Length = TimeSpan.FromHours(1),
-            Urls = { YouTube = new Uri("https://www.youtube.com/watch?v=test") }
+            Urls = { YouTube = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}") }
         };
 
         // Act
@@ -239,9 +242,9 @@ public class PodcastExtensionsTests
         // Arrange
         var podcast = new Podcast
         {
-            SpotifyId = "spotify",
-            AppleId = 123,
-            YouTubeChannelId = "channel",
+            SpotifyId = _fixture.CreateSpotifyId(),
+            AppleId = _fixture.CreateAppleId(),
+            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
             YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks
         };
         var episode = new Episode
@@ -265,8 +268,8 @@ public class PodcastExtensionsTests
         // Arrange
         var podcast = new Podcast
         {
-            SpotifyId = "spotify",
-            YouTubeChannelId = "channel",
+            SpotifyId = _fixture.CreateSpotifyId(),
+            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
             YouTubePublicationOffset = TimeSpan.FromHours(1).Ticks
         };
         var episode = new Episode
@@ -281,5 +284,30 @@ public class PodcastExtensionsTests
 
         // Assert
         result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a YouTube-only podcast (no Spotify or Apple id) has a positive publishing delay, its episode is not delayed, " +
+        "because there is no audio episode waiting on a YouTube upload.")]
+    public void IsDelayedYouTubePublishing_WhenYouTubeOnlyPodcastWithPositiveDelay_ReturnsFalse()
+    {
+        // Arrange
+        var podcast = new Podcast
+        {
+            YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+            YouTubePublicationOffset = TimeSpan.FromHours(6).Ticks
+        };
+        var episode = new Episode
+        {
+            ReleaseUtc = DateTime.UtcNow.AddMinutes(-30),
+            Length = TimeSpan.FromHours(1),
+            Urls = new ServiceUrls()
+        };
+
+        // Act
+        var result = podcast.IsDelayedYouTubePublishing(episode);
+
+        // Assert
+        result.Should().BeFalse();
     }
 }

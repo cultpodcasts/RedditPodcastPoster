@@ -836,7 +836,7 @@ public class CatalogueSocialPostRules
     }
 
     [Fact(DisplayName =
-        "When a YouTube news report has a zero YouTube publishing delay, then it is tweet-ready as a NewsReport, because the empty delayed case is caused by IsDelayedYouTubePublishing rather than missing URL, window, or projection Indexing.")]
+        "When a YouTube news report has a zero YouTube publishing delay, then it is tweet-ready as a NewsReport, because with no delay there is nothing for IsDelayedYouTubePublishing to hold back and the URL, window and projection checks all pass.")]
     public async Task zero_youtube_delay_news_report_is_tweet_ready()
     {
         // Arrange

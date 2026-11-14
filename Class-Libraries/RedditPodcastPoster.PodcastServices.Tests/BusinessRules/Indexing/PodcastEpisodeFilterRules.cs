@@ -159,6 +159,83 @@ public class PodcastEpisodeFilterRules
         skipped.OldTweeted.Should().BeFalse();
     }
 
-    private Podcast CreateYouTubeAuthorityPodcast() =>
-        _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
+    [Fact(DisplayName =
+        "When an audio-first (Spotify-authority) podcast has a positive YouTube publishing delay and its Spotify-only episode " +
+        "is still inside release + offset, it is not tweet-ready, because audio-first shows keep waiting for the delayed YouTube upload (#1375).")]
+    public async Task audio_first_positive_delay_spotify_only_inside_window_not_tweet_ready()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var podcast = CreateAudioFirstPodcastWithPositiveDelay();
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast, release: DateTime.UtcNow.AddHours(-1));
+        episode.OldTweeted = false;
+
+        // Act
+        var ready = await sut.GetMostRecentUntweetedEpisodes(podcast, [episode], numberOfDays: 7);
+
+        // Assert
+        ready.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When an audio-first (Spotify-authority) podcast has a positive YouTube publishing delay and its Spotify-only episode " +
+        "is still inside release + offset, it is not Bluesky-ready, because audio-first shows keep waiting for the delayed YouTube upload (#1375).")]
+    public async Task audio_first_positive_delay_spotify_only_inside_window_not_bluesky_ready()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var podcast = CreateAudioFirstPodcastWithPositiveDelay();
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast, release: DateTime.UtcNow.AddHours(-1));
+
+        // Act
+        var ready = await sut.GetMostRecentBlueskyReadyEpisodes(podcast, [episode], numberOfDays: 7);
+
+        // Assert
+        ready.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When an audio-first (Spotify-authority) podcast's positive YouTube publishing delay has passed, its Spotify-only episode " +
+        "is tweet-ready, because the hold only lasts until release + offset.")]
+    public async Task audio_first_positive_delay_spotify_only_after_window_is_tweet_ready()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var podcast = CreateAudioFirstPodcastWithPositiveDelay();
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast, release: DateTime.UtcNow.AddDays(-2));
+        episode.OldTweeted = false;
+
+        // Act
+        var ready = await sut.GetMostRecentUntweetedEpisodes(podcast, [episode], numberOfDays: 7);
+
+        // Assert
+        ready.Should().ContainSingle().Which.Episode.Id.Should().Be(episode.Id);
+    }
+
+    [Fact(DisplayName =
+        "When an audio-first (Spotify-authority) podcast's positive YouTube publishing delay has passed, its Spotify-only episode " +
+        "is Bluesky-ready, because the hold only lasts until release + offset.")]
+    public async Task audio_first_positive_delay_spotify_only_after_window_is_bluesky_ready()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var podcast = CreateAudioFirstPodcastWithPositiveDelay();
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast, release: DateTime.UtcNow.AddDays(-2));
+
+        // Act
+        var ready = await sut.GetMostRecentBlueskyReadyEpisodes(podcast, [episode], numberOfDays: 7);
+
+        // Assert
+        ready.Should().ContainSingle().Which.Episode.Id.Should().Be(episode.Id);
+    }
+
+    private Podcast CreateAudioFirstPodcastWithPositiveDelay()
+    {
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        podcast.YouTubePublicationOffset = TimeSpan.FromHours(6).Ticks;
+        return podcast;
+    }
+
+    private Podcast CreateYouTubeAuthorityPodcast() =>        _fixture.CreateYouTubeReleaseAuthorityPodcastWithNegativeDelay();
 }

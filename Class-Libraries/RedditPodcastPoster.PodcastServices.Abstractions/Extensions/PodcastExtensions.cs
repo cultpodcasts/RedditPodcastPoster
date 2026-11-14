@@ -57,6 +57,9 @@ public static class PodcastExtensions
     /// (see <c>EpisodeReleaseTolerance.GetAudioReleaseForPlatformLookup</c>), so there is nothing left to
     /// wait for once the YouTube episode exists (#1375).
     /// </para>
+    /// <para>
+    /// Podcasts with no Spotify or Apple id are never held: there is no audio episode to wait on.
+    /// </para>
     /// </summary>
     public static bool IsDelayedYouTubePublishing(this Podcast podcast, Episode episode)
     {
@@ -65,8 +68,7 @@ public static class PodcastExtensions
             return false;
         }
 
-        if (!IsAudioPodcastAwaitingYouTubeRelease(podcast, episode) &&
-            !IsYouTubePodcastWithDelayedPosting(podcast))
+        if (!IsAudioPodcastAwaitingYouTubeRelease(podcast, episode))
         {
             return false;
         }
@@ -98,15 +100,6 @@ public static class PodcastExtensions
     private static bool IsAudioPodcastAwaitingYouTubeRelease(Podcast podcast, Episode episode)
     {
         return !EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube) &&
-               podcast.YouTubePublishingDelay() > TimeSpan.Zero;
-    }
-
-
-    private static bool IsYouTubePodcastWithDelayedPosting(Podcast podcast)
-    {
-        return string.IsNullOrWhiteSpace(podcast.SpotifyId) &&
-               !podcast.AppleId.HasValue &&
-               podcast.HasYouTubeSource() &&
                podcast.YouTubePublishingDelay() > TimeSpan.Zero;
     }
 }
