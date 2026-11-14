@@ -959,9 +959,35 @@ public class CatalogueParentIndexingRules
 
         // Assert
         result.Status.Should().Be(CatalogueParentIndexStatus.NotIndexable);
+        result.NotIndexableReason.Should().Be(CatalogueParentNotIndexableReason.Removed);
         _existingPassedToProvider.Should().BeNull();
         _savedTvEpisodes.Should().BeEmpty();
         _showPatches.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when the news organisation is not auto-indexed and has no Spotify or Apple id, then " +
+        "the result is NotIndexable with reason NotAutoIndexed and discovery never runs, because there is nothing to " +
+        "discover or enrich from (#1400).")]
+    public async Task index_parent_not_auto_indexed_without_audio_ids_is_not_auto_indexed()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        podcast.IndexAllEpisodes = false;
+        podcast.SpotifyId = string.Empty;
+        podcast.AppleId = null;
+        var organisation = SeedOrganisation(podcast);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+
+        // Act
+        var result = await Sut.IndexParent(organisation, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.NotIndexable);
+        result.NotIndexableReason.Should().Be(CatalogueParentNotIndexableReason.NotAutoIndexed);
+        _existingPassedToProvider.Should().BeNull();
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
