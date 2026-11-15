@@ -378,6 +378,141 @@ public class TmdbClientRules
         logged.Should().OnlyContain(message => !message.Contains(_options.ApiKey) && !message.Contains("api_key"));
     }
 
+    [Fact(DisplayName =
+        "Movie metadata reads the overview, runtime, release date and backdrop, and lists every other title (original, " +
+        "alternative and translated) once, without the movie's own title (RPP #1430, #1431).")]
+    public async Task movie_metadata_reads_details_and_other_titles()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["id"] = movieId,
+            ["title"] = "Father's House",
+            ["original_title"] = "Faderhuset",
+            ["overview"] = " A documentary. ",
+            ["runtime"] = 88,
+            ["release_date"] = "2026-10-19",
+            ["poster_path"] = "/poster.jpg",
+            ["backdrop_path"] = "/backdrop.jpg",
+            ["alternative_titles"] = new JsonObject
+            {
+                ["titles"] = new JsonArray(
+                    new JsonObject { ["title"] = "faderhuset" },
+                    new JsonObject { ["title"] = "Fathers House" },
+                    new JsonObject { ["title"] = " " })
+            },
+            ["translations"] = new JsonObject
+            {
+                ["translations"] = new JsonArray(
+                    new JsonObject { ["data"] = new JsonObject { ["title"] = "Father's House" } },
+                    new JsonObject { ["data"] = new JsonObject { ["title"] = "La casa del padre" } },
+                    new JsonObject { ["data"] = new JsonObject { ["title"] = "" } })
+            }
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var metadata = await sut.GetMovieMetadataAsync(movieId);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata!.Id.Should().Be(movieId);
+        metadata.Title.Should().Be("Father's House");
+        metadata.Overview.Should().Be("A documentary.");
+        metadata.RuntimeMinutes.Should().Be(88);
+        metadata.ReleaseDate.Should().Be(new DateOnly(2026, 10, 19));
+        metadata.Image.Should().Be(new Uri("https://image.tmdb.org/t/p/w1280/backdrop.jpg"));
+        metadata.OtherTitles.Should().Equal("Faderhuset", "Fathers House", "La casa del padre");
+        _handler.Requests.Single().RequestUri!.OriginalString
+            .Should().Contain($"movie/{movieId}?append_to_response=alternative_titles,translations");
+    }
+
+    [Fact(DisplayName =
+        "Movie metadata uses the poster when TMDB has no backdrop, and leaves a zero runtime and a blank date unset.")]
+    public async Task movie_metadata_falls_back_to_poster()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["id"] = movieId,
+            ["title"] = _fixture.CreateTitle(),
+            ["runtime"] = 0,
+            ["release_date"] = "",
+            ["poster_path"] = "/poster.jpg"
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var metadata = await sut.GetMovieMetadataAsync(movieId);
+
+        // Assert
+        metadata!.Image.Should().Be(new Uri("https://image.tmdb.org/t/p/w780/poster.jpg"));
+        metadata.RuntimeMinutes.Should().BeNull();
+        metadata.ReleaseDate.Should().BeNull();
+        metadata.OtherTitles.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "TV episode metadata reads the name, overview, runtime, air date and still from the season/episode path.")]
+    public async Task tv_episode_metadata_reads_details()
+    {
+        // Arrange
+        var seriesId = CreateTmdbId();
+        var episodeId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["id"] = episodeId,
+            ["name"] = "Pilot",
+            ["overview"] = "It begins.",
+            ["runtime"] = 47,
+            ["air_date"] = "2019-02-03",
+            ["still_path"] = "/still.jpg"
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var metadata = await sut.GetTvEpisodeMetadataAsync(seriesId, 1, 1);
+
+        // Assert
+        metadata.Should().Be(new TmdbEpisodeMetadata(
+            episodeId, "Pilot", "It begins.", 47, new DateOnly(2019, 2, 3),
+            new Uri("https://image.tmdb.org/t/p/w780/still.jpg")));
+        _handler.Requests.Single().RequestUri!.AbsolutePath.Should().Be($"/3/tv/{seriesId}/season/1/episode/1");
+    }
+
+    [Fact(DisplayName =
+        "Finding a TV episode by IMDb title id returns its series id, season and episode number from TMDB find.")]
+    public async Task find_tv_episode_by_imdb_id()
+    {
+        // Arrange
+        var imdbId = "tt" + _fixture.CreateAppleId();
+        var showId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["movie_results"] = new JsonArray(),
+            ["tv_episode_results"] = new JsonArray(new JsonObject
+            {
+                ["id"] = CreateTmdbId(),
+                ["show_id"] = showId,
+                ["season_number"] = 3,
+                ["episode_number"] = 7
+            })
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var reference = await sut.FindTvEpisodeByImdbIdAsync(imdbId);
+
+        // Assert
+        reference.Should().Be(new TmdbEpisodeReference(showId, 3, 7));
+    }
+
     private int CreateTmdbId()
     {
         var value = (int)(_fixture.CreateAppleId() % 1_000_000_000L);

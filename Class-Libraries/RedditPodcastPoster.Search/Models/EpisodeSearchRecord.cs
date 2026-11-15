@@ -105,6 +105,18 @@ public class EpisodeSearchRecord
     [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
     public string[]? Trailers { get; set; }
 
+    /// <summary>
+    /// Film only: other titles the film is known by (original, alternative and translated titles; RPP #1431).
+    /// Searchable, so a search for "Father's House" finds Faderhuset, and retrievable for the film page.
+    /// Null is omitted from the upload, so other kinds (and films with none) never send it. The live index must have
+    /// the field (<c>CreateSearchIndex --update-existing</c>) before any document carries it, because Azure Search
+    /// rejects a document with an unknown field.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.StandardLucene, IsFilterable = false, IsFacetable = false,
+        IsSortable = false)]
+    public string[]? AlternativeTitles { get; set; }
+
     // Retrievable so flix/search cards and episode pages can show language flags.
     // Still filterable+facetable for subject language chips (English ≈ null).
     [SimpleField(IsFilterable = true, IsFacetable = true)]

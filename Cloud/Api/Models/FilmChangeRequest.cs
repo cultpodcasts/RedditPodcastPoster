@@ -25,4 +25,5 @@ public class FilmChangeRequest : PublisherFieldsChange
     public bool? UnBluesky { get; set; }
     public string[]? Subjects { get; set; }
     public string[]? Guests { get; set; }
+    public string[]? AlternativeTitles { get; set; }
 }

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Catalogue.Authority.Imdb;
 using RedditPodcastPoster.Catalogue.Episodes;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.TheTvdb.Extensions;
 using RedditPodcastPoster.Tmdb.Extensions;
@@ -24,6 +25,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ICatalogueAuthorityLookup, CatalogueAuthorityLookup>()
             .AddScoped<ICatalogueAuthorityPreviewer, CatalogueAuthorityPreviewer>()
             .AddScoped<ICatalogueIdentityEnricher, CatalogueIdentityEnricher>()
+            .AddScoped<IIdentityMetadataEnricher, IdentityMetadataEnricher>()
             .AddScoped<IEpisodeProvider, EpisodeProvider>()
             .AddSingleton<IFoundEpisodeFilter, FoundEpisodeFilter>()
             .AddScoped<IEpisodeResolver, EpisodeResolver>()

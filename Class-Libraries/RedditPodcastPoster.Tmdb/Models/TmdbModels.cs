@@ -119,3 +119,53 @@ public sealed record TmdbTitle(
     Uri? ImdbUrl,
     Uri? TvdbUrl,
     CatalogueCanonicalId? Canonical);
+
+/// <summary>
+/// A TMDB movie's own metadata (RPP #1430 / #1431). <see cref="Image"/> is the landscape backdrop when TMDB has one,
+/// else the poster. <see cref="OtherTitles"/> is every other title the film is known by, distinct and trimmed:
+/// the original title, TMDB's alternative titles and its translated titles, never <see cref="Title"/> itself.
+/// </summary>
+public sealed record TmdbMovieMetadata(
+    int Id,
+    string Title,
+    string? OriginalTitle,
+    string? Overview,
+    int? RuntimeMinutes,
+    DateOnly? ReleaseDate,
+    Uri? Image,
+    IReadOnlyList<string> OtherTitles);
+
+/// <summary>A TMDB TV episode's own metadata (RPP #1430). <see cref="Still"/> is the episode still.</summary>
+public sealed record TmdbEpisodeMetadata(
+    int Id,
+    string? Name,
+    string? Overview,
+    int? RuntimeMinutes,
+    DateOnly? AirDate,
+    Uri? Still);
+
+/// <summary>Where a TV episode sits on TMDB: its series id, season and episode number.</summary>
+public sealed record TmdbEpisodeReference(int SeriesId, int SeasonNumber, int EpisodeNumber);
+
+/// <summary>TMDB image URLs for the paths in a details payload.</summary>
+public static class TmdbImage
+{
+    private const string Base = "https://image.tmdb.org/t/p/";
+
+    public static Uri? Backdrop(string? path) => Build("w1280", path);
+
+    public static Uri? Poster(string? path) => Build("w780", path);
+
+    public static Uri? Still(string? path) => Build("w780", path);
+
+    private static Uri? Build(string size, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        var trimmed = path.Trim();
+        return new Uri(Base + size + (trimmed.StartsWith('/') ? trimmed : "/" + trimmed));
+    }
+}

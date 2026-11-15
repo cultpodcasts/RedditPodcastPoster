@@ -6,8 +6,8 @@ using RedditPodcastPoster.Models.Films;
 namespace Api.Services.Films;
 
 /// <summary>
-/// The film PATCH fields that identify and link a film: <c>imdbId</c>, <c>tmdbId</c>, <c>services</c> and
-/// <c>trailers</c>. <see cref="TryValidate"/> runs before anything is applied, so a 400 leaves the film untouched.
+/// The film PATCH fields that identify and link a film: <c>imdbId</c>, <c>tmdbId</c>, <c>services</c>,
+/// <c>trailers</c> and <c>alternativeTitles</c>. <see cref="TryValidate"/> runs before anything is applied, so a 400 leaves the film untouched.
 /// </summary>
 internal static partial class FilmLinkChangeApplier
 {
@@ -78,6 +78,18 @@ internal static partial class FilmLinkChangeApplier
         if (change.Trailers is not null)
         {
             ApplyTrailers(film, change.Trailers);
+        }
+
+        if (change.AlternativeTitles is not null)
+        {
+            var titles = change.AlternativeTitles
+                .Where(title => !string.IsNullOrWhiteSpace(title))
+                .Select(title => title.Trim())
+                .Where(title => !string.Equals(title, film.Name?.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            // [] is kept: the curator cleared them, so identity enrichment does not fill them again.
+            film.AlternativeTitles = titles;
         }
     }
 

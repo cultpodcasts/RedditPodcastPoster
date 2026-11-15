@@ -180,6 +180,25 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     [JsonPropertyOrder(160)]
     public string[]? Guests { get; set; }
 
+    /// <summary>
+    /// Image from the film's identity (TMDB backdrop, else poster). Omitted when unknown. The search document uses it
+    /// only when no streaming service has an image (RPP #1430).
+    /// </summary>
+    [JsonPropertyName("image")]
+    [JsonPropertyOrder(161)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Uri? Image { get; set; }
+
+    /// <summary>
+    /// Other titles the film is known by (original, alternative and translated titles), searchable in site search.
+    /// Filled from TMDB when never set (null); a curator may edit them, and [] (cleared) is not filled again.
+    /// Omitted when never set (RPP #1431).
+    /// </summary>
+    [JsonPropertyName("alternativeTitles")]
+    [JsonPropertyOrder(162)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? AlternativeTitles { get; set; }
+
     public void SetRelease(CatalogueRelease? release) => Release = release;
 
     /// <summary>True when a trailer came from the episode with this id.</summary>

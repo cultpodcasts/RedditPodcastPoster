@@ -15,6 +15,29 @@ public interface ITmdbClient
 
     Task<TmdbTitle?> GetMovieAsync(int movieId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The movie's own metadata: overview, runtime, release date, images, and every other title it is known by
+    /// (original title, alternative titles and translated titles). Null when TMDB has no such movie.
+    /// </summary>
+    Task<TmdbMovieMetadata?> GetMovieMetadataAsync(int movieId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The episode's own metadata: name, overview, runtime, air date and still. Null when TMDB has no such episode.
+    /// </summary>
+    Task<TmdbEpisodeMetadata?> GetTvEpisodeMetadataAsync(
+        int seriesId,
+        int seasonNumber,
+        int episodeNumber,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// TMDB <c>find</c> by IMDb title id for a TV episode: its series id, season and episode number. Null when TMDB
+    /// has no episode for that id.
+    /// </summary>
+    Task<TmdbEpisodeReference?> FindTvEpisodeByImdbIdAsync(
+        string imdbId,
+        CancellationToken cancellationToken = default);
+
     Task<TmdbTitle?> GetTvSeriesAsync(int seriesId, CancellationToken cancellationToken = default);
 
     Task<TmdbTitle?> GetTvEpisodeAsync(

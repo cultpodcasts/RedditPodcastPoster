@@ -125,7 +125,9 @@ public static class PlayableSearchSql
             ? $"{projection.SeriesNameExpression} as seriesName,"
             : string.Empty;
         var release = SearchIndexCosmosSql.ReleaseSort(documentAlias);
-        var image = SearchIndexCosmosSql.ImageOrEmpty(imageCoalesceOrder, documentAlias);
+        // RPP #1430: a TV episode's identity image (c.image, the TMDB still) when no service has an image.
+        var image =
+            $"(({SearchIndexCosmosSql.CoalescedImageFallback(imageCoalesceOrder, documentAlias)} ?? {documentAlias}.image) ?? \"\")";
         var svc = SearchIndexCosmosSql.SvcProjection(svcKeys, documentAlias);
         var spotifyId = SpotifyEpisodeIdFromUrl(documentAlias);
         var appleId = AppleEpisodeIdFromUrl(documentAlias);

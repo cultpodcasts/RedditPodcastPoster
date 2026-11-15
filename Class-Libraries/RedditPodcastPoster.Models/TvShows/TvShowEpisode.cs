@@ -53,6 +53,15 @@ public sealed class TvShowEpisode : Playable, ICatalogueYouTubeItem, ITvCanonica
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? TmdbId { get; set; }
 
+    /// <summary>
+    /// Image from the episode's identity (the TMDB still). Omitted when unknown. The search document uses it only when
+    /// no streaming service has an image (RPP #1430).
+    /// </summary>
+    [JsonPropertyName("image")]
+    [JsonPropertyOrder(145)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Uri? Image { get; set; }
+
     private string? _youTubeId;
 
     /// <summary>

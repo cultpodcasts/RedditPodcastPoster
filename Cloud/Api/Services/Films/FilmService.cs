@@ -2,8 +2,10 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Tmdb.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.Films;
@@ -12,6 +14,7 @@ public class FilmService(
     IFilmRepository filmRepository,
     CataloguePlayableSearchSync searchSync,
     IPlayableSocialRetraction socialRetraction,
+    IIdentityMetadataEnricher identityMetadata,
     ILogger<FilmService> logger) : IFilmService
 {
     public async Task<FilmGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -90,7 +93,9 @@ public class FilmService(
                 }
             }
 
-            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds);
+            // Read once, outside the save loop. Applied to the film the save re-reads, only where a field is empty.
+            var metadata = await ReadIdentityMetadata(film, request.Change, cancellationToken);
+            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds, metadata);
             if (persisted.Result.Status != FilmUpdateStatus.Accepted || persisted.Film is null)
             {
                 return persisted.Result;
@@ -176,6 +181,36 @@ public class FilmService(
         }
     }
 
+    /// <summary>
+    /// RPP #1430: the film's TMDB metadata when this edit leaves it with an IMDb or TMDB id and either changes an id
+    /// or leaves a field identity can fill empty (description, release, runtime, image, alternative titles).
+    /// Null otherwise, or when the lookup fails; the edit is saved either way.
+    /// </summary>
+    private async Task<TmdbMovieMetadata?> ReadIdentityMetadata(
+        Film film,
+        FilmChangeRequest change,
+        CancellationToken cancellationToken)
+    {
+        var imdbId = change.ImdbId is null
+            ? film.ImdbId
+            : change.ImdbId.Trim().Length == 0 ? null : change.ImdbId.Trim();
+        var tmdbId = change.TmdbId is null
+            ? film.TmdbId
+            : change.TmdbId.Value == 0 ? null : change.TmdbId;
+        if (imdbId is null && tmdbId is null)
+        {
+            return null;
+        }
+
+        var idsChanged = !string.Equals(imdbId, film.ImdbId, StringComparison.Ordinal) || tmdbId != film.TmdbId;
+        if (!idsChanged && !IdentityMetadataFill.HasGaps(film))
+        {
+            return null;
+        }
+
+        return await identityMetadata.FetchFilmAsync(tmdbId, imdbId, cancellationToken);
+    }
+
     private const int MaxSaveAttempts = FilmDocumentUpdate.MaxAttempts;
 
     private const string StaleTrailersMessage =
@@ -236,7 +271,8 @@ public class FilmService(
     private async Task<FilmPersist> SaveKeepingAttachedTrailers(
         Guid filmId,
         FilmChangeRequest change,
-        IReadOnlySet<Guid> readTrailerIds)
+        IReadOnlySet<Guid> readTrailerIds,
+        TmdbMovieMetadata? metadata)
     {
         var guardingTrailers = change.Trailers is not null;
         for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
@@ -272,6 +308,11 @@ public class FilmService(
             if (!TryApply(latest.Film, change, out _, out var applyError))
             {
                 return new FilmPersist(new FilmUpdateResult(FilmUpdateStatus.BadRequest, applyError), null);
+            }
+
+            if (metadata is not null)
+            {
+                IdentityMetadataFill.Fill(latest.Film, metadata);
             }
 
             if (await filmRepository.TryReplace(latest.Film, latest.ETag))
