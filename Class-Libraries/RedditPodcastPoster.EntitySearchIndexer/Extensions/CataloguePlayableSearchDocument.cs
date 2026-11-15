@@ -17,8 +17,9 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 /// (none for a film) and <c>episodeSearchTerms</c> is the item's own terms. Used by the curator edit to push the
 /// document straight away instead of waiting for the pull indexer's next <c>_ts</c> run. <c>spotifyId</c>,
 /// <c>appleId</c> and <c>podcastAppleId</c> come from the <c>services</c> URLs through
-/// <see cref="PlayableServiceSearchIds"/>, the same rules the pull SQL uses: the push is a merge-upload, so a null
-/// here would blank the ids the pull wrote.
+/// <see cref="PlayableServiceSearchIds"/>, the same rules the pull SQL uses. TV and news are
+/// merge-or-uploaded, so a null here is omitted and the ids the pull wrote stay. Films are
+/// uploaded (replaced), so a null field is cleared (RPP #1428).
 /// </summary>
 public static class CataloguePlayableSearchDocument
 {
@@ -72,7 +73,8 @@ public static class CataloguePlayableSearchDocument
         record.PodcastName = null;
         record.PublisherSearchTerms = string.Empty;
         record.Trailers = FilmTrailerSearchToken.For(film);
-        // [] clears titles already in the index (merge ignores null); null (never set) is omitted.
+        // [] clears titles already in the index. Null (never set) is omitted from the JSON; on a
+        // film Upload (replace) that also clears the index field, unlike a merge (RPP #1428).
         record.AlternativeTitles = film.AlternativeTitles is { } titles ? [.. titles] : null;
         record.ImdbId = string.IsNullOrWhiteSpace(film.ImdbId) ? null : film.ImdbId;
         record.TmdbId = film.TmdbId;

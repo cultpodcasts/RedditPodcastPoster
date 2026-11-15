@@ -18,11 +18,14 @@ public class CataloguePlayableSearchDocumentFilmRules
         "are omitted from the JSON so only an Upload (replace) clears a stale uploader channel (#1428).")]
     public void film_document_clears_series_and_podcast_name()
     {
+        // Arrange
         var film = new Film(_fixture.CreateTitle());
         film.SetRelease(CatalogueRelease.FromDateTimeUtc(DateTime.UtcNow));
 
+        // Act
         var record = CataloguePlayableSearchDocument.For(film);
 
+        // Assert
         record.ContentKind.Should().Be(SearchContentKind.Film);
         record.SeriesName.Should().BeNull();
         record.PodcastName.Should().BeNull();

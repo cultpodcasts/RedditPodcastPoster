@@ -9,7 +9,9 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 
 /// <summary>
 /// Same-id search swap documents for catalogue playables: kind transfer, Move to film and submit-url indexing.
-/// MergeOrUpload keeps the episode (or Film) GUID as the search key.
+/// The episode (or Film) GUID stays the search key. Films are uploaded (replaced) so a null
+/// <c>seriesName</c> or <c>podcastName</c> clears a stale uploader channel; other kinds are
+/// merge-or-uploaded (RPP #1428).
 /// </summary>
 public static class CatalogueSearchDocuments
 {

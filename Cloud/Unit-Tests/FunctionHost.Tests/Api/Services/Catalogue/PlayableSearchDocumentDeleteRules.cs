@@ -122,6 +122,7 @@ public class PlayableSearchDocumentDeleteRules
         "uploader channel left from before the episode became a film (#1428).")]
     public async Task film_swap_is_uploaded()
     {
+        // Arrange
         IndexDocumentsBatch<EpisodeSearchRecord>? sent = null;
         _client
             .Setup(c => c.IndexDocumentsAsync(
@@ -149,8 +150,10 @@ public class PlayableSearchDocumentDeleteRules
         };
         var swap = new PlayableSearchDocumentSwap(_client.Object, NullLogger<PlayableSearchDocumentSwap>.Instance);
 
+        // Act
         var uploaded = await swap.UploadAsync([document], CancellationToken.None);
 
+        // Assert
         uploaded.Should().BeTrue();
         sent.Should().NotBeNull();
         sent!.Actions.Should().ContainSingle();
