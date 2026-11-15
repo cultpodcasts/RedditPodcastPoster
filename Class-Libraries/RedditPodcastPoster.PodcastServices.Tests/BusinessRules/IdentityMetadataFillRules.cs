@@ -164,7 +164,7 @@ public class IdentityMetadataFillRules
         // Arrange
         var title = _fixture.CreateTitle();
         var description = _fixture.CreateTitle();
-        var release = CatalogueRelease.FromDateTimeUtc(new DateTime(2020, 5, 6, 7, 8, 9, DateTimeKind.Utc));
+        var release = CatalogueRelease.FromDateTimeUtc(DomainTestFixture.UtcAtTime(-400, _fixture.CreateNonMidnightTimeOfDay()));
         var length = _fixture.CreateDuration();
         var image = new Uri($"https://example.org/{_fixture.CreateYouTubeId()}.jpg");
         var tmdbId = _fixture.CreateTmdbId();
