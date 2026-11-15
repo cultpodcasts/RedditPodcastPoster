@@ -122,7 +122,7 @@ public class HomepagePublisherCatalogueRules
         NullLogger<HomepagePublisher>.Instance);
 
     private void GivenCatalogue(params HomepageCataloguePlayable[] items) =>
-        _catalogue.Setup(x => x.GetRecent(It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(items);
+        _catalogue.Setup(x => x.GetRecent(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(items);
 
     private static HomepageCataloguePlayable Item(string kind, string parent, string title, DateTime release) => new()
     {
@@ -315,5 +315,22 @@ public class HomepagePublisherCatalogueRules
         result.KnownTerms.Should().Equal("SyntheticTerm");
         result.Subjects.Should().BeNull();
         HomepagePublisher.ToRecentEpisode(result).ContentKind.Should().Be("TvShowEpisode");
+    }
+
+    [Fact(DisplayName =
+        "Homepage publisher: an item is included once now is on or after its release, and hidden while " +
+        "the release is still in the future.")]
+    public void future_release_is_hidden_until_now_is_on_or_after_its_release()
+    {
+        var release = new DateTime(2026, 11, 19, 0, 0, 0, DateTimeKind.Utc);
+
+        HomepagePublisher.IncludeInHomepageWindow(release, new DateTime(2026, 11, 15, 19, 58, 0, DateTimeKind.Utc))
+            .Should().BeFalse();
+        HomepagePublisher.IncludeInHomepageWindow(release, release.AddTicks(-1))
+            .Should().BeFalse();
+        HomepagePublisher.IncludeInHomepageWindow(release, release)
+            .Should().BeTrue();
+        HomepagePublisher.IncludeInHomepageWindow(release, release.AddHours(1))
+            .Should().BeTrue();
     }
 }

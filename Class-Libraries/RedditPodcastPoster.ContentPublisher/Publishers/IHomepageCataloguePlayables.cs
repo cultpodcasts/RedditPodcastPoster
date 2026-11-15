@@ -7,10 +7,12 @@ namespace RedditPodcastPoster.ContentPublisher.Publishers;
 public interface IHomepageCataloguePlayables
 {
     /// <summary>
-    /// News reports, TV show episodes and films released on or after <paramref name="since"/> that are
-    /// not removed or ignored and whose news organisation or TV show exists and is not removed.
+    /// News reports, TV show episodes and films released on or after <paramref name="since"/> and on
+    /// or before <paramref name="until"/> that are not removed or ignored and whose news organisation
+    /// or TV show exists and is not removed. Future-dated items (release after <paramref name="until"/>,
+    /// typically now) are omitted so they cannot create a homepage day group before their release date.
     /// </summary>
-    Task<IReadOnlyList<HomepageCataloguePlayable>> GetRecent(DateTime since, CancellationToken ct);
+    Task<IReadOnlyList<HomepageCataloguePlayable>> GetRecent(DateTime since, DateTime until, CancellationToken ct);
 
     /// <summary>Durations of every news report, TV show episode and film that is not removed or ignored (parent not removed).</summary>
     Task<IReadOnlyList<TimeSpan>> GetActiveDurations(CancellationToken ct);
