@@ -1,6 +1,7 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Cosmos;
@@ -43,6 +44,7 @@ public class EpisodeFilmMoveService(
     IPlayableSearchDocumentSwap searchSwap,
     IShortnerService shortnerService,
     ICatalogueIdentityEnricher identityEnricher,
+    IIdentityMetadataEnricher identityMetadata,
     IEpisodeServiceMaterialiser episodeServiceMaterialiser,
     IFileKeyAllocator fileKeyAllocator,
     ILogger<EpisodeFilmMoveService> logger) : IEpisodeFilmMoveService
@@ -110,6 +112,7 @@ public class EpisodeFilmMoveService(
                 film.Removed = null;
 
                 FilmMoveTarget.ApplyIdentity(film, admission, identityEnricher, logger);
+                await FilmMoveTarget.ApplyIdentityMetadataAsync(film, identityMetadata, cancellationToken);
 
                 await filmRepository.Save(film);
             }

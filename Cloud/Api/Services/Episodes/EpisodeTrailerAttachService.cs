@@ -2,6 +2,7 @@ using Api.Models;
 using Api.Services.Films;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Episodes;
@@ -46,6 +47,7 @@ public class EpisodeTrailerAttachService(
     IPlayableSearchDocumentSwap searchSwap,
     IShortnerService shortnerService,
     ICatalogueIdentityEnricher identityEnricher,
+    IIdentityMetadataEnricher identityMetadata,
     IFileKeyAllocator fileKeyAllocator,
     IFilmTrailerClaimStore trailerClaims,
     TimeProvider timeProvider,
@@ -337,6 +339,7 @@ public class EpisodeTrailerAttachService(
         var film = new Film(filmName) { Id = filmId, Description = string.Empty, Trailers = [trailer] };
         film.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.Film, filmName, film.Id);
         FilmMoveTarget.ApplyIdentity(film, admission, identityEnricher, logger);
+        await FilmMoveTarget.ApplyIdentityMetadataAsync(film, identityMetadata, cancellationToken);
 
         if (!await filmRepository.TryCreate(film))
         {

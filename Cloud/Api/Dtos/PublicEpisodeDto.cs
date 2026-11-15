@@ -79,4 +79,10 @@ public class PublicEpisodeDto : IPlayableKindDto
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]
     public Uri? Image { get; set; }
+
+    /// <summary>Other titles a film is known by (RPP #1431). Omitted for other kinds.</summary>
+    [JsonPropertyName("alternativeTitles")]
+    [JsonPropertyOrder(251)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string[]? AlternativeTitles { get; set; }
 }

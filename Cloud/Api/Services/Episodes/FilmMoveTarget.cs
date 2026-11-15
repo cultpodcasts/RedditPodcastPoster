@@ -1,6 +1,7 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -86,6 +87,29 @@ public static class FilmMoveTarget
                 film.Name,
                 film.ImdbId,
                 film.TmdbId);
+        }
+    }
+
+    /// <summary>
+    /// RPP #1430: after identity ids are applied, fill the new film's empty fields (description, release, runtime,
+    /// image, alternative titles) from TMDB. A failed lookup leaves the film as it is; the move still saves.
+    /// </summary>
+    public static async Task ApplyIdentityMetadataAsync(
+        Film film,
+        IIdentityMetadataEnricher identityMetadata,
+        CancellationToken cancellationToken)
+    {
+        if ((film.TmdbId is null && string.IsNullOrWhiteSpace(film.ImdbId)) ||
+            !IdentityMetadataFill.HasGaps(film))
+        {
+            return;
+        }
+
+        var metadata = await identityMetadata.FetchFilmAsync(film.TmdbId, film.ImdbId, cancellationToken)
+            .ConfigureAwait(false);
+        if (metadata is not null)
+        {
+            IdentityMetadataFill.Fill(film, metadata);
         }
     }
 

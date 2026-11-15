@@ -153,6 +153,7 @@ public static class PlayableSearchSql
                 {documentAlias}.publisherSearchTerms as publisherSearchTerms,
                 {documentAlias}.searchTerms as episodeSearchTerms,
                 {documentAlias}.lang as lang,
+                {documentAlias}.alternativeTitles as alternativeTitles,
                 {documentAlias}._ts
             FROM c
             WHERE ((NOT IS_DEFINED({documentAlias}.parentRemoved) OR IS_NULL({documentAlias}.parentRemoved) OR {documentAlias}.parentRemoved = false)
