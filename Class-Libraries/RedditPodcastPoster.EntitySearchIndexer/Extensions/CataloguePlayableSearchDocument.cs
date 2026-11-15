@@ -69,6 +69,7 @@ public static class CataloguePlayableSearchDocument
             .ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
         record.ContentKind = SearchContentKind.Film;
         record.SeriesName = null;
+        record.PodcastName = null;
         record.PublisherSearchTerms = string.Empty;
         record.Trailers = FilmTrailerSearchToken.For(film);
         // [] clears titles already in the index (merge ignores null); null (never set) is omitted.

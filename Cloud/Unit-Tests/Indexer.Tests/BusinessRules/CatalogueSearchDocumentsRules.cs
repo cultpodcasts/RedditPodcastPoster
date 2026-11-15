@@ -120,10 +120,15 @@ public class CatalogueSearchDocumentsRules
         documents[0].Id.Should().Be(episode.Id.ToString());
         documents[0].ContentKind.Should().Be(SearchContentKind.Film);
         documents[0].SeriesName.Should().BeNull();
+        documents[0].PodcastName.Should().BeNull();
+        var json = JsonSerializer.Serialize(documents[0]);
+        // WhenWritingNull omits both, so only Upload (not MergeOrUpload) clears a stale uploader channel.
+        json.Should().NotContain("seriesName");
+        json.Should().NotContain("podcastName");
         documents[0].Title.Should().Be(episode.Title.Trim());
         documents[0].Description.Should().Be(DescriptionTruncator.TruncateForSearch(episode.Description));
         documents[0].Description!.Length.Should().BeLessThanOrEqualTo(Constants.DescriptionSize);
-        JsonSerializer.Serialize(documents[0]).Should().NotContain("seriesDescription");
+        json.Should().NotContain("seriesDescription");
     }
 
     [Fact(DisplayName =

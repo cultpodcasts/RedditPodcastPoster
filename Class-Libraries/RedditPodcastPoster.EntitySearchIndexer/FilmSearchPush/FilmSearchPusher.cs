@@ -134,7 +134,7 @@ public sealed class FilmSearchPusher(
         {
             foreach (var batch in toPush.Chunk(request.BatchSize))
             {
-                failed += (await searchIndex.MergeOrUpload(batch, cancellationToken)).Count;
+                failed += (await searchIndex.Upload(batch, cancellationToken)).Count;
             }
 
             foreach (var batch in toDelete.Chunk(request.BatchSize))
@@ -216,7 +216,7 @@ public sealed class FilmSearchPusher(
 
         var failed = delete
             ? (await searchIndex.Delete([film.Id.ToString()], cancellationToken)).Count
-            : (await searchIndex.MergeOrUpload([document!], cancellationToken)).Count;
+            : (await searchIndex.Upload([document!], cancellationToken)).Count;
         logger.LogInformation("Film search push: {Action} film '{FilmId}' {Outcome}; watermark unchanged.",
             delete ? "deleted" : "pushed", filmId, failed == 0 ? "ok" : "FAILED");
         return new FilmSearchPushResult(failed == 0, false, false, null, null, 1, delete ? 0 : 1, delete ? 1 : 0,

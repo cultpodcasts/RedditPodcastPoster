@@ -67,7 +67,7 @@ public class FilmSearchPusherRules
                 var live = liveFilmIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 return _indexFilmIds.Where(id => !live.Contains(id)).ToList();
             });
-        index.Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+        index.Setup(x => x.Upload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) =>
             {
                 _pushBatchSizes.Add(docs.Count);
@@ -405,7 +405,7 @@ public class FilmSearchPusherRules
         GivenWatermark(5_000);
         var calls = 0;
         _mocker.GetMock<IFilmSearchIndexGateway>()
-            .Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.Upload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) =>
                 ++calls == 1 ? [] : throw new InvalidOperationException("synthetic request failure"));
 
@@ -428,7 +428,7 @@ public class FilmSearchPusherRules
             .Setup(x => x.SaveAsync(It.IsAny<FilmSearchPushWatermark>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new TimeoutException("synthetic store failure"));
         _mocker.GetMock<IFilmSearchIndexGateway>()
-            .Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.Upload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("synthetic request failure"));
 
         // Act
@@ -479,7 +479,7 @@ public class FilmSearchPusherRules
         GivenIndexAlreadyHoldsFilms(changed);
         GivenWatermark(200);
         _mocker.GetMock<IFilmSearchIndexGateway>()
-            .Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.Upload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("synthetic request failure"));
 
         // Act
