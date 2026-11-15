@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Catalogue.Authority.Imdb;
 using RedditPodcastPoster.TheTvdb.Clients;
 using RedditPodcastPoster.TheTvdb.Models;
@@ -12,7 +13,8 @@ public sealed class CatalogueAuthorityPreviewer(
     ITmdbClient tmdb,
     ITheTvdbClient theTvdb,
     ICatalogueAuthorityLookup lookup,
-    IImdbSuggestionClient imdb) : ICatalogueAuthorityPreviewer
+    IImdbSuggestionClient imdb,
+    ILogger<CatalogueAuthorityPreviewer> logger) : ICatalogueAuthorityPreviewer
 {
     public const int SampleLimit = 8;
 
@@ -73,9 +75,13 @@ public sealed class CatalogueAuthorityPreviewer(
     /// TMDB found nothing, or one film under a different title. IMDb's suggestion feed matches
     /// alternative titles, so it is asked next. Each IMDb film is resolved to its TMDB record
     /// when TMDB has one, so a pick stores both ids.
-    /// One IMDb film whose title agrees, and no TMDB hit, is the film.
+    /// One IMDb film whose whole title equals the query (IMDb title, or the TMDB listed or original
+    /// title after <c>find</c>), and no TMDB hit, is the film. Containment is not enough here:
+    /// "The Last Stand of Waco" must not become "Waco".
     /// Anything else is offered to the curator as low-confidence candidates
     /// (<see cref="CatalogueAuthorityResolution.DifferentTitle"/>), never applied unasked.
+    /// A failed TMDB <c>find</c> keeps the IMDb film as an IMDb-only candidate and nothing is applied,
+    /// so one throttled call cannot lose the candidates already found.
     /// </summary>
     private async Task<CatalogueAuthorityPreview> FilmFallbackAsync(
         string query,
@@ -84,11 +90,27 @@ public sealed class CatalogueAuthorityPreviewer(
     {
         var suggestions = await imdb.SuggestAsync(query, cancellationToken).ConfigureAwait(false) ?? [];
         var candidates = tmdbCandidates.ToList();
-        var agreeing = new List<(CatalogueAuthorityCandidate Candidate, string ImdbId)>();
+        var exact = new List<(CatalogueAuthorityCandidate Candidate, string ImdbId)>();
+        var findFailed = false;
         foreach (var suggestion in PlausibleFilms(query, suggestions))
         {
-            var tmdbHit = await tmdb.FindMovieByImdbIdAsync(suggestion.ImdbId, cancellationToken)
-                .ConfigureAwait(false);
+            TmdbSearchHit? tmdbHit = null;
+            try
+            {
+                tmdbHit = await tmdb.FindMovieByImdbIdAsync(suggestion.ImdbId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException ||
+                                              !cancellationToken.IsCancellationRequested)
+            {
+                findFailed = true;
+                logger.LogWarning(
+                    exception,
+                    "TMDB find by IMDb id failed; keeping the IMDb film as a candidate. query={Query} imdbId={ImdbId}",
+                    query,
+                    suggestion.ImdbId);
+            }
+
             var candidate = tmdbHit is null
                 ? ImdbFilmCandidate(suggestion)
                 : FilmCandidate(tmdbHit);
@@ -98,9 +120,9 @@ public sealed class CatalogueAuthorityPreviewer(
                 candidates.Add(candidate);
             }
 
-            if (TitlesAgree(query, suggestion.Title) || (tmdbHit is not null && TitlesAgree(query, tmdbHit)))
+            if (TitlesEqual(query, suggestion.Title) || (tmdbHit is not null && TitlesEqual(query, tmdbHit)))
             {
-                agreeing.Add((existing ?? candidate, suggestion.ImdbId));
+                exact.Add((existing ?? candidate, suggestion.ImdbId));
             }
         }
 
@@ -109,9 +131,9 @@ public sealed class CatalogueAuthorityPreviewer(
             return Unresolved(query, 0, []);
         }
 
-        if (tmdbCandidates.Count == 0 && candidates.Count == 1 && agreeing.Count == 1)
+        if (!findFailed && tmdbCandidates.Count == 0 && candidates.Count == 1 && exact.Count == 1)
         {
-            var (only, imdbId) = agreeing[0];
+            var (only, imdbId) = exact[0];
             if (only.TmdbId is int tmdbId)
             {
                 var ids = await lookup.CollectFilmAsync(tmdbId, cancellationToken).ConfigureAwait(false);
@@ -324,10 +346,26 @@ public sealed class CatalogueAuthorityPreviewer(
         return ContainsContiguous(queryTokens, hitTokens) || ContainsContiguous(hitTokens, queryTokens);
     }
 
-    /// <summary>A TMDB hit agrees on its listed title or its original-language title.</summary>
+    /// <summary>
+    /// A TMDB hit agrees on its listed title (the usual containment rule), or on its whole
+    /// original-language title. A short original title merely contained in the query is weak evidence,
+    /// so the original title must match the query word for word.
+    /// </summary>
     private static bool TitlesAgree(string query, TmdbSearchHit hit) =>
         TitlesAgree(query, hit.Name) ||
-        (hit.OriginalName is { Length: > 0 } originalName && TitlesAgree(query, originalName));
+        (hit.OriginalName is { Length: > 0 } originalName && TitlesEqual(query, originalName));
+
+    /// <summary>The listed or original title equals the query word for word.</summary>
+    private static bool TitlesEqual(string query, TmdbSearchHit hit) =>
+        TitlesEqual(query, hit.Name) ||
+        (hit.OriginalName is { Length: > 0 } originalName && TitlesEqual(query, originalName));
+
+    /// <summary>Same words in the same order, ignoring case and punctuation.</summary>
+    private static bool TitlesEqual(string query, string title)
+    {
+        var queryTokens = Tokens(query);
+        return queryTokens.Count > 0 && queryTokens.SequenceEqual(Tokens(title), StringComparer.Ordinal);
+    }
 
     private static List<string> Tokens(string value)
     {

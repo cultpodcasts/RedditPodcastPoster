@@ -65,7 +65,7 @@ public class ImdbSuggestionClientRules
         _mocker.GetMock<ILogger<ImdbSuggestionClient>>().Invocations
             .Should().Contain(invocation =>
                 invocation.Method.Name == nameof(ILogger.Log) &&
-                (LogLevel)invocation.Arguments[0] == LogLevel.Warning);
+                Equals(invocation.Arguments[0], LogLevel.Warning));
     }
 
     [Fact(DisplayName =

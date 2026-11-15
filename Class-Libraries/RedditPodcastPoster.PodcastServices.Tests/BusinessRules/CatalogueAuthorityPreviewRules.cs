@@ -774,6 +774,142 @@ public class CatalogueAuthorityPreviewRules
         preview.TvdbId.Should().Be(tvdbId);
     }
 
+    [Fact(DisplayName =
+        "A long film title with no TMDB hit whose IMDb top film is a shorter title contained in it is held for the curator, " +
+        "not applied, because containment is not identity (\"The Last Stand of Waco\" must not become \"Waco\").")]
+    public async Task imdb_film_contained_in_a_longer_query_is_held_not_applied()
+    {
+        // Arrange
+        const string query = "The Last Stand of Waco";
+        const string shorterFilm = "Waco";
+        var imdbId = ImdbId();
+        var tmdbId = CreateTmdbId();
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchMoviesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.FindMovieByImdbIdAsync(imdbId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TmdbSearchHit(tmdbId, shorterFilm, TmdbTitleKind.Movie, null));
+        _imdbSuggestions = [new ImdbSuggestion(imdbId, shorterFilm, ImdbSuggestion.MovieType, null, null, null)];
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewFilmAsync(query);
+
+        // Assert
+        preview.Resolution.Should().Be(CatalogueAuthorityResolution.DifferentTitle);
+        preview.ImdbId.Should().BeNull();
+        preview.TmdbId.Should().BeNull();
+        preview.Candidates.Should().ContainSingle()
+            .Which.Key.Should().Be(CatalogueAuthorityCandidate.TmdbKey(tmdbId));
+        _mocker.GetMock<ICatalogueAuthorityLookup>()
+            .Verify(lookup => lookup.CollectFilmAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a TMDB find by IMDb id fails (for example throttled), the preview still holds the TMDB candidate already " +
+        "found and keeps the IMDb film as an IMDb-only candidate, rather than losing them all.")]
+    public async Task failed_tmdb_find_keeps_candidates_as_a_hold()
+    {
+        // Arrange
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchMoviesAsync(FaderhusetFilm.Query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([FaderhusetTmdbHit(originalName: null)]);
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.FindMovieByImdbIdAsync(FaderhusetFilm.ImdbId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("TMDB request failed with status 429."));
+        _imdbSuggestions = [FaderhusetImdbSuggestion()];
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewFilmAsync(FaderhusetFilm.Query);
+
+        // Assert
+        preview.Resolution.Should().Be(CatalogueAuthorityResolution.DifferentTitle);
+        preview.LookupFailed.Should().BeFalse();
+        preview.Candidates!.Select(c => c.Key).Should().Equal(
+            CatalogueAuthorityCandidate.TmdbKey(FaderhusetFilm.TmdbId),
+            CatalogueAuthorityCandidate.ImdbKey(FaderhusetFilm.ImdbId));
+    }
+
+    [Fact(DisplayName =
+        "When TMDB has no hit and the TMDB find for an exactly matching IMDb film fails, the film is held as a candidate, " +
+        "not applied, because the TMDB record could not be checked.")]
+    public async Task failed_tmdb_find_does_not_apply_an_exact_imdb_film()
+    {
+        // Arrange
+        var query = _fixture.CreateTitle();
+        var imdbId = ImdbId();
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchMoviesAsync(query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.FindMovieByImdbIdAsync(imdbId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException(_fixture.CreateTitle()));
+        _imdbSuggestions = [new ImdbSuggestion(imdbId, query, ImdbSuggestion.MovieType, null, null, null)];
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewFilmAsync(query);
+
+        // Assert
+        preview.Resolution.Should().Be(CatalogueAuthorityResolution.DifferentTitle);
+        preview.ImdbId.Should().BeNull();
+        preview.Candidates.Should().ContainSingle()
+            .Which.Key.Should().Be(CatalogueAuthorityCandidate.ImdbKey(imdbId));
+    }
+
+    [Fact(DisplayName =
+        "A TV show whose only agreement is a short original name contained in a longer query is not that show, " +
+        "because an original-name match must be the whole title.")]
+    public async Task tv_original_name_contained_in_query_is_not_unique()
+    {
+        // Arrange
+        var original = _fixture.CreateTitle();
+        var query = $"{original} {_fixture.CreateTitleNotContainedIn(original)}";
+        var listed = _fixture.CreateTitleNotContainedIn(query);
+        var tmdbId = CreateTmdbId();
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchTvAsync(query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TmdbSearchHit(tmdbId, listed, TmdbTitleKind.TvSeries, null, OriginalName: original)]);
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewTvShowAsync(query);
+
+        // Assert
+        preview.Resolution.Should().NotBe(CatalogueAuthorityResolution.Unique);
+        preview.TmdbId.Should().BeNull();
+        _mocker.GetMock<ICatalogueAuthorityLookup>()
+            .Verify(lookup => lookup.CollectTvShowAsync(
+                It.IsAny<int?>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A film whose only agreement is a short original title contained in a longer query is offered, not applied, " +
+        "because an original-title match must be the whole title.")]
+    public async Task film_original_title_contained_in_query_is_offered_not_applied()
+    {
+        // Arrange
+        var original = _fixture.CreateTitle();
+        var query = $"{original} {_fixture.CreateTitleNotContainedIn(original)}";
+        var listed = _fixture.CreateTitleNotContainedIn(query);
+        var tmdbId = CreateTmdbId();
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchMoviesAsync(query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TmdbSearchHit(tmdbId, listed, TmdbTitleKind.Movie, null, OriginalName: original)]);
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewFilmAsync(query);
+
+        // Assert
+        preview.Resolution.Should().Be(CatalogueAuthorityResolution.DifferentTitle);
+        preview.TmdbId.Should().BeNull();
+        preview.Candidates.Should().ContainSingle()
+            .Which.Key.Should().Be(CatalogueAuthorityCandidate.TmdbKey(tmdbId));
+    }
+
     private static TmdbSearchHit FaderhusetTmdbHit(string? originalName) =>
         new(
             FaderhusetFilm.TmdbId,
