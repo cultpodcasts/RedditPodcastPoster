@@ -17,7 +17,8 @@ public readonly record struct IdentityFieldSkip(
     bool Length = false,
     bool Image = false,
     bool AlternativeTitles = false,
-    bool Publisher = false);
+    bool Publisher = false,
+    bool TmdbId = false);
 
 /// <summary>
 /// Fills a film or TV episode from its identity (TMDB) metadata, only where the field is empty (RPP #1430, #1431).
@@ -74,7 +75,7 @@ public static class IdentityMetadataFill
         ArgumentNullException.ThrowIfNull(film);
         ArgumentNullException.ThrowIfNull(metadata);
         var changed = false;
-        if (film.TmdbId is null && metadata.Id > 0)
+        if (!skip.TmdbId && film.TmdbId is null && metadata.Id > 0)
         {
             film.TmdbId = metadata.Id;
             changed = true;
@@ -133,7 +134,7 @@ public static class IdentityMetadataFill
         ArgumentNullException.ThrowIfNull(episode);
         ArgumentNullException.ThrowIfNull(metadata);
         var changed = false;
-        if (episode.TmdbId is null && metadata.Id > 0)
+        if (!skip.TmdbId && episode.TmdbId is null && metadata.Id > 0)
         {
             episode.TmdbId = metadata.Id;
             changed = true;
@@ -177,7 +178,7 @@ public static class IdentityMetadataFill
     {
         ArgumentNullException.ThrowIfNull(show);
         ArgumentNullException.ThrowIfNull(metadata);
-        if (show.TmdbId is null && metadata.Id > 0)
+        if (!skip.TmdbId && show.TmdbId is null && metadata.Id > 0)
         {
             show.TmdbId = metadata.Id;
         }

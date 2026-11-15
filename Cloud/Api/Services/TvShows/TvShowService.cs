@@ -209,7 +209,9 @@ public class TvShowService(
         TvShowChangeRequest change,
         CancellationToken cancellationToken)
     {
-        var skip = new IdentityFieldSkip(Publisher: change.PublisherName is not null);
+        var skip = new IdentityFieldSkip(
+            Publisher: change.PublisherName is not null,
+            TmdbId: change.TmdbId is not null);
         if (!IdentityMetadataFill.HasGaps(show, skip))
         {
             return;

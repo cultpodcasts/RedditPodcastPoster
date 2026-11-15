@@ -113,4 +113,70 @@ public class IdentitySearchDocumentRules
         record.Image.Should().Be(still.ToString());
         sql.Should().Contain("?? c.image) ?? \"\") as image");
     }
+
+    [Fact(DisplayName =
+        "A film's IMDb and TMDB ids go on its search document so the film page can render those buttons, and unset " +
+        "ids are omitted (RPP #1437).")]
+    public void film_document_carries_identity_ids()
+    {
+        // Arrange
+        var imdbId = "tt" + _fixture.CreateAppleId();
+        var tmdbId = (int)(_fixture.CreateAppleId() % 1_000_000_000L);
+        if (tmdbId == 0) { tmdbId = 1; }
+        var withIds = new Film(_fixture.CreateTitle()) { ImdbId = imdbId, TmdbId = tmdbId };
+        var withoutIds = new Film(_fixture.CreateTitle());
+
+        // Act
+        var withIdsRecord = CataloguePlayableSearchDocument.For(withIds);
+        var withoutIdsRecord = CataloguePlayableSearchDocument.For(withoutIds);
+
+        // Assert
+        withIdsRecord.ImdbId.Should().Be(imdbId);
+        withIdsRecord.TmdbId.Should().Be(tmdbId);
+        withoutIdsRecord.ImdbId.Should().BeNull();
+        withoutIdsRecord.TmdbId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A TV episode's own and series IMDb, TMDB and TVDB ids go on its search document so episode and hub pages " +
+        "can render those buttons, and unset ids are omitted (RPP #1437).")]
+    public void tv_episode_document_carries_identity_and_series_ids()
+    {
+        // Arrange
+        var imdbId = "tt" + _fixture.CreateAppleId();
+        var seriesImdbId = "tt" + _fixture.CreateAppleId();
+        var tmdbId = (int)(_fixture.CreateAppleId() % 1_000_000_000L);
+        if (tmdbId == 0) { tmdbId = 1; }
+        var seriesTmdbId = tmdbId + 1;
+        var tvdbId = _fixture.CreateAppleId();
+        var seriesTvdbId = tvdbId + 1;
+        var withIds = new TvShowEpisode(_fixture.CreateTitle())
+        {
+            ImdbId = imdbId,
+            TmdbId = tmdbId,
+            TvdbId = tvdbId,
+            SeriesImdbId = seriesImdbId,
+            SeriesTmdbId = seriesTmdbId,
+            SeriesTvdbId = seriesTvdbId
+        };
+        var withoutIds = new TvShowEpisode(_fixture.CreateTitle());
+
+        // Act
+        var withIdsRecord = CataloguePlayableSearchDocument.For(withIds);
+        var withoutIdsRecord = CataloguePlayableSearchDocument.For(withoutIds);
+
+        // Assert
+        withIdsRecord.ImdbId.Should().Be(imdbId);
+        withIdsRecord.TmdbId.Should().Be(tmdbId);
+        withIdsRecord.TvdbId.Should().Be(tvdbId);
+        withIdsRecord.SeriesImdbId.Should().Be(seriesImdbId);
+        withIdsRecord.SeriesTmdbId.Should().Be(seriesTmdbId);
+        withIdsRecord.SeriesTvdbId.Should().Be(seriesTvdbId);
+        withoutIdsRecord.ImdbId.Should().BeNull();
+        withoutIdsRecord.TmdbId.Should().BeNull();
+        withoutIdsRecord.TvdbId.Should().BeNull();
+        withoutIdsRecord.SeriesImdbId.Should().BeNull();
+        withoutIdsRecord.SeriesTmdbId.Should().BeNull();
+        withoutIdsRecord.SeriesTvdbId.Should().BeNull();
+    }
 }

@@ -158,4 +158,80 @@ public class TvShowFieldUpdateRules
         dto.Removed.Should().BeTrue();
         dto.TvdbId.Should().Be(tvdbId);
     }
+
+    [Fact(DisplayName =
+        "An empty TV-show publisher is filled from TMDB (the first named network) when the show has an identity id " +
+        "and this PATCH did not set or clear publisher (RPP #1436).")]
+    public async Task empty_publisher_is_filled_from_tmdb()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var show = CreateShow(s => s.TmdbId = tmdbId);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchTvShowAsync(tmdbId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TmdbShowMetadata(tmdbId, "HBO"));
+
+        // Act
+        var result = await Update(show, new TvShowChangeRequest { TwitterHandle = "@synthetic" });
+
+        // Assert
+        result.Status.Should().Be(TvShowUpdateStatus.Accepted);
+        _saved!.PublisherName.Should().Be("HBO");
+        _saved.TwitterHandle.Should().Be("@synthetic");
+    }
+
+    [Fact(DisplayName =
+        "Clearing a TV show's publisher in the same PATCH leaves it empty even when TMDB has a network (RPP #1436).")]
+    public async Task a_publisher_cleared_in_this_patch_is_not_refilled()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var show = CreateShow(s =>
+        {
+            s.TmdbId = tmdbId;
+            s.PublisherName = "Old Network";
+        });
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchTvShowAsync(tmdbId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TmdbShowMetadata(tmdbId, "HBO"));
+
+        // Act
+        var result = await Update(show, new TvShowChangeRequest { PublisherName = "" });
+
+        // Assert
+        result.Status.Should().Be(TvShowUpdateStatus.Accepted);
+        _saved!.PublisherName.Should().BeEmpty();
+        _mocker.GetMock<IIdentityMetadataEnricher>().Verify(
+            e => e.FetchTvShowAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Clearing a TV show's TMDB id in the same PATCH leaves it cleared even when an IMDb id lookup finds that " +
+        "TMDB id, and an empty publisher is still filled.")]
+    public async Task a_tmdb_id_cleared_in_this_patch_is_not_restored()
+    {
+        // Arrange
+        var imdbId = _fixture.CreateImdbId();
+        var existingTmdbId = _fixture.CreateTmdbId();
+        var foundTmdbId = existingTmdbId + 1;
+        var show = CreateShow(s =>
+        {
+            s.ImdbId = imdbId;
+            s.TmdbId = existingTmdbId;
+        });
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchTvShowAsync(null, imdbId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TmdbShowMetadata(foundTmdbId, "HBO"));
+
+        // Act
+        var result = await Update(show, new TvShowChangeRequest { TmdbId = 0 });
+
+        // Assert
+        result.Status.Should().Be(TvShowUpdateStatus.Accepted);
+        _saved!.TmdbId.Should().BeNull();
+        _saved.ImdbId.Should().Be(imdbId);
+        _saved.PublisherName.Should().Be("HBO");
+    }
+
 }

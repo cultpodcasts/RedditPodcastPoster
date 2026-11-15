@@ -220,7 +220,8 @@ public class FilmService(
         Length: change.Duration is not null,
         Image: change.Image is not null,
         AlternativeTitles: change.AlternativeTitles is not null,
-        Publisher: change.PublisherName is not null);
+        Publisher: change.PublisherName is not null,
+        TmdbId: change.TmdbId is not null);
 
     /// <summary>
     /// True when this PATCH sets a different IMDb or TMDB id than the film already has. A [] alternative-titles
