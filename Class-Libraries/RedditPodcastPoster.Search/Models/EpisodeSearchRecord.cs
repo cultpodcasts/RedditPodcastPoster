@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
 
@@ -116,6 +116,43 @@ public class EpisodeSearchRecord
     [SearchableField(AnalyzerName = LexicalAnalyzerName.Values.StandardLucene, IsFilterable = false, IsFacetable = false,
         IsSortable = false)]
     public string[]? AlternativeTitles { get; set; }
+
+    /// <summary>
+    /// Film or TV-episode IMDb title id (<c>tt…</c>). Retrievable for public identity-service links (RPP #1437), not
+    /// searchable. Null is omitted from the upload. The live index must have the field
+    /// (<c>CreateSearchIndex --update-existing</c>) before any document carries it.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public string? ImdbId { get; set; }
+
+    /// <summary>
+    /// Film TMDB movie id, or a TV episode's own TMDB episode id. Retrievable for public identity-service links
+    /// (RPP #1437). Null is omitted from the upload. The live index must have the field first.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public int? TmdbId { get; set; }
+
+    /// <summary>TV episode TheTVDB episode id. Retrievable for public identity-service links (RPP #1437).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public long? TvdbId { get; set; }
+
+    /// <summary>Parent TV show IMDb title id, denormalised onto episode documents (RPP #1437).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public string? SeriesImdbId { get; set; }
+
+    /// <summary>Parent TV show TMDB series id, denormalised onto episode documents (RPP #1437).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public int? SeriesTmdbId { get; set; }
+
+    /// <summary>Parent TV show TheTVDB series id, denormalised onto episode documents (RPP #1437).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public long? SeriesTvdbId { get; set; }
 
     // Retrievable so flix/search cards and episode pages can show language flags.
     // Still filterable+facetable for subject language chips (English ≈ null).

@@ -154,6 +154,12 @@ public static class PlayableSearchSql
                 {documentAlias}.searchTerms as episodeSearchTerms,
                 {documentAlias}.lang as lang,
                 {documentAlias}.alternativeTitles as alternativeTitles,
+                {documentAlias}.imdbId as imdbId,
+                {documentAlias}.tmdbId as tmdbId,
+                {documentAlias}.tvdbId as tvdbId,
+                {documentAlias}.seriesImdbId as seriesImdbId,
+                {documentAlias}.seriesTmdbId as seriesTmdbId,
+                {documentAlias}.seriesTvdbId as seriesTvdbId,
                 {documentAlias}._ts
             FROM c
             WHERE ((NOT IS_DEFINED({documentAlias}.parentRemoved) OR IS_NULL({documentAlias}.parentRemoved) OR {documentAlias}.parentRemoved = false)

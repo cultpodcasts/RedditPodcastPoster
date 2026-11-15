@@ -553,6 +553,118 @@ public class TmdbClientRules
         reference.Should().Be(new TmdbEpisodeReference(showId, 3, 7));
     }
 
+
+    [Fact(DisplayName =
+        "Movie metadata reads the first named production company as publisher, skipping blank names (RPP #1436).")]
+    public async Task movie_metadata_reads_first_named_production_company()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["id"] = movieId,
+            ["title"] = _fixture.CreateTitle(),
+            ["production_companies"] = new JsonArray(
+                new JsonObject { ["name"] = " " },
+                new JsonObject { ["name"] = " Copenhagen Film Company " },
+                new JsonObject { ["name"] = "Other Studio" })
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var metadata = await sut.GetMovieMetadataAsync(movieId);
+
+        // Assert
+        metadata!.Publisher.Should().Be("Copenhagen Film Company");
+    }
+
+    [Fact(DisplayName =
+        "TV show metadata uses the first named network as publisher, or the first named production company when " +
+        "there is no network (RPP #1436).")]
+    public async Task tv_show_metadata_reads_network_or_production_company()
+    {
+        // Arrange
+        var withNetwork = CreateTmdbId();
+        var withCompany = CreateTmdbId();
+        var withNeither = CreateTmdbId();
+        _handler.Enqueue(HttpStatusCode.OK, new JsonObject
+        {
+            ["id"] = withNetwork,
+            ["networks"] = new JsonArray(
+                new JsonObject { ["name"] = "" },
+                new JsonObject { ["name"] = " HBO " }),
+            ["production_companies"] = new JsonArray(new JsonObject { ["name"] = "Warner Bros. Television" })
+        }.ToJsonString());
+        _handler.Enqueue(HttpStatusCode.OK, new JsonObject
+        {
+            ["id"] = withCompany,
+            ["networks"] = new JsonArray(new JsonObject { ["name"] = "  " }),
+            ["production_companies"] = new JsonArray(new JsonObject { ["name"] = " Warner Bros. Television " })
+        }.ToJsonString());
+        _handler.Enqueue(HttpStatusCode.OK, new JsonObject
+        {
+            ["id"] = withNeither,
+            ["networks"] = new JsonArray(),
+            ["production_companies"] = new JsonArray(new JsonObject { ["name"] = " " })
+        }.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var network = await sut.GetTvShowMetadataAsync(withNetwork);
+        var company = await sut.GetTvShowMetadataAsync(withCompany);
+        var neither = await sut.GetTvShowMetadataAsync(withNeither);
+
+        // Assert
+        network.Should().Be(new TmdbShowMetadata(withNetwork, "HBO"));
+        company.Should().Be(new TmdbShowMetadata(withCompany, "Warner Bros. Television"));
+        neither.Should().Be(new TmdbShowMetadata(withNeither, null));
+        _handler.Requests.Should().HaveCount(3);
+        _handler.Requests[0].RequestUri!.AbsolutePath.Should().Be($"/3/tv/{withNetwork}");
+    }
+
+    [Fact(DisplayName =
+        "Finding a TV series by IMDb title id asks TMDB find with external_source=imdb_id and returns that series " +
+        "from tv_results (RPP #1436).")]
+    public async Task find_tv_series_by_imdb_id_returns_the_tmdb_series()
+    {
+        // Arrange
+        var seriesId = CreateTmdbId();
+        var imdbId = "tt" + _fixture.CreateAppleId();
+        var name = _fixture.CreateTitle();
+        var original = _fixture.CreateTitleNotContainedIn(name);
+        var year = DomainTestFixture.UtcToday.Year;
+        var payload = new JsonObject
+        {
+            ["movie_results"] = new JsonArray(),
+            ["tv_results"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = seriesId,
+                    ["name"] = name,
+                    ["original_name"] = original,
+                    ["first_air_date"] = $"{year:0000}-01-01"
+                }
+            }
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var hit = await sut.FindTvSeriesByImdbIdAsync(imdbId);
+
+        // Assert
+        hit.Should().NotBeNull();
+        hit!.Id.Should().Be(seriesId);
+        hit.Name.Should().Be(name);
+        hit.OriginalName.Should().Be(original);
+        hit.Kind.Should().Be(TmdbTitleKind.TvSeries);
+        hit.Year.Should().Be(year);
+        _handler.Requests.Should().ContainSingle();
+        _handler.Requests[0].RequestUri!.AbsolutePath.Should().Be($"/3/find/{imdbId}");
+        _handler.Requests[0].RequestUri!.Query.Should().Contain("external_source=imdb_id");
+    }
     private int CreateTmdbId()
     {
         var value = (int)(_fixture.CreateAppleId() % 1_000_000_000L);

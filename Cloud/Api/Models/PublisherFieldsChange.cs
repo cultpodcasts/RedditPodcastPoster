@@ -18,5 +18,5 @@ public abstract class PublisherFieldsChange
     public string[]? IgnoredAssociatedSubjects { get; set; }
 
     /// <summary>Children denormalise the publisher's search terms, language and removed (as <c>parentRemoved</c>).</summary>
-    public bool ChangesChildProjection => SearchTerms != null || Language != null || Removed != null;
+    public virtual bool ChangesChildProjection => SearchTerms != null || Language != null || Removed != null;
 }

@@ -121,6 +121,12 @@ public class PlayableSearchSqlRules
         sql.Should().Contain(" as spotifyId");
         sql.Should().Contain(" as appleId");
         sql.Should().Contain(" as podcastAppleId");
+        sql.Should().Contain("c.imdbId as imdbId");
+        sql.Should().Contain("c.tmdbId as tmdbId");
+        sql.Should().Contain("c.tvdbId as tvdbId");
+        sql.Should().Contain("c.seriesImdbId as seriesImdbId");
+        sql.Should().Contain("c.seriesTmdbId as seriesTmdbId");
+        sql.Should().Contain("c.seriesTvdbId as seriesTvdbId");
         sql.Should().Contain("c.services.");
         sql.Should().Contain("?? \"\"");
         sql.Should().Contain("\u2026");

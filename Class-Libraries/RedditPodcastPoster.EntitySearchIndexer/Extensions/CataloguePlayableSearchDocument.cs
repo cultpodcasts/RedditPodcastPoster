@@ -36,6 +36,12 @@ public static class CataloguePlayableSearchDocument
         PreferCatalogueYouTubeId(record, episode.YouTubeId);
         ApplyServiceIds(record, episode.Services);
         UseIdentityImageWhenNoServiceImage(record, episode.Image);
+        record.ImdbId = string.IsNullOrWhiteSpace(episode.ImdbId) ? null : episode.ImdbId;
+        record.TmdbId = episode.TmdbId;
+        record.TvdbId = episode.TvdbId;
+        record.SeriesImdbId = string.IsNullOrWhiteSpace(episode.SeriesImdbId) ? null : episode.SeriesImdbId;
+        record.SeriesTmdbId = episode.SeriesTmdbId;
+        record.SeriesTvdbId = episode.SeriesTvdbId;
         return record;
     }
 
@@ -67,6 +73,8 @@ public static class CataloguePlayableSearchDocument
         record.Trailers = FilmTrailerSearchToken.For(film);
         // [] clears titles already in the index (merge ignores null); null (never set) is omitted.
         record.AlternativeTitles = film.AlternativeTitles is { } titles ? [.. titles] : null;
+        record.ImdbId = string.IsNullOrWhiteSpace(film.ImdbId) ? null : film.ImdbId;
+        record.TmdbId = film.TmdbId;
         PreferCatalogueYouTubeId(record, film.YouTubeId);
         ApplyServiceIds(record, film.Services);
         UseIdentityImageWhenNoServiceImage(record, film.Image);

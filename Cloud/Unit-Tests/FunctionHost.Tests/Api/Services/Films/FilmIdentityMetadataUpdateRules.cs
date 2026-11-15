@@ -33,7 +33,7 @@ public class FilmIdentityMetadataUpdateRules
     }
 
     [Fact(DisplayName =
-        "Setting a film's identity ids fills its empty description, release, runtime, image and alternative titles " +
+        "Setting a film's identity ids fills its empty description, release, runtime, image, publisher and alternative titles " +
         "from TMDB, because a film created from its trailer (Faderhuset) otherwise shows 0:00:00 and no details.")]
     public async Task setting_ids_fills_empty_fields()
     {
@@ -59,6 +59,7 @@ public class FilmIdentityMetadataUpdateRules
         _saved.Length.Should().Be(TimeSpan.FromMinutes(metadata.RuntimeMinutes!.Value));
         _saved.Image.Should().Be(metadata.Image);
         _saved.AlternativeTitles.Should().Equal("Father's House");
+        _saved.PublisherName.Should().Be(metadata.Publisher);
     }
 
     [Fact(DisplayName =
@@ -102,7 +103,8 @@ public class FilmIdentityMetadataUpdateRules
             Description = _fixture.CreateTitle(),
             Length = _fixture.CreateDuration(),
             Image = new Uri("https://image.tmdb.org/t/p/w1280/x.jpg"),
-            AlternativeTitles = []
+            AlternativeTitles = [],
+            PublisherName = "A24"
         });
         complete.SetRelease(CatalogueRelease.FromYear(2010));
         var sut = _mocker.CreateInstance<FilmService>();
@@ -239,6 +241,147 @@ public class FilmIdentityMetadataUpdateRules
         _saved.TmdbId.Should().Be(newTmdbId + 1);
     }
 
+
+    [Fact(DisplayName =
+        "PATCH film sets image to an absolute http(s) URL, and \"\" clears it (RPP #1435).")]
+    public async Task patch_sets_or_clears_image()
+    {
+        // Arrange
+        var film = StoredFilm(new Film(_fixture.CreateTitle())
+        {
+            Image = new Uri("https://image.tmdb.org/t/p/w1280/old.jpg")
+        });
+        var image = new Uri("https://example.org/curator.jpg");
+        var sut = _mocker.CreateInstance<FilmService>();
+
+        // Act
+        var set = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { Image = image.ToString() }),
+            CancellationToken.None);
+        var setImage = _saved!.Image;
+        var cleared = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { Image = "" }),
+            CancellationToken.None);
+
+        // Assert
+        set.Status.Should().Be(FilmUpdateStatus.Accepted);
+        setImage.Should().Be(image);
+        cleared.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.Image.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH film with an image that is not an absolute http(s) URL is a 400 and the film is unchanged (RPP #1435).")]
+    public async Task patch_rejects_invalid_image()
+    {
+        // Arrange
+        var existing = new Uri("https://image.tmdb.org/t/p/w1280/keep.jpg");
+        var film = StoredFilm(new Film(_fixture.CreateTitle()) { Image = existing, HashTag = "#Keep" });
+        var sut = _mocker.CreateInstance<FilmService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(
+                film.Id,
+                new FilmChangeRequest { Image = "not-a-url", HashTag = "#Nope" }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.BadRequest);
+        result.Message.Should().Be("Image must be an absolute http(s) URL, or blank to clear.");
+        _saved.Should().BeNull();
+        film.Image.Should().Be(existing);
+        film.HashTag.Should().Be("#Keep");
+    }
+
+    [Fact(DisplayName =
+        "An image sent in the same PATCH is kept even when TMDB has a different one, because identity fill must not " +
+        "overwrite a value the curator just set (RPP #1435).")]
+    public async Task a_sent_image_is_not_overwritten_by_fill()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var film = StoredFilm(new Film("Faderhuset") { TmdbId = tmdbId, Description = string.Empty });
+        var curatorImage = new Uri("https://example.org/curator.jpg");
+        var metadata = Metadata(tmdbId);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchFilmAsync(tmdbId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(metadata);
+        var sut = _mocker.CreateInstance<FilmService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { Image = curatorImage.ToString() }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.Image.Should().Be(curatorImage);
+        _saved.Description.Should().Be(metadata.Overview);
+    }
+
+    [Fact(DisplayName =
+        "Clearing a film's publisher in the same PATCH leaves it empty even when TMDB has a production company " +
+        "(RPP #1436).")]
+    public async Task a_publisher_cleared_in_this_patch_is_not_refilled()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var film = StoredFilm(new Film("Faderhuset")
+        {
+            TmdbId = tmdbId,
+            PublisherName = "Old Studio",
+            Description = _fixture.CreateTitle()
+        });
+        var metadata = Metadata(tmdbId);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchFilmAsync(tmdbId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(metadata);
+        var sut = _mocker.CreateInstance<FilmService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { PublisherName = "" }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.PublisherName.Should().BeEmpty();
+        _saved.Length.Should().Be(TimeSpan.FromMinutes(metadata.RuntimeMinutes!.Value));
+    }
+
+    [Fact(DisplayName =
+        "Clearing a film's TMDB id in the same PATCH leaves it cleared even when an IMDb id lookup finds that TMDB " +
+        "id, because the curator just removed it.")]
+    public async Task a_tmdb_id_cleared_in_this_patch_is_not_restored()
+    {
+        // Arrange
+        var imdbId = _fixture.CreateImdbId();
+        var existingTmdbId = _fixture.CreateTmdbId();
+        var film = StoredFilm(new Film("Faderhuset")
+        {
+            ImdbId = imdbId,
+            TmdbId = existingTmdbId,
+            Description = string.Empty
+        });
+        var metadata = Metadata(existingTmdbId);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchFilmAsync(null, imdbId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(metadata);
+        var sut = _mocker.CreateInstance<FilmService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { TmdbId = 0 }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.TmdbId.Should().BeNull();
+        _saved.ImdbId.Should().Be(imdbId);
+        _saved.PublisherName.Should().Be(metadata.Publisher);
+        _saved.Description.Should().Be(metadata.Overview);
+    }
     private Film StoredFilm(Film film)
     {
         film.Id = _fixture.CreateGuid();
@@ -257,5 +400,6 @@ public class FilmIdentityMetadataUpdateRules
             88,
             new DateOnly(2026, 10, 19),
             new Uri("https://image.tmdb.org/t/p/w1280/backdrop.jpg"),
-            ["Faderhuset", "Father's House"]);
+            ["Faderhuset", "Father's House"],
+            "Copenhagen Film Company");
 }

@@ -12,6 +12,9 @@ internal sealed class TmdbFindResponse
     [JsonPropertyName("movie_results")]
     public List<TmdbListedTitleDto>? MovieResults { get; set; }
 
+    [JsonPropertyName("tv_results")]
+    public List<TmdbListedTitleDto>? TvResults { get; set; }
+
     [JsonPropertyName("tv_episode_results")]
     public List<TmdbFoundEpisodeDto>? TvEpisodeResults { get; set; }
 }
@@ -53,6 +56,9 @@ internal sealed class TmdbMovieMetadataDto
     [JsonPropertyName("backdrop_path")]
     public string? BackdropPath { get; set; }
 
+    [JsonPropertyName("production_companies")]
+    public List<TmdbNamedItemDto>? ProductionCompanies { get; set; }
+
     [JsonPropertyName("alternative_titles")]
     public TmdbAlternativeTitlesDto? AlternativeTitles { get; set; }
 
@@ -83,6 +89,22 @@ internal sealed class TmdbTranslationDataDto
 {
     public string? Title { get; set; }
 
+    public string? Name { get; set; }
+}
+
+/// <summary>TV series details used for publisher fill (RPP #1436): <c>tv/{id}</c>.</summary>
+internal sealed class TmdbTvShowMetadataDto
+{
+    public int Id { get; set; }
+
+    public List<TmdbNamedItemDto>? Networks { get; set; }
+
+    [JsonPropertyName("production_companies")]
+    public List<TmdbNamedItemDto>? ProductionCompanies { get; set; }
+}
+
+internal sealed class TmdbNamedItemDto
+{
     public string? Name { get; set; }
 }
 

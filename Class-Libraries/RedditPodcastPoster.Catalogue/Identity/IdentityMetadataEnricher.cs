@@ -41,6 +41,36 @@ public sealed class IdentityMetadataEnricher(
         }
     }
 
+    public async Task<TmdbShowMetadata?> FetchTvShowAsync(
+        int? tmdbId,
+        string? imdbId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var seriesId = tmdbId is > 0
+                ? tmdbId
+                : string.IsNullOrWhiteSpace(imdbId)
+                    ? null
+                    : (await tmdb.FindTvSeriesByImdbIdAsync(imdbId, cancellationToken).ConfigureAwait(false))?.Id;
+            if (seriesId is not int id)
+            {
+                return null;
+            }
+
+            return await tmdb.GetTvShowMetadataAsync(id, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(
+                exception,
+                "TV show identity metadata lookup failed. tmdbId={TmdbId} imdbId={ImdbId}",
+                tmdbId,
+                imdbId);
+            return null;
+        }
+    }
+
     public async Task<TmdbEpisodeMetadata?> FetchTvShowEpisodeAsync(
         TvShowEpisode episode,
         int? showTmdbId,

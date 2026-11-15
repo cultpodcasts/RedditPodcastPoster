@@ -16,7 +16,9 @@ public readonly record struct IdentityFieldSkip(
     bool Release = false,
     bool Length = false,
     bool Image = false,
-    bool AlternativeTitles = false);
+    bool AlternativeTitles = false,
+    bool Publisher = false,
+    bool TmdbId = false);
 
 /// <summary>
 /// Fills a film or TV episode from its identity (TMDB) metadata, only where the field is empty (RPP #1430, #1431).
@@ -27,7 +29,7 @@ public static class IdentityMetadataFill
 {
     /// <summary>
     /// True when the film has an empty field that identity metadata can fill: description, release, runtime,
-    /// image (when no streaming service has one either) or alternative titles (never set; a cleared or
+    /// image (when no streaming service has one either), publisher, or alternative titles (never set; a cleared or
     /// "checked, none found" list is kept, unless <paramref name="refillEmptyAlternativeTitles"/> is set because this
     /// PATCH changes the IMDb or TMDB id and does not send alternativeTitles). Fields in <paramref name="skip"/> are
     /// not treated as gaps.
@@ -39,7 +41,18 @@ public static class IdentityMetadataFill
                (!skip.Release && film.Release is null) ||
                (!skip.Length && film.Length <= TimeSpan.Zero) ||
                (!skip.Image && film.Image is null && !HasServiceImage(film.Services)) ||
+               (!skip.Publisher && string.IsNullOrWhiteSpace(film.PublisherName)) ||
                (!skip.AlternativeTitles && AlternativeTitlesNeedFill(film, refillEmptyAlternativeTitles));
+    }
+
+    /// <summary>
+    /// True when the TV show's publisher is empty and can be filled from identity metadata (RPP #1436). Fields in
+    /// <paramref name="skip"/> are not treated as gaps.
+    /// </summary>
+    public static bool HasGaps(TvShow show, IdentityFieldSkip skip = default)
+    {
+        ArgumentNullException.ThrowIfNull(show);
+        return !skip.Publisher && string.IsNullOrWhiteSpace(show.PublisherName);
     }
 
     /// <summary>
@@ -62,7 +75,7 @@ public static class IdentityMetadataFill
         ArgumentNullException.ThrowIfNull(film);
         ArgumentNullException.ThrowIfNull(metadata);
         var changed = false;
-        if (film.TmdbId is null && metadata.Id > 0)
+        if (!skip.TmdbId && film.TmdbId is null && metadata.Id > 0)
         {
             film.TmdbId = metadata.Id;
             changed = true;
@@ -92,6 +105,12 @@ public static class IdentityMetadataFill
             changed = true;
         }
 
+        if (!skip.Publisher && string.IsNullOrWhiteSpace(film.PublisherName) && metadata.Publisher is { } publisher)
+        {
+            film.PublisherName = publisher;
+            changed = true;
+        }
+
         // Null means never set: fill, or store [] when a successful lookup found no other titles, so the next
         // edit does not call TMDB again. [] means a curator cleared them, or TMDB had none; it is not filled again,
         // unless this PATCH changes the IMDb or TMDB id and does not send alternativeTitles.
@@ -115,7 +134,7 @@ public static class IdentityMetadataFill
         ArgumentNullException.ThrowIfNull(episode);
         ArgumentNullException.ThrowIfNull(metadata);
         var changed = false;
-        if (episode.TmdbId is null && metadata.Id > 0)
+        if (!skip.TmdbId && episode.TmdbId is null && metadata.Id > 0)
         {
             episode.TmdbId = metadata.Id;
             changed = true;
@@ -152,6 +171,25 @@ public static class IdentityMetadataFill
         }
 
         return changed;
+    }
+
+    /// <summary>Fills the show's empty, unskipped publisher from <paramref name="metadata"/>. True when it changed.</summary>
+    public static bool Fill(TvShow show, TmdbShowMetadata metadata, IdentityFieldSkip skip = default)
+    {
+        ArgumentNullException.ThrowIfNull(show);
+        ArgumentNullException.ThrowIfNull(metadata);
+        if (!skip.TmdbId && show.TmdbId is null && metadata.Id > 0)
+        {
+            show.TmdbId = metadata.Id;
+        }
+
+        if (!skip.Publisher && string.IsNullOrWhiteSpace(show.PublisherName) && metadata.Publisher is { } publisher)
+        {
+            show.PublisherName = publisher;
+            return true;
+        }
+
+        return false;
     }
 
     private static bool AlternativeTitlesNeedFill(Film film, bool refillEmpty) =>

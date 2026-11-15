@@ -26,4 +26,9 @@ public class FilmChangeRequest : PublisherFieldsChange
     public string[]? Subjects { get; set; }
     public string[]? Guests { get; set; }
     public string[]? AlternativeTitles { get; set; }
+
+    /// <summary>
+    /// The film's identity image URL (RPP #1435). Null = unchanged; <c>""</c> clears; otherwise an absolute http(s) URL.
+    /// </summary>
+    public string? Image { get; set; }
 }
