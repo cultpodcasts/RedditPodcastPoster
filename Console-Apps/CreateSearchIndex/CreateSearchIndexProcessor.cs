@@ -499,17 +499,32 @@ public partial class CreateSearchIndexProcessor(
             added.Add(field.Name);
         }
 
-        if (added.Count == 0)
+        var scoringProfileChanged = TitleMatchScoringProfile.Apply(index.Value);
+        if (added.Count == 0 && !scoringProfileChanged)
         {
-            logger.LogInformation("Index '{IndexName}' already has every EpisodeSearchRecord field.", indexName);
+            logger.LogInformation(
+                "Index '{IndexName}' already has every EpisodeSearchRecord field and the {Profile} scoring profile.",
+                indexName,
+                TitleMatchScoringProfile.Name);
             return;
         }
 
         await searchIndexClient.CreateOrUpdateIndexAsync(index.Value);
-        logger.LogInformation(
-            "Added EpisodeSearchRecord fields to index '{IndexName}': {FieldNames}.",
-            indexName,
-            string.Join(", ", added));
+        if (added.Count > 0)
+        {
+            logger.LogInformation(
+                "Added EpisodeSearchRecord fields to index '{IndexName}': {FieldNames}.",
+                indexName,
+                string.Join(", ", added));
+        }
+
+        if (scoringProfileChanged)
+        {
+            logger.LogInformation(
+                "Set scoring profile '{Profile}' as the default on index '{IndexName}'. Existing fields and documents were not changed.",
+                TitleMatchScoringProfile.Name,
+                indexName);
+        }
     }
 
     private static FieldBuilder EpisodeSearchFieldBuilder() => new()
@@ -829,9 +844,9 @@ public partial class CreateSearchIndexProcessor(
         var index = new SearchIndex(request.IndexName)
         {
             Fields = EpisodeSearchFieldBuilder().Build(typeof(EpisodeSearchRecord)),
-            DefaultScoringProfile = string.Empty,
             CorsOptions = new CorsOptions(["*"]) { MaxAgeInSeconds = 300 }
         };
+        TitleMatchScoringProfile.Apply(index);
         return await searchIndexClient.CreateOrUpdateIndexAsync(index);
     }
 

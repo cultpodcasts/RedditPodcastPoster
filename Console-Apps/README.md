@@ -409,7 +409,7 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 |--------|-------------|
 | `-i, --index` | Index name |
 | `-t, --teardown-index` | Tear down index. Always tears down and recreates the TvShowEpisode and NewsReport sibling datasources and indexers too (with or without `--all-playables`), because the deleted index held their documents; with `-r`, the siblings are run as well. Film documents are not restored by this; run `FilmSearchPusher` afterwards (it sees the empty index and pushes every film) |
-| `--update-existing` | Keep index; upsert Cosmos datasource SQL from current `SearchEncodedKeys`. With `--all-playables`, also CreateOrUpdate sibling datasources and indexers. Does not copy `episodeTitle` / `podcastName` / `episodeDescription` onto a new index. **Not** a recreate |
+| `--update-existing` | Keep index; add missing `EpisodeSearchRecord` fields; upsert the `titleAndAlternativeTitles` scoring profile as the index default (query-time, no document rewrite or indexer reset); upsert Cosmos datasource SQL from current `SearchEncodedKeys`. With `--all-playables`, also CreateOrUpdate sibling datasources and indexers. Does not copy `episodeTitle` / `podcastName` / `episodeDescription` onto a new index. **Not** a recreate |
 | `--all-playables` | CreateOrUpdate the TvShowEpisode and NewsReport datasources and indexers on the same index **without a teardown** (adds them to an index that has only the episode pair), and delete a leftover Film pair. Works with a fresh run and with `--update-existing`. With `--run-indexer`, each sibling is run through the same retry monitor as `--indexer`. With `--update-existing --reset-indexer`, each sibling indexer is reset too. A teardown or `--all-playables` stops before changing anything when the service allows fewer than three data sources or indexers |
 | `--reset-indexer` | With `--update-existing` + `--indexer`: reset pull high-water mark (slow on free tier; prefer `Index --reindex-search` for spot fixes) |
 | `-d, --datasource` | Data-source name |
@@ -428,7 +428,10 @@ Index --reindex-search -n "<PodcastName>"
 ```
 
 `--update-existing` is also how a new `EpisodeSearchRecord` field reaches the live index without a teardown (for
-example the film `trailers` field, see [docs/film-trailers.md](../docs/film-trailers.md)).
+example the film `trailers` field, see [docs/film-trailers.md](../docs/film-trailers.md)), and how the
+`titleAndAlternativeTitles` scoring profile (RPP #1434) is added or updated as the index default so an exact
+alternative-title match ranks with an exact title match. That profile change is query-time: do not pass
+`--teardown-index`, `--reset-indexer`, or `--run-indexer` for it.
 
 Add the scheduled TV and news indexers to the existing index (no teardown; they first run at the next :15 / :45, or add `--run-indexer` to run now):
 
