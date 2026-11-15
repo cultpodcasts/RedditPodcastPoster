@@ -5,9 +5,11 @@ using Moq.AutoMock;
 using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.TvShows;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Tmdb.Models;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Services.TvShows;
@@ -36,6 +38,9 @@ public class TvShowFieldUpdateRules
             .Setup(r => r.Save(It.IsAny<IEnumerable<TvShowEpisode>>()))
             .Callback<IEnumerable<TvShowEpisode>>(episodes => _savedEpisodes = episodes.ToArray())
             .Returns(Task.CompletedTask);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchTvShowAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TmdbShowMetadata?)null);
     }
 
     private TvShow CreateShow(Action<TvShow>? customise = null)
