@@ -14,6 +14,7 @@ namespace RedditPodcastPoster.ContentPublisher.Tests.BusinessRules;
 public class HomepageCataloguePlayablesRules
 {
     private static readonly DateTime Since = new(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime Until = Since.AddDays(14);
 
     private readonly Mock<INewsReportRepository> _newsReports = new();
     private readonly Mock<INewsOrganisationRepository> _newsOrganisations = new();
@@ -112,7 +113,7 @@ public class HomepageCataloguePlayablesRules
         GivenNewsReports(report);
 
         // Act
-        var result = await Sut().GetRecent(Since, CancellationToken.None);
+        var result = await Sut().GetRecent(Since, Until, CancellationToken.None);
 
         // Assert
         var item = result.Should().ContainSingle().Subject;
@@ -143,7 +144,7 @@ public class HomepageCataloguePlayablesRules
         GivenTvShowEpisodes(TvEpisode(removedShow, "Under removed show", Since.AddDays(1)));
 
         // Act
-        var result = await Sut().GetRecent(Since, CancellationToken.None);
+        var result = await Sut().GetRecent(Since, Until, CancellationToken.None);
 
         // Assert
         result.Should().BeEmpty();
@@ -167,7 +168,7 @@ public class HomepageCataloguePlayablesRules
         GivenNewsReports(removed, ignored, old, parentRemoved, live);
 
         // Act
-        var result = await Sut().GetRecent(Since, CancellationToken.None);
+        var result = await Sut().GetRecent(Since, Until, CancellationToken.None);
 
         // Assert
         result.Select(x => x.Title).Should().Equal("Live");
@@ -185,7 +186,7 @@ public class HomepageCataloguePlayablesRules
             TvEpisode(show, "Episode two", Since.AddDays(2)));
 
         // Act
-        var result = await Sut().GetRecent(Since, CancellationToken.None);
+        var result = await Sut().GetRecent(Since, Until, CancellationToken.None);
 
         // Assert
         result.Should().HaveCount(2).And.OnlyContain(x => x.ContentKind == "TvShowEpisode" && x.ParentName == "Synthetic Show");
@@ -208,7 +209,7 @@ public class HomepageCataloguePlayablesRules
         GivenFilms(live, removed, ignored, yearOnly);
 
         // Act
-        var result = await Sut().GetRecent(Since, CancellationToken.None);
+        var result = await Sut().GetRecent(Since, Until, CancellationToken.None);
 
         // Assert
         var item = result.Should().ContainSingle().Subject;
@@ -252,5 +253,32 @@ public class HomepageCataloguePlayablesRules
         // Assert
         count.Should().Be(6);
         durations.Should().BeEquivalentTo([TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(3)]);
+    }
+
+    [Fact(DisplayName =
+        "Homepage catalogue: a future-dated film is omitted while now is before its release, and appears " +
+        "once now is on or after that instant, so it cannot create a next-Thursday day group ahead of time.")]
+    public async Task future_release_is_hidden_until_now_is_on_or_after_its_release()
+    {
+        // Arrange
+        var now = DateTime.UtcNow;
+        var since = now.AddDays(-7);
+        var release = DateTime.UtcNow.Date.AddDays(4);
+        var pastRelease = now.AddDays(-3);
+        var futureFilm = MakeFilm("Synthetic Future Film", CatalogueRelease.FromDateTimeUtc(release));
+        var pastFilm = MakeFilm("Synthetic Past Film", CatalogueRelease.FromDateTimeUtc(pastRelease));
+        GivenFilms(futureFilm, pastFilm);
+
+        // Act
+        var beforeRelease = await Sut().GetRecent(since, now, CancellationToken.None);
+        var justBeforeRelease = await Sut().GetRecent(since, release.AddTicks(-1), CancellationToken.None);
+        var onRelease = await Sut().GetRecent(since, release, CancellationToken.None);
+        var afterRelease = await Sut().GetRecent(since, release.AddHours(1), CancellationToken.None);
+
+        // Assert
+        beforeRelease.Should().ContainSingle().Which.ParentName.Should().Be("Synthetic Past Film");
+        justBeforeRelease.Select(x => x.ParentName).Should().Equal("Synthetic Past Film");
+        onRelease.Select(x => x.ParentName).Should().BeEquivalentTo("Synthetic Past Film", "Synthetic Future Film");
+        afterRelease.Select(x => x.ParentName).Should().BeEquivalentTo("Synthetic Past Film", "Synthetic Future Film");
     }
 }
