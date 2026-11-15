@@ -121,9 +121,10 @@ public sealed record TmdbTitle(
     CatalogueCanonicalId? Canonical);
 
 /// <summary>
-/// A TMDB movie's own metadata (RPP #1430 / #1431). <see cref="Image"/> is the landscape backdrop when TMDB has one,
-/// else the poster. <see cref="OtherTitles"/> is every other title the film is known by, distinct and trimmed:
-/// the original title, TMDB's alternative titles and its translated titles, never <see cref="Title"/> itself.
+/// A TMDB movie's own metadata (RPP #1430 / #1431 / #1436). <see cref="Image"/> is the landscape backdrop when TMDB
+/// has one, else the poster. <see cref="OtherTitles"/> is every other title the film is known by, distinct and
+/// trimmed: the original title, TMDB's alternative titles and its translated titles, never <see cref="Title"/> itself.
+/// <see cref="Publisher"/> is the first named production company, when TMDB has one.
 /// </summary>
 public sealed record TmdbMovieMetadata(
     int Id,
@@ -133,7 +134,14 @@ public sealed record TmdbMovieMetadata(
     int? RuntimeMinutes,
     DateOnly? ReleaseDate,
     Uri? Image,
-    IReadOnlyList<string> OtherTitles);
+    IReadOnlyList<string> OtherTitles,
+    string? Publisher = null);
+
+/// <summary>
+/// A TMDB TV series' own publisher metadata (RPP #1436). <see cref="Publisher"/> is the first named network, else the
+/// first named production company.
+/// </summary>
+public sealed record TmdbShowMetadata(int Id, string? Publisher);
 
 /// <summary>A TMDB TV episode's own metadata (RPP #1430). <see cref="Still"/> is the episode still.</summary>
 public sealed record TmdbEpisodeMetadata(

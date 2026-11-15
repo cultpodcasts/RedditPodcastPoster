@@ -51,6 +51,25 @@ public sealed class TmdbClient(
         return movie is null ? null : MapHit(movie, TmdbTitleKind.Movie);
     }
 
+    public async Task<TmdbSearchHit?> FindTvSeriesByImdbIdAsync(
+        string imdbId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(imdbId);
+        var valid = ValidImdbId(imdbId.Trim());
+        if (valid is null)
+        {
+            return null;
+        }
+
+        var response = await GetAsync<TmdbFindResponse>(
+                $"find/{Uri.EscapeDataString(valid)}?external_source=imdb_id",
+                cancellationToken)
+            .ConfigureAwait(false);
+        var series = response?.TvResults?.FirstOrDefault();
+        return series is null ? null : MapHit(series, TmdbTitleKind.TvSeries);
+    }
+
     public async Task<TmdbTitle?> GetMovieAsync(int movieId, CancellationToken cancellationToken = default)
     {
         var details = await GetAsync<TmdbDetailsDto>(
@@ -105,7 +124,21 @@ public sealed class TmdbClient(
             details.Runtime is > 0 ? details.Runtime : null,
             DateOf(details.ReleaseDate),
             TmdbImage.Backdrop(details.BackdropPath) ?? TmdbImage.Poster(details.PosterPath),
-            otherTitles);
+            otherTitles,
+            FirstNamed(details.ProductionCompanies));
+    }
+
+    public async Task<TmdbShowMetadata?> GetTvShowMetadataAsync(
+        int seriesId,
+        CancellationToken cancellationToken = default)
+    {
+        var details = await GetAsync<TmdbTvShowMetadataDto>(
+                $"tv/{seriesId.ToString(CultureInfo.InvariantCulture)}",
+                cancellationToken)
+            .ConfigureAwait(false);
+        return details is null
+            ? null
+            : new TmdbShowMetadata(details.Id, FirstNamed(details.Networks) ?? FirstNamed(details.ProductionCompanies));
     }
 
     public async Task<TmdbEpisodeMetadata?> GetTvEpisodeMetadataAsync(
@@ -283,6 +316,26 @@ public sealed class TmdbClient(
 
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>The first non-blank name in a TMDB network or production-company list (RPP #1436).</summary>
+    private static string? FirstNamed(IEnumerable<TmdbNamedItemDto>? items)
+    {
+        if (items is null)
+        {
+            return null;
+        }
+
+        foreach (var item in items)
+        {
+            var name = Clean(item.Name);
+            if (name is not null)
+            {
+                return name;
+            }
+        }
+
+        return null;
+    }
 
     private static DateOnly? DateOf(string? date) =>
         DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)

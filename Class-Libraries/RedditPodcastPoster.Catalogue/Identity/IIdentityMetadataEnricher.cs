@@ -17,6 +17,12 @@ public interface IIdentityMetadataEnricher
         string? imdbId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>The TMDB series for the show's <c>tmdbId</c>, or for its <c>imdbId</c> when it has no TMDB id.</summary>
+    Task<TmdbShowMetadata?> FetchTvShowAsync(
+        int? tmdbId,
+        string? imdbId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// The TMDB episode for a TV episode. Its series, season and episode number come from its TheTVDB episode
     /// (with <paramref name="showTmdbId"/>, the parent show's TMDB series id, preferred), else from TMDB's find by its

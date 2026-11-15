@@ -34,6 +34,7 @@ public class IdentityMetadataFillRules
         film.Length.Should().Be(TimeSpan.FromMinutes(metadata.RuntimeMinutes!.Value));
         film.Image.Should().Be(metadata.Image);
         film.AlternativeTitles.Should().Equal(metadata.OtherTitles);
+        film.PublisherName.Should().Be(metadata.Publisher);
     }
 
     [Fact(DisplayName =
@@ -54,7 +55,8 @@ public class IdentityMetadataFillRules
             Length = length,
             Image = image,
             AlternativeTitles = titles,
-            TmdbId = tmdbId
+            TmdbId = tmdbId,
+            PublisherName = "A24"
         };
         film.SetRelease(release);
 
@@ -120,6 +122,7 @@ public class IdentityMetadataFillRules
             Description = _fixture.CreateTitle(),
             Length = _fixture.CreateDuration(),
             AlternativeTitles = [],
+            PublisherName = "A24",
             Services = new Dictionary<string, ServiceLink>
             {
                 ["youtube"] = new() { Image = new Uri($"https://i.ytimg.com/vi/{_fixture.CreateYouTubeId()}/hqdefault.jpg") }
@@ -238,7 +241,8 @@ public class IdentityMetadataFillRules
             Length = _fixture.CreateDuration(),
             Image = film.Image,
             TmdbId = _fixture.CreateTmdbId(),
-            AlternativeTitles = []
+            AlternativeTitles = [],
+            PublisherName = "A24"
         };
         cleared.SetRelease(CatalogueRelease.FromYear(1999));
 
@@ -266,7 +270,8 @@ public class IdentityMetadataFillRules
             Length = TimeSpan.FromMinutes(90),
             Image = new Uri($"https://image.tmdb.org/t/p/w1280/{_fixture.CreateYouTubeId()}.jpg"),
             TmdbId = _fixture.CreateTmdbId(),
-            AlternativeTitles = []
+            AlternativeTitles = [],
+            PublisherName = "A24"
         };
         film.SetRelease(CatalogueRelease.FromYear(1999));
         var metadata = Movie("Father's House") with { OtherTitles = ["Father's House", "La casa del padre"] };
@@ -312,6 +317,33 @@ public class IdentityMetadataFillRules
         IdentityMetadataFill.HasGaps(film, skipFilm).Should().BeFalse();
     }
 
+    [Fact(DisplayName =
+        "An empty film or TV show publisher is filled from TMDB (the first production company or network); a set or skipped publisher is kept (RPP #1436).")]
+    public void publisher_is_filled_only_when_empty()
+    {
+        // Arrange
+        var film = new Film(_fixture.CreateTitle()) { PublisherName = "A24" };
+        var emptyShow = new TvShow(_fixture.CreateTitle());
+        var setShow = new TvShow(_fixture.CreateTitle()) { PublisherName = "HBO" };
+        var metadata = new TmdbShowMetadata(_fixture.CreateTmdbId(), "BBC Two");
+
+        // Act
+        IdentityMetadataFill.Fill(film, Movie(film.Name));
+        var showFilled = IdentityMetadataFill.Fill(emptyShow, metadata);
+        var showKept = IdentityMetadataFill.Fill(setShow, metadata);
+        IdentityMetadataFill.Fill(emptyShow, metadata, new IdentityFieldSkip(Publisher: true));
+
+        // Assert
+        film.PublisherName.Should().Be("A24");
+        showFilled.Should().BeTrue();
+        emptyShow.PublisherName.Should().Be("BBC Two");
+        showKept.Should().BeFalse();
+        setShow.PublisherName.Should().Be("HBO");
+        IdentityMetadataFill.HasGaps(setShow).Should().BeFalse();
+        IdentityMetadataFill.HasGaps(new TvShow(_fixture.CreateTitle()), new IdentityFieldSkip(Publisher: true))
+            .Should().BeFalse();
+    }
+
     private TmdbMovieMetadata Movie(string title) =>
         new(
             _fixture.CreateTmdbId(),
@@ -321,7 +353,8 @@ public class IdentityMetadataFillRules
             90 + _fixture.CreateTmdbId() % 60,
             new DateOnly(2024, 3, 1 + _fixture.CreateTmdbId() % 28),
             new Uri($"https://image.tmdb.org/t/p/w1280/{_fixture.CreateYouTubeId()}.jpg"),
-            [_fixture.CreateTitle(), _fixture.CreateTitle()]);
+            [_fixture.CreateTitle(), _fixture.CreateTitle()],
+            "A24");
 
     private TmdbEpisodeMetadata Episode() =>
         new(

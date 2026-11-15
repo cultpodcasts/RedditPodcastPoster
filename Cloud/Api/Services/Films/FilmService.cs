@@ -186,7 +186,7 @@ public class FilmService(
 
     /// <summary>
     /// RPP #1430: the film's TMDB metadata when this edit leaves it with an IMDb or TMDB id and either changes an id
-    /// or leaves a field identity can fill empty (description, release, runtime, image, alternative titles).
+    /// or leaves a field identity can fill empty (description, release, runtime, image, publisher, alternative titles).
     /// Null otherwise, or when the lookup fails; the edit is saved either way.
     /// </summary>
     private async Task<TmdbMovieMetadata?> ReadIdentityMetadata(
@@ -218,7 +218,9 @@ public class FilmService(
         Description: change.Description is not null,
         Release: change.Release is not null,
         Length: change.Duration is not null,
-        AlternativeTitles: change.AlternativeTitles is not null);
+        Image: change.Image is not null,
+        AlternativeTitles: change.AlternativeTitles is not null,
+        Publisher: change.PublisherName is not null);
 
     /// <summary>
     /// True when this PATCH sets a different IMDb or TMDB id than the film already has. A [] alternative-titles
@@ -364,6 +366,7 @@ public class FilmService(
         postStatus = PostStatusChange.None;
         if (!PlayableChangeApplier.TryParseRelease(change.Release, allowYear: true, out var release, out error) ||
             !PlayableChangeApplier.TryParseDuration(change.Duration, out var length, out error) ||
+            !TryParseImage(change.Image, out var image, out error) ||
             !FilmLinkChangeApplier.TryValidate(film, change, out error))
         {
             return false;
@@ -374,6 +377,10 @@ public class FilmService(
 
         // Publisher fields include publisher, description and removed.
         PublisherChangeApplier.Apply(film, change);
+        if (image.Specified)
+        {
+            film.Image = image.Value;
+        }
         postStatus = PostStatusApplier.Apply(
             film, change.Posted, change.Tweeted, change.BlueskyPosted, change.UnBluesky);
 
@@ -407,6 +414,36 @@ public class FilmService(
             film.Guests = PlayableChangeApplier.NormaliseGuests(change.Guests);
         }
 
+        return true;
+    }
+
+    /// <summary>
+    /// Omitted (null) is unchanged. <c>""</c> clears. Anything else must be an absolute http(s) URL (RPP #1435).
+    /// </summary>
+    internal static bool TryParseImage(string? image, out (bool Specified, Uri? Value) parsed, out string? error)
+    {
+        parsed = default;
+        error = null;
+        if (image is null)
+        {
+            return true;
+        }
+
+        var text = image.Trim();
+        if (text.Length == 0)
+        {
+            parsed = (true, null);
+            return true;
+        }
+
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            error = "Image must be an absolute http(s) URL, or blank to clear.";
+            return false;
+        }
+
+        parsed = (true, uri);
         return true;
     }
 }

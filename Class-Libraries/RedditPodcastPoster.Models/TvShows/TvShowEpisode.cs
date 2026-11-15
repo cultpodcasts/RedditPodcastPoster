@@ -53,6 +53,24 @@ public sealed class TvShowEpisode : Playable, ICatalogueYouTubeItem, ITvCanonica
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? TmdbId { get; set; }
 
+    /// <summary>The parent show's IMDb title id, denormalised for search and public identity links (RPP #1437).</summary>
+    [JsonPropertyName("seriesImdbId")]
+    [JsonPropertyOrder(146)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SeriesImdbId { get; set; }
+
+    /// <summary>The parent show's TMDB series id, denormalised for search and public identity links (RPP #1437).</summary>
+    [JsonPropertyName("seriesTmdbId")]
+    [JsonPropertyOrder(147)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SeriesTmdbId { get; set; }
+
+    /// <summary>The parent show's TheTVDB series id, denormalised for search and public identity links (RPP #1437).</summary>
+    [JsonPropertyName("seriesTvdbId")]
+    [JsonPropertyOrder(148)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? SeriesTvdbId { get; set; }
+
     /// <summary>
     /// Image from the episode's identity (the TMDB still). Omitted when unknown. The search document uses it only when
     /// no streaming service has an image (RPP #1430).
@@ -115,6 +133,25 @@ public sealed class TvShowEpisode : Playable, ICatalogueYouTubeItem, ITvCanonica
         if (PublisherLanguage != language)
         {
             PublisherLanguage = language;
+            updated = true;
+        }
+
+        var seriesImdbId = string.IsNullOrWhiteSpace(tvShow.ImdbId) ? null : tvShow.ImdbId.Trim();
+        if (SeriesImdbId != seriesImdbId)
+        {
+            SeriesImdbId = seriesImdbId;
+            updated = true;
+        }
+
+        if (SeriesTmdbId != tvShow.TmdbId)
+        {
+            SeriesTmdbId = tvShow.TmdbId;
+            updated = true;
+        }
+
+        if (SeriesTvdbId != tvShow.TvdbId)
+        {
+            SeriesTvdbId = tvShow.TvdbId;
             updated = true;
         }
 

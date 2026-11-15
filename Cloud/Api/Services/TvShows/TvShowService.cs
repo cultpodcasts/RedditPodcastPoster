@@ -3,6 +3,7 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -16,6 +17,7 @@ public class TvShowService(
     IServiceIdsUniqueness serviceIdsUniqueness,
     IYouTubePlaylistGuard youTubePlaylistGuard,
     IChannelWideYouTubeClaimGuard channelWideYouTubeClaimGuard,
+    IIdentityMetadataEnricher identityMetadata,
     ILogger<TvShowService> logger) : ITvShowService
 {
     public async Task<TvShowGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -117,6 +119,7 @@ public class TvShowService(
             }
 
             PublisherChangeApplier.Apply(show, request.Change);
+            await TryFillPublisherAsync(show, request.Change, cancellationToken);
             if (await serviceIdsUniqueness.FindConflict(show.Id, request.Change) is { } conflict)
             {
                 logger.LogWarning("{method}: {message}", nameof(UpdateAsync), conflict.Message);
@@ -194,6 +197,39 @@ public class TvShowService(
         {
             logger.LogError(ex, "{method}: Failed to update TV show '{id}'.", nameof(UpdateAsync), request.TvShowId);
             return new TvShowUpdateResult(TvShowUpdateStatus.Failed);
+        }
+    }
+
+    /// <summary>
+    /// RPP #1436: fill an empty publisher from TMDB (first network, else first production company) when the show has
+    /// an IMDb or TMDB id and this PATCH did not set or clear publisher.
+    /// </summary>
+    private async Task TryFillPublisherAsync(
+        RedditPodcastPoster.Models.TvShows.TvShow show,
+        TvShowChangeRequest change,
+        CancellationToken cancellationToken)
+    {
+        var skip = new IdentityFieldSkip(Publisher: change.PublisherName is not null);
+        if (!IdentityMetadataFill.HasGaps(show, skip))
+        {
+            return;
+        }
+
+        var imdbId = change.ImdbId is null
+            ? show.ImdbId
+            : change.ImdbId.Trim().Length == 0 ? null : change.ImdbId.Trim();
+        var tmdbId = change.TmdbId is null
+            ? show.TmdbId
+            : change.TmdbId.Value == 0 ? null : change.TmdbId;
+        if (imdbId is null && tmdbId is null)
+        {
+            return;
+        }
+
+        var metadata = await identityMetadata.FetchTvShowAsync(tmdbId, imdbId, cancellationToken);
+        if (metadata is not null)
+        {
+            IdentityMetadataFill.Fill(show, metadata, skip);
         }
     }
 }

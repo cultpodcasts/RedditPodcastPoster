@@ -33,7 +33,7 @@ public class FilmIdentityMetadataUpdateRules
     }
 
     [Fact(DisplayName =
-        "Setting a film's identity ids fills its empty description, release, runtime, image and alternative titles " +
+        "Setting a film's identity ids fills its empty description, release, runtime, image, publisher and alternative titles " +
         "from TMDB, because a film created from its trailer (Faderhuset) otherwise shows 0:00:00 and no details.")]
     public async Task setting_ids_fills_empty_fields()
     {
@@ -59,6 +59,7 @@ public class FilmIdentityMetadataUpdateRules
         _saved.Length.Should().Be(TimeSpan.FromMinutes(metadata.RuntimeMinutes!.Value));
         _saved.Image.Should().Be(metadata.Image);
         _saved.AlternativeTitles.Should().Equal("Father's House");
+        _saved.PublisherName.Should().Be(metadata.Publisher);
     }
 
     [Fact(DisplayName =
@@ -102,7 +103,8 @@ public class FilmIdentityMetadataUpdateRules
             Description = _fixture.CreateTitle(),
             Length = _fixture.CreateDuration(),
             Image = new Uri("https://image.tmdb.org/t/p/w1280/x.jpg"),
-            AlternativeTitles = []
+            AlternativeTitles = [],
+            PublisherName = "A24"
         });
         complete.SetRelease(CatalogueRelease.FromYear(2010));
         var sut = _mocker.CreateInstance<FilmService>();
@@ -257,5 +259,6 @@ public class FilmIdentityMetadataUpdateRules
             88,
             new DateOnly(2026, 10, 19),
             new Uri("https://image.tmdb.org/t/p/w1280/backdrop.jpg"),
-            ["Faderhuset", "Father's House"]);
+            ["Faderhuset", "Father's House"],
+            "Copenhagen Film Company");
 }

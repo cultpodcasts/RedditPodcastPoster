@@ -117,7 +117,8 @@ public static class RequestModelExtensions
             UnBluesky = request.UnBluesky,
             Subjects = request.Subjects,
             Guests = request.Guests,
-            AlternativeTitles = request.AlternativeTitles
+            AlternativeTitles = request.AlternativeTitles,
+            Image = request.Image
         });
 
     public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) =>
