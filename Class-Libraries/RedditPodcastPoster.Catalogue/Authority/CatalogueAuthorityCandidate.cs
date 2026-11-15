@@ -21,8 +21,35 @@ public sealed record CatalogueAuthorityCandidate(
     public const string TvShowEpisodeKind = "TvShowEpisode";
     public const string TmdbSource = "tmdb";
     public const string TvdbSource = "tvdb";
+    public const string ImdbSource = "imdb";
+
+    private const string ImdbPrefix = "imdb:";
 
     public static string TmdbKey(int tmdbId) => $"tmdb:{tmdbId}";
+
+    /// <summary>An IMDb-only film (TMDB has no record for it). Selecting it stores the IMDb id alone.</summary>
+    public static string ImdbKey(string imdbId) => ImdbPrefix + imdbId;
+
+    public static bool TryParseImdbKey(string? key, out string imdbId)
+    {
+        imdbId = string.Empty;
+        var trimmed = key?.Trim();
+        if (trimmed is null || !trimmed.StartsWith(ImdbPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var id = trimmed[ImdbPrefix.Length..].Trim();
+        if (id.Length <= 2 ||
+            !id.StartsWith("tt", StringComparison.Ordinal) ||
+            !id[2..].All(char.IsAsciiDigit))
+        {
+            return false;
+        }
+
+        imdbId = id;
+        return true;
+    }
 
     public static string TvdbKey(long tvdbId) => $"tvdb:{tvdbId}";
 

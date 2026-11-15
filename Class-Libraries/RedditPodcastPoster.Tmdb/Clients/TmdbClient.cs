@@ -32,6 +32,25 @@ public sealed class TmdbClient(
         CancellationToken cancellationToken = default) =>
         SearchAsync(query, "search/tv", TmdbTitleKind.TvSeries, cancellationToken);
 
+    public async Task<TmdbSearchHit?> FindMovieByImdbIdAsync(
+        string imdbId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(imdbId);
+        var valid = ValidImdbId(imdbId.Trim());
+        if (valid is null)
+        {
+            return null;
+        }
+
+        var response = await GetAsync<TmdbFindResponse>(
+                $"find/{Uri.EscapeDataString(valid)}?external_source=imdb_id",
+                cancellationToken)
+            .ConfigureAwait(false);
+        var movie = response?.MovieResults?.FirstOrDefault();
+        return movie is null ? null : MapHit(movie, TmdbTitleKind.Movie);
+    }
+
     public async Task<TmdbTitle?> GetMovieAsync(int movieId, CancellationToken cancellationToken = default)
     {
         var details = await GetAsync<TmdbDetailsDto>(
@@ -125,13 +144,16 @@ public sealed class TmdbClient(
     private static TmdbSearchHit MapHit(TmdbListedTitleDto item, TmdbTitleKind kind)
     {
         var date = kind == TmdbTitleKind.Movie ? item.ReleaseDate : item.FirstAirDate;
+        var name = item.Title ?? item.Name ?? "";
+        var original = (item.OriginalTitle ?? item.OriginalName)?.Trim();
         return new TmdbSearchHit(
             item.Id,
-            item.Title ?? item.Name ?? "",
+            name,
             kind,
             YearOf(date),
             item.PosterPath,
-            string.IsNullOrWhiteSpace(item.Overview) ? null : item.Overview.Trim());
+            string.IsNullOrWhiteSpace(item.Overview) ? null : item.Overview.Trim(),
+            string.IsNullOrWhiteSpace(original) || original.Equals(name, StringComparison.Ordinal) ? null : original);
     }
 
     private static TmdbTitle Map(TmdbDetailsDto details, TmdbTitleKind kind)
