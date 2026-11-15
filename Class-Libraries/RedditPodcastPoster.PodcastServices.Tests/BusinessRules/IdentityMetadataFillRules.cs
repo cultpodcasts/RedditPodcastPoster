@@ -193,7 +193,7 @@ public class IdentityMetadataFillRules
 
     [Fact(DisplayName =
         "Metadata TMDB does not have (no overview, runtime, date or image) leaves the empty fields empty instead of " +
-        "writing blanks or zeroes.")]
+        "writing blanks or zeroes, and stores an empty alternative-title list so the next edit does not call TMDB again.")]
     public void missing_metadata_leaves_fields_empty()
     {
         // Arrange
@@ -207,13 +207,77 @@ public class IdentityMetadataFillRules
             episode, new TmdbEpisodeMetadata(0, null, null, null, null, null));
 
         // Assert
-        filmChanged.Should().BeFalse();
+        filmChanged.Should().BeTrue();
         episodeChanged.Should().BeFalse();
         film.Release.Should().BeNull();
         film.Length.Should().Be(TimeSpan.Zero);
-        film.AlternativeTitles.Should().BeNull();
+        film.AlternativeTitles.Should().NotBeNull().And.BeEmpty();
+        IdentityMetadataFill.HasGaps(film).Should().BeTrue();
         episode.Release.Should().BeNull();
         episode.Image.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A successful TMDB lookup that finds no other titles stores [] so a later edit is not treated as having a titles " +
+        "gap, while a curator's [] is still not refilled (RPP #1431).")]
+    public void no_other_titles_are_stored_as_an_empty_list()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var film = new Film(name)
+        {
+            Description = _fixture.CreateTitle(),
+            Length = _fixture.CreateDuration(),
+            Image = new Uri($"https://image.tmdb.org/t/p/w1280/{_fixture.CreateYouTubeId()}.jpg")
+        };
+        film.SetRelease(CatalogueRelease.FromYear(1999));
+        var onlyOwnName = Movie(name) with { OtherTitles = [name, " "] };
+        var cleared = new Film(_fixture.CreateTitle())
+        {
+            Description = _fixture.CreateTitle(),
+            Length = _fixture.CreateDuration(),
+            Image = film.Image,
+            TmdbId = _fixture.CreateTmdbId(),
+            AlternativeTitles = []
+        };
+        cleared.SetRelease(CatalogueRelease.FromYear(1999));
+
+        // Act
+        var marked = IdentityMetadataFill.Fill(film, onlyOwnName);
+        var refilled = IdentityMetadataFill.Fill(cleared, Movie(cleared.Name));
+
+        // Assert
+        marked.Should().BeTrue();
+        film.AlternativeTitles.Should().NotBeNull().And.BeEmpty();
+        IdentityMetadataFill.HasGaps(film).Should().BeFalse();
+        refilled.Should().BeFalse();
+        cleared.AlternativeTitles.Should().NotBeNull().And.BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A field the curator cleared in this PATCH is not refilled from TMDB; other empty, untouched fields still are.")]
+    public void skipped_fields_are_not_filled()
+    {
+        // Arrange
+        var film = new Film(_fixture.CreateTitle()) { Description = string.Empty };
+        var episode = new TvShowEpisode { Title = string.Empty, Description = " " };
+        var skipFilm = new IdentityFieldSkip(Description: true);
+        var skipEpisode = new IdentityFieldSkip(Title: true, Description: true);
+        var movie = Movie("Father's House");
+        var tv = Episode();
+
+        // Act
+        IdentityMetadataFill.Fill(film, movie, skipFilm);
+        IdentityMetadataFill.Fill(episode, tv, skipEpisode);
+
+        // Assert
+        film.Description.Should().BeEmpty();
+        film.Release.Should().BeEquivalentTo(CatalogueRelease.FromDate(movie.ReleaseDate!.Value));
+        film.AlternativeTitles.Should().Equal(movie.OtherTitles);
+        episode.Title.Should().BeEmpty();
+        episode.Description.Should().Be(" ");
+        episode.Image.Should().Be(tv.Still);
+        IdentityMetadataFill.HasGaps(film, skipFilm).Should().BeFalse();
     }
 
     private TmdbMovieMetadata Movie(string title) =>

@@ -72,6 +72,47 @@ public class TvShowEpisodeIdentityMetadataUpdateRules
     }
 
     [Fact(DisplayName =
+        "Clearing a TV episode's overview in the same PATCH leaves it empty even when TMDB has one; other empty fields " +
+        "are still filled.")]
+    public async Task a_description_cleared_in_this_patch_is_not_refilled()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), TmdbId = _fixture.CreateTmdbId() };
+        var episode = Stored(new TvShowEpisode(title)
+        {
+            TvShowId = show.Id,
+            TvdbId = _fixture.CreateTvdbId(),
+            Description = _fixture.CreateTitle()
+        });
+        _mocker.GetMock<ITvShowRepository>().Setup(r => r.GetTvShow(show.Id)).ReturnsAsync(show);
+        var metadata = new TmdbEpisodeMetadata(
+            _fixture.CreateTmdbId(),
+            _fixture.CreateTitle(),
+            _fixture.CreateTitle(),
+            47,
+            DateOnly.FromDateTime(DomainTestFixture.UtcDateDaysAgo(40)),
+            new Uri("https://image.tmdb.org/t/p/w780/still.jpg"));
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchTvShowEpisodeAsync(episode, show.TmdbId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(metadata);
+        var sut = _mocker.CreateInstance<TvShowEpisodeService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new TvShowEpisodeChangeRequestWrapper(episode.Id, new TvShowEpisodeChangeRequest { Description = "" }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(TvShowEpisodeUpdateStatus.Accepted);
+        _saved!.Title.Should().Be(title);
+        _saved.Description.Should().BeEmpty();
+        _saved.Release.Should().BeEquivalentTo(CatalogueRelease.FromDate(metadata.AirDate!.Value));
+        _saved.Length.Should().Be(TimeSpan.FromMinutes(47));
+        _saved.Image.Should().Be(metadata.Still);
+    }
+
+    [Fact(DisplayName =
         "A TV episode with every field set and unchanged ids makes no identity lookup, so routine edits cost no TMDB call.")]
     public async Task complete_episode_makes_no_lookup()
     {

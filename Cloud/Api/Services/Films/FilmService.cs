@@ -93,9 +93,10 @@ public class FilmService(
                 }
             }
 
-            // Read once, outside the save loop. Applied to the film the save re-reads, only where a field is empty.
+            // Read once, outside the save loop. Applied to the film the save re-reads, only where a field is empty
+            // and this request did not touch it (a field the curator cleared in this PATCH stays empty).
             var metadata = await ReadIdentityMetadata(film, request.Change, cancellationToken);
-            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds, metadata);
+            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds, metadata, SkipFrom(request.Change));
             if (persisted.Result.Status != FilmUpdateStatus.Accepted || persisted.Film is null)
             {
                 return persisted.Result;
@@ -203,13 +204,19 @@ public class FilmService(
         }
 
         var idsChanged = !string.Equals(imdbId, film.ImdbId, StringComparison.Ordinal) || tmdbId != film.TmdbId;
-        if (!idsChanged && !IdentityMetadataFill.HasGaps(film))
+        if (!idsChanged && !IdentityMetadataFill.HasGaps(film, SkipFrom(change)))
         {
             return null;
         }
 
         return await identityMetadata.FetchFilmAsync(tmdbId, imdbId, cancellationToken);
     }
+
+    private static IdentityFieldSkip SkipFrom(FilmChangeRequest change) => new(
+        Description: change.Description is not null,
+        Release: change.Release is not null,
+        Length: change.Duration is not null,
+        AlternativeTitles: change.AlternativeTitles is not null);
 
     private const int MaxSaveAttempts = FilmDocumentUpdate.MaxAttempts;
 
@@ -272,7 +279,8 @@ public class FilmService(
         Guid filmId,
         FilmChangeRequest change,
         IReadOnlySet<Guid> readTrailerIds,
-        TmdbMovieMetadata? metadata)
+        TmdbMovieMetadata? metadata,
+        IdentityFieldSkip skip)
     {
         var guardingTrailers = change.Trailers is not null;
         for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
@@ -312,7 +320,7 @@ public class FilmService(
 
             if (metadata is not null)
             {
-                IdentityMetadataFill.Fill(latest.Film, metadata);
+                IdentityMetadataFill.Fill(latest.Film, metadata, skip);
             }
 
             if (await filmRepository.TryReplace(latest.Film, latest.ETag))

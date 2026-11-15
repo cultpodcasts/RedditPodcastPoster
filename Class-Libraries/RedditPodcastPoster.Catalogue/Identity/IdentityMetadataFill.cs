@@ -7,41 +7,55 @@ using RedditPodcastPoster.Tmdb.Models;
 namespace RedditPodcastPoster.Catalogue.Identity;
 
 /// <summary>
+/// Fields a curator set in the same PATCH, including clearing them. Identity fill must not write these: only fields
+/// that were already empty and were not touched in this request are filled (RPP #1430).
+/// </summary>
+public readonly record struct IdentityFieldSkip(
+    bool Title = false,
+    bool Description = false,
+    bool Release = false,
+    bool Length = false,
+    bool Image = false,
+    bool AlternativeTitles = false);
+
+/// <summary>
 /// Fills a film or TV episode from its identity (TMDB) metadata, only where the field is empty (RPP #1430, #1431).
-/// A value that is already set, by a streaming service or a curator, is never overwritten.
+/// A value that is already set, by a streaming service or a curator, is never overwritten. A field the curator
+/// cleared or set in the same PATCH is also left alone.
 /// </summary>
 public static class IdentityMetadataFill
 {
     /// <summary>
     /// True when the film has an empty field that identity metadata can fill: description, release, runtime,
-    /// image (when no streaming service has one either) or alternative titles (never set; a cleared list is kept).
+    /// image (when no streaming service has one either) or alternative titles (never set; a cleared or
+    /// "checked, none found" list is kept). Fields in <paramref name="skip"/> are not treated as gaps.
     /// </summary>
-    public static bool HasGaps(Film film)
+    public static bool HasGaps(Film film, IdentityFieldSkip skip = default)
     {
         ArgumentNullException.ThrowIfNull(film);
-        return string.IsNullOrWhiteSpace(film.Description) ||
-               film.Release is null ||
-               film.Length <= TimeSpan.Zero ||
-               (film.Image is null && !HasServiceImage(film.Services)) ||
-               film.AlternativeTitles is null;
+        return (!skip.Description && string.IsNullOrWhiteSpace(film.Description)) ||
+               (!skip.Release && film.Release is null) ||
+               (!skip.Length && film.Length <= TimeSpan.Zero) ||
+               (!skip.Image && film.Image is null && !HasServiceImage(film.Services)) ||
+               (!skip.AlternativeTitles && film.AlternativeTitles is null);
     }
 
     /// <summary>
     /// True when the episode has an empty field that identity metadata can fill: name, overview, air date, runtime or
-    /// image (when no streaming service has one either).
+    /// image (when no streaming service has one either). Fields in <paramref name="skip"/> are not treated as gaps.
     /// </summary>
-    public static bool HasGaps(TvShowEpisode episode)
+    public static bool HasGaps(TvShowEpisode episode, IdentityFieldSkip skip = default)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        return string.IsNullOrWhiteSpace(episode.Title) ||
-               string.IsNullOrWhiteSpace(episode.Description) ||
-               episode.Release is null ||
-               episode.Length <= TimeSpan.Zero ||
-               (episode.Image is null && !HasServiceImage(episode.Services));
+        return (!skip.Title && string.IsNullOrWhiteSpace(episode.Title)) ||
+               (!skip.Description && string.IsNullOrWhiteSpace(episode.Description)) ||
+               (!skip.Release && episode.Release is null) ||
+               (!skip.Length && episode.Length <= TimeSpan.Zero) ||
+               (!skip.Image && episode.Image is null && !HasServiceImage(episode.Services));
     }
 
-    /// <summary>Fills the film's empty fields from <paramref name="metadata"/>. True when anything changed.</summary>
-    public static bool Fill(Film film, TmdbMovieMetadata metadata)
+    /// <summary>Fills the film's empty, unskipped fields from <paramref name="metadata"/>. True when anything changed.</summary>
+    public static bool Fill(Film film, TmdbMovieMetadata metadata, IdentityFieldSkip skip = default)
     {
         ArgumentNullException.ThrowIfNull(film);
         ArgumentNullException.ThrowIfNull(metadata);
@@ -52,51 +66,48 @@ public static class IdentityMetadataFill
             changed = true;
         }
 
-        if (string.IsNullOrWhiteSpace(film.Description) && metadata.Overview is { } overview)
+        if (!skip.Description && string.IsNullOrWhiteSpace(film.Description) && metadata.Overview is { } overview)
         {
             film.Description = overview;
             changed = true;
         }
 
-        if (film.Release is null && metadata.ReleaseDate is { } released)
+        if (!skip.Release && film.Release is null && metadata.ReleaseDate is { } released)
         {
             film.SetRelease(CatalogueRelease.FromDate(released));
             changed = true;
         }
 
-        if (film.Length <= TimeSpan.Zero && metadata.RuntimeMinutes is int minutes and > 0)
+        if (!skip.Length && film.Length <= TimeSpan.Zero && metadata.RuntimeMinutes is int minutes and > 0)
         {
             film.Length = TimeSpan.FromMinutes(minutes);
             changed = true;
         }
 
-        if (film.Image is null && metadata.Image is { } image)
+        if (!skip.Image && film.Image is null && metadata.Image is { } image)
         {
             film.Image = image;
             changed = true;
         }
 
-        // Null means never set. [] means a curator cleared them, so it is not filled again.
-        if (film.AlternativeTitles is null)
+        // Null means never set: fill, or store [] when a successful lookup found no other titles, so the next
+        // edit does not call TMDB again. [] means a curator cleared them, or TMDB had none; it is not filled again.
+        if (!skip.AlternativeTitles && film.AlternativeTitles is null)
         {
-            var titles = metadata.OtherTitles
+            film.AlternativeTitles = metadata.OtherTitles
                 .Where(title => !string.IsNullOrWhiteSpace(title))
                 .Select(title => title.Trim())
                 .Where(title => !string.Equals(title, film.Name?.Trim(), StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            if (titles.Count > 0)
-            {
-                film.AlternativeTitles = titles;
-                changed = true;
-            }
+            changed = true;
         }
 
         return changed;
     }
 
-    /// <summary>Fills the episode's empty fields from <paramref name="metadata"/>. True when anything changed.</summary>
-    public static bool Fill(TvShowEpisode episode, TmdbEpisodeMetadata metadata)
+    /// <summary>Fills the episode's empty, unskipped fields from <paramref name="metadata"/>. True when anything changed.</summary>
+    public static bool Fill(TvShowEpisode episode, TmdbEpisodeMetadata metadata, IdentityFieldSkip skip = default)
     {
         ArgumentNullException.ThrowIfNull(episode);
         ArgumentNullException.ThrowIfNull(metadata);
@@ -107,31 +118,31 @@ public static class IdentityMetadataFill
             changed = true;
         }
 
-        if (string.IsNullOrWhiteSpace(episode.Title) && metadata.Name is { } name)
+        if (!skip.Title && string.IsNullOrWhiteSpace(episode.Title) && metadata.Name is { } name)
         {
             episode.Title = name;
             changed = true;
         }
 
-        if (string.IsNullOrWhiteSpace(episode.Description) && metadata.Overview is { } overview)
+        if (!skip.Description && string.IsNullOrWhiteSpace(episode.Description) && metadata.Overview is { } overview)
         {
             episode.Description = overview;
             changed = true;
         }
 
-        if (episode.Release is null && metadata.AirDate is { } aired)
+        if (!skip.Release && episode.Release is null && metadata.AirDate is { } aired)
         {
             episode.SetRelease(CatalogueRelease.FromDate(aired));
             changed = true;
         }
 
-        if (episode.Length <= TimeSpan.Zero && metadata.RuntimeMinutes is int minutes and > 0)
+        if (!skip.Length && episode.Length <= TimeSpan.Zero && metadata.RuntimeMinutes is int minutes and > 0)
         {
             episode.Length = TimeSpan.FromMinutes(minutes);
             changed = true;
         }
 
-        if (episode.Image is null && metadata.Still is { } still)
+        if (!skip.Image && episode.Image is null && metadata.Still is { } still)
         {
             episode.Image = still;
             changed = true;

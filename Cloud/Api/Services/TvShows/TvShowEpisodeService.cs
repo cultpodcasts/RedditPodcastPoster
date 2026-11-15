@@ -69,7 +69,11 @@ public class TvShowEpisodeService(
                 request.Change.TmdbId,
                 request.Change.TvdbId);
 
-            await FillFromIdentity(episode, readIds != (episode.ImdbId, episode.TvdbId, episode.TmdbId), cancellationToken);
+            await FillFromIdentity(
+                episode,
+                readIds != (episode.ImdbId, episode.TvdbId, episode.TmdbId),
+                SkipFrom(request.Change),
+                cancellationToken);
 
             // Both deletes run before the save, so the stored flags only drop once a delete has succeeded:
             // Bluesky needs the AT URI still stored; tweeted is cleared only when the tweet was deleted.
@@ -100,14 +104,18 @@ public class TvShowEpisodeService(
     /// can fill is empty (name, overview, air date, runtime, still), fills only those empty fields from TMDB.
     /// A failed lookup leaves the edit as the curator sent it.
     /// </summary>
-    private async Task FillFromIdentity(TvShowEpisode episode, bool idsChanged, CancellationToken cancellationToken)
+    private async Task FillFromIdentity(
+        TvShowEpisode episode,
+        bool idsChanged,
+        IdentityFieldSkip skip,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(episode.ImdbId) && episode.TvdbId is not > 0)
         {
             return;
         }
 
-        if (!idsChanged && !IdentityMetadataFill.HasGaps(episode))
+        if (!idsChanged && !IdentityMetadataFill.HasGaps(episode, skip))
         {
             return;
         }
@@ -116,9 +124,15 @@ public class TvShowEpisodeService(
         var metadata = await identityMetadata.FetchTvShowEpisodeAsync(episode, show?.TmdbId, cancellationToken);
         if (metadata is not null)
         {
-            IdentityMetadataFill.Fill(episode, metadata);
+            IdentityMetadataFill.Fill(episode, metadata, skip);
         }
     }
+
+    private static IdentityFieldSkip SkipFrom(TvShowEpisodeChangeRequest change) => new(
+        Title: !string.IsNullOrWhiteSpace(change.Title),
+        Description: change.Description is not null,
+        Release: change.Release is not null,
+        Length: change.Duration is not null);
 
     public async Task<EpisodeDeleteResult> DeleteAsync(Guid episodeId, CancellationToken cancellationToken)
     {

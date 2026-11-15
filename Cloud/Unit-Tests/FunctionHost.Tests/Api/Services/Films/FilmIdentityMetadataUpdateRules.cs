@@ -142,6 +142,37 @@ public class FilmIdentityMetadataUpdateRules
     }
 
     [Fact(DisplayName =
+        "Clearing a film's description in the same PATCH leaves it empty even when TMDB has an overview; other empty " +
+        "fields are still filled.")]
+    public async Task a_description_cleared_in_this_patch_is_not_refilled()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var film = StoredFilm(new Film("Faderhuset")
+        {
+            TmdbId = tmdbId,
+            Description = _fixture.CreateTitle()
+        });
+        var metadata = Metadata(tmdbId);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchFilmAsync(tmdbId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(metadata);
+        var sut = _mocker.CreateInstance<FilmService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { Description = "" }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.Description.Should().BeEmpty();
+        _saved.Release.Should().BeEquivalentTo(CatalogueRelease.FromDate(metadata.ReleaseDate!.Value));
+        _saved.Length.Should().Be(TimeSpan.FromMinutes(metadata.RuntimeMinutes!.Value));
+        _saved.AlternativeTitles.Should().Equal("Father's House");
+    }
+
+    [Fact(DisplayName =
         "A curator's alternative titles replace the list, dropping blanks, the film's name and repeats; [] clears it " +
         "and stays cleared (RPP #1431).")]
     public async Task curator_alternative_titles_replace_the_list()

@@ -7,6 +7,8 @@ using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Tmdb.Clients;
 using RedditPodcastPoster.Tmdb.Configuration;
+using RedditPodcastPoster.Catalogue.Identity;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Tmdb.Models;
 
 namespace RedditPodcastPoster.Tmdb.Tests.BusinessRules;
@@ -379,8 +381,8 @@ public class TmdbClientRules
     }
 
     [Fact(DisplayName =
-        "Movie metadata reads the overview, runtime, release date and backdrop, and lists every other title (original, " +
-        "alternative and translated) once, without the movie's own title (RPP #1430, #1431).")]
+        "Movie metadata reads the overview, runtime, release date and backdrop, and lists every other title (the TMDB " +
+        "title, original, alternative and translated) once (RPP #1430, #1431).")]
     public async Task movie_metadata_reads_details_and_other_titles()
     {
         // Arrange
@@ -424,9 +426,46 @@ public class TmdbClientRules
         metadata.RuntimeMinutes.Should().Be(88);
         metadata.ReleaseDate.Should().Be(new DateOnly(2026, 10, 19));
         metadata.Image.Should().Be(new Uri("https://image.tmdb.org/t/p/w1280/backdrop.jpg"));
-        metadata.OtherTitles.Should().Equal("Faderhuset", "Fathers House", "La casa del padre");
+        metadata.OtherTitles.Should().Equal("Father's House", "Faderhuset", "Fathers House", "La casa del padre");
         _handler.Requests.Single().RequestUri!.OriginalString
             .Should().Contain($"movie/{movieId}?append_to_response=alternative_titles,translations");
+    }
+
+    [Fact(DisplayName =
+        "TMDB's listed title is stored as an alternative title when it differs from the film's name, so a search for " +
+        "Father's House finds Faderhuset (RPP #1431).")]
+    public async Task movie_metadata_fills_the_tmdb_title_as_an_alternative_when_it_differs_from_the_film_name()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["id"] = movieId,
+            ["title"] = "Father's House",
+            ["original_title"] = "Faderhuset",
+            ["overview"] = "A documentary.",
+            ["runtime"] = 90,
+            ["release_date"] = "2026-11-19",
+            ["alternative_titles"] = new JsonObject
+            {
+                ["titles"] = new JsonArray(new JsonObject { ["title"] = "Faderhuset" })
+            },
+            ["translations"] = new JsonObject
+            {
+                ["translations"] = new JsonArray(
+                    new JsonObject { ["data"] = new JsonObject { ["title"] = "Father's House" } })
+            }
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+        var film = new Film("Faderhuset") { Description = string.Empty };
+
+        // Act
+        var metadata = await sut.GetMovieMetadataAsync(movieId);
+        IdentityMetadataFill.Fill(film, metadata!);
+
+        // Assert
+        film.AlternativeTitles.Should().Contain("Father's House");
     }
 
     [Fact(DisplayName =
@@ -435,10 +474,11 @@ public class TmdbClientRules
     {
         // Arrange
         var movieId = CreateTmdbId();
+        var listed = _fixture.CreateTitle();
         var payload = new JsonObject
         {
             ["id"] = movieId,
-            ["title"] = _fixture.CreateTitle(),
+            ["title"] = listed,
             ["runtime"] = 0,
             ["release_date"] = "",
             ["poster_path"] = "/poster.jpg"
@@ -453,7 +493,7 @@ public class TmdbClientRules
         metadata!.Image.Should().Be(new Uri("https://image.tmdb.org/t/p/w780/poster.jpg"));
         metadata.RuntimeMinutes.Should().BeNull();
         metadata.ReleaseDate.Should().BeNull();
-        metadata.OtherTitles.Should().BeEmpty();
+        metadata.OtherTitles.Should().Equal(listed);
     }
 
     [Fact(DisplayName =

@@ -75,7 +75,7 @@ public sealed class TmdbClient(
 
         var title = Clean(details.Title) ?? string.Empty;
         var otherTitles = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { title };
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         void Add(string? candidate)
         {
             var clean = Clean(candidate);
@@ -85,6 +85,7 @@ public sealed class TmdbClient(
             }
         }
 
+        Add(details.Title);
         Add(details.OriginalTitle);
         foreach (var alternative in details.AlternativeTitles?.Titles ?? [])
         {
