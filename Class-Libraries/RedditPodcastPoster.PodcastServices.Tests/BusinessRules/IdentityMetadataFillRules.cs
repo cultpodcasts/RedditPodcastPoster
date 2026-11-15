@@ -259,6 +259,7 @@ public class IdentityMetadataFillRules
         "fillable so the corrected id's titles are stored.")]
     public void empty_alternative_titles_are_refilled_when_the_identity_id_changes()
     {
+        // Arrange
         var film = new Film("Faderhuset")
         {
             Description = _fixture.CreateTitle(),
@@ -270,13 +271,17 @@ public class IdentityMetadataFillRules
         film.SetRelease(CatalogueRelease.FromYear(1999));
         var metadata = Movie("Father's House") with { OtherTitles = ["Father's House", "La casa del padre"] };
 
-        IdentityMetadataFill.HasGaps(film).Should().BeFalse();
-        IdentityMetadataFill.HasGaps(film, refillEmptyAlternativeTitles: true).Should().BeTrue();
-
+        // Act
+        var gapsWithoutRefill = IdentityMetadataFill.HasGaps(film);
+        var gapsWithRefill = IdentityMetadataFill.HasGaps(film, refillEmptyAlternativeTitles: true);
         IdentityMetadataFill.Fill(film, metadata);
-        film.AlternativeTitles.Should().NotBeNull().And.BeEmpty();
-
+        var titlesAfterDefaultFill = film.AlternativeTitles!.ToList();
         var changed = IdentityMetadataFill.Fill(film, metadata, refillEmptyAlternativeTitles: true);
+
+        // Assert
+        gapsWithoutRefill.Should().BeFalse();
+        gapsWithRefill.Should().BeTrue();
+        titlesAfterDefaultFill.Should().BeEmpty();
         changed.Should().BeTrue();
         film.AlternativeTitles.Should().Equal("Father's House", "La casa del padre");
     }
