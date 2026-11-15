@@ -11,6 +11,7 @@ public static class TvShowEpisodeExtension
             TvShowName = episode.TvShowName,
             ImdbId = episode.ImdbId,
             TvdbId = episode.TvdbId,
-            TmdbId = episode.TmdbId
+            TmdbId = episode.TmdbId,
+            Image = episode.Image
         }.WithPlayableFields(episode);
 }

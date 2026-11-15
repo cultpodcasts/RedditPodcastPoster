@@ -41,6 +41,14 @@ public class FilmChangeRequest : PublisherFieldsChangeRequest
     [JsonPropertyName("expectedTrailerIds")]
     public Guid[]? ExpectedTrailerIds { get; set; }
 
+    /// <summary>
+    /// Other titles the film is known by (RPP #1431). Replaces the list; [] clears it; blanks and the film's own name are
+    /// dropped, duplicates are removed (case-insensitive), titles are trimmed. [] (a curator cleared them, or TMDB had
+    /// none) is not filled again, unless a later PATCH changes the IMDb or TMDB id and does not send this field.
+    /// </summary>
+    [JsonPropertyName("alternativeTitles")]
+    public string[]? AlternativeTitles { get; set; }
+
     /// <summary>A year <c>yyyy</c> or a calendar date <c>yyyy-MM-dd</c>. Anything else is a 400.</summary>
     [JsonPropertyName("release")]
     public string? Release { get; set; }

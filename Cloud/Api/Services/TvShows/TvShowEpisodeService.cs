@@ -2,15 +2,19 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace Api.Services.TvShows;
 
 public class TvShowEpisodeService(
     ITvShowEpisodeRepository tvShowEpisodeRepository,
+    ITvShowRepository tvShowRepository,
     CataloguePlayableSearchSync searchSync,
     IPlayableSocialRetraction socialRetraction,
+    IIdentityMetadataEnricher identityMetadata,
     ILogger<TvShowEpisodeService> logger) : ITvShowEpisodeService
 {
     public async Task<TvShowEpisodeGetResult> GetAsync(Guid episodeId, CancellationToken cancellationToken)
@@ -43,6 +47,7 @@ public class TvShowEpisodeService(
 
             // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
             var target = SocialPostRemovalTarget.For(episode);
+            var readIds = (episode.ImdbId, episode.TvdbId, episode.TmdbId);
 
             if (!PlayableChangeApplier.TryApply(episode, request.Change, out var postStatus, out var playableError))
             {
@@ -63,6 +68,12 @@ public class TvShowEpisodeService(
                 request.Change.ImdbId,
                 request.Change.TmdbId,
                 request.Change.TvdbId);
+
+            await FillFromIdentity(
+                episode,
+                readIds != (episode.ImdbId, episode.TvdbId, episode.TmdbId),
+                SkipFrom(request.Change),
+                cancellationToken);
 
             // Both deletes run before the save, so the stored flags only drop once a delete has succeeded:
             // Bluesky needs the AT URI still stored; tweeted is cleared only when the tweet was deleted.
@@ -87,6 +98,41 @@ public class TvShowEpisodeService(
             return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Failed);
         }
     }
+
+    /// <summary>
+    /// RPP #1430: when the episode has an IMDb or TheTVDB id and either an id changed in this edit or a field identity
+    /// can fill is empty (name, overview, air date, runtime, still), fills only those empty fields from TMDB.
+    /// A failed lookup leaves the edit as the curator sent it.
+    /// </summary>
+    private async Task FillFromIdentity(
+        TvShowEpisode episode,
+        bool idsChanged,
+        IdentityFieldSkip skip,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(episode.ImdbId) && episode.TvdbId is not > 0)
+        {
+            return;
+        }
+
+        if (!idsChanged && !IdentityMetadataFill.HasGaps(episode, skip))
+        {
+            return;
+        }
+
+        var show = await tvShowRepository.GetTvShow(episode.TvShowId);
+        var metadata = await identityMetadata.FetchTvShowEpisodeAsync(episode, show?.TmdbId, cancellationToken);
+        if (metadata is not null)
+        {
+            IdentityMetadataFill.Fill(episode, metadata, skip);
+        }
+    }
+
+    private static IdentityFieldSkip SkipFrom(TvShowEpisodeChangeRequest change) => new(
+        Title: !string.IsNullOrWhiteSpace(change.Title),
+        Description: change.Description is not null,
+        Release: change.Release is not null,
+        Length: change.Duration is not null);
 
     public async Task<EpisodeDeleteResult> DeleteAsync(Guid episodeId, CancellationToken cancellationToken)
     {

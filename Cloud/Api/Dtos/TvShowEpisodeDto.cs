@@ -19,4 +19,9 @@ public class TvShowEpisodeDto : PlayableFieldsDto
 
     [JsonPropertyName("tmdbId")]
     public int? TmdbId { get; set; }
+
+    /// <summary>Image from the episode's identity (TMDB still). Omitted when unknown (RPP #1430).</summary>
+    [JsonPropertyName("image")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Uri? Image { get; set; }
 }

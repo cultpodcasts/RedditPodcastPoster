@@ -2,6 +2,7 @@ using Api.Models;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
@@ -40,6 +41,7 @@ public class NewsReportFilmMoveService(
     IPlayableSearchDocumentSwap searchSwap,
     IShortnerService shortnerService,
     ICatalogueIdentityEnricher identityEnricher,
+    IIdentityMetadataEnricher identityMetadata,
     IFileKeyAllocator fileKeyAllocator,
     ILogger<NewsReportFilmMoveService> logger) : INewsReportFilmMoveService
 {
@@ -104,6 +106,7 @@ public class NewsReportFilmMoveService(
                 // the unit that moves, so the film is active even when it leaves a removed organisation.
                 film.Removed = null;
                 FilmMoveTarget.ApplyIdentity(film, admission, identityEnricher, logger);
+                await FilmMoveTarget.ApplyIdentityMetadataAsync(film, identityMetadata, cancellationToken);
                 await filmRepository.Save(film);
             }
 

@@ -35,6 +35,7 @@ public static class CataloguePlayableSearchDocument
         record.PublisherSearchTerms = episode.PublisherSearchTerms ?? string.Empty;
         PreferCatalogueYouTubeId(record, episode.YouTubeId);
         ApplyServiceIds(record, episode.Services);
+        UseIdentityImageWhenNoServiceImage(record, episode.Image);
         return record;
     }
 
@@ -64,9 +65,24 @@ public static class CataloguePlayableSearchDocument
         record.SeriesName = null;
         record.PublisherSearchTerms = string.Empty;
         record.Trailers = FilmTrailerSearchToken.For(film);
+        // [] clears titles already in the index (merge ignores null); null (never set) is omitted.
+        record.AlternativeTitles = film.AlternativeTitles is { } titles ? [.. titles] : null;
         PreferCatalogueYouTubeId(record, film.YouTubeId);
         ApplyServiceIds(record, film.Services);
+        UseIdentityImageWhenNoServiceImage(record, film.Image);
         return record;
+    }
+
+    /// <summary>
+    /// RPP #1430: a streaming service's image wins; the identity image (TMDB backdrop, poster or still) is used only
+    /// when no service has one. Same order as the pull SQL (<c>PlayableSearchSql.SiblingQuery</c>).
+    /// </summary>
+    private static void UseIdentityImageWhenNoServiceImage(EpisodeSearchRecord record, Uri? identityImage)
+    {
+        if (string.IsNullOrEmpty(record.Image) && identityImage is not null)
+        {
+            record.Image = identityImage.ToString();
+        }
     }
 
     /// <summary>

@@ -60,6 +60,99 @@ public sealed class TmdbClient(
         return details is null ? null : Map(details, TmdbTitleKind.Movie);
     }
 
+    public async Task<TmdbMovieMetadata?> GetMovieMetadataAsync(
+        int movieId,
+        CancellationToken cancellationToken = default)
+    {
+        var details = await GetAsync<TmdbMovieMetadataDto>(
+                $"movie/{movieId.ToString(CultureInfo.InvariantCulture)}?append_to_response=alternative_titles,translations",
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (details is null)
+        {
+            return null;
+        }
+
+        var title = Clean(details.Title) ?? string.Empty;
+        var otherTitles = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void Add(string? candidate)
+        {
+            var clean = Clean(candidate);
+            if (clean is not null && seen.Add(clean))
+            {
+                otherTitles.Add(clean);
+            }
+        }
+
+        Add(details.Title);
+        Add(details.OriginalTitle);
+        foreach (var alternative in details.AlternativeTitles?.Titles ?? [])
+        {
+            Add(alternative.Title);
+        }
+
+        foreach (var translation in details.Translations?.Translations ?? [])
+        {
+            Add(translation.Data?.Title ?? translation.Data?.Name);
+        }
+
+        return new TmdbMovieMetadata(
+            details.Id,
+            title,
+            Clean(details.OriginalTitle),
+            Clean(details.Overview),
+            details.Runtime is > 0 ? details.Runtime : null,
+            DateOf(details.ReleaseDate),
+            TmdbImage.Backdrop(details.BackdropPath) ?? TmdbImage.Poster(details.PosterPath),
+            otherTitles);
+    }
+
+    public async Task<TmdbEpisodeMetadata?> GetTvEpisodeMetadataAsync(
+        int seriesId,
+        int seasonNumber,
+        int episodeNumber,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(seasonNumber);
+        ArgumentOutOfRangeException.ThrowIfNegative(episodeNumber);
+        var details = await GetAsync<TmdbEpisodeMetadataDto>(
+                $"tv/{seriesId.ToString(CultureInfo.InvariantCulture)}/season/{seasonNumber.ToString(CultureInfo.InvariantCulture)}/episode/{episodeNumber.ToString(CultureInfo.InvariantCulture)}",
+                cancellationToken)
+            .ConfigureAwait(false);
+        return details is null
+            ? null
+            : new TmdbEpisodeMetadata(
+                details.Id,
+                Clean(details.Name),
+                Clean(details.Overview),
+                details.Runtime is > 0 ? details.Runtime : null,
+                DateOf(details.AirDate),
+                TmdbImage.Still(details.StillPath));
+    }
+
+    public async Task<TmdbEpisodeReference?> FindTvEpisodeByImdbIdAsync(
+        string imdbId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(imdbId);
+        var valid = ValidImdbId(imdbId.Trim());
+        if (valid is null)
+        {
+            return null;
+        }
+
+        var response = await GetAsync<TmdbFindResponse>(
+                $"find/{Uri.EscapeDataString(valid)}?external_source=imdb_id",
+                cancellationToken)
+            .ConfigureAwait(false);
+        var episode = response?.TvEpisodeResults?.FirstOrDefault(
+            item => item.ShowId > 0 && item.SeasonNumber is >= 0 && item.EpisodeNumber is >= 0);
+        return episode is null
+            ? null
+            : new TmdbEpisodeReference(episode.ShowId, episode.SeasonNumber!.Value, episode.EpisodeNumber!.Value);
+    }
+
     public async Task<TmdbTitle?> GetTvSeriesAsync(int seriesId, CancellationToken cancellationToken = default)
     {
         var details = await GetAsync<TmdbDetailsDto>(
@@ -186,6 +279,14 @@ public sealed class TmdbClient(
     private static string? ValidImdbId(string? imdbId) =>
         imdbId is not null && CatalogueCanonicalId.Resolve(imdbId, null, TmdbTitleKind.Movie) is not null
             ? imdbId
+            : null;
+
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static DateOnly? DateOf(string? date) =>
+        DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+            ? parsed
             : null;
 
     private static int? YearOf(string? date) =>

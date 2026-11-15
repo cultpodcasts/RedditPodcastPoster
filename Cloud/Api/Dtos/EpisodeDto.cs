@@ -180,6 +180,12 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyOrder(250)]
     public Uri? Image { get; set; }
 
+    /// <summary>Other titles a film is known by (RPP #1431). Omitted for other kinds.</summary>
+    [JsonPropertyName("alternativeTitles")]
+    [JsonPropertyOrder(251)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string[]? AlternativeTitles { get; set; }
+
     /// <summary>Resolved people for <see cref="Guests"/> (curator edit).</summary>
     [JsonPropertyName("guestPeople")]
     [JsonPropertyOrder(270)]

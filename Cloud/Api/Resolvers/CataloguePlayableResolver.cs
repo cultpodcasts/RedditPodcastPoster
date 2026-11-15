@@ -118,7 +118,8 @@ public class CataloguePlayableResolver(
             name,
             name,
             tvEpisode.IsRemoved() || parentRemoved,
-            parentRemoved);
+            parentRemoved,
+            IdentityImage: tvEpisode.Image);
     }
 
     private static CataloguePlayableResolution ToFilmResolution(RedditPodcastPoster.Models.Films.Film film) =>
@@ -129,5 +130,7 @@ public class CataloguePlayableResolver(
             null,
             film.Name.Trim(),
             film.IsRemoved(),
-            ParentRemoved: false);
+            ParentRemoved: false,
+            IdentityImage: film.Image,
+            AlternativeTitles: film.AlternativeTitles?.ToArray());
 }
