@@ -521,7 +521,7 @@ public partial class CreateSearchIndexProcessor(
         if (scoringProfileChanged)
         {
             logger.LogInformation(
-                "Set scoring profile '{Profile}' as the default on index '{IndexName}'. Existing fields and documents were not changed.",
+                "Added or updated scoring profile '{Profile}' on index '{IndexName}'. It is not the index default. Existing fields and documents were not changed.",
                 TitleMatchScoringProfile.Name,
                 indexName);
         }

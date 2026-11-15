@@ -52,9 +52,12 @@ public class TitleMatchScoringProfileRules
         // Assert
         weights[TitleMatchScoringProfile.TitleField].Should().Be(TitleMatchScoringProfile.Weight);
         weights[TitleMatchScoringProfile.AlternativeTitlesField].Should().Be(TitleMatchScoringProfile.Weight);
+        weights[TitleMatchScoringProfile.SeriesNameField].Should().Be(TitleMatchScoringProfile.Weight);
         weights[TitleMatchScoringProfile.TitleField].Should()
-            .Be(weights[TitleMatchScoringProfile.AlternativeTitlesField]);
+            .Be(weights[TitleMatchScoringProfile.AlternativeTitlesField])
+            .And.Be(weights[TitleMatchScoringProfile.SeriesNameField]);
         weights.ContainsKey(TitleMatchScoringProfile.EpisodeTitleField).Should().BeFalse();
+        weights.ContainsKey(TitleMatchScoringProfile.PodcastNameField).Should().BeFalse();
     }
 
     public static TheoryData<AlternativeTitleFixture> AlternativeTitleFilms() => [Faderhuset, GoingClear];
@@ -73,7 +76,8 @@ public class TitleMatchScoringProfileRules
         // Assert
         weights.Keys.Should().BeEquivalentTo(
             TitleMatchScoringProfile.TitleField,
-            TitleMatchScoringProfile.AlternativeTitlesField);
+            TitleMatchScoringProfile.AlternativeTitlesField,
+            TitleMatchScoringProfile.SeriesNameField);
         weights[TitleMatchScoringProfile.TitleField].Should()
             .Be(weights[TitleMatchScoringProfile.AlternativeTitlesField]);
     }
@@ -100,28 +104,55 @@ public class TitleMatchScoringProfileRules
     }
 
     [Fact(DisplayName =
-        "Applying the profile sets it as the index default and leaves existing field names and analyzers unchanged.")]
-    public void apply_sets_default_profile_without_changing_fields()
+        "When the index has only the legacy podcastName field, then podcastName has the same weight as alternativeTitles, and a hybrid index with seriesName does not also boost podcastName.")]
+    public void series_name_and_legacy_podcast_name_weights()
+    {
+        var legacy = new List<SearchField>
+        {
+            new SearchableField(TitleMatchScoringProfile.TitleField),
+            new SearchableField(TitleMatchScoringProfile.AlternativeTitlesField, collection: true),
+            new SearchableField(TitleMatchScoringProfile.PodcastNameField)
+        };
+        var hybrid = UnifiedFields();
+        hybrid.Add(new SearchableField(TitleMatchScoringProfile.PodcastNameField));
+
+        var legacyWeights = TitleMatchScoringProfile.WeightsFor(legacy);
+        var hybridWeights = TitleMatchScoringProfile.WeightsFor(hybrid);
+
+        legacyWeights[TitleMatchScoringProfile.PodcastNameField].Should()
+            .Be(legacyWeights[TitleMatchScoringProfile.AlternativeTitlesField])
+            .And.Be(TitleMatchScoringProfile.Weight);
+        legacyWeights.ContainsKey(TitleMatchScoringProfile.SeriesNameField).Should().BeFalse();
+        hybridWeights[TitleMatchScoringProfile.SeriesNameField].Should().Be(TitleMatchScoringProfile.Weight);
+        hybridWeights.ContainsKey(TitleMatchScoringProfile.PodcastNameField).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Applying the profile adds it as a named profile, does not make it the index default, and leaves existing field names and analyzers unchanged.")]
+    public void apply_adds_named_profile_without_setting_default_or_changing_fields()
     {
         // Arrange
         var index = new SearchIndex(IndexName) { Fields = UnifiedFields() };
         var fieldSnapshot = index.Fields.Select(FieldSignature).ToArray();
+        var previousDefault = index.DefaultScoringProfile;
 
         // Act
         var changed = TitleMatchScoringProfile.Apply(index);
 
         // Assert
         changed.Should().BeTrue();
-        index.DefaultScoringProfile.Should().Be(TitleMatchScoringProfile.Name);
+        index.DefaultScoringProfile.Should().Be(previousDefault);
+        index.DefaultScoringProfile.Should().NotBe(TitleMatchScoringProfile.Name);
         var profile = index.ScoringProfiles.Should().ContainSingle(p => p.Name == TitleMatchScoringProfile.Name).Subject;
         profile.TextWeights.Weights[TitleMatchScoringProfile.TitleField]
-            .Should().Be(profile.TextWeights.Weights[TitleMatchScoringProfile.AlternativeTitlesField]);
+            .Should().Be(profile.TextWeights.Weights[TitleMatchScoringProfile.AlternativeTitlesField])
+            .And.Be(profile.TextWeights.Weights[TitleMatchScoringProfile.SeriesNameField]);
         index.Fields.Select(FieldSignature).Should().Equal(fieldSnapshot);
         TitleMatchScoringProfile.Apply(index).Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "When --update-existing runs on an index that already has every field, then the title-match scoring profile is added and set as the default, the existing fields are left as they were, and the index is not torn down or reset.")]
+        "When --update-existing runs on an index that already has every field, then the title-match scoring profile is added but not set as the default, the existing fields are left as they were, and the index is not torn down or reset.")]
     public async Task update_existing_adds_scoring_profile_without_reset_or_teardown()
     {
         // Arrange
@@ -148,11 +179,12 @@ public class TitleMatchScoringProfileRules
 
         // Assert
         updated.Should().NotBeNull();
-        updated!.DefaultScoringProfile.Should().Be(TitleMatchScoringProfile.Name);
+        updated!.DefaultScoringProfile.Should().NotBe(TitleMatchScoringProfile.Name);
         var profile = updated.ScoringProfiles.Should()
             .ContainSingle(p => p.Name == TitleMatchScoringProfile.Name).Subject;
         profile.TextWeights.Weights[TitleMatchScoringProfile.TitleField].Should()
             .Be(profile.TextWeights.Weights[TitleMatchScoringProfile.AlternativeTitlesField])
+            .And.Be(profile.TextWeights.Weights[TitleMatchScoringProfile.SeriesNameField])
             .And.Be(TitleMatchScoringProfile.Weight);
         updated.Fields.Select(FieldSignature).Should().Equal(fieldSnapshot);
         mocker.GetMock<SearchIndexClient>()
@@ -162,7 +194,7 @@ public class TitleMatchScoringProfileRules
     }
 
     [Fact(DisplayName =
-        "When --update-existing runs on an index that already has the title-match scoring profile as its default, then the index is not written again.")]
+        "When --update-existing runs on an index that already has the title-match scoring profile, then the index is not written again.")]
     public async Task update_existing_is_idempotent_when_profile_already_applied()
     {
         // Arrange
@@ -196,6 +228,7 @@ public class TitleMatchScoringProfileRules
     [
         new SearchableField(TitleMatchScoringProfile.TitleField),
         new SearchableField(TitleMatchScoringProfile.AlternativeTitlesField, collection: true),
+        new SearchableField(TitleMatchScoringProfile.SeriesNameField),
         new SearchableField("description")
     ];
 

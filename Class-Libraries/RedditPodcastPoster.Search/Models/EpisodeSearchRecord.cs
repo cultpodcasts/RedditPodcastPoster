@@ -108,8 +108,8 @@ public class EpisodeSearchRecord
     /// <summary>
     /// Film only: other titles the film is known by (original, alternative and translated titles; RPP #1431).
     /// Searchable, so a search for "Father's House" finds Faderhuset, and retrievable for the film page.
-    /// The index default scoring profile <c>titleAndAlternativeTitles</c> (RPP #1434) gives this field
-    /// the same weight as <c>title</c>, so an exact alternative-title match ranks with an exact title match.
+    /// The optional named scoring profile <c>titleAndAlternativeTitles</c> (RPP #1434) gives this field
+    /// the same weight as <c>title</c> and <c>seriesName</c>. It is not the index default.
     /// Null is omitted from the upload, so other kinds (and films with none) never send it. The live index must have
     /// the field (<c>CreateSearchIndex --update-existing</c>) before any document carries it, because Azure Search
     /// rejects a document with an unknown field.

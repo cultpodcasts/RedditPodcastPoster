@@ -11,7 +11,7 @@ public class CreateSearchIndexRequest
     public bool TearDownIndex { get; set; }
 
     [Option("update-existing", Required = false, Default = false,
-        HelpText = "Add missing EpisodeSearchRecord fields, upsert the title-and-alternative-titles scoring profile as the index default (query-time; no document rewrite), and upsert the Cosmos data-source query. With --all-playables, also CreateOrUpdate sibling datasources and indexers. Refuses --teardown-index.")]
+        HelpText = "Add missing EpisodeSearchRecord fields, upsert the optional titleAndAlternativeTitles scoring profile (not the index default; query-time; no document rewrite), and upsert the Cosmos data-source query. With --all-playables, also CreateOrUpdate sibling datasources and indexers. Refuses --teardown-index.")]
     public bool UpdateExisting { get; set; }
 
     [Option("reset-indexer", Required = false, Default = false,
