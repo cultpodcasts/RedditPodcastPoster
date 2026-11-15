@@ -58,7 +58,7 @@ public class FilmDto : PublisherFieldsDto, IPlayableGuestFieldsDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Uri? Image { get; set; }
 
-    /// <summary>Other titles the film is known by. Omitted when never set; [] when a curator cleared them (RPP #1431).</summary>
+    /// <summary>Other titles the film is known by. Omitted when never set; [] when a curator cleared them or TMDB had none (RPP #1431).</summary>
     [JsonPropertyName("alternativeTitles")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string[]? AlternativeTitles { get; set; }

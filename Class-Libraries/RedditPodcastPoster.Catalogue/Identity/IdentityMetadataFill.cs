@@ -28,16 +28,18 @@ public static class IdentityMetadataFill
     /// <summary>
     /// True when the film has an empty field that identity metadata can fill: description, release, runtime,
     /// image (when no streaming service has one either) or alternative titles (never set; a cleared or
-    /// "checked, none found" list is kept). Fields in <paramref name="skip"/> are not treated as gaps.
+    /// "checked, none found" list is kept, unless <paramref name="refillEmptyAlternativeTitles"/> is set because this
+    /// PATCH changes the IMDb or TMDB id and does not send alternativeTitles). Fields in <paramref name="skip"/> are
+    /// not treated as gaps.
     /// </summary>
-    public static bool HasGaps(Film film, IdentityFieldSkip skip = default)
+    public static bool HasGaps(Film film, IdentityFieldSkip skip = default, bool refillEmptyAlternativeTitles = false)
     {
         ArgumentNullException.ThrowIfNull(film);
         return (!skip.Description && string.IsNullOrWhiteSpace(film.Description)) ||
                (!skip.Release && film.Release is null) ||
                (!skip.Length && film.Length <= TimeSpan.Zero) ||
                (!skip.Image && film.Image is null && !HasServiceImage(film.Services)) ||
-               (!skip.AlternativeTitles && film.AlternativeTitles is null);
+               (!skip.AlternativeTitles && AlternativeTitlesNeedFill(film, refillEmptyAlternativeTitles));
     }
 
     /// <summary>
@@ -55,7 +57,7 @@ public static class IdentityMetadataFill
     }
 
     /// <summary>Fills the film's empty, unskipped fields from <paramref name="metadata"/>. True when anything changed.</summary>
-    public static bool Fill(Film film, TmdbMovieMetadata metadata, IdentityFieldSkip skip = default)
+    public static bool Fill(Film film, TmdbMovieMetadata metadata, IdentityFieldSkip skip = default, bool refillEmptyAlternativeTitles = false)
     {
         ArgumentNullException.ThrowIfNull(film);
         ArgumentNullException.ThrowIfNull(metadata);
@@ -91,8 +93,9 @@ public static class IdentityMetadataFill
         }
 
         // Null means never set: fill, or store [] when a successful lookup found no other titles, so the next
-        // edit does not call TMDB again. [] means a curator cleared them, or TMDB had none; it is not filled again.
-        if (!skip.AlternativeTitles && film.AlternativeTitles is null)
+        // edit does not call TMDB again. [] means a curator cleared them, or TMDB had none; it is not filled again,
+        // unless this PATCH changes the IMDb or TMDB id and does not send alternativeTitles.
+        if (!skip.AlternativeTitles && AlternativeTitlesNeedFill(film, refillEmptyAlternativeTitles))
         {
             film.AlternativeTitles = metadata.OtherTitles
                 .Where(title => !string.IsNullOrWhiteSpace(title))
@@ -150,6 +153,10 @@ public static class IdentityMetadataFill
 
         return changed;
     }
+
+    private static bool AlternativeTitlesNeedFill(Film film, bool refillEmpty) =>
+        film.AlternativeTitles is null ||
+        (refillEmpty && film.AlternativeTitles.Count == 0);
 
     private static bool HasServiceImage(IReadOnlyDictionary<string, ServiceLink>? services) =>
         services?.Values.Any(link => link?.Image is not null) == true;

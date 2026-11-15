@@ -255,6 +255,33 @@ public class IdentityMetadataFillRules
     }
 
     [Fact(DisplayName =
+        "When a later PATCH changes the IMDb or TMDB id and does not send alternativeTitles, a [] list is treated as " +
+        "fillable so the corrected id's titles are stored.")]
+    public void empty_alternative_titles_are_refilled_when_the_identity_id_changes()
+    {
+        var film = new Film("Faderhuset")
+        {
+            Description = _fixture.CreateTitle(),
+            Length = TimeSpan.FromMinutes(90),
+            Image = new Uri($"https://image.tmdb.org/t/p/w1280/{_fixture.CreateYouTubeId()}.jpg"),
+            TmdbId = _fixture.CreateTmdbId(),
+            AlternativeTitles = []
+        };
+        film.SetRelease(CatalogueRelease.FromYear(1999));
+        var metadata = Movie("Father's House") with { OtherTitles = ["Father's House", "La casa del padre"] };
+
+        IdentityMetadataFill.HasGaps(film).Should().BeFalse();
+        IdentityMetadataFill.HasGaps(film, refillEmptyAlternativeTitles: true).Should().BeTrue();
+
+        IdentityMetadataFill.Fill(film, metadata);
+        film.AlternativeTitles.Should().NotBeNull().And.BeEmpty();
+
+        var changed = IdentityMetadataFill.Fill(film, metadata, refillEmptyAlternativeTitles: true);
+        changed.Should().BeTrue();
+        film.AlternativeTitles.Should().Equal("Father's House", "La casa del padre");
+    }
+
+    [Fact(DisplayName =
         "A field the curator cleared in this PATCH is not refilled from TMDB; other empty, untouched fields still are.")]
     public void skipped_fields_are_not_filled()
     {

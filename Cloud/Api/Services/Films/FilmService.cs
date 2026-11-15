@@ -96,7 +96,9 @@ public class FilmService(
             // Read once, outside the save loop. Applied to the film the save re-reads, only where a field is empty
             // and this request did not touch it (a field the curator cleared in this PATCH stays empty).
             var metadata = await ReadIdentityMetadata(film, request.Change, cancellationToken);
-            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds, metadata, SkipFrom(request.Change));
+            var skip = SkipFrom(request.Change);
+            var refillEmptyAlternativeTitles = IdentityIdsChanged(film, request.Change) && request.Change.AlternativeTitles is null;
+            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds, metadata, skip, refillEmptyAlternativeTitles);
             if (persisted.Result.Status != FilmUpdateStatus.Accepted || persisted.Film is null)
             {
                 return persisted.Result;
@@ -203,7 +205,7 @@ public class FilmService(
             return null;
         }
 
-        var idsChanged = !string.Equals(imdbId, film.ImdbId, StringComparison.Ordinal) || tmdbId != film.TmdbId;
+        var idsChanged = IdentityIdsChanged(film, change);
         if (!idsChanged && !IdentityMetadataFill.HasGaps(film, SkipFrom(change)))
         {
             return null;
@@ -217,6 +219,21 @@ public class FilmService(
         Release: change.Release is not null,
         Length: change.Duration is not null,
         AlternativeTitles: change.AlternativeTitles is not null);
+
+    /// <summary>
+    /// True when this PATCH sets a different IMDb or TMDB id than the film already has. A [] alternative-titles
+    /// list is then fillable, as long as the request does not send alternativeTitles (RPP #1431).
+    /// </summary>
+    private static bool IdentityIdsChanged(Film film, FilmChangeRequest change)
+    {
+        var imdbId = change.ImdbId is null
+            ? film.ImdbId
+            : change.ImdbId.Trim().Length == 0 ? null : change.ImdbId.Trim();
+        var tmdbId = change.TmdbId is null
+            ? film.TmdbId
+            : change.TmdbId.Value == 0 ? null : change.TmdbId;
+        return !string.Equals(imdbId, film.ImdbId, StringComparison.Ordinal) || tmdbId != film.TmdbId;
+    }
 
     private const int MaxSaveAttempts = FilmDocumentUpdate.MaxAttempts;
 
@@ -280,7 +297,8 @@ public class FilmService(
         FilmChangeRequest change,
         IReadOnlySet<Guid> readTrailerIds,
         TmdbMovieMetadata? metadata,
-        IdentityFieldSkip skip)
+        IdentityFieldSkip skip,
+        bool refillEmptyAlternativeTitles = false)
     {
         var guardingTrailers = change.Trailers is not null;
         for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
@@ -320,7 +338,7 @@ public class FilmService(
 
             if (metadata is not null)
             {
-                IdentityMetadataFill.Fill(latest.Film, metadata, skip);
+                IdentityMetadataFill.Fill(latest.Film, metadata, skip, refillEmptyAlternativeTitles);
             }
 
             if (await filmRepository.TryReplace(latest.Film, latest.ETag))

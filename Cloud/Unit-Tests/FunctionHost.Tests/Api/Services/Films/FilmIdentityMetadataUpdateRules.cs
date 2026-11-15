@@ -197,6 +197,48 @@ public class FilmIdentityMetadataUpdateRules
         _saved!.AlternativeTitles.Should().NotBeNull().And.BeEmpty();
     }
 
+    [Fact(DisplayName =
+        "Changing a film's IMDb or TMDB id in a PATCH that does not send alternativeTitles refills a [] list from the " +
+        "new id, so a corrected id picks up its titles; sending [] with the new id still stays cleared.")]
+    public async Task changing_an_identity_id_refills_empty_alternative_titles()
+    {
+        // Arrange
+        var oldTmdbId = _fixture.CreateTmdbId();
+        var newTmdbId = oldTmdbId + 1;
+        var film = StoredFilm(new Film("Faderhuset")
+        {
+            TmdbId = oldTmdbId,
+            Description = _fixture.CreateTitle(),
+            Length = TimeSpan.FromMinutes(90),
+            Image = new Uri("https://image.tmdb.org/t/p/w1280/existing.jpg"),
+            AlternativeTitles = []
+        });
+        film.SetRelease(CatalogueRelease.FromYear(1999));
+        var metadata = Metadata(newTmdbId);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchFilmAsync(newTmdbId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(metadata);
+        var sut = _mocker.CreateInstance<FilmService>();
+
+        // Act
+        var refilled = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(film.Id, new FilmChangeRequest { TmdbId = newTmdbId }),
+            CancellationToken.None);
+        var titles = _saved!.AlternativeTitles!.ToList();
+        var cleared = await sut.UpdateAsync(
+            new FilmChangeRequestWrapper(
+                film.Id,
+                new FilmChangeRequest { TmdbId = newTmdbId + 1, AlternativeTitles = [] }),
+            CancellationToken.None);
+
+        // Assert
+        refilled.Status.Should().Be(FilmUpdateStatus.Accepted);
+        titles.Should().Equal("Father's House");
+        cleared.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.AlternativeTitles.Should().NotBeNull().And.BeEmpty();
+        _saved.TmdbId.Should().Be(newTmdbId + 1);
+    }
+
     private Film StoredFilm(Film film)
     {
         film.Id = _fixture.CreateGuid();

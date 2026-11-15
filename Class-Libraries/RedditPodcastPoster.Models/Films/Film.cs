@@ -191,7 +191,7 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
 
     /// <summary>
     /// Other titles the film is known by (original, alternative and translated titles), searchable in site search.
-    /// Filled from TMDB when never set (null); a curator may edit them, and [] (cleared) is not filled again.
+    /// Filled from TMDB when never set (null); a curator may edit them. [] means a curator cleared them or TMDB had none, and is not filled again, unless a later PATCH changes the IMDb or TMDB id and does not send alternativeTitles.
     /// Omitted when never set (RPP #1431).
     /// </summary>
     [JsonPropertyName("alternativeTitles")]
