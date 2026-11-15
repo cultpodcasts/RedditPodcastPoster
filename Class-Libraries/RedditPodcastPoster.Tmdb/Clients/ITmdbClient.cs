@@ -8,6 +8,11 @@ public interface ITmdbClient
 
     Task<IReadOnlyList<TmdbSearchHit>> SearchTvAsync(string query, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// TMDB <c>find</c> by IMDb title id (<c>tt…</c>). Returns the first movie result, or null when TMDB has none.
+    /// </summary>
+    Task<TmdbSearchHit?> FindMovieByImdbIdAsync(string imdbId, CancellationToken cancellationToken = default);
+
     Task<TmdbTitle?> GetMovieAsync(int movieId, CancellationToken cancellationToken = default);
 
     Task<TmdbTitle?> GetTvSeriesAsync(int seriesId, CancellationToken cancellationToken = default);

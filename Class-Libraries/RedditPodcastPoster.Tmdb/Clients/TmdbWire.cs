@@ -7,6 +7,12 @@ internal sealed class TmdbSearchResponse
     public List<TmdbListedTitleDto>? Results { get; set; }
 }
 
+internal sealed class TmdbFindResponse
+{
+    [JsonPropertyName("movie_results")]
+    public List<TmdbListedTitleDto>? MovieResults { get; set; }
+}
+
 internal sealed class TmdbListedTitleDto
 {
     public int Id { get; set; }
@@ -14,6 +20,12 @@ internal sealed class TmdbListedTitleDto
     public string? Title { get; set; }
 
     public string? Name { get; set; }
+
+    [JsonPropertyName("original_title")]
+    public string? OriginalTitle { get; set; }
+
+    [JsonPropertyName("original_name")]
+    public string? OriginalName { get; set; }
 
     [JsonPropertyName("release_date")]
     public string? ReleaseDate { get; set; }

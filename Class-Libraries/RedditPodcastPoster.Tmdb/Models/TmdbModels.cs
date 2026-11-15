@@ -89,13 +89,18 @@ public sealed partial record CatalogueCanonicalId(string Id, CatalogueCanonicalS
 }
 
 /// <summary>A TMDB search hit. Canonical ids come from the detail calls, which load external ids.</summary>
+/// <param name="OriginalName">
+/// TMDB <c>original_title</c> (films) or <c>original_name</c> (TV) when it differs from <see cref="Name"/>.
+/// A Danish film listed as "Father's House" keeps "Faderhuset" here.
+/// </param>
 public sealed record TmdbSearchHit(
     int Id,
     string Name,
     TmdbTitleKind Kind,
     int? Year,
     string? PosterPath = null,
-    string? Overview = null);
+    string? Overview = null,
+    string? OriginalName = null);
 
 /// <summary>
 /// A TMDB movie, series, or episode with both external ids when TMDB has them.

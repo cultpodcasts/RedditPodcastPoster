@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using RedditPodcastPoster.Catalogue.Authority.Imdb;
 using RedditPodcastPoster.TheTvdb.Clients;
 using RedditPodcastPoster.TheTvdb.Models;
 using RedditPodcastPoster.Tmdb.Clients;
@@ -10,7 +11,8 @@ namespace RedditPodcastPoster.Catalogue.Authority;
 public sealed class CatalogueAuthorityPreviewer(
     ITmdbClient tmdb,
     ITheTvdbClient theTvdb,
-    ICatalogueAuthorityLookup lookup) : ICatalogueAuthorityPreviewer
+    ICatalogueAuthorityLookup lookup,
+    IImdbSuggestionClient imdb) : ICatalogueAuthorityPreviewer
 {
     public const int SampleLimit = 8;
 
@@ -47,11 +49,12 @@ public sealed class CatalogueAuthorityPreviewer(
 
             if (hits.Count == 1)
             {
-                if (!TitlesAgree(query, hits[0].Name))
+                if (!TitlesAgree(query, hits[0]))
                 {
                     if (isOriginal)
                     {
-                        return Unresolved(query, 1, Labels(hits));
+                        return await FilmFallbackAsync(query, FilmCandidates(hits), cancellationToken)
+                            .ConfigureAwait(false);
                     }
 
                     continue;
@@ -62,8 +65,85 @@ public sealed class CatalogueAuthorityPreviewer(
             }
         }
 
-        return ambiguousShortening ?? Unresolved(original, 0, []);
+        return ambiguousShortening ??
+               await FilmFallbackAsync(original, [], cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// TMDB found nothing, or one film under a different title. IMDb's suggestion feed matches
+    /// alternative titles, so it is asked next. Each IMDb film is resolved to its TMDB record
+    /// when TMDB has one, so a pick stores both ids.
+    /// One IMDb film whose title agrees, and no TMDB hit, is the film.
+    /// Anything else is offered to the curator as low-confidence candidates
+    /// (<see cref="CatalogueAuthorityResolution.DifferentTitle"/>), never applied unasked.
+    /// </summary>
+    private async Task<CatalogueAuthorityPreview> FilmFallbackAsync(
+        string query,
+        IReadOnlyList<CatalogueAuthorityCandidate> tmdbCandidates,
+        CancellationToken cancellationToken)
+    {
+        var suggestions = await imdb.SuggestAsync(query, cancellationToken).ConfigureAwait(false) ?? [];
+        var candidates = tmdbCandidates.ToList();
+        var agreeing = new List<(CatalogueAuthorityCandidate Candidate, string ImdbId)>();
+        foreach (var suggestion in PlausibleFilms(query, suggestions))
+        {
+            var tmdbHit = await tmdb.FindMovieByImdbIdAsync(suggestion.ImdbId, cancellationToken)
+                .ConfigureAwait(false);
+            var candidate = tmdbHit is null
+                ? ImdbFilmCandidate(suggestion)
+                : FilmCandidate(tmdbHit);
+            var existing = candidates.FirstOrDefault(c => c.Key == candidate.Key);
+            if (existing is null)
+            {
+                candidates.Add(candidate);
+            }
+
+            if (TitlesAgree(query, suggestion.Title) || (tmdbHit is not null && TitlesAgree(query, tmdbHit)))
+            {
+                agreeing.Add((existing ?? candidate, suggestion.ImdbId));
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return Unresolved(query, 0, []);
+        }
+
+        if (tmdbCandidates.Count == 0 && candidates.Count == 1 && agreeing.Count == 1)
+        {
+            var (only, imdbId) = agreeing[0];
+            if (only.TmdbId is int tmdbId)
+            {
+                var ids = await lookup.CollectFilmAsync(tmdbId, cancellationToken).ConfigureAwait(false);
+                return Unique(query, ids.ImdbId ?? imdbId, ids.TmdbId ?? tmdbId, tvdbId: null, [Label(only)]);
+            }
+
+            return Unique(query, imdbId, tmdbId: null, tvdbId: null, [Label(only)]);
+        }
+
+        var offered = candidates.Take(SampleLimit).ToList();
+        return new CatalogueAuthorityPreview(
+            query,
+            offered.Count,
+            null,
+            null,
+            null,
+            offered.Select(Label).ToList(),
+            Resolution: CatalogueAuthorityResolution.DifferentTitle,
+            Candidates: offered);
+    }
+
+    /// <summary>
+    /// IMDb suggestions are fuzzy ("Faderhuset" also returns "The Loud House Movie").
+    /// A film counts when its title agrees with the query, or when it is IMDb's top suggestion,
+    /// because that is where an alternative-title match lands.
+    /// </summary>
+    private static IEnumerable<ImdbSuggestion> PlausibleFilms(string query, IReadOnlyList<ImdbSuggestion> suggestions) =>
+        suggestions
+            .Where((suggestion, index) =>
+                suggestion.IsFilm && (index == 0 || TitlesAgree(query, suggestion.Title)))
+            .DistinctBy(suggestion => suggestion.ImdbId, StringComparer.OrdinalIgnoreCase)
+            .Take(SampleLimit);
 
     public async Task<CatalogueAuthorityPreview> PreviewTvShowAsync(
         string name,
@@ -98,7 +178,7 @@ public sealed class CatalogueAuthorityPreviewer(
 
             if (tmdbHits.Count == 1)
             {
-                if (!TitlesAgree(query, tmdbHits[0].Name))
+                if (!TitlesAgree(query, tmdbHits[0]))
                 {
                     if (isOriginal)
                     {
@@ -244,6 +324,11 @@ public sealed class CatalogueAuthorityPreviewer(
         return ContainsContiguous(queryTokens, hitTokens) || ContainsContiguous(hitTokens, queryTokens);
     }
 
+    /// <summary>A TMDB hit agrees on its listed title or its original-language title.</summary>
+    private static bool TitlesAgree(string query, TmdbSearchHit hit) =>
+        TitlesAgree(query, hit.Name) ||
+        (hit.OriginalName is { Length: > 0 } originalName && TitlesAgree(query, originalName));
+
     private static List<string> Tokens(string value)
     {
         var tokens = new List<string>();
@@ -340,9 +425,12 @@ public sealed class CatalogueAuthorityPreviewer(
         hits.Take(SampleLimit).Select(Label).ToList();
 
     private static List<CatalogueAuthorityCandidate> FilmCandidates(IReadOnlyList<TmdbSearchHit> hits) =>
-        hits.Take(SampleLimit).Select(hit => new CatalogueAuthorityCandidate(
+        hits.Take(SampleLimit).Select(FilmCandidate).ToList();
+
+    private static CatalogueAuthorityCandidate FilmCandidate(TmdbSearchHit hit) =>
+        new(
             CatalogueAuthorityCandidate.TmdbKey(hit.Id),
-            hit.Name,
+            DisplayName(hit),
             hit.Year,
             CatalogueAuthorityCandidate.FilmKind,
             CatalogueAuthorityCandidate.TmdbSource,
@@ -350,12 +438,29 @@ public sealed class CatalogueAuthorityPreviewer(
             TvdbId: null,
             CatalogueCanonicalId.TmdbMoviePage(hit.Id),
             CatalogueCanonicalId.TmdbPosterThumbnail(hit.PosterPath),
-            hit.Overview)).ToList();
+            hit.Overview);
+
+    private static CatalogueAuthorityCandidate ImdbFilmCandidate(ImdbSuggestion suggestion) =>
+        new(
+            CatalogueAuthorityCandidate.ImdbKey(suggestion.ImdbId),
+            suggestion.Title,
+            suggestion.Year,
+            CatalogueAuthorityCandidate.FilmKind,
+            CatalogueAuthorityCandidate.ImdbSource,
+            TmdbId: null,
+            TvdbId: null,
+            CatalogueCanonicalId.ImdbPage(suggestion.ImdbId),
+            suggestion.ImageUrl,
+            suggestion.Cast);
+
+    /// <summary>"Father's House / Faderhuset" so the curator sees why a different title was offered.</summary>
+    private static string DisplayName(TmdbSearchHit hit) =>
+        hit.OriginalName is { Length: > 0 } originalName ? $"{hit.Name} / {originalName}" : hit.Name;
 
     private static List<CatalogueAuthorityCandidate> TvShowTmdbCandidates(IReadOnlyList<TmdbSearchHit> hits) =>
         hits.Take(SampleLimit).Select(hit => new CatalogueAuthorityCandidate(
             CatalogueAuthorityCandidate.TmdbKey(hit.Id),
-            hit.Name,
+            DisplayName(hit),
             hit.Year,
             CatalogueAuthorityCandidate.TvShowKind,
             CatalogueAuthorityCandidate.TmdbSource,
@@ -385,6 +490,11 @@ public sealed class CatalogueAuthorityPreviewer(
         hit.Year is { } year
             ? $"{hit.Name} ({year.ToString(CultureInfo.InvariantCulture)})"
             : hit.Name;
+
+    private static string Label(CatalogueAuthorityCandidate candidate) =>
+        candidate.Year is { } year
+            ? $"{candidate.Title} ({year.ToString(CultureInfo.InvariantCulture)})"
+            : candidate.Title;
 
     private static string Label(TheTvdbSearchHit hit) =>
         string.IsNullOrWhiteSpace(hit.Year) ? hit.Name : $"{hit.Name} ({hit.Year})";
