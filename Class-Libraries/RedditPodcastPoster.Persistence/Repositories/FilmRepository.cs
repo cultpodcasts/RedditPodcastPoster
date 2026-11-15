@@ -77,6 +77,22 @@ public class FilmRepository(
         }
     }
 
+    public async Task<bool> TryCreate(Film film)
+    {
+        try
+        {
+            await filmsContainer.CreateItemAsync(film, new PartitionKey(film.Id.ToString()));
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            logger.LogInformation("{method}: film '{filmId}' already exists.", nameof(TryCreate), film.Id);
+            return false;
+        }
+
+        await fileKeyClaims.Acknowledge(film.FileKey);
+        return true;
+    }
+
     public async Task<IReadOnlyList<Guid>> GetFilmIdsByTrailerId(Guid trailerId)
     {
         var query = new QueryDefinition(

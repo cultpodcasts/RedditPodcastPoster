@@ -28,11 +28,11 @@ public class HomepageCataloguePlayables(
     ILogger<HomepageCataloguePlayables> logger)
     : IHomepageCataloguePlayables
 {
-    public async Task<IReadOnlyList<HomepageCataloguePlayable>> GetRecent(DateTime since, CancellationToken ct)
+    public async Task<IReadOnlyList<HomepageCataloguePlayable>> GetRecent(DateTime since, DateTime until, CancellationToken ct)
     {
-        var newsTask = GetRecentNewsReports(since, ct);
-        var tvTask = GetRecentTvShowEpisodes(since, ct);
-        var filmsTask = GetRecentFilms(since, ct);
+        var newsTask = GetRecentNewsReports(since, until, ct);
+        var tvTask = GetRecentTvShowEpisodes(since, until, ct);
+        var filmsTask = GetRecentFilms(since, until, ct);
         await Task.WhenAll(newsTask, tvTask, filmsTask);
 
         var items = newsTask.Result.Concat(tvTask.Result).Concat(filmsTask.Result).ToList();
@@ -94,11 +94,12 @@ public class HomepageCataloguePlayables(
         return news.Result.Count + tv.Result.Count + films.Result.Count;
     }
 
-    private async Task<List<HomepageCataloguePlayable>> GetRecentNewsReports(DateTime since, CancellationToken ct)
+    private async Task<List<HomepageCataloguePlayable>> GetRecentNewsReports(DateTime since, DateTime until, CancellationToken ct)
     {
         var reports = await newsReportRepository
             .GetAllBy(x =>
                 x.ReleaseSort >= since &&
+                x.ReleaseSort <= until &&
                 !x.Removed && !x.Ignored &&
                 (!x.ParentRemoved.IsDefined() || x.ParentRemoved == null || x.ParentRemoved == false))
             .ToListAsync(ct);
@@ -111,7 +112,7 @@ public class HomepageCataloguePlayables(
         }
 
         var items = new List<HomepageCataloguePlayable>();
-        foreach (var report in reports.Where(x => IsLive(x, since)))
+        foreach (var report in reports.Where(x => IsLive(x, since, until)))
         {
             if (organisations.GetValueOrDefault(report.NewsOrganisationId) is not { } organisation ||
                 organisation.IsRemoved())
@@ -128,11 +129,12 @@ public class HomepageCataloguePlayables(
         return items;
     }
 
-    private async Task<List<HomepageCataloguePlayable>> GetRecentTvShowEpisodes(DateTime since, CancellationToken ct)
+    private async Task<List<HomepageCataloguePlayable>> GetRecentTvShowEpisodes(DateTime since, DateTime until, CancellationToken ct)
     {
         var episodes = await tvShowEpisodeRepository
             .GetAllBy(x =>
                 x.ReleaseSort >= since &&
+                x.ReleaseSort <= until &&
                 !x.Removed && !x.Ignored &&
                 (!x.ParentRemoved.IsDefined() || x.ParentRemoved == null || x.ParentRemoved == false))
             .ToListAsync(ct);
@@ -145,7 +147,7 @@ public class HomepageCataloguePlayables(
         }
 
         var items = new List<HomepageCataloguePlayable>();
-        foreach (var episode in episodes.Where(x => IsLive(x, since)))
+        foreach (var episode in episodes.Where(x => IsLive(x, since, until)))
         {
             if (shows.GetValueOrDefault(episode.TvShowId) is not { } show || show.IsRemoved())
             {
@@ -159,19 +161,20 @@ public class HomepageCataloguePlayables(
         return items;
     }
 
-    private async Task<List<HomepageCataloguePlayable>> GetRecentFilms(DateTime since, CancellationToken ct)
+    private async Task<List<HomepageCataloguePlayable>> GetRecentFilms(DateTime since, DateTime until, CancellationToken ct)
     {
         // A film written before releaseSort existed only has release (no releaseCosmosFallback member on Film),
         // and its ReleaseSort is rebuilt from that on read: fetch those too and apply the window in memory
-        // (same as CataloguePlayableSocialPosts).
+        // (same as CataloguePlayableSocialPosts). The upper bound keeps a future theatrical release out of
+        // the homepage until now is on or after that date.
         var films = await filmRepository
             .GetAllBy(x =>
                 (!x.Removed.IsDefined() || x.Removed == null || x.Removed == false) &&
-                (!x.ReleaseSort.IsDefined() || x.ReleaseSort >= since))
+                (!x.ReleaseSort.IsDefined() || (x.ReleaseSort >= since && x.ReleaseSort <= until)))
             .ToListAsync(ct);
 
         var items = new List<HomepageCataloguePlayable>();
-        foreach (var film in films.Where(x => !x.IsRemoved() && !x.Ignored && x.ReleaseSort >= since))
+        foreach (var film in films.Where(x => !x.IsRemoved() && !x.Ignored && IsInWindow(x.ReleaseSort, since, until)))
         {
             var projection = CatalogueParentKindMapper.ToPostProjection(film);
             items.Add(ToItem(nameof(ContentKind.Film), projection.Episode, film.Name, film, indexing: null));
@@ -180,8 +183,12 @@ public class HomepageCataloguePlayables(
         return items;
     }
 
-    private static bool IsLive(Playable playable, DateTime since) =>
-        !playable.Removed && !playable.Ignored && playable.ParentRemoved != true && playable.ReleaseSort >= since;
+    private static bool IsInWindow(DateTime releaseSort, DateTime since, DateTime until) =>
+        releaseSort >= since && releaseSort <= until;
+
+    private static bool IsLive(Playable playable, DateTime since, DateTime until) =>
+        !playable.Removed && !playable.Ignored && playable.ParentRemoved != true &&
+        IsInWindow(playable.ReleaseSort, since, until);
 
     private static HomepageCataloguePlayable ToItem(
         string contentKind,

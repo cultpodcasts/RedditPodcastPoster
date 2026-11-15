@@ -21,6 +21,14 @@ public sealed class EpisodeFilmMoveResponse
     [JsonPropertyName("failureIndexing")]
     public bool FailureIndexing { get; init; }
 
+    /// <summary>
+    /// Move of a news report only: the source news organisation, when the move left it with no reports, so the client
+    /// can offer to retire it (PATCH newsorganisation/{id} with removed). Omitted otherwise.
+    /// </summary>
+    [JsonPropertyName("emptiedNewsOrganisationId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? EmptiedNewsOrganisationId { get; init; }
+
     /// <summary>Set when authority search is ambiguous; nothing was created. Re-use send-podcast / Identity-tab UI.</summary>
     [JsonPropertyName("identityDecision")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

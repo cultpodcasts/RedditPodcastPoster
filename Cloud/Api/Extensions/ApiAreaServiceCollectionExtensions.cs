@@ -75,11 +75,15 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostEpisodeTrailerAttachHandler, PostEpisodeTrailerAttachHandler>()
             .AddScoped<IEpisodeTvShowMoveService, EpisodeTvShowMoveService>()
             .AddScoped<IPostEpisodeTvShowMoveHandler, PostEpisodeTvShowMoveHandler>()
+            .AddScoped<IEpisodeNewsMoveService, EpisodeNewsMoveService>()
+            .AddScoped<IPostEpisodeNewsMoveHandler, PostEpisodeNewsMoveHandler>()
+            .AddScoped<IPostPodcastNewsMoveHandler, PostPodcastNewsMoveHandler>()
             .AddScoped<IDeleteEpisodeHandler, DeleteEpisodeHandler>()
             .AddScoped<IGetEpisodeHandler, GetEpisodeHandler>()
             .AddScoped<IGetOutgoingEpisodesHandler, GetOutgoingEpisodesHandler>()
             .AddScoped<IPostEpisodeHandler, PostEpisodeHandler>()
-            .AddScoped<IPublishEpisodeHandler, PublishEpisodeHandler>();
+            .AddScoped<IPublishEpisodeHandler, PublishEpisodeHandler>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiPodcasts(this IServiceCollection services) =>
         services
@@ -147,7 +151,16 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<INewsReportService, NewsReportService>()
             .AddScoped<IGetNewsReportHandler, GetNewsReportHandler>()
             .AddScoped<IPostNewsReportHandler, PostNewsReportHandler>()
-            .AddScoped<IDeleteNewsReportHandler, DeleteNewsReportHandler>();
+            .AddScoped<IDeleteNewsReportHandler, DeleteNewsReportHandler>()
+            .AddScoped<INewsReportTvShowMoveService, NewsReportTvShowMoveService>()
+            .AddScoped<IPostNewsReportTvShowMoveHandler, PostNewsReportTvShowMoveHandler>()
+            .AddScoped<INewsReportFilmMoveService, NewsReportFilmMoveService>()
+            .AddScoped<IPostNewsReportFilmMoveHandler, PostNewsReportFilmMoveHandler>()
+            .AddScoped<INewsReportOrganisationMoveService, NewsReportOrganisationMoveService>()
+            .AddScoped<IPostNewsReportOrganisationMoveHandler, PostNewsReportOrganisationMoveHandler>()
+            .AddScoped<INewsOrganisationDeleteService, NewsOrganisationDeleteService>()
+            .AddScoped<IDeleteNewsOrganisationHandler, DeleteNewsOrganisationHandler>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
         services

@@ -52,7 +52,7 @@ public sealed class FilmSearchIndexGateway(
         return indexed.Where(id => !live.Contains(id)).ToList();
     }
 
-    public async Task<IReadOnlyList<string>> MergeOrUpload(
+    public async Task<IReadOnlyList<string>> Upload(
         IReadOnlyList<EpisodeSearchRecord> documents,
         CancellationToken cancellationToken)
     {
@@ -61,7 +61,9 @@ public sealed class FilmSearchIndexGateway(
             return [];
         }
 
-        var result = await searchClient.MergeOrUploadDocumentsAsync(
+        // Upload, not MergeOrUpload: a film record's null seriesName/podcastName is omitted from the
+        // JSON (WhenWritingNull), and a merge would leave the old uploader channel in the index (RPP #1428).
+        var result = await searchClient.UploadDocumentsAsync(
             documents, new IndexDocumentsOptions { ThrowOnAnyError = false }, cancellationToken);
         return Failures(result.Value, "push");
     }

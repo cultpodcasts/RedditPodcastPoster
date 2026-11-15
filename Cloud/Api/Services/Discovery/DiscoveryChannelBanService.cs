@@ -5,6 +5,7 @@ using RedditPodcastPoster.Catalogue.Podcasts;
 using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -280,7 +281,7 @@ public class DiscoveryChannelBanService(
         if (identity.YouTubeChannelId is { } channel)
         {
             if (await newsOrganisationRepository
-                    .GetAllBy(x => x.Indexing != null && x.Indexing.YouTubeChannelId == channel)
+                    .GetAllBy(NewsOrganisationCosmosFilters.HoldsYouTubeChannel(channel))
                     .AnyAsync(cancellationToken))
             {
                 return true;

@@ -17,12 +17,9 @@ After a failed Actions **provision** (`run_provision` / `Infrastructure/**` appl
 
 Authoritative: [`docs/deployment.md`](docs/deployment.md) § Provision latch · [`.cursor/rules/production-deploy-truth.mdc`](.cursor/rules/production-deploy-truth.mdc).
 
-## Catalogue migrate / playable-services CLIs (HARD)
+## FilmSearchPusher / FilmSearchPush - keep until search is on Cloudflare D1 (HARD)
 
-1. **This checkout:** `CatalogueMigrateIdentify --apply` always exits 2. `CatalogueMigrate` has a writer (#1049). `--apply` / `--rollback --apply` write only with the exact `--consent` phrase, otherwise they exit 2. Never weaken that gate. News apply moves only a curator-named podcast (`--podcast-id`, S-008). `CataloguePlayableServicesBackfill --apply` likewise writes only with its exact `--consent` phrase (else exit 2).
-2. **Agents never pass `--apply` or `--consent`** to `CatalogueMigrateIdentify`, `CatalogueMigrate`, or `CataloguePlayableServicesBackfill`. The human runs apply and types the phrase. GATE 5 / “continue” / deploy / merge is **not** consent. Checklist: [`docs/catalogue-run/definition-of-done.md`](docs/catalogue-run/definition-of-done.md).
-
-Rule: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
+Do **not** retire, delete or "clean up" the `FilmSearchPusher` console (+ Tests), the `FilmSearchPush` library in `RedditPodcastPoster.EntitySearchIndexer`, `IFilmSearchPushWatermarkStore` / `FilmSearchPushWatermark` or `ModelType.FilmSearchPushWatermark` until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408). The Azure AI Search tier's data sources (3 on Free) are all used by episodes, TV and news, so films have no pull indexer, and this is the only bulk path that gets films into search (for example after an index rebuild). Jon, 12 Nov 2026 (#1369 / PR #1405). Rule: [`.cursor/rules/film-search-pusher-keep.mdc`](.cursor/rules/film-search-pusher-keep.mdc).
 
 ## Unit tests (HARD)
 
@@ -88,6 +85,7 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - Use detached `Podcast` / `Episode` models and the `PodcastEpisode` pair. Canonical repositories are the split-container implementations in `RedditPodcastPoster.Persistence`. Do not reintroduce `Persistence.Legacy` or embedded-container repositories.
 - Episode ID is globally unique. Azure Search indexing does not use soft-delete.
 - Date-times are UTC. An unspecified-kind `DateTime` is UTC (`UtcDateTimes.ToUtc`). Never convert `DateTime` to `DateTimeOffset` implicitly or with `new DateTimeOffset(dateTime)`: both read unspecified as host-local time (#1191, #1194). Use `UtcDateTimes.ToUtcOffset`. The API writes every date-time as ISO-8601 with `Z` (contract: `FunctionHost.Tests` `UtcJsonDtoContractRules`); the only exception is the discovery schedule's UK-local `slotStartUk`. Date-only releases stay at midnight UTC on that date. Cross-hop audit + test matrix: [`docs/utc-datetime-contract.md`](docs/utc-datetime-contract.md) (#1212).
+- A news organisation may hold extra YouTube channels in its own `additionalYouTubeChannels` (`NewsOrganisation.AdditionalYouTubeChannels`, `[{ youTubeChannelId, youTubePlaylistId? }]`, news PATCH only; each channel is channel-wide or scoped by its own playlist, and the main playlist scopes only the main channel). It is not on the shared `CatalogueIndexingSource` and TV shows have no such field: do not add parent-specific fields to the shared indexing block. Any owner lookup or uniqueness check on a YouTube channel must match a news organisation's main **or** additional channels (a TV show's main channel only), and any playlist-scope decision must use `CatalogueParentYouTubeChannels.Of(parent).PlaylistIdOn(channelId)`, never the main `YouTubePlaylistId` alone. See [docs/news-organisation-multiple-youtube-channels.md](docs/news-organisation-multiple-youtube-channels.md) (#1370).
 - `podcast.Removed` is the removal flag. Do not trust episode-level `podcastRemoved` when deciding whether an episode can be posted.
 - Container factories are explicit: `CreatePodcastsContainer()` and `CreateEpisodesContainer()`.
 - Cosmos settings bind to the `cosmosdb` configuration section.
@@ -98,6 +96,12 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - In duplicate-episode verification, do not modify backup files. A canonical episode must not be ignored or removed when any deleted duplicate had ignored or removed set to false.
 - Azure Functions Flex Consumption `instanceMemoryMB` is 512, 2048, or 4096.
 - Memory probing goes through `IMemoryProbeOrchestrator`: `Start(nameof(Class))` and `End()`. `MemoryProbeOptions` decides whether a session is created.
+
+## Linking PRs to tickets (HARD)
+
+- Every PR for a ticket links it with a **closing keyword** so it shows under the issue's **Development** panel: same repo `Closes #N`; another repo `Closes cultpodcasts/<repo>#N` (e.g. Api / website companions of an RPP ticket: `Closes cultpodcasts/RedditPodcastPoster#N`). Do **not** use `Refs` for the ticket a PR delivers — `Refs` PRs are invisible under Development.
+- A ticket with PRs in several repos stays **open until ALL of its PRs are merged**. GitHub closes it on the first `Closes` merge; `.github/workflows/issue-close-sibling-guard.yml` (mirrored in RedditPodcastPoster, Api and website) reopens it while any PR for it is still open (Development links, cross-references incl. `Refs`, trio search) and restores the board card to In Progress (cultpodcasts/RedditPodcastPoster#1423).
+- List companion PRs in the PR body (`Companions: cultpodcasts/Api#…, cultpodcasts/website#…`) with the merge order.
 
 ## Cursor Cloud specific instructions
 

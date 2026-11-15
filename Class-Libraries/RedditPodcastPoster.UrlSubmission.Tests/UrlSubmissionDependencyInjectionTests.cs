@@ -97,6 +97,8 @@ public class UrlSubmissionDependencyInjectionTests
         services.AddSingleton(Mock.Of<RedditPodcastPoster.Subjects.Factories.ISubjectEnrichmentOptionsFactory>());
         // Catalogue identity comes from AddCatalogueServices at the composition root, not AddUrlSubmission.
         services.AddSingleton(Mock.Of<ICatalogueIdentityEnricher>());
+        // #1430: identity metadata (TMDB) also comes from AddCatalogueServices.
+        services.AddSingleton(Mock.Of<RedditPodcastPoster.Catalogue.Identity.IIdentityMetadataEnricher>());
         services.AddUrlSubmission();
         // AddUrlSubmission registers the real guest enricher (people repository); the composition under test only needs it resolvable.
         services.AddSingleton(Mock.Of<RedditPodcastPoster.People.Enrichers.IEpisodeGuestEnricher>());

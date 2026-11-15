@@ -121,7 +121,15 @@ public class NewsReportRepository(
 
     public async Task Delete(Guid newsOrganisationId, Guid reportId)
     {
-        await container.DeleteItemAsync<NewsReport>(reportId.ToString(), ToPartitionKey(newsOrganisationId));
+        try
+        {
+            await container.DeleteItemAsync<NewsReport>(reportId.ToString(), ToPartitionKey(newsOrganisationId));
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            // Idempotent (as NewsOrganisationRepository.Delete): a row already gone, e.g. a throttled delete that
+            // landed before its retry, is the outcome the caller asked for.
+        }
     }
 
     public async Task<NewsReport?> GetBy(Expression<Func<NewsReport, bool>> selector)

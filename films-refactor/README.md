@@ -3,7 +3,7 @@
 **Delete this whole `films-refactor/` folder after GATE 1 succeeds.**  
 Not in `RedditPodcastPoster.slnx`. Not published by `publish-console-apps.ps1`.
 
-Requirements: [docs/catalogue-run/build-1-rewrite-console-requirements.md](../docs/catalogue-run/build-1-rewrite-console-requirements.md)  
+Requirements: [docs/archive/catalogue-run/build-1-rewrite-console-requirements.md](../docs/archive/catalogue-run/build-1-rewrite-console-requirements.md)  
 **If migrate + rollback both fail:** [REPAIR.md](./REPAIR.md)
 
 ## Build / test

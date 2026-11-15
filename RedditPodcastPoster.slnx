@@ -238,13 +238,6 @@
 
     <Project Path="Console-Apps/CategorisePodcastEpisodes/CategorisePodcastEpisodes.csproj" />
 
-    <Project Path="Console-Apps/CatalogueMigrateIdentify/CatalogueMigrateIdentify.csproj" />
-
-    <Project Path="Console-Apps/CatalogueMigrateIdentify.Tests/CatalogueMigrateIdentify.Tests.csproj" />
-
-    <Project Path="Console-Apps/CatalogueMigrate/CatalogueMigrate.csproj" />
-
-    <Project Path="Console-Apps/CatalogueMigrate.Tests/CatalogueMigrate.Tests.csproj" />
     <Project Path="Console-Apps/ConsoleApps.Composition.Tests/ConsoleApps.Composition.Tests.csproj" />
 
     <Project Path="Console-Apps/CosmosDbDownloader/CosmosDbDownloader.csproj" />
@@ -273,17 +266,12 @@
     <Project Path="Console-Apps/DiscoveryTrainingTrain/DiscoveryTrainingTrain.csproj" />
 
     <Project Path="Console-Apps/EpisodeLanguageBackfill/EpisodeLanguageBackfill.csproj" />
-    <Project Path="Console-Apps/NewsOrganisationDefaultsBackfill/NewsOrganisationDefaultsBackfill.csproj" />
-    <Project Path="Console-Apps/NewsOrganisationDefaultsBackfill.Tests/NewsOrganisationDefaultsBackfill.Tests.csproj" />
     <Project Path="Console-Apps/UnusableFileKeyAudit/UnusableFileKeyAudit.csproj" />
     <Project Path="Console-Apps/UnusableFileKeyAudit.Tests/UnusableFileKeyAudit.Tests.csproj" />
     <Project Path="Console-Apps/StoredHashtagAudit/StoredHashtagAudit.csproj" />
     <Project Path="Console-Apps/StoredHashtagAudit.Tests/StoredHashtagAudit.Tests.csproj" />
     <Project Path="Console-Apps/EpisodeServiceBackfill/EpisodeServiceBackfill.csproj" />
     <Project Path="Console-Apps/EpisodeServiceBackfill.Tests/EpisodeServiceBackfill.Tests.csproj" />
-
-    <Project Path="Console-Apps/CataloguePlayableServicesBackfill/CataloguePlayableServicesBackfill.csproj" />
-    <Project Path="Console-Apps/CataloguePlayableServicesBackfill.Tests/CataloguePlayableServicesBackfill.Tests.csproj" />
 
     <Project Path="Console-Apps/SeedTitleCasingRules/SeedTitleCasingRules.csproj" />
 

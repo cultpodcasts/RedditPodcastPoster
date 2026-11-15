@@ -317,6 +317,20 @@ public sealed class CatalogueIdentityEnricher(
                 new CatalogueIdentityHold(target, query.Trim(), candidates));
         }
 
+        // A different title (original-language or IMDb alternative title) is low confidence:
+        // offer it for the curator to accept, never apply it, not even on a year match.
+        if (preview.Resolution == CatalogueAuthorityResolution.DifferentTitle &&
+            preview.Candidates is { Count: > 0 } lowConfidence)
+        {
+            logger.LogInformation(
+                "Catalogue identity {Target} low-confidence candidates offered. query={Query} candidates={Count}",
+                target,
+                query,
+                lowConfidence.Count);
+            return CatalogueIdentityAdmission.NeedsPrompt(
+                new CatalogueIdentityHold(target, query.Trim(), lowConfidence));
+        }
+
         logger.LogInformation(
             "Catalogue identity {Target} no confident match. query={Query} resolution={Resolution}",
             target,
@@ -330,6 +344,16 @@ public sealed class CatalogueIdentityEnricher(
         string? selectedKey,
         CancellationToken cancellationToken)
     {
+        if (CatalogueAuthorityCandidate.TryParseImdbKey(selectedKey, out var imdbId))
+        {
+            logger.LogInformation(
+                "Catalogue identity film selected from IMDb only. query={Query} key={Key} imdbId={ImdbId}",
+                title,
+                selectedKey,
+                imdbId);
+            return CatalogueIdentityAdmission.Proceed(new CatalogueAuthorityIds(imdbId, null, null));
+        }
+
         if (!CatalogueAuthorityCandidate.TryParseKey(selectedKey, out var tmdbId, out _) || tmdbId is null)
         {
             logger.LogWarning(

@@ -116,7 +116,9 @@ public static class RequestModelExtensions
             BlueskyPosted = request.BlueskyPosted,
             UnBluesky = request.UnBluesky,
             Subjects = request.Subjects,
-            Guests = request.Guests
+            Guests = request.Guests,
+            AlternativeTitles = request.AlternativeTitles,
+            Image = request.Image
         });
 
     public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) =>
@@ -136,7 +138,13 @@ public static class RequestModelExtensions
         });
 
     public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) =>
-        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest()));
+        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels = request.AdditionalYouTubeChannels?
+                .Select(x => new Models.AdditionalYouTubeChannelChange(x?.YouTubeChannelId, x?.YouTubePlaylistId))
+                .ToArray(),
+            AdditionalYouTubeChannelIds = request.AdditionalYouTubeChannelIds?.ToArray()
+        }));
 
     public static Models.NewsReportChangeRequest ToModel(this NewsReportChangeRequest request) =>
         request.CopyPlayableFieldsTo(new Models.NewsReportChangeRequest());

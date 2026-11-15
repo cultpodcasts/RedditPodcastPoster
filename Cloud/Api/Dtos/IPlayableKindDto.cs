@@ -10,6 +10,12 @@ public interface IPlayableKindDto
     string? ParentName { get; set; }
     string? Slug { get; set; }
     string? Path { get; set; }
+
+    /// <summary>Identity image (TMDB) used only when the DTO has no streaming-service image (RPP #1430).</summary>
+    Uri? Image { get; set; }
+
+    /// <summary>Other titles a film is known by (RPP #1431). Omitted for other kinds.</summary>
+    string[]? AlternativeTitles { get; set; }
 }
 
 public static class PlayableKindDtoExtensions
@@ -30,6 +36,16 @@ public static class PlayableKindDtoExtensions
         dto.ParentName = kind.ParentName;
         dto.Slug = kind.Slug;
         dto.Path = kind.Path;
+        if (dto.Image is null && kind.IdentityImage is not null)
+        {
+            dto.Image = kind.IdentityImage;
+        }
+
+        if (kind.AlternativeTitles is { Length: > 0 })
+        {
+            dto.AlternativeTitles = kind.AlternativeTitles;
+        }
+
         return dto;
     }
 }

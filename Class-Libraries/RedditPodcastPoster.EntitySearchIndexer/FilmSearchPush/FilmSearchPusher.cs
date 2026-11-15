@@ -23,6 +23,12 @@ namespace RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 /// again. A dry run writes nothing.</item>
 /// </list>
 /// </summary>
+/// <remarks>
+/// DO NOT REMOVE: with the FilmSearchPusher console and the <c>FilmSearchPushWatermark</c> store, this is the only bulk
+/// path that gets films into search (the search tier's data sources are all used by episodes, TV and news, so films
+/// have no pull indexer), for example after an index rebuild. Do not remove until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408).
+/// See <c>.cursor/rules/film-search-pusher-keep.mdc</c>.
+/// </remarks>
 public sealed class FilmSearchPusher(
     IFilmRepository filmRepository,
     IFilmSearchPushWatermarkStore watermarkStore,
@@ -128,7 +134,7 @@ public sealed class FilmSearchPusher(
         {
             foreach (var batch in toPush.Chunk(request.BatchSize))
             {
-                failed += (await searchIndex.MergeOrUpload(batch, cancellationToken)).Count;
+                failed += (await searchIndex.Upload(batch, cancellationToken)).Count;
             }
 
             foreach (var batch in toDelete.Chunk(request.BatchSize))
@@ -210,7 +216,7 @@ public sealed class FilmSearchPusher(
 
         var failed = delete
             ? (await searchIndex.Delete([film.Id.ToString()], cancellationToken)).Count
-            : (await searchIndex.MergeOrUpload([document!], cancellationToken)).Count;
+            : (await searchIndex.Upload([document!], cancellationToken)).Count;
         logger.LogInformation("Film search push: {Action} film '{FilmId}' {Outcome}; watermark unchanged.",
             delete ? "deleted" : "pushed", filmId, failed == 0 ? "ok" : "FAILED");
         return new FilmSearchPushResult(failed == 0, false, false, null, null, 1, delete ? 0 : 1, delete ? 1 : 0,

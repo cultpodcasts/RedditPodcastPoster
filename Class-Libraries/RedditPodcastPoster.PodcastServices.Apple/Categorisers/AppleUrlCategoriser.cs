@@ -75,15 +75,6 @@ public class AppleUrlCategoriser(
         PodcastServiceSearchCriteria criteria,
         IndexingContext indexingContext)
     {
-        if (matchingPodcast != null &&
-            matchingPodcast.IsAwaitingDelayedAudioRelease(criteria.Release, criteria.Duration))
-        {
-            logger.LogInformation(
-                "Skipping Apple episode lookup for '{CriteriaEpisodeTitle}' as audio is not expected until after the YouTube publishing delay.",
-                criteria.EpisodeTitle);
-            return null;
-        }
-
         var findEpisodeRequest = FindAppleEpisodeRequestFactory.Create(matchingPodcast, podcast, criteria);
 
         var ticks = EpisodeReleaseTolerance.GetToleranceTicks(

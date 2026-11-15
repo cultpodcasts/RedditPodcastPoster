@@ -8,6 +8,7 @@ using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Fixtures;
 using RedditPodcastPoster.Tmdb.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules;
@@ -349,6 +350,79 @@ public class CatalogueIdentityEnricherRules
         show.ImdbId.Should().Be(existingImdb);
         show.TmdbId.Should().Be(existingTmdb);
         show.TvdbId.Should().Be(existingTvdb);
+    }
+
+    [Fact(DisplayName =
+        "When the only film match has a different title, admission holds that single candidate for the curator to accept " +
+        "rather than reporting no match, and does not apply it even when the year agrees (issue #1421).")]
+    public async Task single_different_title_candidate_is_offered_not_applied()
+    {
+        // Arrange
+        var candidate = new CatalogueAuthorityCandidate(
+            CatalogueAuthorityCandidate.TmdbKey(FaderhusetFilm.TmdbId),
+            FaderhusetFilm.TmdbTitle,
+            FaderhusetFilm.Year,
+            CatalogueAuthorityCandidate.FilmKind,
+            CatalogueAuthorityCandidate.TmdbSource,
+            FaderhusetFilm.TmdbId,
+            TvdbId: null);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewFilmAsync(FaderhusetFilm.Query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                FaderhusetFilm.Query,
+                HitCount: 1,
+                ImdbId: null,
+                TmdbId: null,
+                TvdbId: null,
+                [FaderhusetFilm.TmdbTitle],
+                Resolution: CatalogueAuthorityResolution.DifferentTitle,
+                Candidates: [candidate]));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.ResolveFilmAsync(
+            FaderhusetFilm.Query,
+            FaderhusetFilm.Year,
+            CatalogueIdentityChoice.Unset,
+            selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        admission.Prompt!.Target.Should().Be(CatalogueAuthorityCandidate.FilmKind);
+        admission.Prompt.Query.Should().Be(FaderhusetFilm.Query);
+        admission.Prompt.Candidates.Should().ContainSingle()
+            .Which.Key.Should().Be(CatalogueAuthorityCandidate.TmdbKey(FaderhusetFilm.TmdbId));
+        _mocker.GetMock<ICatalogueAuthorityLookup>()
+            .Verify(x => x.CollectFilmAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the curator selects an IMDb-only film candidate, admission stores that IMDb id alone, because TMDB had no record for it.")]
+    public async Task select_imdb_key_applies_imdb_id_only()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var imdbId = ImdbId();
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+        var film = new Film(title);
+
+        // Act
+        var admission = await sut.ResolveFilmAsync(
+            title,
+            year: null,
+            CatalogueIdentityChoice.Select,
+            CatalogueAuthorityCandidate.ImdbKey(imdbId));
+        sut.ApplyMissing(film, admission.Ids);
+
+        // Assert
+        admission.Hold.Should().BeFalse();
+        admission.Ids!.ImdbId.Should().Be(imdbId);
+        admission.Ids.TmdbId.Should().BeNull();
+        film.ImdbId.Should().Be(imdbId);
+        film.TmdbId.Should().BeNull();
+        _mocker.GetMock<ICatalogueAuthorityLookup>()
+            .Verify(x => x.CollectFilmAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private string ImdbId() =>

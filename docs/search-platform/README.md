@@ -30,5 +30,5 @@ the existing api Worker `/search` proxy (`env.apihost` swap).
 3. **Preview/production secrets parity** for any new Worker secret (names in PR
    `## Config / secrets`, never values).
 4. **CQRS:** commands acknowledge; clients GET for the read model.
-5. CatalogueMigrate CLIs in this checkout **always refuse `--apply`** — unrelated to search
-   rebuild; do not conflate the two.
+5. *(Historical)* The CatalogueMigrate CLIs were retired in #1369; search rebuild was never
+   part of the catalogue migration.

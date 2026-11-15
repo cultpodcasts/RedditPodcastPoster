@@ -79,4 +79,41 @@
       </AssemblyAttribute>
     </ItemGroup>
   </Target>
+
+  <!--
+    #1403: keep build output small. Without a RuntimeIdentifier (plain dotnet build / test, local and the
+    CI Build workflow) the SDK copies every runtimes/<rid>/ package asset into each bin folder: SkiaSharp,
+    ONNX Runtime (incl. ios xcframework / android aar), ML.NET and Cosmos natives for ~25 RIDs, about
+    750 MB per project. RID-less builds only ever run on the machine that built them, so keep just the
+    build host's RID fallback chain (e.g. win-x64 + win; linux-x64 + linux + unix).
+    RID builds/publishes (deploy.yml -r linux-x64, deploy-function-local.ps1 and publish-console-apps.ps1
+    with -r/runtime) already resolve one RID and are not filtered here.
+    Native package .pdb files (libSkiaSharp.pdb is ~90 MB per Windows RID) are never copied, RID or not.
+    Opt out with -p:KeepAllRuntimeAssets=true (for example to copy a RID-less build to another OS).
+  -->
+  <PropertyGroup>
+    <_HostRuntimeIdentifier>$(NETCoreSdkPortableRuntimeIdentifier)</_HostRuntimeIdentifier>
+    <_HostRuntimeIdentifier Condition="'$(_HostRuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</_HostRuntimeIdentifier>
+    <_HostRuntimeOs Condition="'$(_HostRuntimeIdentifier)' != ''">$(_HostRuntimeIdentifier.Substring(0, $(_HostRuntimeIdentifier.LastIndexOf('-'))))</_HostRuntimeOs>
+    <_HostRuntimeArch Condition="'$(_HostRuntimeIdentifier)' != ''">$(_HostRuntimeIdentifier.Substring($([MSBuild]::Add($(_HostRuntimeIdentifier.LastIndexOf('-')), 1))))</_HostRuntimeArch>
+    <!-- RID graph fallbacks for the host: win-x64 -> win; linux-musl-x64 -> linux-musl -> linux-x64 -> linux -> unix; osx-arm64 -> osx -> unix. -->
+    <_HostRuntimeIdentifiers>;$(_HostRuntimeIdentifier);$(_HostRuntimeOs);</_HostRuntimeIdentifiers>
+    <_HostRuntimeIdentifiers Condition="$(_HostRuntimeOs.StartsWith('linux'))">$(_HostRuntimeIdentifiers)linux-$(_HostRuntimeArch);linux;unix;</_HostRuntimeIdentifiers>
+    <_HostRuntimeIdentifiers Condition="$(_HostRuntimeOs.StartsWith('osx'))">$(_HostRuntimeIdentifiers)unix;</_HostRuntimeIdentifiers>
+  </PropertyGroup>
+
+  <Target Name="TrimRuntimeAssetsToBuildHost" AfterTargets="ResolvePackageAssets"
+          Condition="'$(KeepAllRuntimeAssets)' != 'true'">
+    <ItemGroup Condition="'$(RuntimeIdentifier)' == '' and '$(_HostRuntimeIdentifier)' != ''">
+      <_RuntimeTargetsCopyLocalItemsForHost Include="@(RuntimeTargetsCopyLocalItems)"
+                                            Condition="$(_HostRuntimeIdentifiers.Contains(';%(RuntimeTargetsCopyLocalItems.RuntimeIdentifier);'))" />
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)" />
+      <RuntimeTargetsCopyLocalItems Include="@(_RuntimeTargetsCopyLocalItemsForHost)" />
+      <_RuntimeTargetsCopyLocalItemsForHost Remove="@(_RuntimeTargetsCopyLocalItemsForHost)" />
+    </ItemGroup>
+    <ItemGroup>
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)" Condition="'%(RuntimeTargetsCopyLocalItems.AssetType)' == 'native' and '%(RuntimeTargetsCopyLocalItems.Extension)' == '.pdb'" />
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)" Condition="'%(NativeCopyLocalItems.Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
 </Project>

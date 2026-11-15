@@ -7,7 +7,7 @@ using Xunit;
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.Playlist;
 
 /// <summary>
-/// Copy paths (kind transfer, CatalogueMigrate) must not propagate a youTubeChannelId / youTubePlaylistId pair the
+/// Copy paths (kind transfer) must not propagate a youTubeChannelId / youTubePlaylistId pair the
 /// channel does not own (#1178).
 /// </summary>
 public class YouTubePlaylistChannelOwnershipRules

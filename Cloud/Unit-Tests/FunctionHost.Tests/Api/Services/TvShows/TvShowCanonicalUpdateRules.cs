@@ -5,9 +5,11 @@ using Moq;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Services.TvShows;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Tmdb.Models;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Services.TvShows;
@@ -31,6 +33,15 @@ public class TvShowCanonicalUpdateRules
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
             .Returns((Expression<Func<TvShow, bool>> selector) => FilterAsync(_catalogue, selector));
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.GetByTvShowId(It.IsAny<Guid>()))
+            .Returns(() => Array.Empty<TvShowEpisode>().ToAsyncEnumerable());
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.Save(It.IsAny<IEnumerable<TvShowEpisode>>()))
+            .Returns(Task.CompletedTask);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchTvShowAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TmdbShowMetadata?)null);
     }
 
     [Fact(DisplayName =

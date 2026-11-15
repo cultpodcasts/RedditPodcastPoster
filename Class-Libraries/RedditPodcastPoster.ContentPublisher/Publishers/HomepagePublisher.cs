@@ -61,7 +61,8 @@ public class HomepagePublisher(
     {
         ct.ThrowIfCancellationRequested();
 
-        var recentCutoff = DateTime.UtcNow.AddDays(-7);
+        var now = DateTime.UtcNow;
+        var recentCutoff = now.AddDays(-7);
 
         var recentPodcastsTask = podcastRepository
             .GetAllBy(
@@ -77,8 +78,8 @@ public class HomepagePublisher(
             .ToListAsync(ct)
             .AsTask();
 
-        var recentEpisodesTask = GetRecentEpisodes(recentPodcastsTask, recentCutoff, ct);
-        var recentCatalogueTask = cataloguePlayables.GetRecent(recentCutoff, ct);
+        var recentEpisodesTask = GetRecentEpisodes(recentPodcastsTask, recentCutoff, now, ct);
+        var recentCatalogueTask = cataloguePlayables.GetRecent(recentCutoff, now, ct);
 
         var homePageCache = await ResolveHomePageCache(Task.WhenAll(recentEpisodesTask, recentCatalogueTask), ct);
         var activeEpisodeCount = homePageCache.ActiveEpisodeCount ?? 0;
@@ -87,7 +88,9 @@ public class HomepagePublisher(
         // While a catalogue migration unit is mid-flight (or stopped after writing its destination), the same
         // playable GUID can be in Episodes and in its new container. Keep the catalogue row only.
         var catalogueIds = recentCatalogue.Select(x => x.Id).ToHashSet();
-        var recentEpisodes = recentEpisodesTask.Result.Where(x => !catalogueIds.Contains(x.EpisodeId)).ToList();
+        var recentEpisodes = recentEpisodesTask.Result
+            .Where(x => !catalogueIds.Contains(x.EpisodeId) && IncludeInHomepageWindow(x.Release, now))
+            .ToList();
         var podcasts = recentPodcastsTask.Result.ToDictionary(x => x.Id);
 
         var orderedPodcasts = recentEpisodes
@@ -150,19 +153,28 @@ public class HomepagePublisher(
         Language = item.Language
     };
 
+    /// <summary>
+    /// An item belongs on the homepage once <paramref name="now"/> is on or after its release instant.
+    /// Future-dated items are hidden until that moment so they cannot create a day group of their own.
+    /// </summary>
+    internal static bool IncludeInHomepageWindow(DateTime release, DateTime now) =>
+        release <= now;
+
     private async Task<List<RecentEpisodeEntry>> GetRecentEpisodes(
         Task<List<PodcastEntry>> recentPodcastsTask,
         DateTime recentCutoff,
+        DateTime until,
         CancellationToken ct)
     {
         var podcasts = await recentPodcastsTask;
-        var episodeLists = await Task.WhenAll(podcasts.Select(podcast => LoadRecentEpisodes(podcast, recentCutoff, ct)));
+        var episodeLists = await Task.WhenAll(podcasts.Select(podcast => LoadRecentEpisodes(podcast, recentCutoff, until, ct)));
         return episodeLists.SelectMany(x => x).ToList();
     }
 
     private async Task<List<RecentEpisodeEntry>> LoadRecentEpisodes(
         PodcastEntry podcast,
         DateTime recentCutoff,
+        DateTime until,
         CancellationToken ct)
     {
         var recentEpisodes = new List<RecentEpisodeEntry>();
@@ -170,10 +182,17 @@ public class HomepagePublisher(
         await foreach (var episode in episodeRepository.GetByPodcastId(
                            podcast.Id,
                            EpisodeCosmosFilters.And(
-                               EpisodeCosmosFilters.ReleasedOnOrAfter(recentCutoff),
+                               EpisodeCosmosFilters.And(
+                                   EpisodeCosmosFilters.ReleasedOnOrAfter(recentCutoff),
+                                   x => x.ReleaseSort <= until),
                                x => !x.Ignored && !x.Removed)))
         {
             ct.ThrowIfCancellationRequested();
+            if (!IncludeInHomepageWindow(episode.ReleaseUtc, until))
+            {
+                continue;
+            }
+
             EpisodeServicePresence.NormalizeCatalog(episode);
 
             recentEpisodes.Add(new RecentEpisodeEntry

@@ -147,10 +147,13 @@ public class PodcastService(
                 $"{string.Join(", ", unknown.Select(x => $"'{x.Id}'"))} on youtube-channel-id '{channelId}'. Retry, or submit with a podcast name.");
         }
 
+        // The parent's playlist on *this* channel: an additional channel of a news organisation is not scoped by
+        // the main channel's playlist (#1370).
         var parentClaims = parent == null
             ? false
             : await youTubePlaylistMembership.IsVideoInPlaylist(
-                youTubeService, parent.Indexing?.YouTubePlaylistId, url, indexingContext.SkipYouTubeUrlResolving);
+                youTubeService, parent.YouTubeChannels.PlaylistIdOn(channelId), url,
+                indexingContext.SkipYouTubeUrlResolving);
         if (parentClaims == null)
         {
             throw FailClosed(

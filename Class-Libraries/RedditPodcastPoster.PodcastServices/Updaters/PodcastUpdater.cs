@@ -55,7 +55,7 @@ public class PodcastUpdater(
     public const string CatalogueOwnedUrlSkippedMessagePrefix = "Indexer skipped catalogue-owned URL:";
 
     /// <summary>
-    /// Stable log prefix when the podcast row disappeared during this pass (CatalogueMigrate deleted it after the
+    /// Stable log prefix when the podcast row disappeared during this pass (a kind transfer deleted it after the
     /// pass had already read it). App Insights keys off it. <c>stage</c> is <c>save-episodes</c> or <c>save-podcast</c>.
     /// </summary>
     public const string PodcastGoneMessagePrefix = "IndexerPodcastGone";
@@ -202,7 +202,7 @@ public class PodcastUpdater(
 
         PodcastRunScope.Current.ReportStage(SaveEpisodesStage,
             $"enriched={enrichmentResult.UpdatedEpisodes.Count} filtered={filterResult.FilteredEpisodes.Count} merged={mergeResult.MergedEpisodes.Count} added={mergeResult.AddedEpisodes.Count}");
-        // CatalogueMigrate deletes the source podcast after the move. A pass that read the row before that delete
+        // Kind transfer deletes the source podcast after the move. A pass that read the row before that delete
         // must not upsert it back, or save episodes under an id that no longer exists. One point-read (1 RU) before
         // the first write, and again before the podcast upsert.
         if (!await PodcastRowStillExists(podcast.Id, SaveEpisodesStage, cancellationToken))
@@ -489,7 +489,7 @@ public class PodcastUpdater(
 
     /// <summary>
     /// Point-reads the podcast. When the row is gone, logs <see cref="PodcastGoneMessagePrefix"/> and reports whether
-    /// a TvShow or NewsOrganisation now has the same id (the CatalogueMigrate destination).
+    /// a TvShow or NewsOrganisation now has the same id (the kind-transfer destination).
     /// </summary>
     private async Task<bool> PodcastRowStillExists(Guid podcastId, string stage, CancellationToken cancellationToken)
     {

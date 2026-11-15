@@ -496,7 +496,7 @@ public class EpisodeFilmMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "The search document keeps the episode guid and switches ContentKind to Film with no series name, as the catalogue migrator does.")]
+        "The search document keeps the episode guid and switches ContentKind to Film with no series name, as kind transfer does.")]
     public async Task search_swap_uses_same_guid_and_film_kind()
     {
         // Arrange
@@ -559,7 +559,7 @@ public class EpisodeFilmMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "A removed episode cannot be moved to a film, because the migrator only moves active episodes, and the search swap receives no upload.")]
+        "A removed episode cannot be moved to a film, because only active episodes are moved, and the search swap receives no upload.")]
     public async Task removed_episode_is_bad_request()
     {
         // Arrange

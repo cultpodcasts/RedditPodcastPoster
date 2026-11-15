@@ -20,9 +20,12 @@ public interface IFilmSearchIndexGateway
         IReadOnlyCollection<string> liveFilmIds,
         CancellationToken cancellationToken);
 
-    /// <summary>Merge-or-upload, the same write the pull indexer and the curator edit use.</summary>
+    /// <summary>
+    /// Upload (replace) film documents. Merge-or-upload would leave a stale <c>seriesName</c> or
+    /// <c>podcastName</c> in place, because a film's null values are omitted from the JSON (RPP #1428).
+    /// </summary>
     /// <returns>Keys that failed (empty when every document succeeded).</returns>
-    Task<IReadOnlyList<string>> MergeOrUpload(IReadOnlyList<EpisodeSearchRecord> documents, CancellationToken cancellationToken);
+    Task<IReadOnlyList<string>> Upload(IReadOnlyList<EpisodeSearchRecord> documents, CancellationToken cancellationToken);
 
     /// <returns>Keys that failed (empty when every delete succeeded; deleting an absent key succeeds).</returns>
     Task<IReadOnlyList<string>> Delete(IReadOnlyList<string> ids, CancellationToken cancellationToken);

@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
@@ -31,6 +32,7 @@ public class CatalogueKindSubmitter(
     INonPodcastServiceAdapterResolver adapters,
     ICatalogueLanguageGate languageGate,
     ICatalogueIdentityEnricher identityEnricher,
+    IIdentityMetadataEnricher identityMetadata,
     IHeroEpisodePromoter heroEpisodePromoter,
     IFileKeyAllocator fileKeyAllocator,
     ICatalogueSubmitEnrichment enrichment,
@@ -126,6 +128,7 @@ public class CatalogueKindSubmitter(
             identityEnricher.ApplyMissing(film, filmIdentity.Admission.Ids);
             film.FileKey = await fileKeyAllocator.Allocate(FileKeyKind.Film, film.Name, film.Id);
             var filmDetails = await enrichment.Enrich(film, categorisedItem);
+            await FillFromIdentity(film);
             await films.Save(film);
             return CreatedPlayable(
                 SubmitClassification.Film,
@@ -339,6 +342,7 @@ public class CatalogueKindSubmitter(
         // Enrich before anything is persisted (as the podcast create path does): the enrichers read Cosmos, and a
         // throw here must not leave a new parent saved with no child under it.
         var details = await enrichment.Enrich(episode, show, show.Indexing, categorisedItem);
+        await FillFromIdentity(episode, show);
         if (saveParent)
         {
             await tvShows.Save(show);
@@ -352,6 +356,40 @@ public class CatalogueKindSubmitter(
             admitted.Admission.SetsDefaultLanguage,
             ImmediateSearchSource(show, episode, CatalogueParentKind.TvShow),
             details);
+    }
+
+    /// <summary>
+    /// RPP #1430: after the service enrichment, fills the new film's empty fields (description, release, runtime,
+    /// image, alternative titles) from its TMDB identity. A failed lookup leaves the film as the service gave it.
+    /// </summary>
+    private async Task FillFromIdentity(Film film)
+    {
+        if ((film.TmdbId is null && string.IsNullOrWhiteSpace(film.ImdbId)) || !IdentityMetadataFill.HasGaps(film))
+        {
+            return;
+        }
+
+        var metadata = await identityMetadata.FetchFilmAsync(film.TmdbId, film.ImdbId);
+        if (metadata is not null)
+        {
+            IdentityMetadataFill.Fill(film, metadata);
+        }
+    }
+
+    /// <summary>RPP #1430: as <see cref="FillFromIdentity(Film)"/>, for a new TV episode (name, overview, air date, runtime, still).</summary>
+    private async Task FillFromIdentity(TvShowEpisode episode, TvShow show)
+    {
+        if ((episode.TvdbId is not > 0 && string.IsNullOrWhiteSpace(episode.ImdbId)) ||
+            !IdentityMetadataFill.HasGaps(episode))
+        {
+            return;
+        }
+
+        var metadata = await identityMetadata.FetchTvShowEpisodeAsync(episode, show.TmdbId);
+        if (metadata is not null)
+        {
+            IdentityMetadataFill.Fill(episode, metadata);
+        }
     }
 
     private async Task<(NewsReport? Report, bool ParentCreated, SubmitResult? Stop, bool SetsDefaultLanguage, CatalogueSearchSource? SearchSource, SubmitEpisodeDetails? Details)> SaveNewsReport(
