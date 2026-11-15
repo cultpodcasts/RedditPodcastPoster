@@ -261,25 +261,24 @@ public class HomepageCataloguePlayablesRules
     public async Task future_release_is_hidden_until_now_is_on_or_after_its_release()
     {
         // Arrange
-        var now = new DateTime(2026, 11, 15, 19, 58, 0, DateTimeKind.Utc);
+        var now = DateTime.UtcNow;
         var since = now.AddDays(-7);
-        var release = new DateTime(2026, 11, 19, 0, 0, 0, DateTimeKind.Utc);
-        var lastThursday = now.AddDays(-3);
+        var release = DateTime.UtcNow.Date.AddDays(4);
+        var pastRelease = now.AddDays(-3);
         var futureFilm = MakeFilm("Synthetic Future Film", CatalogueRelease.FromDateTimeUtc(release));
-        var pastFilm = MakeFilm("Synthetic Past Film", CatalogueRelease.FromDateTimeUtc(lastThursday));
+        var pastFilm = MakeFilm("Synthetic Past Film", CatalogueRelease.FromDateTimeUtc(pastRelease));
         GivenFilms(futureFilm, pastFilm);
 
-        // Act / Assert
+        // Act
         var beforeRelease = await Sut().GetRecent(since, now, CancellationToken.None);
-        beforeRelease.Should().ContainSingle().Which.ParentName.Should().Be("Synthetic Past Film");
-
-        (await Sut().GetRecent(since, release.AddTicks(-1), CancellationToken.None))
-            .Select(x => x.ParentName).Should().Equal("Synthetic Past Film");
-
+        var justBeforeRelease = await Sut().GetRecent(since, release.AddTicks(-1), CancellationToken.None);
         var onRelease = await Sut().GetRecent(since, release, CancellationToken.None);
-        onRelease.Select(x => x.ParentName).Should().BeEquivalentTo("Synthetic Past Film", "Synthetic Future Film");
-
         var afterRelease = await Sut().GetRecent(since, release.AddHours(1), CancellationToken.None);
+
+        // Assert
+        beforeRelease.Should().ContainSingle().Which.ParentName.Should().Be("Synthetic Past Film");
+        justBeforeRelease.Select(x => x.ParentName).Should().Equal("Synthetic Past Film");
+        onRelease.Select(x => x.ParentName).Should().BeEquivalentTo("Synthetic Past Film", "Synthetic Future Film");
         afterRelease.Select(x => x.ParentName).Should().BeEquivalentTo("Synthetic Past Film", "Synthetic Future Film");
     }
 }

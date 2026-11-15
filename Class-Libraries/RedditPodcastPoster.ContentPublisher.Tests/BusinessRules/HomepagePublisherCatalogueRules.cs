@@ -322,15 +322,22 @@ public class HomepagePublisherCatalogueRules
         "the release is still in the future.")]
     public void future_release_is_hidden_until_now_is_on_or_after_its_release()
     {
-        var release = new DateTime(2026, 11, 19, 0, 0, 0, DateTimeKind.Utc);
+        // Arrange
+        var release = DateTime.UtcNow.Date.AddDays(4);
+        var now = DateTime.UtcNow;
+        var justBeforeRelease = release.AddTicks(-1);
+        var afterRelease = release.AddHours(1);
 
-        HomepagePublisher.IncludeInHomepageWindow(release, new DateTime(2026, 11, 15, 19, 58, 0, DateTimeKind.Utc))
-            .Should().BeFalse();
-        HomepagePublisher.IncludeInHomepageWindow(release, release.AddTicks(-1))
-            .Should().BeFalse();
-        HomepagePublisher.IncludeInHomepageWindow(release, release)
-            .Should().BeTrue();
-        HomepagePublisher.IncludeInHomepageWindow(release, release.AddHours(1))
-            .Should().BeTrue();
+        // Act
+        var hiddenNow = HomepagePublisher.IncludeInHomepageWindow(release, now);
+        var hiddenJustBefore = HomepagePublisher.IncludeInHomepageWindow(release, justBeforeRelease);
+        var shownOnRelease = HomepagePublisher.IncludeInHomepageWindow(release, release);
+        var shownAfterRelease = HomepagePublisher.IncludeInHomepageWindow(release, afterRelease);
+
+        // Assert
+        hiddenNow.Should().BeFalse();
+        hiddenJustBefore.Should().BeFalse();
+        shownOnRelease.Should().BeTrue();
+        shownAfterRelease.Should().BeTrue();
     }
 }
