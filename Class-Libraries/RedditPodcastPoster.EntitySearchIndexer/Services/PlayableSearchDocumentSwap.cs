@@ -42,8 +42,10 @@ public class PlayableSearchDocumentSwap(
     {
         try
         {
-            var result = await searchClient.MergeOrUploadDocumentsAsync(
-                documents,
+            // Films must Upload (replace) so a null seriesName/podcastName clears the uploader channel
+            // left from before the item became a film. Other kinds still merge (RPP #1428).
+            var result = await searchClient.IndexDocumentsAsync(
+                SearchIndexDocumentActions.BatchFor(documents),
                 new IndexDocumentsOptions { ThrowOnAnyError = false },
                 cancellationToken);
             var failures = result.Value.Results.Where(x => !x.Succeeded).ToArray();

@@ -15,7 +15,7 @@ public sealed record FilmSearchPushRequest(bool Full = false, bool DryRun = fals
 /// <param name="PreviousWatermark">The film <c>_ts</c> the run started from (null for none).</param>
 /// <param name="NewWatermark">The watermark after the run: advanced only when the run succeeded and was not a dry run.</param>
 /// <param name="FilmsRead">Films read from Cosmos.</param>
-/// <param name="ToPush">Documents planned for merge-or-upload.</param>
+/// <param name="ToPush">Documents planned for upload (replace).</param>
 /// <param name="ToDelete">Documents planned for delete (removed films, plus orphans on a full push).</param>
 /// <param name="Failed">Documents that failed to map, push or delete.</param>
 /// <param name="WatermarkSaved">The LookUps watermark was written.</param>
