@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;

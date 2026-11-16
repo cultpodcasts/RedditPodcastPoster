@@ -541,8 +541,8 @@ public class CatalogueMatchScorerRules
 
     [Fact(DisplayName =
         "When the catalogue row has no duration (Apple omitting durationInMilliseconds), " +
-        "same-calendar-day release and disjoint titles with empty subjects stay below the threshold, " +
-        "because missing duration must not revive release-only attaches.")]
+        "same-calendar-day release and disjoint titles with empty subjects score zero, " +
+        "because without duration evidence the title has to carry the match (#1445).")]
     public void missing_catalogue_duration_same_day_disjoint_titles_fails_threshold()
     {
         // Arrange
@@ -574,7 +574,7 @@ public class CatalogueMatchScorerRules
         var score = CatalogueMatchScorer.Score(probe, catalogue);
 
         // Assert
-        score.Should().Be(CatalogueMatchScorer.SameCalendarDayReleasePoints);
+        score.Should().Be(0);
         CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeFalse();
     }
 
@@ -788,13 +788,52 @@ public class CatalogueMatchScorerRules
 
     [Fact(DisplayName =
         "When a delay-adjusted YouTube probe is about two weeks before a same-upload-day Apple row whose " +
-        "duration exceeds the band (YouTube clip of a longer multi-segment episode) but descriptions fuzzy-match, " +
-        "the score meets the threshold because description-aligned release consideration plus the missing-duration " +
-        "bridge replace duration points.")]
-    public void youtube_clip_of_longer_apple_with_matching_description_meets_threshold()
+        "duration exceeds the band (YouTube clip of a longer multi-segment episode) and the clip title is contained " +
+        "in the audio title, the score meets the threshold because the title match, description-aligned release " +
+        "consideration and the clip description bridge replace duration points.")]
+    public void youtube_clip_of_longer_apple_with_contained_title_and_matching_description_meets_threshold()
     {
         // Arrange — mirrors SubmitUrl MatchOtherServices: probe Released shifted by publishing delay;
         // Apple same calendar day as YouTube publish; ~15m clip vs ~24m multi-topic audio; shared blurb.
+        var (probe, catalogue, youTubeRelease, probeRelease) = CreateClipOfLongerApple(
+            "SeriesName hits hard after a major scandal");
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+        var band = CatalogueMatchScorer.GetDurationBand(probe.Length, catalogue.Length);
+
+        // Assert
+        (catalogue.Length - probe.Length).Should().BeGreaterThan(band);
+        (youTubeRelease.Date - probeRelease.Date).Days.Should().Be(14);
+        catalogue.ReleaseUtc.Date.Should().Be(youTubeRelease.Date);
+        score.Should().Be(
+            CatalogueMatchScorer.WeakInWindowReleasePoints +
+            CatalogueMatchScorer.SubstringTitlePoints +
+            CatalogueMatchScorer.FuzzyDescriptionPoints +
+            CatalogueMatchScorer.MissingDurationDescriptionBridgePoints);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When a YouTube clip of a longer Apple episode shares its description but not its title, the score is zero, " +
+        "because with duration out of band a candidate needs title evidence and description plus release alone " +
+        "must not accept it (#1445).")]
+    public void youtube_clip_of_longer_apple_with_matching_description_but_no_title_match_scores_zero()
+    {
+        // Arrange
+        var (probe, catalogue, _, _) = CreateClipOfLongerApple("Female rage on television after a major scandal");
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, catalogue);
+
+        // Assert
+        score.Should().Be(0);
+        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeFalse();
+    }
+
+    private (Models.Episodes.Episode Probe, Models.Episodes.Episode Catalogue, DateTime YouTubeRelease,
+        DateTime ProbeRelease) CreateClipOfLongerApple(string probeTitle)
+    {
         var youTubeRelease = DomainTestFixture.UtcAtTime(0, TimeSpan.FromHours(20));
         var publishingDelay = TimeSpan.FromDays(14);
         var probeRelease = youTubeRelease.Subtract(publishingDelay);
@@ -805,7 +844,7 @@ public class CatalogueMatchScorerRules
             "show about female rage has turned into such a hit.";
         var probe = _fixture.CreateEpisode(e =>
         {
-            e.Title = "Female rage on television after a major scandal";
+            e.Title = probeTitle;
             e.Description = sharedBlurb + " Subscribe on the open streaming platforms for more episodes.";
             e.Length = TimeSpan.FromMinutes(15).Add(TimeSpan.FromSeconds(10));
             e.ReleaseUtc = probeRelease;
@@ -824,20 +863,7 @@ public class CatalogueMatchScorerRules
             e.AppleId = _fixture.CreateAppleId();
             e.Subjects = [];
         });
-
-        // Act
-        var score = CatalogueMatchScorer.Score(probe, catalogue);
-        var band = CatalogueMatchScorer.GetDurationBand(probe.Length, catalogue.Length);
-
-        // Assert
-        (catalogue.Length - probe.Length).Should().BeGreaterThan(band);
-        (youTubeRelease.Date - probeRelease.Date).Days.Should().Be(14);
-        appleRelease.Date.Should().Be(youTubeRelease.Date);
-        score.Should().Be(
-            CatalogueMatchScorer.WeakInWindowReleasePoints +
-            CatalogueMatchScorer.FuzzyDescriptionPoints +
-            CatalogueMatchScorer.MissingDurationDescriptionBridgePoints);
-        CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeTrue();
+        return (probe, catalogue, youTubeRelease, probeRelease);
     }
 
     [Fact(DisplayName =

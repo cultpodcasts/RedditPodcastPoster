@@ -50,6 +50,12 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// <em>only</em> via raw-publish-day qualification — matching the probe's calendar day alone must not upgrade
 /// previous-day audio against a next-day YouTube-only video (#1144). On a score tie,
 /// <see cref="SelectBestMatch"/> prefers the row that earned that credit over closeness to the shifted probe.
+/// Title evidence is required (#1445): when the title scores zero, only an in-band duration can carry the match,
+/// so description, proper nouns, subjects, guests and release alone never accept a candidate. Titles carrying
+/// conflicting part or episode numbers (<see cref="EpisodeTitlePartMarkers"/>) score zero. Description and
+/// proper-noun overlap ignore the show's repeated boilerplate when the caller supplies a
+/// <see cref="CatalogueDescriptionBoilerplate"/>, and the description bridge only applies when the YouTube probe is
+/// the shorter side (a clip of longer audio) or a duration is missing.
 /// </summary>
 public static class CatalogueMatchScorer
 {
@@ -131,8 +137,14 @@ public static class CatalogueMatchScorer
         Episode probe,
         Episode catalogueItem,
         CatalogueSubjectScoreFilters? subjectFilters = null,
-        DateTime? youTubePublished = null)
+        DateTime? youTubePublished = null,
+        CatalogueDescriptionBoilerplate? boilerplate = null)
     {
+        if (EpisodeTitlePartMarkers.Conflict(probe.Title, catalogueItem.Title))
+        {
+            return 0;
+        }
+
         var probeHasDuration = probe.Length > TimeSpan.Zero;
         var catalogueHasDuration = catalogueItem.Length > TimeSpan.Zero;
         var durationInBand = false;
@@ -154,7 +166,17 @@ public static class CatalogueMatchScorer
             return 0;
         }
 
-        var descriptionPoints = ScoreDescription(probe.Description, catalogueItem.Description);
+        // Title evidence (#1445): with no title signal, only an in-band duration may carry the match.
+        var titlePoints = ScoreTitle(probe.Title, catalogueItem.Title);
+        if (titlePoints == 0 && !durationInBand)
+        {
+            return 0;
+        }
+
+        boilerplate ??= CatalogueDescriptionBoilerplate.None;
+        var probeDescription = boilerplate.Strip(probe.Description);
+        var catalogueDescription = boilerplate.Strip(catalogueItem.Description);
+        var descriptionPoints = ScoreDescription(probeDescription, catalogueDescription);
         var releasePoints = ScoreRelease(probe.ReleaseUtc, catalogueItem, youTubePublished, durationNearExact);
         if (releasePoints == 0 &&
             descriptionPoints > 0 &&
@@ -175,7 +197,7 @@ public static class CatalogueMatchScorer
         }
 
         score += releasePoints;
-        score += ScoreTitle(probe.Title, catalogueItem.Title);
+        score += titlePoints;
         score += descriptionPoints;
         var sharedGuestNames = SharedCanonicalNames(probe.Guests, catalogueItem.Guests);
         score += ScoreFromSharedNameCount(
@@ -184,9 +206,13 @@ public static class CatalogueMatchScorer
             MultipleSharedGuestPoints);
         // One tip per recognised name: shared guests are not also credited as shared subjects.
         score += ScoreSubjects(probe.Subjects, catalogueItem.Subjects, subjectFilters, sharedGuestNames);
-        score += ScoreProperNouns(probe, catalogueItem, subjectFilters);
+        score += ScoreProperNouns(probe, catalogueItem, probeDescription, catalogueDescription, subjectFilters);
 
-        if (!durationInBand && descriptionPoints > 0 && releasePoints > 0)
+        // Bridge only for a YouTube clip of longer audio (or a missing duration): audio shorter than the video
+        // and out of band is a different episode, not a segment of it (#1445).
+        var probeIsShorterOrDurationMissing =
+            !(probeHasDuration && catalogueHasDuration) || probe.Length < catalogueItem.Length;
+        if (!durationInBand && probeIsShorterOrDurationMissing && descriptionPoints > 0 && releasePoints > 0)
         {
             score += MissingDurationDescriptionBridgePoints;
         }
@@ -198,8 +224,9 @@ public static class CatalogueMatchScorer
         Episode probe,
         Episode catalogueItem,
         CatalogueSubjectScoreFilters? subjectFilters = null,
-        DateTime? youTubePublished = null) =>
-        Score(probe, catalogueItem, subjectFilters, youTubePublished) >= MatchThreshold;
+        DateTime? youTubePublished = null,
+        CatalogueDescriptionBoilerplate? boilerplate = null) =>
+        Score(probe, catalogueItem, subjectFilters, youTubePublished, boilerplate) >= MatchThreshold;
 
     public static int CountSharedSubjects(
         IEnumerable<string>? left,
@@ -225,7 +252,8 @@ public static class CatalogueMatchScorer
         Episode probe,
         IEnumerable<Episode> candidates,
         CatalogueSubjectScoreFilters? subjectFilters = null,
-        DateTime? youTubePublished = null)
+        DateTime? youTubePublished = null,
+        CatalogueDescriptionBoilerplate? boilerplate = null)
     {
         Episode? best = null;
         var bestScore = 0;
@@ -236,7 +264,7 @@ public static class CatalogueMatchScorer
 
         foreach (var candidate in candidates)
         {
-            var score = Score(probe, candidate, subjectFilters, youTubePublished);
+            var score = Score(probe, candidate, subjectFilters, youTubePublished, boilerplate);
             if (score < MatchThreshold)
             {
                 continue;
@@ -484,6 +512,8 @@ public static class CatalogueMatchScorer
     private static int ScoreProperNouns(
         Episode probe,
         Episode catalogueItem,
+        string? probeDescription,
+        string? catalogueDescription,
         CatalogueSubjectScoreFilters? subjectFilters)
     {
         var exclude = FilterSubjectNames(probe.Subjects, subjectFilters)
@@ -491,8 +521,8 @@ public static class CatalogueMatchScorer
             .Concat(CanonicalNames(probe.Guests))
             .Concat(CanonicalNames(catalogueItem.Guests));
         var shared = ProperNounExtractor.Shared(
-            probe.Description,
-            catalogueItem.Description,
+            probeDescription,
+            catalogueDescription,
             exclude);
         return shared.Count switch
         {

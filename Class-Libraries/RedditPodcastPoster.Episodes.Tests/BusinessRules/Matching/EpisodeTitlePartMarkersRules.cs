@@ -1,7 +1,7 @@
 using FluentAssertions;
-using RedditPodcastPoster.UrlSubmission.Matching;
+using RedditPodcastPoster.Episodes.Matching;
 
-namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules;
+namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 
 public class EpisodeTitlePartMarkersRules
 {

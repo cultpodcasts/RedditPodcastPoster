@@ -80,7 +80,29 @@ public class SpotifyEpisodeEnricher(
                 findEpisodeResult.FullEpisode.ReleaseDate);
 
             var catalogueInput = findEpisodeResult.FullEpisode.ToCatalogueInput(htmlSanitiser);
-            ApplyResolvedCandidate(request, spotifyAdapter.Adapt(catalogueInput), enrichmentContext);
+            var betterClaimant = findSpotifyEpisodeRequest.EnrichingYouTubeDiscoveredEpisode
+                ? CatalogueCandidateContention.FindBetterClaimant(
+                    request.Podcast,
+                    request.Episode,
+                    request.Episodes,
+                    CreateSpotifyCandidate(catalogueInput),
+                    x => string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(x)))
+                : null;
+            if (betterClaimant != null)
+            {
+                logger.LogInformation(
+                    "{EnrichName} Spotify episode '{FullEpisodeId}' left for episode-id '{RivalEpisodeId}' with title '{RivalTitle}', which matches it better than episode-id '{EpisodeId}' with title '{Title}'.",
+                    nameof(Enrich),
+                    catalogueInput.SpotifyId,
+                    betterClaimant.Id,
+                    betterClaimant.Title,
+                    request.Episode.Id,
+                    request.Episode.Title);
+            }
+            else
+            {
+                ApplyResolvedCandidate(request, spotifyAdapter.Adapt(catalogueInput), enrichmentContext);
+            }
         }
         else if (findEpisodeResult.FullEpisode == null)
         {
@@ -100,6 +122,19 @@ public class SpotifyEpisodeEnricher(
         }
 
         enrichmentSideEffect.OnFindComplete(request.Podcast, findEpisodeResult.IsExpensiveQuery);
+    }
+
+    private static Episode CreateSpotifyCandidate(SpotifyCatalogueInput spotify)
+    {
+        var candidate = new Episode
+        {
+            Title = spotify.Title,
+            Description = spotify.Description,
+            Length = spotify.Duration,
+            ReleaseUtc = spotify.Release
+        };
+        EpisodeServicePresence.SetSpotifyIdentity(candidate, spotify.SpotifyId);
+        return candidate;
     }
 
     private static Episode CreateSpotifyCandidate(SimpleEpisode spotify)
