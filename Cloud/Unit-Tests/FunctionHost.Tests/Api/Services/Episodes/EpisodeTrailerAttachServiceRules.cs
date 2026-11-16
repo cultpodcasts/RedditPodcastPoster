@@ -51,6 +51,8 @@ public class EpisodeTrailerAttachServiceRules
     private readonly List<Film> _createdFilms = [];
     private int _createAttempts;
     // Barriers: hold the first arriving call until the second arrives, so two attaches overlap at that step.
+    // Waits time out so a missed signal fails the test instead of hanging the job.
+    private static readonly TimeSpan GateTimeout = TimeSpan.FromSeconds(10);
     private TaskCompletionSource? _createGate;
     private int _createArrivals;
     private TaskCompletionSource? _nameLookupGate;
@@ -215,7 +217,7 @@ public class EpisodeTrailerAttachServiceRules
                     _nameLookupGate.TrySetResult();
                 }
 
-                await _nameLookupGate.Task;
+                await _nameLookupGate.Task.WaitAsync(GateTimeout);
             }
             else if (arrival == 3)
             {
@@ -223,7 +225,7 @@ public class EpisodeTrailerAttachServiceRules
             }
             else
             {
-                await _filmCreated.Task;
+                await _filmCreated.Task.WaitAsync(GateTimeout);
                 matches = SnapshotByName(selector);
             }
         }
@@ -266,7 +268,7 @@ public class EpisodeTrailerAttachServiceRules
             gate.TrySetResult();
         }
 
-        return gate.Task;
+        return gate.Task.WaitAsync(GateTimeout);
     }
 
     private Film? Stored(Guid id)
@@ -1327,43 +1329,66 @@ public class EpisodeTrailerAttachServiceRules
     /// <summary>
     /// LookUps claims like Cosmos: a create fails when the id exists, a takeover must match the version it read.
     /// <see cref="Gate"/> holds the first claimer until the second arrives, so both have passed every check.
+    /// The check-and-write in <see cref="TryClaim"/> and the etag compare-and-write in <see cref="TryTakeOver"/>
+    /// are one critical section, as Cosmos's claim write is an atomic create-if-absent.
     /// </summary>
     private sealed class InMemoryTrailerClaims : IFilmTrailerClaimStore
     {
         private readonly Dictionary<Guid, (FilmTrailerClaim Claim, int Version)> _claims = [];
+        private readonly object _claimsLock = new();
         private int _arrivals;
 
         public TaskCompletionSource? Gate { get; set; }
 
-        public void Seed(Guid episodeId, Guid filmId, DateTime claimedUtc) =>
-            _claims[episodeId] = (new FilmTrailerClaim { EpisodeId = episodeId, FilmId = filmId, ClaimedUtc = claimedUtc }, 1);
+        public void Seed(Guid episodeId, Guid filmId, DateTime claimedUtc)
+        {
+            lock (_claimsLock)
+            {
+                SeedUnlocked(episodeId, filmId, claimedUtc);
+            }
+        }
 
-        public Guid? Owner(Guid episodeId) => _claims.TryGetValue(episodeId, out var held) ? held.Claim.FilmId : null;
+        public Guid? Owner(Guid episodeId)
+        {
+            lock (_claimsLock)
+            {
+                return _claims.TryGetValue(episodeId, out var held) ? held.Claim.FilmId : null;
+            }
+        }
 
         public async Task<FilmTrailerClaimAttempt> TryClaim(Guid episodeId, Guid filmId, DateTime nowUtc)
         {
             await Arrive(Gate, ref _arrivals);
-            if (!_claims.TryGetValue(episodeId, out var held))
+            lock (_claimsLock)
             {
-                Seed(episodeId, filmId, nowUtc);
-                return new FilmTrailerClaimAttempt(true);
-            }
+                if (!_claims.TryGetValue(episodeId, out var held))
+                {
+                    SeedUnlocked(episodeId, filmId, nowUtc);
+                    return new FilmTrailerClaimAttempt(true);
+                }
 
-            return held.Claim.FilmId == filmId
-                ? new FilmTrailerClaimAttempt(true)
-                : new FilmTrailerClaimAttempt(false, held.Claim, held.Version.ToString());
+                return held.Claim.FilmId == filmId
+                    ? new FilmTrailerClaimAttempt(true)
+                    : new FilmTrailerClaimAttempt(false, held.Claim, held.Version.ToString());
+            }
         }
 
         public Task<bool> TryTakeOver(Guid episodeId, Guid filmId, DateTime nowUtc, string holderETag)
         {
-            if (!_claims.TryGetValue(episodeId, out var held) || held.Version.ToString() != holderETag)
+            lock (_claimsLock)
             {
-                return Task.FromResult(false);
-            }
+                if (!_claims.TryGetValue(episodeId, out var held) || held.Version.ToString() != holderETag)
+                {
+                    return Task.FromResult(false);
+                }
 
-            _claims[episodeId] = (new FilmTrailerClaim { EpisodeId = episodeId, FilmId = filmId, ClaimedUtc = nowUtc },
-                held.Version + 1);
-            return Task.FromResult(true);
+                _claims[episodeId] = (new FilmTrailerClaim { EpisodeId = episodeId, FilmId = filmId, ClaimedUtc = nowUtc },
+                    held.Version + 1);
+                return Task.FromResult(true);
+            }
         }
+
+        private void SeedUnlocked(Guid episodeId, Guid filmId, DateTime claimedUtc) =>
+            _claims[episodeId] = (new FilmTrailerClaim { EpisodeId = episodeId, FilmId = filmId, ClaimedUtc = claimedUtc }, 1);
     }
 }
