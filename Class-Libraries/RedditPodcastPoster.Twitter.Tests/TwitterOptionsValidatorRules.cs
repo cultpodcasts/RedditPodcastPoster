@@ -200,6 +200,72 @@ public class TwitterOptionsValidatorRules
     }
 
     [Fact(DisplayName =
+        "When MaxPosts is at the inclusive upper bound, validation succeeds, because that value is still a safe cap.")]
+    public void max_posts_at_upper_bound_succeeds()
+    {
+        // Arrange
+        var options = CreateValidOAuth1Options();
+        options.MaxPosts = TwitterOptions.MaxPostsLimit;
+
+        // Act
+        var result = _sut.Validate(null, options);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When MaxPosts is above the upper bound, validation fails with the MaxPosts config key, because a typo must not spend a run of credits.")]
+    public void max_posts_above_upper_bound_fails()
+    {
+        // Arrange
+        var options = CreateValidOAuth1Options();
+        options.MaxPosts = TwitterOptions.MaxPostsLimit + 1;
+
+        // Act
+        var result = _sut.Validate(null, options);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f =>
+            f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.MaxPosts)}") &&
+            f.Contains(TwitterOptions.MaxPostsLimit.ToString()));
+    }
+
+    [Fact(DisplayName =
+        "When MaxFailures is at the inclusive upper bound, validation succeeds.")]
+    public void max_failures_at_upper_bound_succeeds()
+    {
+        // Arrange
+        var options = CreateValidOAuth1Options();
+        options.MaxFailures = TwitterOptions.MaxFailuresLimit;
+
+        // Act
+        var result = _sut.Validate(null, options);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When MaxFailures is above the upper bound, validation fails with the MaxFailures config key.")]
+    public void max_failures_above_upper_bound_fails()
+    {
+        // Arrange
+        var options = CreateValidOAuth1Options();
+        options.MaxFailures = TwitterOptions.MaxFailuresLimit + 1;
+
+        // Act
+        var result = _sut.Validate(null, options);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f =>
+            f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.MaxFailures)}") &&
+            f.Contains(TwitterOptions.MaxFailuresLimit.ToString()));
+    }
+
+    [Fact(DisplayName =
         "When RequestTimeoutSeconds is not positive, validation fails with the RequestTimeoutSeconds config key.")]
     public void request_timeout_must_be_positive()
     {

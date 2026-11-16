@@ -260,4 +260,30 @@ public class TweeterMaxPostsRules
         VerifyPosted(second, Times.Never());
         _mocker.GetMock<ICataloguePlayableSocialPosts>().Verify(x => x.GetUntweeted(), Times.Never);
     }
+
+    [Theory(DisplayName =
+        "When MaxPosts and MaxFailures are both 1 and the first candidate is already resolved as Untweetable or DuplicateForbidden, then the next candidate is still tweeted and a later one is not, because a skip spends neither budget.")]
+    [InlineData(TweetSendStatus.Untweetable)]
+    [InlineData(TweetSendStatus.DuplicateForbidden)]
+    public async Task resolved_skips_do_not_count_as_failures(TweetSendStatus status)
+    {
+        // Arrange
+        UseOptions(maxPosts: 1, maxFailures: 1);
+        var first = CreatePodcastEpisode();
+        var second = CreatePodcastEpisode();
+        var third = CreatePodcastEpisode();
+        SetupPodcasts(first, second, third);
+        PosterReturns(first, status);
+        PosterReturns(second, TweetSendStatus.Sent);
+        PosterReturns(third, TweetSendStatus.Sent);
+        var sut = _mocker.CreateInstance<Tweeter>();
+
+        // Act
+        await sut.Tweet(youTubeRefreshed: true, spotifyRefreshed: true);
+
+        // Assert
+        VerifyPosted(first, Times.Once());
+        VerifyPosted(second, Times.Once());
+        VerifyPosted(third, Times.Never());
+    }
 }
