@@ -4,7 +4,7 @@ using RedditPodcastPoster.Models.Podcasts;
 namespace RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 public record ResolvedNonPodcastServiceItem(
-    StreamingService StreamingService,
+    StreamingService? StreamingService = null,
     Podcast? Podcast = null,
     Episode? Episode = null,
     Uri? Url = null,
@@ -20,6 +20,6 @@ public record ResolvedNonPodcastServiceItem(
 )
 {
     public bool Explicit => KnownExplicit ?? false;
-    public Uri? BBCUrl => StreamingServiceWire.IsBbc(StreamingService) ? Url : null;
-    public Uri? InternetArchiveUrl => StreamingService == StreamingService.InternetArchive ? Url : null;
+    public Uri? BBCUrl => StreamingService is { } known && StreamingServiceWire.IsBbc(known) ? Url : null;
+    public Uri? InternetArchiveUrl => StreamingService is RedditPodcastPoster.Models.Podcasts.StreamingService.InternetArchive ? Url : null;
 }

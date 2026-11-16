@@ -56,7 +56,8 @@ public class DiscoveryResultProcessor(
             };
         }
 
-        if (submitOptions.ClassificationSignals is { } signals)
+        if (submitOptions is { KindChoice: DiscoveryKindChoice.Select, SelectedKindKey: { Length: > 0 } } &&
+            submitOptions.ClassificationSignals is { } signals)
         {
             var classified = SubmitContentClassifier.Classify(signals);
             if (classified.ContentKind is SubmitClassification.Film

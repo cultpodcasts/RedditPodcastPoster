@@ -43,7 +43,7 @@ public static class DiscoveryResolvedItemFactory
                       (discoveryResult.Released == default ? null : discoveryResult.Released);
 
         return new ResolvedNonPodcastServiceItem(
-            StreamingService.Vimeo,
+            StreamingService: null,
             Url: null,
             Title: title,
             Description: description,

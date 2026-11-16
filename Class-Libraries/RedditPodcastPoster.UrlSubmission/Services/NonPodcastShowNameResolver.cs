@@ -13,7 +13,7 @@ public static class NonPodcastShowNameResolver
     public static string? TrySeriesName(
         string? showName,
         string? publisher,
-        StreamingService service)
+        StreamingService? service)
     {
         if (!string.IsNullOrWhiteSpace(showName))
         {
@@ -48,12 +48,17 @@ public static class NonPodcastShowNameResolver
         ?? item.Title
         ?? string.Empty;
 
-    private static bool UsesAuthorAsSeries(StreamingService service) =>
+    private static bool UsesAuthorAsSeries(StreamingService? service) =>
         service is StreamingService.Vimeo or StreamingService.BcVideo;
 
-    private static bool IsCatalogDisplayName(StreamingService service, string name)
+    private static bool IsCatalogDisplayName(StreamingService? service, string name)
     {
-        var key = StreamingServiceWire.ToKey(service);
+        if (service is not { } known)
+        {
+            return false;
+        }
+
+        var key = StreamingServiceWire.ToKey(known);
         return StreamingServiceCatalog.TryGet(key, out var descriptor)
             && string.Equals(name, descriptor.DisplayName, StringComparison.OrdinalIgnoreCase);
     }
