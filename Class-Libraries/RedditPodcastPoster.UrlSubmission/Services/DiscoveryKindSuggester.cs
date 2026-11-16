@@ -343,11 +343,65 @@ public sealed class DiscoveryKindSuggester(
         return StripTrailingYear(normalised);
     }
 
+    /// <summary>
+    /// Titles agree when the folded forms are equal, or when the shorter is a word-bounded run inside
+    /// the longer and is at least <see cref="MinWordBoundedTitleLength"/> characters. Folding is
+    /// case-insensitive and strips punctuation. A short title such as "Cult" only matches that exact title.
+    /// </summary>
+    internal const int MinWordBoundedTitleLength = 8;
+
     internal static bool TitlesAgree(string? query, string? hitName)
     {
-        var left = TitleQuery(query);
-        var right = TitleQuery(hitName);
-        return left != null && right != null && EpisodeTitleMatch.EqualsOrContains(left, right);
+        var left = FoldTitle(TitleQuery(query));
+        var right = FoldTitle(TitleQuery(hitName));
+        if (left.Length == 0 || right.Length == 0)
+        {
+            return false;
+        }
+
+        if (left == right)
+        {
+            return true;
+        }
+
+        var shorter = left.Length <= right.Length ? left : right;
+        var longer = left.Length <= right.Length ? right : left;
+        if (shorter.Length < MinWordBoundedTitleLength)
+        {
+            return false;
+        }
+
+        return $" {longer} ".Contains($" {shorter} ", StringComparison.Ordinal);
+    }
+
+    internal static string FoldTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return string.Empty;
+        }
+
+        var builder = new System.Text.StringBuilder(title.Length);
+        var pendingSpace = false;
+        foreach (var ch in title)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                if (pendingSpace && builder.Length > 0)
+                {
+                    builder.Append(' ');
+                }
+
+                builder.Append(char.ToLowerInvariant(ch));
+                pendingSpace = false;
+            }
+            else
+            {
+                pendingSpace = true;
+            }
+        }
+
+        return builder.ToString();
     }
 
     private static string StripTrailingYear(string title)

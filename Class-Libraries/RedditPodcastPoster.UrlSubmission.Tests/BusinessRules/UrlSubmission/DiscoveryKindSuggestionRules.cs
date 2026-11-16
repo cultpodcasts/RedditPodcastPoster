@@ -224,6 +224,46 @@ public class DiscoveryKindSuggesterRules
         hold.Candidates.Should().ContainSingle(c => c.Key == DiscoveryKindKeys.TvShow(show.Id));
     }
 
+
+    [Theory(DisplayName =
+        "TitlesAgree uses folded equality, or a word-bounded run of at least eight characters, so a short title such as Cult only matches that exact title.")]
+    [InlineData("Father's House (2024)", "Father's House", true)]
+    [InlineData("Night Film", "night-film", true)]
+    [InlineData("Cult", "Cult", true)]
+    [InlineData("The Cult of Personality", "Cult", false)]
+    [InlineData("Most titles mention a cult following", "Cult", false)]
+    [InlineData("A later Dateline NBC exclusive", "Dateline NBC", true)]
+    [InlineData("Documentary", "menta", false)]
+    public void titles_agree_uses_folded_equality_or_word_bounded_minimum(string left, string right, bool expected)
+    {
+        // Arrange
+        // Act
+        var agrees = DiscoveryKindSuggester.TitlesAgree(left, right);
+
+        // Assert
+        agrees.Should().Be(expected);
+    }
+
+    [Fact(DisplayName =
+        "SuggestAsync does not offer a TV show named Cult for an unrelated episode title, because a short title must not match most titles.")]
+    public async Task short_tv_show_name_cult_is_not_suggested_for_unrelated_titles()
+    {
+        // Arrange
+        var mocker = SetupUnmapped(out _, out var films, out var shows, out var orgs, out _);
+        var show = new TvShow("Cult") { Id = Guid.NewGuid() };
+        films.Setup(x => x.GetAll()).Returns(AsyncEmpty<Film>());
+        shows.Setup(x => x.GetAll()).Returns(new[] { show }.ToAsyncEnumerable());
+        orgs.Setup(x => x.GetAll()).Returns(AsyncEmpty<NewsOrganisation>());
+        var suggester = mocker.CreateInstance<DiscoveryKindSuggester>();
+        var result = UnmappedResult("The Cult of Personality", TimeSpan.FromMinutes(42), showName: "A weekly recap");
+
+        // Act
+        var hold = await suggester.SuggestAsync(result);
+
+        // Assert
+        hold.Should().BeNull();
+    }
+
     [Fact(DisplayName =
         "DurationAgrees uses the catalogue duration band, so a five-minute gap still matches and a much shorter cut does not.")]
     public void duration_agrees_uses_the_catalogue_band()
