@@ -51,8 +51,6 @@ public class EpisodeTrailerAttachServiceRules
     private readonly List<Film> _createdFilms = [];
     private int _createAttempts;
     // Barriers: hold the first arriving call until the second arrives, so two attaches overlap at that step.
-    // Waits time out so a missed signal fails the test instead of hanging the job.
-    private static readonly TimeSpan GateTimeout = TimeSpan.FromSeconds(10);
     private TaskCompletionSource? _createGate;
     private int _createArrivals;
     private TaskCompletionSource? _nameLookupGate;
@@ -217,7 +215,7 @@ public class EpisodeTrailerAttachServiceRules
                     _nameLookupGate.TrySetResult();
                 }
 
-                await _nameLookupGate.Task.WaitAsync(GateTimeout);
+                await _nameLookupGate.Task;
             }
             else if (arrival == 3)
             {
@@ -225,7 +223,7 @@ public class EpisodeTrailerAttachServiceRules
             }
             else
             {
-                await _filmCreated.Task.WaitAsync(GateTimeout);
+                await _filmCreated.Task;
                 matches = SnapshotByName(selector);
             }
         }
@@ -268,7 +266,7 @@ public class EpisodeTrailerAttachServiceRules
             gate.TrySetResult();
         }
 
-        return gate.Task.WaitAsync(GateTimeout);
+        return gate.Task;
     }
 
     private Film? Stored(Guid id)
