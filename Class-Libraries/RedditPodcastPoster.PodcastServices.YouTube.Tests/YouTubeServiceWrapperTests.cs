@@ -105,12 +105,13 @@ public class YouTubeServiceWrapperTests
     {
         // Arrange
         var services = new ServiceCollection();
-        services.AddSingleton(CreateCliWrapper());
-        var provider = services.BuildServiceProvider();
-        _ = provider.GetRequiredService<YouTubeServiceWrapper>();
+        services.AddScoped(_ => CreateCliWrapper());
+        using var provider = services.BuildServiceProvider();
+        var scope = provider.CreateScope();
+        _ = scope.ServiceProvider.GetRequiredService<YouTubeServiceWrapper>();
 
         // Act
-        var act = () => provider.Dispose();
+        var act = () => scope.Dispose();
 
         // Assert
         act.Should().NotThrow();

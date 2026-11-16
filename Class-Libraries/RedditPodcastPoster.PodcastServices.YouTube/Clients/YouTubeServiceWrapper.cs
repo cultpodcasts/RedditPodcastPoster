@@ -1,4 +1,4 @@
-using Google.Apis.Services;
+﻿using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.PodcastServices.YouTube.Configuration;
@@ -85,7 +85,6 @@ public class YouTubeServiceWrapper(
             });
         _applicationWrapper = application;
     }
-
 
     public void Dispose()
     {
