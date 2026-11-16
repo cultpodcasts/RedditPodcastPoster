@@ -150,6 +150,56 @@ public class TwitterOptionsValidatorRules
     }
 
     [Fact(DisplayName =
+        "When TwitterOptions is constructed without setting MaxPosts or MaxFailures, MaxPosts is 1 and MaxFailures is 5, because unset hosts keep the historical one-tweet-per-run cadence and Bluesky's failure budget.")]
+    public void default_max_posts_is_one_and_max_failures_is_five()
+    {
+        // Arrange
+        var options = new TwitterOptions();
+
+        // Act
+        var maxPosts = options.MaxPosts;
+        var maxFailures = options.MaxFailures;
+
+        // Assert
+        maxPosts.Should().Be(1);
+        maxFailures.Should().Be(5);
+    }
+
+    [Fact(DisplayName =
+        "When MaxPosts is not positive, validation fails with the MaxPosts config key.")]
+    public void max_posts_must_be_positive()
+    {
+        // Arrange
+        var options = CreateValidOAuth1Options();
+        options.MaxPosts = 0;
+
+        // Act
+        var result = _sut.Validate(null, options);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f =>
+            f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.MaxPosts)}"));
+    }
+
+    [Fact(DisplayName =
+        "When MaxFailures is not positive, validation fails with the MaxFailures config key.")]
+    public void max_failures_must_be_positive()
+    {
+        // Arrange
+        var options = CreateValidOAuth1Options();
+        options.MaxFailures = 0;
+
+        // Act
+        var result = _sut.Validate(null, options);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(f =>
+            f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.MaxFailures)}"));
+    }
+
+    [Fact(DisplayName =
         "When RequestTimeoutSeconds is not positive, validation fails with the RequestTimeoutSeconds config key.")]
     public void request_timeout_must_be_positive()
     {
