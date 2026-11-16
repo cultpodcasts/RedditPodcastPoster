@@ -308,6 +308,27 @@ public class SubmitYouTubeAudioEpisodeMatchRules
     }
 
     [Fact(DisplayName =
+        "When the submitted title only adds a year suffix to the stored title (Part 2 (2024) vs Part 2), " +
+        "the stored episode still matches, because a year is not a part number.")]
+    public void year_suffix_does_not_block_contains_match()
+    {
+        // Arrange
+        var stem = _fixture.CreateTitle();
+        var storedTitle = stem + " Part 2";
+        var submittedTitle = storedTitle + " (2024)";
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            _podcast, _audioRelease.AddDays(-10), YouTubeLength, storedTitle);
+        var item = SpotifySubmit(submittedTitle, _audioRelease, AudioLength);
+
+        // Act
+        var result = Sut.IsMatchingEpisode(stored, item);
+
+        // Assert
+        EpisodeTitlePartMarkers.Conflict(submittedTitle, storedTitle).Should().BeFalse();
+        result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "When a secondary Apple id resolved for a Spotify submit is on a stored episode with an unrelated title " +
         "but the same day and the same duration, that episode does not match, because a secondary id hit " +
         "needs title evidence and release and duration alone are not enough.")]
