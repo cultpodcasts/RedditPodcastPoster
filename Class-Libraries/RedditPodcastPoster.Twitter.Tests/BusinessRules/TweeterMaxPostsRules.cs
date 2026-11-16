@@ -262,18 +262,20 @@ public class TweeterMaxPostsRules
     }
 
     [Theory(DisplayName =
-        "When MaxFailures is 1 and the first candidate is already resolved as Untweetable or DuplicateForbidden, then the next candidate is still tweeted, because those statuses are skips and do not spend the failure budget.")]
+        "When MaxPosts and MaxFailures are both 1 and the first candidate is already resolved as Untweetable or DuplicateForbidden, then the next candidate is still tweeted and a later one is not, because a skip spends neither budget.")]
     [InlineData(TweetSendStatus.Untweetable)]
     [InlineData(TweetSendStatus.DuplicateForbidden)]
     public async Task resolved_skips_do_not_count_as_failures(TweetSendStatus status)
     {
         // Arrange
-        UseOptions(maxPosts: 2, maxFailures: 1);
+        UseOptions(maxPosts: 1, maxFailures: 1);
         var first = CreatePodcastEpisode();
         var second = CreatePodcastEpisode();
-        SetupPodcasts(first, second);
+        var third = CreatePodcastEpisode();
+        SetupPodcasts(first, second, third);
         PosterReturns(first, status);
         PosterReturns(second, TweetSendStatus.Sent);
+        PosterReturns(third, TweetSendStatus.Sent);
         var sut = _mocker.CreateInstance<Tweeter>();
 
         // Act
@@ -282,5 +284,6 @@ public class TweeterMaxPostsRules
         // Assert
         VerifyPosted(first, Times.Once());
         VerifyPosted(second, Times.Once());
+        VerifyPosted(third, Times.Never());
     }
 }
