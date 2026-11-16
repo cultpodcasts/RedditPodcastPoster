@@ -1340,13 +1340,8 @@ public class EpisodeTrailerAttachServiceRules
 
         public TaskCompletionSource? Gate { get; set; }
 
-        public void Seed(Guid episodeId, Guid filmId, DateTime claimedUtc)
-        {
-            lock (_claimsLock)
-            {
-                SeedUnlocked(episodeId, filmId, claimedUtc);
-            }
-        }
+        public void Seed(Guid episodeId, Guid filmId, DateTime claimedUtc) =>
+            SeedWithLock(episodeId, filmId, claimedUtc);
 
         public Guid? Owner(Guid episodeId)
         {
@@ -1385,6 +1380,14 @@ public class EpisodeTrailerAttachServiceRules
                 _claims[episodeId] = (new FilmTrailerClaim { EpisodeId = episodeId, FilmId = filmId, ClaimedUtc = nowUtc },
                     held.Version + 1);
                 return Task.FromResult(true);
+            }
+        }
+
+        private void SeedWithLock(Guid episodeId, Guid filmId, DateTime claimedUtc)
+        {
+            lock (_claimsLock)
+            {
+                SeedUnlocked(episodeId, filmId, claimedUtc);
             }
         }
 
