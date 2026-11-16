@@ -27,7 +27,7 @@ public class SubmitContentClassifierFromDiscoveryRules
     public void from_discovery_maps_a_catalogue_film()
     {
         // Arrange
-        var filmId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        var filmId = Guid.NewGuid();
 
         // Act
         var result = SubmitContentClassifier.FromDiscovery(YouTubeUrl, DiscoveryKindKeys.Film(filmId));
@@ -44,7 +44,7 @@ public class SubmitContentClassifierFromDiscoveryRules
     public void from_discovery_maps_a_tv_show()
     {
         // Arrange
-        var showId = Guid.Parse("11111111-2222-3333-4444-555555555555");
+        var showId = Guid.NewGuid();
 
         // Act
         var result = SubmitContentClassifier.FromDiscovery(YouTubeUrl, DiscoveryKindKeys.TvShow(showId));
@@ -60,8 +60,8 @@ public class SubmitContentClassifierFromDiscoveryRules
     public void from_discovery_maps_a_news_report()
     {
         // Arrange
-        var orgId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-        var reportId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        var orgId = Guid.NewGuid();
+        var reportId = Guid.NewGuid();
 
         // Act
         var result = SubmitContentClassifier.FromDiscovery(YouTubeUrl, DiscoveryKindKeys.NewsReport(orgId, reportId));
