@@ -41,6 +41,20 @@ public class TwitterOptions
     /// </summary>
     public bool ShortUrlOnlyWhenShareImage { get; set; }
     public long TwitterId { get; set; }
+
+    /// <summary>
+    /// Maximum tweets sent in one run. Podcast episodes are posted first; TV, news and film items
+    /// fill any remaining slots. Defaults to 1, which is the historical one-tweet-per-run cadence.
+    /// Production Functions set this with <c>twitter__MaxPosts</c>.
+    /// </summary>
+    public int MaxPosts { get; set; } = 1;
+
+    /// <summary>
+    /// Maximum unsuccessful posts in one run before the run stops. Run-wide X refusals
+    /// (rate limit, depleted credits, rejected credentials) stop the run immediately and
+    /// do not use this budget. Defaults to 5, matching Bluesky.
+    /// </summary>
+    public int MaxFailures { get; set; } = 5;
 }
 
 public enum TwitterAuthMode
