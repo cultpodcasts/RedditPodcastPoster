@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Threading;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -54,6 +55,9 @@ public class EpisodeTrailerAttachServiceRules
     private int _createArrivals;
     private TaskCompletionSource? _nameLookupGate;
     private int _nameLookupArrivals;
+    // Signalled when TryCreate first stores a film, so the lagging name check can see it.
+    private readonly TaskCompletionSource _filmCreated = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly object _filmsLock = new();
     private Action<Film>? _afterCreate;
     private readonly InMemoryTrailerClaims _claims = new();
     private int _filmDeletes;
@@ -78,17 +82,19 @@ public class EpisodeTrailerAttachServiceRules
             });
         films
             .Setup(r => r.GetFilmForUpdate(It.IsAny<Guid>()))
-            .ReturnsAsync((Guid id) => Stored(id) is { } film
-                ? new FilmVersion(film, _films[id].Version.ToString())
-                : null);
+            .ReturnsAsync((Guid id) =>
+            {
+                lock (_filmsLock)
+                {
+                    return StoredUnlocked(id) is { } film
+                        ? new FilmVersion(film, _films[id].Version.ToString())
+                        : null;
+                }
+            });
         films
             .Setup(r => r.GetFilmIdsByTrailerId(It.IsAny<Guid>()))
             .ReturnsAsync((Guid trailerId) =>
-                (IReadOnlyList<Guid>)_films.Keys
-                    .Select(Stored)
-                    .Where(film => film?.HasTrailer(trailerId) == true)
-                    .Select(film => film!.Id)
-                    .ToArray());
+                (IReadOnlyList<Guid>)SnapshotTrailerIds(trailerId));
         films
             .Setup(r => r.TryReplace(It.IsAny<Film>(), It.IsAny<string>()))
             .ReturnsAsync((Film film, string etag) =>
@@ -96,14 +102,17 @@ public class EpisodeTrailerAttachServiceRules
                 var hook = _beforeReplace;
                 _beforeReplace = null;
                 hook?.Invoke();
-                if (!_films.TryGetValue(film.Id, out var stored) || stored.Version.ToString() != etag)
+                lock (_filmsLock)
                 {
-                    return false;
-                }
+                    if (!_films.TryGetValue(film.Id, out var stored) || stored.Version.ToString() != etag)
+                    {
+                        return false;
+                    }
 
-                _filmSaves++;
-                _films[film.Id] = (JsonSerializer.Serialize(film), stored.Version + 1);
-                return true;
+                    _filmSaves++;
+                    _films[film.Id] = (JsonSerializer.Serialize(film), stored.Version + 1);
+                    return true;
+                }
             });
         films
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
@@ -115,8 +124,11 @@ public class EpisodeTrailerAttachServiceRules
             .Setup(r => r.Delete(It.IsAny<Guid>()))
             .Callback<Guid>(id =>
             {
-                _filmDeletes++;
-                _films.Remove(id);
+                lock (_filmsLock)
+                {
+                    _filmDeletes++;
+                    _films.Remove(id);
+                }
             })
             .Returns(Task.CompletedTask);
         _mocker.GetMock<IFileKeyAllocator>()
@@ -150,34 +162,95 @@ public class EpisodeTrailerAttachServiceRules
     {
         var film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         configure?.Invoke(film);
-        _films[film.Id] = (JsonSerializer.Serialize(film), 1);
+        lock (_filmsLock)
+        {
+            _films[film.Id] = (JsonSerializer.Serialize(film), 1);
+        }
         return film;
     }
 
-    /// <summary>Cosmos create: false when a document already has the id. Waits at <see cref="_createGate"/> when set.</summary>
+    /// <summary>Cosmos create: false when a document already has the id. Waits at <see cref="_createGate"/> when set. The id check and write are one critical section, as Cosmos conditional create is atomic.</summary>
     private async Task<bool> TryCreate(Film film)
     {
-        _createAttempts++;
+        Interlocked.Increment(ref _createAttempts);
         await Arrive(_createGate, ref _createArrivals);
-        if (_films.ContainsKey(film.Id))
+        lock (_filmsLock)
         {
-            return false;
+            if (_films.ContainsKey(film.Id))
+            {
+                return false;
+            }
+
+            _createdFilms.Add(film);
+            _films[film.Id] = (JsonSerializer.Serialize(film), 1);
         }
 
-        _createdFilms.Add(film);
-        _films[film.Id] = (JsonSerializer.Serialize(film), 1);
+        _filmCreated.TrySetResult();
         _afterCreate?.Invoke(film);
         return true;
     }
 
-    /// <summary>The query result is taken on arrival (before any barrier), as a Cosmos query already in flight.</summary>
+    /// <summary>
+    /// Name lookups used by createFilm. When <see cref="_nameLookupGate"/> is set, the first two callers are the
+    /// in-flight <c>FindByName</c> queries: their result is taken on arrival (before the barrier), as a Cosmos query
+    /// already in flight. The third is the first <c>PrepareNewFilm</c> name check and is released immediately so that
+    /// call can create the film. Later name checks wait until that create lands, then read, which is the window this
+    /// test is for: a film appearing between one call's name query and its name check.
+    /// </summary>
     private async IAsyncEnumerable<Film> NameLookup(Expression<Func<Film, bool>> selector)
     {
-        var matches = _films.Keys.Select(id => Stored(id)!).Where(selector.Compile()).ToArray();
-        await Arrive(_nameLookupGate, ref _nameLookupArrivals);
+        Film[] matches;
+        if (_nameLookupGate is null)
+        {
+            matches = SnapshotByName(selector);
+        }
+        else
+        {
+            var arrival = Interlocked.Increment(ref _nameLookupArrivals);
+            if (arrival <= 2)
+            {
+                matches = SnapshotByName(selector);
+                if (arrival == 2)
+                {
+                    _nameLookupGate.TrySetResult();
+                }
+
+                await _nameLookupGate.Task;
+            }
+            else if (arrival == 3)
+            {
+                matches = SnapshotByName(selector);
+            }
+            else
+            {
+                await _filmCreated.Task;
+                matches = SnapshotByName(selector);
+            }
+        }
+
         foreach (var film in matches)
         {
             yield return film;
+        }
+    }
+
+    private Film[] SnapshotByName(Expression<Func<Film, bool>> selector)
+    {
+        lock (_filmsLock)
+        {
+            return _films.Keys.Select(id => StoredUnlocked(id)!).Where(selector.Compile()).ToArray();
+        }
+    }
+
+    private Guid[] SnapshotTrailerIds(Guid trailerId)
+    {
+        lock (_filmsLock)
+        {
+            return _films.Keys
+                .Select(StoredUnlocked)
+                .Where(film => film?.HasTrailer(trailerId) == true)
+                .Select(film => film!.Id)
+                .ToArray();
         }
     }
 
@@ -188,7 +261,7 @@ public class EpisodeTrailerAttachServiceRules
             return Task.CompletedTask;
         }
 
-        if (++arrivals == 2)
+        if (Interlocked.Increment(ref arrivals) == 2)
         {
             gate.TrySetResult();
         }
@@ -196,15 +269,26 @@ public class EpisodeTrailerAttachServiceRules
         return gate.Task;
     }
 
-    private Film? Stored(Guid id) =>
+    private Film? Stored(Guid id)
+    {
+        lock (_filmsLock)
+        {
+            return StoredUnlocked(id);
+        }
+    }
+
+    private Film? StoredUnlocked(Guid id) =>
         _films.TryGetValue(id, out var stored) ? JsonSerializer.Deserialize<Film>(stored.Json) : null;
 
     /// <summary>Another writer saves the film (unconditionally, as a plain upsert does).</summary>
     private void WriteConcurrently(Guid filmId, Action<Film> change)
     {
-        var film = Stored(filmId)!;
-        change(film);
-        _films[filmId] = (JsonSerializer.Serialize(film), _films[filmId].Version + 1);
+        lock (_filmsLock)
+        {
+            var film = StoredUnlocked(filmId)!;
+            change(film);
+            _films[filmId] = (JsonSerializer.Serialize(film), _films[filmId].Version + 1);
+        }
     }
 
     private FilmTrailer CreateTrailer() => new()
