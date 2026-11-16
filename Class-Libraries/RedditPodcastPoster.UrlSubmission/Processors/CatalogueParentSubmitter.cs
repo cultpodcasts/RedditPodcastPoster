@@ -11,6 +11,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Languages;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Processors;
@@ -113,6 +114,13 @@ public class CatalogueParentSubmitter(
                     ContentKind: parent.ContentKind,
                     DefaultLanguageFromDetection: admission.SetsDefaultLanguage);
             }
+        }
+
+        if (submitOptions.TargetNewsReportId is Guid targetReportId &&
+            parent.Kind == CatalogueParentKind.NewsOrganisation)
+        {
+            return await AttachToTargetedNewsReport(
+                parent, transient, categorisedItem, targetReportId, submitOptions);
         }
 
         var processed = await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem);
@@ -265,6 +273,97 @@ public class CatalogueParentSubmitter(
         }
         target.Subjects = [.. merged.Subjects];
         target.Guests = merged.Guests is null ? null : [.. merged.Guests];
+    }
+
+    private async Task<SubmitResult> AttachToTargetedNewsReport(
+        CatalogueParentMatch parent,
+        Podcast transient,
+        CategorisedItem categorisedItem,
+        Guid reportId,
+        SubmitOptions submitOptions)
+    {
+        var organisationId = parent.Parent.Id;
+        var version = await newsReports.GetNewsReportWithETag(organisationId, reportId);
+        if (version == null)
+        {
+            throw new InvalidOperationException(
+                $"No news report '{reportId}' exists under organisation '{organisationId}'.");
+        }
+
+        var report = version.Item;
+        MergePlatformServices(report, categorisedItem);
+        if (!submitOptions.PersistToDatabase)
+        {
+            return new SubmitResult(
+                SubmitResultState.Enriched,
+                SubmitResultState.None,
+                ContentKind: parent.ContentKind,
+                PlayableId: report.Id);
+        }
+
+        var replaced = await newsReports.TryReplace(report, version.ETag);
+        if (!replaced)
+        {
+            version = await newsReports.GetNewsReportWithETag(organisationId, reportId) ??
+                      throw new InvalidOperationException(
+                          $"No news report '{reportId}' exists under organisation '{organisationId}'.");
+            report = version.Item;
+            MergePlatformServices(report, categorisedItem);
+            replaced = await newsReports.TryReplace(report, version.ETag);
+            if (!replaced)
+            {
+                throw new InvalidOperationException(
+                    $"Could not save news report '{reportId}' because it changed while the URL was being attached.");
+            }
+        }
+
+        logger.LogInformation(
+            "Submit of a discovery URL attached to news report '{PlayableId}' under '{ParentName}' ({ParentId}).",
+            report.Id, parent.Parent.Name, parent.Parent.Id);
+        return new SubmitResult(
+            SubmitResultState.Enriched,
+            SubmitResultState.None,
+            ContentKind: parent.ContentKind,
+            PlayableId: report.Id,
+            CatalogueSearchSource: new CatalogueSearchSource(transient, CatalogueParentKnownEpisodes.ToEpisode(report, transient), parent.Kind));
+    }
+
+    private static void MergePlatformServices(ICatalogueYouTubeItem item, CategorisedItem categorisedItem)
+    {
+        var services = item.Services ?? new Dictionary<string, ServiceLink>();
+        AddService(services, ServiceKeys.YouTube, categorisedItem.ResolvedYouTubeItem?.Url,
+            categorisedItem.ResolvedYouTubeItem?.Image);
+        AddService(services, ServiceKeys.Spotify, categorisedItem.ResolvedSpotifyItem?.Url,
+            categorisedItem.ResolvedSpotifyItem?.Image);
+        AddService(services, ServiceKeys.Apple, categorisedItem.ResolvedAppleItem?.Url,
+            categorisedItem.ResolvedAppleItem?.Image);
+        item.Services = services;
+        if (string.IsNullOrWhiteSpace(item.YouTubeId) &&
+            item.Services.TryGetValue(ServiceKeys.YouTube, out var youtube) && youtube.Url != null)
+        {
+            item.YouTubeId = YouTubeIdResolver.Extract(youtube.Url);
+        }
+    }
+
+    private static void AddService(
+        Dictionary<string, ServiceLink> services,
+        string key,
+        Uri? url,
+        Uri? image)
+    {
+        if (url == null)
+        {
+            return;
+        }
+
+        if (!services.TryGetValue(key, out var link))
+        {
+            link = new ServiceLink();
+            services[key] = link;
+        }
+
+        link.Url ??= url;
+        link.Image ??= image;
     }
 
     private async Task<IReadOnlyList<Playable>> LoadPlayables(CatalogueParentMatch parent)

@@ -14,4 +14,10 @@ public class DiscoverySubmitRequest
 
     /// <summary>Discovery result id to candidate key when <see cref="IdentityDecisions"/> is <c>select</c>.</summary>
     public Dictionary<Guid, string>? SelectedIdentityKeys { get; set; }
+
+    /// <summary>Discovery result id to <c>select</c> or <c>continue</c> after a kind-suggestion prompt.</summary>
+    public Dictionary<Guid, string>? KindDecisions { get; set; }
+
+    /// <summary>Discovery result id to candidate key when <see cref="KindDecisions"/> is <c>select</c>.</summary>
+    public Dictionary<Guid, string>? SelectedKindKeys { get; set; }
 }

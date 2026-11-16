@@ -925,6 +925,109 @@ public class DiscoverySubmissionReviewServiceTests
         _replaced.Should().BeEmpty();
     }
 
+
+    [Fact(DisplayName =
+        "When apply is held for a kind decision, the submission is restored to its previous status, KindDecisionRequired is appended to history, and the command returns KindDecisionRequired with the prompt message.")]
+    public async Task apply_kind_decision_required_restores_status_and_appends_history()
+    {
+        // Arrange
+        ArrangeHeldSubmission();
+        var previous = _submission!.Status;
+        _ingest = _ => new DiscoveryCurationSubmitResult(
+            DiscoveryCurationSubmitStatus.KindDecisionRequired,
+            new DiscoverySubmitOutcome("KindDecisionRequired", false, [], new EntitySearchIndexerResponse()));
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.KindDecisionRequired);
+        result.Message.Should().Be("A kind decision is required before anything is created.");
+        result.Outcome.Should().NotBeNull();
+        var final = _replaced.Last();
+        final.Status.Should().Be(previous);
+        final.History.Select(h => h.Action).Should().EndWith(
+            [DiscoverySubmissionReviewService.ApplyStartedAction, "KindDecisionRequired"]);
+    }
+
+    [Fact(DisplayName =
+        "When apply receives an invalid kind select, the submission is restored to its previous status, InvalidKindDecision is appended to history, and the command returns Invalid.")]
+    public async Task apply_invalid_kind_decision_restores_status_and_returns_invalid()
+    {
+        // Arrange
+        ArrangeHeldSubmission();
+        var previous = _submission!.Status;
+        _ingest = _ => new DiscoveryCurationSubmitResult(
+            DiscoveryCurationSubmitStatus.InvalidKindDecision,
+            new DiscoverySubmitOutcome(
+                "InvalidKindDecision: select requires a recognised selectedKindKeys entry; the item was not created as a podcast.",
+                true, [], new EntitySearchIndexerResponse()));
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Invalid);
+        result.Message.Should().Be(
+            "select requires a recognised selectedKindKeys entry; the item was not created as a podcast.");
+        var final = _replaced.Last();
+        final.Status.Should().Be(previous);
+        final.History.Select(h => h.Action).Should().EndWith(
+            [DiscoverySubmissionReviewService.ApplyStartedAction, "InvalidKindDecision"]);
+    }
+
+    [Fact(DisplayName =
+        "When retry is held for a kind decision, the submission is restored to its previous status, KindDecisionRequired is appended to history, and the command returns KindDecisionRequired with the prompt message.")]
+    public async Task retry_kind_decision_required_restores_status_and_appends_history()
+    {
+        // Arrange
+        ArrangePartiallyApplied();
+        var previous = _submission!.Status;
+        _ingest = _ => new DiscoveryCurationSubmitResult(
+            DiscoveryCurationSubmitStatus.KindDecisionRequired,
+            new DiscoverySubmitOutcome("KindDecisionRequired", false, [], new EntitySearchIndexerResponse()));
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.KindDecisionRequired);
+        result.Message.Should().Be("A kind decision is required before anything is created.");
+        result.Outcome.Should().NotBeNull();
+        var final = _replaced.Last();
+        final.Status.Should().Be(previous);
+        final.History.Select(h => h.Action).Should().Contain("KindDecisionRequired");
+    }
+
+    [Fact(DisplayName =
+        "When retry receives an invalid kind select, the submission is restored to its previous status, InvalidKindDecision is appended to history, and the command returns Invalid.")]
+    public async Task retry_invalid_kind_decision_restores_status_and_returns_invalid()
+    {
+        // Arrange
+        ArrangePartiallyApplied();
+        var previous = _submission!.Status;
+        _ingest = _ => new DiscoveryCurationSubmitResult(
+            DiscoveryCurationSubmitStatus.InvalidKindDecision,
+            new DiscoverySubmitOutcome(
+                "InvalidKindDecision: select requires a recognised selectedKindKeys entry; the item was not created as a podcast.",
+                true, [], new EntitySearchIndexerResponse()));
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Invalid);
+        result.Message.Should().Be(
+            "select requires a recognised selectedKindKeys entry; the item was not created as a podcast.");
+        var final = _replaced.Last();
+        final.Status.Should().Be(previous);
+        final.History.Select(h => h.Action).Should().Contain("InvalidKindDecision");
+    }
+
     private DiscoverySubmissionSetStateRequest SetState(string status, string? reason) =>
         new() { Status = status, ETag = _submission!.ETag!, Reason = reason };
 

@@ -35,4 +35,8 @@
   <ItemGroup>
     <ProjectReference Include="..\RedditPodcastPoster.Catalogue\RedditPodcastPoster.Catalogue.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="RedditPodcastPoster.UrlSubmission.Tests" />
+  </ItemGroup>
+
 </Project>

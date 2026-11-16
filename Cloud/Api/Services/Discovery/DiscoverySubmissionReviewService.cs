@@ -223,7 +223,9 @@ public class DiscoverySubmissionReviewService(
             ResultIds = finalSet,
             LanguageDecisions = request.LanguageDecisions,
             IdentityDecisions = request.IdentityDecisions,
-            SelectedIdentityKeys = request.SelectedIdentityKeys
+            SelectedIdentityKeys = request.SelectedIdentityKeys,
+            KindDecisions = request.KindDecisions,
+            SelectedKindKeys = request.SelectedKindKeys
         }, terminal);
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -235,6 +237,28 @@ public class DiscoverySubmissionReviewService(
             await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, terminal);
             return new(DiscoverySubmissionCommandStatus.LanguageDecisionRequired,
                 "A language decision is required before anything is created.",
+                Outcome: result.Outcome);
+        }
+
+        if (result.Status == DiscoveryCurationSubmitStatus.KindDecisionRequired)
+        {
+            submission.Status = previousStatus;
+            EndInProgress(submission);
+            AppendHistory(submission, caller.Subject, "KindDecisionRequired");
+            await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, terminal);
+            return new(DiscoverySubmissionCommandStatus.KindDecisionRequired,
+                "A kind decision is required before anything is created.",
+                Outcome: result.Outcome);
+        }
+
+        if (result.Status == DiscoveryCurationSubmitStatus.InvalidKindDecision)
+        {
+            submission.Status = previousStatus;
+            EndInProgress(submission);
+            AppendHistory(submission, caller.Subject, "InvalidKindDecision");
+            await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, terminal);
+            return new(DiscoverySubmissionCommandStatus.Invalid,
+                "select requires a recognised selectedKindKeys entry; the item was not created as a podcast.",
                 Outcome: result.Outcome);
         }
 
@@ -361,7 +385,9 @@ public class DiscoverySubmissionReviewService(
             ResultIds = toRetry,
             LanguageDecisions = request.LanguageDecisions,
             IdentityDecisions = request.IdentityDecisions,
-            SelectedIdentityKeys = request.SelectedIdentityKeys
+            SelectedIdentityKeys = request.SelectedIdentityKeys,
+            KindDecisions = request.KindDecisions,
+            SelectedKindKeys = request.SelectedKindKeys
         }, terminal);
 
         if (result.Status == DiscoveryCurationSubmitStatus.LanguageDecisionRequired)
@@ -374,6 +400,32 @@ public class DiscoverySubmissionReviewService(
             {
                 Status = DiscoverySubmissionCommandStatus.LanguageDecisionRequired,
                 Message = "A language decision is required before anything is created."
+            };
+        }
+
+        if (result.Status == DiscoveryCurationSubmitStatus.KindDecisionRequired)
+        {
+            submission.Status = submission.StatusBeforeInProgress ?? submission.Status;
+            EndInProgress(submission);
+            AppendHistory(submission, caller.Subject, "KindDecisionRequired");
+            return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
+                result.Outcome, terminal) with
+            {
+                Status = DiscoverySubmissionCommandStatus.KindDecisionRequired,
+                Message = "A kind decision is required before anything is created."
+            };
+        }
+
+        if (result.Status == DiscoveryCurationSubmitStatus.InvalidKindDecision)
+        {
+            submission.Status = submission.StatusBeforeInProgress ?? submission.Status;
+            EndInProgress(submission);
+            AppendHistory(submission, caller.Subject, "InvalidKindDecision");
+            return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
+                result.Outcome, terminal) with
+            {
+                Status = DiscoverySubmissionCommandStatus.Invalid,
+                Message = "select requires a recognised selectedKindKeys entry; the item was not created as a podcast."
             };
         }
 

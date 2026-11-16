@@ -127,12 +127,12 @@ public class EpisodeHelper : IEpisodeHelper
     /// </summary>
     private static bool? ClassifyResolvedNonPodcastUrl(Episode episode, ResolvedNonPodcastServiceItem? item)
     {
-        if (item?.Url is null)
+        if (item?.Url is null || item.StreamingService is not { } service)
         {
             return null;
         }
 
-        var existing = EpisodeServicePresence.TryGetUrl(episode, item.StreamingService);
+        var existing = EpisodeServicePresence.TryGetUrl(episode, service);
         if (existing is null)
         {
             return null;

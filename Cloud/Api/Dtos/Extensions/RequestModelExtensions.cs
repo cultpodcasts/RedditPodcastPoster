@@ -222,7 +222,9 @@ public static class RequestModelExtensions
         ResultIds = request.ResultIds,
         LanguageDecisions = request.LanguageDecisions,
         IdentityDecisions = request.IdentityDecisions,
-        SelectedIdentityKeys = request.SelectedIdentityKeys
+        SelectedIdentityKeys = request.SelectedIdentityKeys,
+        KindDecisions = request.KindDecisions,
+        SelectedKindKeys = request.SelectedKindKeys
     };
 
     public static Models.DiscoverySubmitOutcomeRequest ToModel(this DiscoverySubmitOutcomeRequest request) => new()

@@ -37,4 +37,9 @@ public record SubmitOptions(
     CatalogueLanguageChoice LanguageChoice = CatalogueLanguageChoice.Unset,
     bool LanguageProbe = false,
     CatalogueIdentityChoice IdentityChoice = CatalogueIdentityChoice.Unset,
-    string? SelectedIdentityKey = null);
+    string? SelectedIdentityKey = null,
+    DiscoveryKindChoice KindChoice = DiscoveryKindChoice.Unset,
+    string? SelectedKindKey = null,
+    Guid? TargetFilmId = null,
+    Guid? TargetNewsOrganisationId = null,
+    Guid? TargetNewsReportId = null);

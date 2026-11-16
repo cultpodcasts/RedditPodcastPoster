@@ -30,6 +30,32 @@ public class NewsReportRepository(
     public Task<ETagged<NewsReport>?> GetNewsReportWithETag(Guid newsOrganisationId, Guid reportId) =>
         CataloguePlayableFieldPatchOperations.ReadWithETag<NewsReport>(
             container, reportId.ToString(), ToPartitionKey(newsOrganisationId));
+    public async Task<bool> TryReplace(NewsReport report, string etag)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(etag);
+        if (report.Id == Guid.Empty || report.NewsOrganisationId == Guid.Empty)
+        {
+            throw new ArgumentException("NewsReport Id and NewsOrganisationId must be set before replace.");
+        }
+
+        try
+        {
+            await container.ReplaceItemAsync(
+                report,
+                report.Id.ToString(),
+                ToPartitionKey(report.NewsOrganisationId),
+                new ItemRequestOptions { IfMatchEtag = etag });
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.PreconditionFailed
+                                             or HttpStatusCode.NotFound)
+        {
+            logger.LogWarning(
+                "{method}: news report '{ReportId}' changed or was deleted since it was read ({status}).",
+                nameof(TryReplace), report.Id, ex.StatusCode);
+            return false;
+        }
+    }
 
     public Task<CataloguePlayablePatchOutcome> PatchFields(
         Guid newsOrganisationId,
