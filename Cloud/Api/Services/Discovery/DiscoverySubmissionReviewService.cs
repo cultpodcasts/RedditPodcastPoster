@@ -251,6 +251,17 @@ public class DiscoverySubmissionReviewService(
                 Outcome: result.Outcome);
         }
 
+        if (result.Status == DiscoveryCurationSubmitStatus.InvalidKindDecision)
+        {
+            submission.Status = previousStatus;
+            EndInProgress(submission);
+            AppendHistory(submission, caller.Subject, "InvalidKindDecision");
+            await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, terminal);
+            return new(DiscoverySubmissionCommandStatus.Invalid,
+                "select requires a recognised selectedKindKeys entry; the item was not created as a podcast.",
+                Outcome: result.Outcome);
+        }
+
         if (result.Status == DiscoveryCurationSubmitStatus.IdentityDecisionRequired)
         {
             submission.Status = previousStatus;
@@ -402,6 +413,19 @@ public class DiscoverySubmissionReviewService(
             {
                 Status = DiscoverySubmissionCommandStatus.KindDecisionRequired,
                 Message = "A kind decision is required before anything is created."
+            };
+        }
+
+        if (result.Status == DiscoveryCurationSubmitStatus.InvalidKindDecision)
+        {
+            submission.Status = submission.StatusBeforeInProgress ?? submission.Status;
+            EndInProgress(submission);
+            AppendHistory(submission, caller.Subject, "InvalidKindDecision");
+            return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
+                result.Outcome, terminal) with
+            {
+                Status = DiscoverySubmissionCommandStatus.Invalid,
+                Message = "select requires a recognised selectedKindKeys entry; the item was not created as a podcast."
             };
         }
 

@@ -332,6 +332,7 @@ public class DiscoveryCurationSubmitService(
                     holds));
         }
 
+        var invalidKindSelects = new List<Guid>();
         var kindHolds = new List<DiscoveryKindHold>();
         foreach (var discoveryResult in discoveryResults)
         {
@@ -340,7 +341,25 @@ public class DiscoveryCurationSubmitService(
                 continue;
             }
 
-            if (KindChoiceFor(request, discoveryResult.Id) is DiscoveryKindChoice.Select or DiscoveryKindChoice.Continue)
+            if (KindChoiceFor(request, discoveryResult.Id) is DiscoveryKindChoice.Select)
+            {
+                var url = discoveryResult.Urls.Spotify ?? discoveryResult.Urls.Apple ?? discoveryResult.Urls.YouTube;
+                string? selectedKindKey = null;
+                if (request.SelectedKindKeys != null &&
+                    request.SelectedKindKeys.TryGetValue(discoveryResult.Id, out var kindKey))
+                {
+                    selectedKindKey = kindKey;
+                }
+
+                if (url == null || SubmitContentClassifier.FromDiscovery(url, selectedKindKey) == null)
+                {
+                    invalidKindSelects.Add(discoveryResult.Id);
+                }
+
+                continue;
+            }
+
+            if (KindChoiceFor(request, discoveryResult.Id) is DiscoveryKindChoice.Continue)
             {
                 continue;
             }
@@ -359,6 +378,21 @@ public class DiscoveryCurationSubmitService(
                     "Kind suggestion failed for discovery-result '{DiscoveryResultId}'; continuing without a hint.",
                     discoveryResult.Id);
             }
+        }
+
+        if (invalidKindSelects.Count > 0)
+        {
+            return new DiscoveryCurationSubmitResult(
+                DiscoveryCurationSubmitStatus.InvalidKindDecision,
+                new DiscoverySubmitOutcome(
+                    "InvalidKindDecision: select requires a recognised selectedKindKeys entry; the item was not created as a podcast.",
+                    true,
+                    invalidKindSelects.Select(id => new DiscoverySubmitItemOutcome(
+                        id,
+                        null,
+                        null,
+                        "select requires a recognised selectedKindKeys entry.")).ToArray(),
+                    new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse()));
         }
 
         if (kindHolds.Count > 0)
@@ -516,6 +550,12 @@ public class DiscoveryCurationSubmitService(
             if (url != null)
             {
                 kindApplication = SubmitContentClassifier.FromDiscovery(url, selectedKindKey);
+            }
+
+            if (!probe && kindApplication == null)
+            {
+                throw new InvalidOperationException(
+                    $"select for discovery-result '{resultId}' requires a recognised selectedKindKeys entry.");
             }
         }
 

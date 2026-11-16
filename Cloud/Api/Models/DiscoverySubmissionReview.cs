@@ -86,7 +86,7 @@ public enum DiscoverySubmissionCommandStatus
     /// <summary>ETag mismatch, wrong lifecycle state, or held reports no longer held for this submission.</summary>
     Conflict,
 
-    /// <summary>Accepted ids outside the held reports, or malformed comments.</summary>
+    /// <summary>Accepted ids outside the held reports, a missing or unrecognised kind key, or malformed comments.</summary>
     Invalid,
 
     /// <summary>Apply ran and failed; submission is ApplyFailed and its reports remain PendingSupervisor.</summary>

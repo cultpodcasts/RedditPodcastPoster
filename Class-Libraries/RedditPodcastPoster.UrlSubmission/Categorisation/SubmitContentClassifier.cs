@@ -27,7 +27,7 @@ public static class SubmitContentClassifier
 
     /// <summary>
     /// Option B for #1200: map a curator-confirmed kind candidate to submit options.
-    /// Returns null when the key is missing or not recognised, so the item stays a podcast.
+    /// Returns null when the key is missing or not recognised. A caller that already received <c>select</c> must not treat null as "keep as podcast".
     /// Nothing is applied until the caller writes this onto SubmitOptions.
     /// </summary>
     public static DiscoveryKindApplication? FromDiscovery(Uri url, string? selectedKey)

@@ -14,6 +14,9 @@ public enum DiscoveryCurationSubmitStatus
     /// <summary>At least one unmapped item has a suggest-only kind hint; nothing was claimed or created.</summary>
     KindDecisionRequired,
 
+    /// <summary>A select arrived with a missing or unrecognised kind key; nothing was claimed or created.</summary>
+    InvalidKindDecision,
+
     /// <summary>At least one item's authority search is ambiguous; nothing was claimed or created.</summary>
     IdentityDecisionRequired
 }
