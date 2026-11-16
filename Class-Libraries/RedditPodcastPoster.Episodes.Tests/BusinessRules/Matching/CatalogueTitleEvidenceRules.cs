@@ -232,6 +232,68 @@ public class CatalogueTitleEvidenceRules
     }
 
     [Fact(DisplayName =
+        "When a YouTube clip on a 14-day publishing delay has a different title from the longer same-upload-day " +
+        "Apple episode it was cut from, and only their episode-specific description matches (show boilerplate on the " +
+        "page is stripped), the matcher still selects the Apple row, because the title-evidence gate (#1445) only " +
+        "blocks out-of-band candidates that are not a shorter clip with a matching description.")]
+    public void fourteen_day_delay_clip_with_different_title_still_matches_longer_audio()
+    {
+        // Arrange — existing clip rule (CatalogueMatchScorerRules) on a real catalogue page with show boilerplate.
+        var youTubeRelease = DomainTestFixture.UtcAtTime(0, TimeSpan.FromHours(20));
+        var publishingDelay = TimeSpan.FromDays(14);
+        var podcast = _fixture.CreatePodcast(p => p.YouTubePublicationOffset = publishingDelay.Ticks);
+        const string episodeBlurb =
+            "The crime drama SeriesName follows two women: a serial killer targeting powerful men and the " +
+            "investigator tasked with tracking her down. Guest critics join the host to discuss why this " +
+            "show about female rage has turned into such a hit.";
+        var probe = _fixture.CreateEpisode(e =>
+        {
+            e.Title = "Female rage on television after a major scandal";
+            e.Description = ShowBoilerplate + "\n" + episodeBlurb;
+            e.Length = TimeSpan.FromMinutes(15).Add(TimeSpan.FromSeconds(10));
+            e.ReleaseUtc = youTubeRelease.Subtract(publishingDelay);
+            e.YouTubeId = _fixture.CreateYouTubeId();
+            e.Subjects = [];
+        });
+        var longerAudio = _fixture.CreateEpisode(e =>
+        {
+            e.Title =
+                "SeriesName hits hard after a major scandal, and how gallery paintings ended up at a thrift shop";
+            e.Description = ShowBoilerplate + "\n" + episodeBlurb +
+                            " Plus, when a trove of art popped up at a thrift shop, people discovered it had " +
+                            "been donated by a local gallery.";
+            e.Length = TimeSpan.FromMinutes(24);
+            e.ReleaseUtc = DomainTestFixture.UtcAtTime(0, TimeSpan.FromHours(4));
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        });
+        var olderAudio = Enumerable.Range(20, 2).Select(days => _fixture.CreateEpisode(e =>
+        {
+            e.Title = _fixture.CreateTitle();
+            e.Description = ShowBoilerplate + "\nan unrelated story from an earlier week number " + days + ".";
+            e.Length = TimeSpan.FromMinutes(30 + days);
+            e.ReleaseUtc = DomainTestFixture.UtcDateDaysAgo(days);
+            e.AppleId = _fixture.CreateAppleId();
+            e.Subjects = [];
+        })).ToList();
+
+        // Act
+        var score = CatalogueMatchScorer.Score(probe, longerAudio);
+        var matched = _matcher.FindCatalogueMatchByLength(
+            probe,
+            [longerAudio, ..olderAudio],
+            podcast,
+            episodeMatchRegex: null,
+            new CatalogueMatchByLengthOptions(EnrichingYouTubeDiscoveredEpisode: true));
+
+        // Assert
+        (longerAudio.Length - probe.Length).Should()
+            .BeGreaterThan(CatalogueMatchScorer.GetDurationBand(probe.Length, longerAudio.Length));
+        score.Should().BeGreaterThanOrEqualTo(CatalogueMatchScorer.MatchThreshold);
+        matched.Should().BeSameAs(longerAudio);
+    }
+
+    [Fact(DisplayName =
         "When the indexer reaches a weaker claimant first, Spotify audio that another YouTube-discovered episode of " +
         "the show (still without Spotify) fits better is left for that episode, because the item goes to the " +
         "highest-scoring episode in the batch.")]

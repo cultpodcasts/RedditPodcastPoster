@@ -166,17 +166,20 @@ public static class CatalogueMatchScorer
             return 0;
         }
 
-        // Title evidence (#1445): with no title signal, only an in-band duration may carry the match.
-        var titlePoints = ScoreTitle(probe.Title, catalogueItem.Title);
-        if (titlePoints == 0 && !durationInBand)
-        {
-            return 0;
-        }
-
         boilerplate ??= CatalogueDescriptionBoilerplate.None;
         var probeDescription = boilerplate.Strip(probe.Description);
         var catalogueDescription = boilerplate.Strip(catalogueItem.Description);
         var descriptionPoints = ScoreDescription(probeDescription, catalogueDescription);
+        var probeIsShorterOrDurationMissing =
+            !(probeHasDuration && catalogueHasDuration) || probe.Length < catalogueItem.Length;
+
+        // Title evidence (#1445): with no title signal and duration out of band, only a clip of longer audio
+        // (or a missing duration) whose non-boilerplate description matches may carry the match.
+        var titlePoints = ScoreTitle(probe.Title, catalogueItem.Title);
+        if (titlePoints == 0 && !durationInBand && !(probeIsShorterOrDurationMissing && descriptionPoints > 0))
+        {
+            return 0;
+        }
         var releasePoints = ScoreRelease(probe.ReleaseUtc, catalogueItem, youTubePublished, durationNearExact);
         if (releasePoints == 0 &&
             descriptionPoints > 0 &&
@@ -210,8 +213,6 @@ public static class CatalogueMatchScorer
 
         // Bridge only for a YouTube clip of longer audio (or a missing duration): audio shorter than the video
         // and out of band is a different episode, not a segment of it (#1445).
-        var probeIsShorterOrDurationMissing =
-            !(probeHasDuration && catalogueHasDuration) || probe.Length < catalogueItem.Length;
         if (!durationInBand && probeIsShorterOrDurationMissing && descriptionPoints > 0 && releasePoints > 0)
         {
             score += MissingDurationDescriptionBridgePoints;
