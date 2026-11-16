@@ -397,102 +397,6 @@ public class AppleEpisodeEnricherCatalogueRules
         enrichmentContext.AppleUrlUpdated.Should().BeFalse();
     }
 
-    [Fact(DisplayName =
-        "When the matched Apple episode fits another YouTube-discovered episode of the show that still has no Apple " +
-        "id better than the episode being enriched, the enricher leaves it for that episode, because the indexer " +
-        "must give each catalogue item to the best-matching episode, not the first one processed (#1445).")]
-    public async Task enrich_leaves_apple_episode_for_better_matching_rival()
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
-        var audioLength = TimeSpan.FromMinutes(52);
-        var audioDay = DomainTestFixture.UtcDateDaysAgo(1);
-        const string rivalTitle = "Order quietly removes a travelling preacher for a year";
-        var claimant = _fixture.CreateStoredEpisodeWithYouTubeOnly(
-            podcast,
-            audioDay.AddHours(9),
-            audioLength + TimeSpan.FromMinutes(2),
-            "Former followers speak about the preacher");
-        var rival = _fixture.CreateStoredEpisodeWithYouTubeOnly(
-            podcast,
-            audioDay.AddHours(15),
-            audioLength + TimeSpan.FromSeconds(1),
-            rivalTitle);
-        var alreadyEnriched = _fixture.CreateStoredEpisodeWithYouTubeOnly(
-            podcast,
-            audioDay.AddHours(15),
-            audioLength,
-            rivalTitle);
-        alreadyEnriched.AppleId = _fixture.CreateAppleId();
-        claimant.Subjects = ["Religious Orders"];
-        rival.Subjects = ["Religious Orders"];
-        var appleEpisodeId = _fixture.CreateAppleId();
-        var appleEpisode = new AppleEpisode(
-            appleEpisodeId,
-            rivalTitle,
-            audioDay.AddHours(12),
-            audioLength,
-            new Uri($"https://podcasts.apple.com/us/podcast/episode/id{podcast.AppleId}?i={appleEpisodeId}"),
-            string.Empty,
-            false);
-        var sut = CreateEnricher(new FixedAppleEpisodeResolver(appleEpisode));
-        var enrichmentContext = new EnrichmentContext();
-
-        // Act
-        await sut.Enrich(
-            new EnrichmentRequest(podcast, [claimant, alreadyEnriched, rival], claimant),
-            new IndexingContext(),
-            enrichmentContext);
-
-        // Assert
-        claimant.AppleId.Should().BeNull();
-        rival.AppleId.Should().BeNull();
-        enrichmentContext.AppleUrlUpdated.Should().BeFalse();
-    }
-
-    [Fact(DisplayName =
-        "When a YouTube-discovered episode is the best match for the Apple episode, the enricher attaches it, " +
-        "because no other episode of the show still missing Apple scores higher.")]
-    public async Task enrich_attaches_apple_episode_when_claimant_is_best_match()
-    {
-        // Arrange
-        var podcast = _fixture.CreatePodcast(p => p.AppleId = _fixture.CreateAppleId());
-        var audioLength = TimeSpan.FromMinutes(52);
-        var audioDay = DomainTestFixture.UtcDateDaysAgo(1);
-        const string title = "Order quietly removes a travelling preacher for a year";
-        var claimant = _fixture.CreateStoredEpisodeWithYouTubeOnly(
-            podcast,
-            audioDay.AddHours(15),
-            audioLength + TimeSpan.FromSeconds(1),
-            title);
-        var weakerRival = _fixture.CreateStoredEpisodeWithYouTubeOnly(
-            podcast,
-            audioDay.AddHours(9),
-            audioLength + TimeSpan.FromMinutes(2),
-            "Former followers speak about the preacher");
-        var appleEpisodeId = _fixture.CreateAppleId();
-        var appleEpisode = new AppleEpisode(
-            appleEpisodeId,
-            title,
-            audioDay.AddHours(12),
-            audioLength,
-            new Uri($"https://podcasts.apple.com/us/podcast/episode/id{podcast.AppleId}?i={appleEpisodeId}"),
-            string.Empty,
-            false);
-        var sut = CreateEnricher(new FixedAppleEpisodeResolver(appleEpisode));
-        var enrichmentContext = new EnrichmentContext();
-
-        // Act
-        await sut.Enrich(
-            new EnrichmentRequest(podcast, [claimant, weakerRival], claimant),
-            new IndexingContext(),
-            enrichmentContext);
-
-        // Assert
-        claimant.AppleId.Should().Be(appleEpisodeId);
-        enrichmentContext.AppleUrlUpdated.Should().BeTrue();
-    }
-
     private static AppleEpisodeEnricher CreateEnricher(IAppleEpisodeResolver resolver) =>
         new(
             new StubApplePodcastEnricher(),
@@ -530,16 +434,6 @@ public class AppleEpisodeEnricherCatalogueRules
             FindEpisodeInvoked = true;
             return Task.FromResult<AppleEpisode?>(null);
         }
-    }
-
-    private sealed class FixedAppleEpisodeResolver(AppleEpisode episode) : IAppleEpisodeResolver
-    {
-        public Task<AppleEpisode?> FindEpisode(
-            FindAppleEpisodeRequest request,
-            IndexingContext indexingContext,
-            Func<AppleEpisode, bool>? reducer = null,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult<AppleEpisode?>(episode);
     }
 
     private sealed class CapturingAppleEpisodeResolver(

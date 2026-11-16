@@ -50,8 +50,9 @@ namespace RedditPodcastPoster.Episodes.Matching;
 /// <em>only</em> via raw-publish-day qualification — matching the probe's calendar day alone must not upgrade
 /// previous-day audio against a next-day YouTube-only video (#1144). On a score tie,
 /// <see cref="SelectBestMatch"/> prefers the row that earned that credit over closeness to the shifted probe.
-/// Title evidence is required (#1445): when the title scores zero, only an in-band duration can carry the match,
-/// so description, proper nouns, subjects, guests and release alone never accept a candidate. Titles carrying
+/// Title evidence (#1445): when the title scores zero and duration is out of band, only a shorter YouTube clip of
+/// longer audio (or a missing duration) whose non-boilerplate description matches may carry the match; in-band
+/// candidates keep the multi-criteria rules. Titles carrying
 /// conflicting part or episode numbers (<see cref="EpisodeTitlePartMarkers"/>) score zero. Description and
 /// proper-noun overlap ignore the show's repeated boilerplate when the caller supplies a
 /// <see cref="CatalogueDescriptionBoilerplate"/>, and the description bridge only applies when the YouTube probe is

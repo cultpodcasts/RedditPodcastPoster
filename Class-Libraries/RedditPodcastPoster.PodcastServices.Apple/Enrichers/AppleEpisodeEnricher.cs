@@ -79,40 +79,7 @@ public class AppleEpisodeEnricher(
             appleItem.Release,
             appleItem.Url.CleanAppleUrl(),
             appleItem.Image);
-        var betterClaimant = findAppleEpisodeRequest.EnrichingYouTubeDiscoveredEpisode
-            ? CatalogueCandidateContention.FindBetterClaimant(
-                request.Podcast,
-                request.Episode,
-                request.Episodes,
-                CreateAppleCandidate(catalogueInput),
-                x => EpisodeServicePresence.AppleEpisodeId(x) is not > 0)
-            : null;
-        if (betterClaimant != null)
-        {
-            logger.LogInformation(
-                "Apple episode '{AppleItemId}' left for episode-id '{RivalEpisodeId}' with title '{RivalTitle}', which matches it better than episode-id '{EpisodeId}' with title '{Title}'.",
-                appleItem.Id,
-                betterClaimant.Id,
-                betterClaimant.Title,
-                request.Episode.Id,
-                request.Episode.Title);
-            return;
-        }
-
         ApplyResolvedCandidate(request, appleAdapter.Adapt(catalogueInput), enrichmentContext);
-    }
-
-    private static Episode CreateAppleCandidate(AppleCatalogueInput apple)
-    {
-        var candidate = new Episode
-        {
-            Title = apple.Title,
-            Description = apple.Description,
-            Length = apple.Duration,
-            ReleaseUtc = apple.Release
-        };
-        EpisodeServicePresence.SetAppleIdentity(candidate, apple.AppleId);
-        return candidate;
     }
 
     private static Episode CreateAppleCandidate(AppleEpisode apple)
