@@ -74,11 +74,18 @@ Epic PRs (context, not merge requirements for every ticket):
    usual; website → existing component specs for search/latch.
 6. Do not deploy production Workers/Pages/Functions unless explicitly asked.
 
-## Open product decision (SP-0.3)
+## Product decisions (16 November 2026, 10:14 GMT, Europe/London)
 
-Cutover behaviour for free text:
+- **SP-0.3 (closed, #1320):** option A, plus guests — D1 indexes **full descriptions and
+  guests from day one of the soak**. No strict-content soak index. Guests were pulled
+  forward from G5 (#1325); they and full descriptions are G1/G2 work.
+- **Cutover (SP-G4 / SP-1.8):** unquoted exact title and AKA (`alternativeTitles`)
+  phrase-first ranking is required before D1 can take over. Quoted searches stay phrases.
+  SP-1.8 must not slip past G4.
 
-- **A (recommended):** keep full-description recall (D1 better than Azure) as the default.
-- **B:** temporary strict-content index for soak, then flip to full recall.
+## Post-epic gaps the 8 Nov demo does not cover
 
-Record the choice in the epic and on SP-E before G4 messaging.
+See [README.md](./README.md#post-epic-gaps-after-the-8-nov-2026-baseline). In short:
+`alternativeTitles`, identity ids, phrase-first ranking, and guests from day one must be
+in the production engine and sync path — do not treat the November `search-demo` snapshot
+as the complete schema.

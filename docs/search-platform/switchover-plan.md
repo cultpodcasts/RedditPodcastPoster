@@ -21,11 +21,11 @@ flowchart LR
 | Gate | Intent | Exit when |
 |------|--------|-----------|
 | **G0** | Freeze parity baseline | Harness green; week log-replay 0 in-corpus misses; shape nits listed; divergences documented |
-| **G1** | Production-ready search Worker | Dedicated D1; Sessions API; service binding; admin upsert/delete; secrets parity planned; shape nits fixed; proxy error-forwarding shipped |
-| **G2** | Backend drips into D1 | Dual-write Azure+D1; weekly reconcile + shadow rebuild; drift threshold; `read_replication=auto` |
-| **G3** | Prove live equivalence | Shadow sampler drift-free for soak window; latency/overload SLOs held |
-| **G4** | Swap `apihost` | Preview soak → production flip; rollback = flip back |
-| **G5** | Decommission + unlock enhancements | Azure index + hourly indexer retired; DescriptionSize raised; guests indexed; §6A unblocked |
+| **G1** | Production-ready search Worker | Dedicated D1; Sessions API; service binding; admin upsert/delete; secrets parity planned; shape nits fixed; proxy error-forwarding shipped; schema includes full descriptions, guests, `alternativeTitles`, and identity ids |
+| **G2** | Backend drips into D1 | Dual-write Azure+D1 (full descriptions, guests, `alternativeTitles`, identity ids); weekly reconcile + shadow rebuild; drift threshold; `read_replication=auto` |
+| **G3** | Prove live equivalence | Shadow sampler drift-free for soak window; latency/overload SLOs held; soak corpus already has full descriptions and guests (SP-0.3) |
+| **G4** | Swap `apihost` | Preview soak → production flip; rollback = flip back; **unquoted exact title/AKA phrase-first ranking in place** (SP-1.8; required, must not slip) |
+| **G5** | Decommission + unlock enhancements | Azure index + hourly indexer retired; leftover Azure cap-driven slimming dropped (SP-5.2); §6A unblocked. Guests and full descriptions are already live from G3. |
 
 ## Ticket map (stable IDs)
 
@@ -36,7 +36,7 @@ flowchart LR
 | SP-G0 | Gate checklist | RPP |
 | SP-0.1 | Record parity baseline in docs | RPP |
 | SP-0.2 | Response shape nits (release ms, podcastName, context) | Api |
-| SP-0.3 | Decision: full-description vs strict-content soak | RPP |
+| SP-0.3 | Decision: full-description vs strict-content soak | RPP | **Done 16 Nov 2026:** option A + guests from soak day one |
 
 ### G1 — Production engine
 
@@ -50,7 +50,7 @@ flowchart LR
 | SP-1.5 | Forward upstream errors from `/search` proxy | Api | [known-bugs.md](./known-bugs.md) |
 | SP-1.6 | Drop empty-body-400 legacyName latch | website | after 1.5 |
 | SP-1.7 | Secondary sort by `id` | Api | |
-| SP-1.8 | bm25 per-column weights | Api | may slip past G4 |
+| SP-1.8 | bm25 weights + title/AKA phrase-first ranking | Api | **required before G4**; includes `alternativeTitles` column |
 
 ### G2 — Sync
 
@@ -86,7 +86,7 @@ flowchart LR
 |----|------|------|
 | SP-G5 | Gate checklist | RPP |
 | SP-5.1 | Retire Azure index + hourly indexer | RPP |
-| SP-5.2 | Raise DescriptionSize; index guests | RPP |
+| SP-5.2 | Drop leftover Azure cap-driven slimming | RPP | guests + full descriptions moved to G1/G2 (16 Nov 2026) |
 | SP-5.3 | Autosuggest enrichment from D1 | Api |
 | SP-5.4 | Spell-correct / did-you-mean | Api |
 | SP-5.5 | Recency blend + proximity boost | Api |
@@ -111,3 +111,4 @@ Full URL table: epic §8.5. Issued 2026-11-08.
 3. Soak preview; compare shadow sampler.
 4. Production flip (explicit user deploy approval required).
 5. Rollback: restore previous `apihost` (Azure URL). Keep Azure dual-write until G5.
+6. Do not flip production until SP-1.8 unquoted exact title / AKA phrase-first ranking is in the engine. Quoted searches must still work as phrases.

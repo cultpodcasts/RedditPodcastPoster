@@ -71,7 +71,7 @@ Azure does not fold; D1 does.
 
 | Topic | Azure | D1 | Disposition |
 |-------|-------|-----|-------------|
-| Free-text recall | Truncated descriptions | Full text (+ guests/terms) | Keep as benefit; optional strict-content soak (SP-0.3) |
+| Free-text recall | Truncated descriptions | Full text (+ guests/terms) | **Decided 16 Nov 2026 (SP-0.3):** keep as benefit from soak day one; no strict-content soak. Guests also from day one (pulled forward from G5). |
 | Lone `-phrase` under searchMode=any | Everything-except | Empty / AND-NOT | Keep documented; Azure is footgun |
 | Stopwords inside phrases | Dropped | Kept | Low impact |
 | Rank / `@search.score` | Lucene BM25 | FTS5 bm25 | Approximate via column weights; never bit-identical |
@@ -83,3 +83,21 @@ Azure does not fold; D1 does.
 Envelope and document keys match for apihost swap modulo SP-0.2 nits (`podcastName`
 extra, release `.000Z`, highlights). Forwarding D1 JSON through the api Worker works
 today for browse/filter paths.
+
+## Decisions recorded 16 November 2026 (10:14 GMT, Europe/London)
+
+See [README.md](./README.md#decisions-16-november-2026-1014-gmt-europelondon). Short form:
+
+- SP-0.3 closed: full descriptions **and guests** from soak day one (option A + guests from G5).
+- Unquoted exact title / AKA phrase-first ranking is required before cutover (SP-1.8 / SP-G4). Quoted searches stay phrases.
+
+## Post-epic gaps (after this 8 Nov 2026 evidence)
+
+The harness and week replay did **not** cover later Azure fields or the phrase-first requirement:
+
+- Film `alternativeTitles` (RPP #1431, Azure `standard.lucene`) — not in the November D1 schema.
+- Retrievable identity ids (RPP #1437).
+- Unquoted exact title / AKA ranked first (required before G4; add harness cases on SP-1.8).
+- Guests were in the demo corpus as a measured benefit, but were originally a G5 enhancement; they are now required from soak day one.
+
+Do not treat top-10 overlap with Azure as sufficient for cutover. Phrase-first ranking is a separate acceptance item.
