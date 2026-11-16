@@ -10,6 +10,7 @@ using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -26,6 +27,7 @@ public class DiscoveryCurationSubmitService(
     IPodcastRepository podcastRepository,
     IPodcastService podcastService,
     ILookupRepository lookupRepository,
+    IDiscoveryKindSuggester discoveryKindSuggester,
     ILogger<DiscoveryCurationSubmitService> logger) : IDiscoveryCurationSubmitService
 {
     public Task<DiscoveryCurationSubmitResult> SubmitAsync(
@@ -222,7 +224,7 @@ public class DiscoveryCurationSubmitService(
                 discoveryResult.Id, indexingContext);
             try
             {
-                var submitOptions = CreateOptions(request, discoveryResult.Id, supportedLanguageCodes, probe: false);
+                var submitOptions = CreateOptions(request, discoveryResult, supportedLanguageCodes, probe: false);
                 var result = await discoveryUrlSubmitter.Submit(discoveryResult, indexingContext, submitOptions);
                 if (result.LanguageHold is { Code: { Length: > 0 } })
                 {
@@ -273,8 +275,9 @@ public class DiscoveryCurationSubmitService(
     }
 
     /// <summary>
-    /// Reads each item and detects language without persisting. Any unsupported language holds the whole submit
-    /// before reports are claimed.
+    /// Reads each item and detects language, kind suggestions, and identity without persisting.
+    /// Language is asked first, then a suggest-only kind hint (#1200), then identity.
+    /// Nothing is claimed or created while a gate is outstanding.
     /// </summary>
     private async Task<DiscoveryCurationSubmitResult?> PreflightLanguages(
         DiscoverySubmitRequest request,
@@ -283,7 +286,6 @@ public class DiscoveryCurationSubmitService(
         var pendingResults = discoveryResultsService.GetDiscoveryResult(request);
         var discoveryResults = pendingResults is null ? [] : await pendingResults ?? [];
         var holds = new List<CatalogueLanguageHold>();
-        var identityHolds = new List<CatalogueIdentityHold>();
         // Language / identity probe only — skip expensive Spotify/YouTube walks so preflight does not
         // double the wall-clock of the real ingest (and blow edge timeouts before the 200 is sent).
         var indexingContext = new IndexingContext
@@ -304,14 +306,10 @@ public class DiscoveryCurationSubmitService(
                 var probed = await discoveryUrlSubmitter.Submit(
                     discoveryResult,
                     indexingContext,
-                    CreateOptions(request, discoveryResult.Id, supportedLanguageCodes, probe: true));
+                    CreateOptions(request, discoveryResult, supportedLanguageCodes, probe: true));
                 if (probed?.LanguageHold is { Code: { Length: > 0 } } hold)
                 {
                     holds.Add(hold with { DiscoveryItemId = discoveryResult.Id });
-                }
-                else if (probed?.IdentityHold is { Candidates.Count: > 0 } identityHold)
-                {
-                    identityHolds.Add(identityHold with { DiscoveryItemId = discoveryResult.Id });
                 }
             }
             catch (Exception ex)
@@ -334,6 +332,74 @@ public class DiscoveryCurationSubmitService(
                     holds));
         }
 
+        var kindHolds = new List<DiscoveryKindHold>();
+        foreach (var discoveryResult in discoveryResults)
+        {
+            if (await IsStoredAgainstRemovedPodcast(discoveryResult))
+            {
+                continue;
+            }
+
+            if (KindChoiceFor(request, discoveryResult.Id) is DiscoveryKindChoice.Select or DiscoveryKindChoice.Continue)
+            {
+                continue;
+            }
+
+            try
+            {
+                var suggestion = await discoveryKindSuggester.SuggestAsync(discoveryResult);
+                if (suggestion is { Candidates.Count: > 0 })
+                {
+                    kindHolds.Add(suggestion with { DiscoveryItemId = discoveryResult.Id });
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex,
+                    "Kind suggestion failed for discovery-result '{DiscoveryResultId}'; continuing without a hint.",
+                    discoveryResult.Id);
+            }
+        }
+
+        if (kindHolds.Count > 0)
+        {
+            return new DiscoveryCurationSubmitResult(
+                DiscoveryCurationSubmitStatus.KindDecisionRequired,
+                new DiscoverySubmitOutcome(
+                    "KindDecisionRequired",
+                    false,
+                    [],
+                    new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse(),
+                    KindDecisionsRequired: kindHolds));
+        }
+
+        var identityHolds = new List<CatalogueIdentityHold>();
+        foreach (var discoveryResult in discoveryResults)
+        {
+            if (await IsStoredAgainstRemovedPodcast(discoveryResult))
+            {
+                continue;
+            }
+
+            try
+            {
+                var probed = await discoveryUrlSubmitter.Submit(
+                    discoveryResult,
+                    indexingContext,
+                    CreateOptions(request, discoveryResult, supportedLanguageCodes, probe: true));
+                if (probed?.IdentityHold is { Candidates.Count: > 0 } identityHold)
+                {
+                    identityHolds.Add(identityHold with { DiscoveryItemId = discoveryResult.Id });
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex,
+                    "Identity probe failed for discovery-result '{DiscoveryResultId}'; the create call records the error.",
+                    discoveryResult.Id);
+            }
+        }
+
         if (identityHolds.Count > 0)
         {
             return new DiscoveryCurationSubmitResult(
@@ -347,6 +413,17 @@ public class DiscoveryCurationSubmitService(
         }
 
         return null;
+    }
+
+    private static DiscoveryKindChoice KindChoiceFor(DiscoverySubmitRequest request, Guid resultId)
+    {
+        if (request.KindDecisions != null &&
+            request.KindDecisions.TryGetValue(resultId, out var raw))
+        {
+            return DiscoveryKindChoices.Parse(raw);
+        }
+
+        return DiscoveryKindChoice.Unset;
     }
 
     private static DiscoverySubmitRequest WithoutCancelled(DiscoverySubmitRequest request)
@@ -370,6 +447,15 @@ public class DiscoveryCurationSubmitService(
             }
         }
 
+        if (request.KindDecisions is { Count: > 0 })
+        {
+            foreach (var pair in request.KindDecisions
+                         .Where(x => DiscoveryKindChoices.Parse(x.Value) == DiscoveryKindChoice.Cancel))
+            {
+                cancelled.Add(pair.Key);
+            }
+        }
+
         if (cancelled.Count == 0)
         {
             return request;
@@ -381,16 +467,19 @@ public class DiscoveryCurationSubmitService(
             ResultIds = request.ResultIds.Where(id => !cancelled.Contains(id)).ToArray(),
             LanguageDecisions = request.LanguageDecisions,
             IdentityDecisions = request.IdentityDecisions,
-            SelectedIdentityKeys = request.SelectedIdentityKeys
+            SelectedIdentityKeys = request.SelectedIdentityKeys,
+            KindDecisions = request.KindDecisions,
+            SelectedKindKeys = request.SelectedKindKeys
         };
     }
 
     private static SubmitOptions CreateOptions(
         DiscoverySubmitRequest request,
-        Guid resultId,
+        DiscoveryResult discoveryResult,
         IReadOnlyCollection<string> supportedLanguageCodes,
         bool probe)
     {
+        var resultId = discoveryResult.Id;
         var choice = CatalogueLanguageChoice.Unset;
         if (request.LanguageDecisions != null &&
             request.LanguageDecisions.TryGetValue(resultId, out var raw))
@@ -412,17 +501,49 @@ public class DiscoveryCurationSubmitService(
             selectedKey = key;
         }
 
+        var kindChoice = KindChoiceFor(request, resultId);
+        string? selectedKindKey = null;
+        if (request.SelectedKindKeys != null &&
+            request.SelectedKindKeys.TryGetValue(resultId, out var kindKey))
+        {
+            selectedKindKey = kindKey;
+        }
+
+        DiscoveryKindApplication? kindApplication = null;
+        if (kindChoice == DiscoveryKindChoice.Select)
+        {
+            var url = discoveryResult.Urls.Spotify ?? discoveryResult.Urls.Apple ?? discoveryResult.Urls.YouTube;
+            if (url != null)
+            {
+                kindApplication = SubmitContentClassifier.FromDiscovery(url, selectedKindKey);
+            }
+        }
+
+        if (kindApplication?.SelectedIdentityKey is { Length: > 0 } kindIdentityKey &&
+            identityChoice == CatalogueIdentityChoice.Unset)
+        {
+            identityChoice = kindApplication.IdentityChoice;
+            selectedKey = kindIdentityKey;
+        }
+
         return new SubmitOptions(
             null,
             true,
             PersistToDatabase: !probe,
             CreationSource: EpisodeCreationSource.Discovery,
+            ClassificationSignals: kindApplication?.Signals,
+            Parent: kindApplication?.Parent,
             EnforceLanguageGate: true,
             SupportedLanguageCodes: supportedLanguageCodes,
             LanguageChoice: choice,
             LanguageProbe: probe,
             IdentityChoice: identityChoice,
-            SelectedIdentityKey: selectedKey);
+            SelectedIdentityKey: selectedKey,
+            KindChoice: kindChoice,
+            SelectedKindKey: selectedKindKey,
+            TargetFilmId: kindApplication?.TargetFilmId,
+            TargetNewsOrganisationId: kindApplication?.TargetNewsOrganisationId,
+            TargetNewsReportId: kindApplication?.TargetNewsReportId);
     }
 
     private async Task<IReadOnlyCollection<string>> SupportedLanguageCodes()

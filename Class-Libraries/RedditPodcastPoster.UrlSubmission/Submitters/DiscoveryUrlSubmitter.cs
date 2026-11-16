@@ -20,6 +20,7 @@ public class DiscoveryUrlSubmitter(
     IEpisodeUrlRouter episodeUrlRouter,
     IDiscoveryResultProcessor discoveryResultProcessor,
     ICatalogueParentSubmitter catalogueParentSubmitter,
+    ICatalogueParentLookup catalogueParentLookup,
     ISubmitResultAdaptor submitResultAdaptor,
     ILogger<DiscoveryUrlSubmitter> logger
 ) : IDiscoveryUrlSubmitter
@@ -36,6 +37,26 @@ public class DiscoveryUrlSubmitter(
 
         // Discovery path always tags creates as Discovery regardless of caller-supplied CreationSource.
         submitOptions = submitOptions with { CreationSource = EpisodeCreationSource.Discovery };
+
+        if (submitOptions.Parent is { } target)
+        {
+            var parent = await catalogueParentLookup.FindById(target.Kind, target.Id);
+            if (parent == null)
+            {
+                throw new SubmitParentNotFoundException(target.Kind, target.Id);
+            }
+
+            Uri[] urls =
+            [
+                .. new Uri?[] { discoveryResult.Urls.Spotify, discoveryResult.Urls.Apple, discoveryResult.Urls.YouTube }
+                    .Where(url => url != null)
+                    .Select(url => url!)
+            ];
+            var routes = urls
+                .Select(url => new RoutedUrl(url, new EpisodeUrlRoute(Owner: null, Podcast: null, parent)))
+                .ToArray();
+            return await SubmitToParent(discoveryResult, routes, indexingContext, submitOptions);
+        }
 
         var spotify = await Route(discoveryResult.Urls.Spotify, indexingContext);
         var apple = await Route(discoveryResult.Urls.Apple, indexingContext);

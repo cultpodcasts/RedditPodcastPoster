@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration.Extensions;
@@ -81,6 +81,7 @@ public static class ServiceCollectionExtensions
             // Discovery submits pass the catalogue ownership guard first (#1089).
             .AddScoped<IDiscoveryUrlSubmitter>(sp => ActivatorUtilities.CreateInstance<CatalogueOwnedDiscoveryUrlSubmitter>(
                 sp, sp.GetRequiredService<DiscoveryUrlSubmitter>()))
+            .AddScoped<IDiscoveryKindSuggester, DiscoveryKindSuggester>()
             .AddScoped<IDiscoveryResultProcessor, DiscoveryResultProcessor>()
             .AddSingleton<ISubmitResultAdaptor, SubmitResultAdaptor>();
     }

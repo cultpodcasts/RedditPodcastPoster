@@ -16,6 +16,7 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
+using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.PodcastServices.Abstractions.Heroes;
@@ -95,6 +96,11 @@ public class CatalogueKindSubmitter(
                 return AlreadyExists(SubmitClassification.Film, existing.Id);
             }
 
+            if (submitOptions.TargetFilmId is Guid targetFilmId)
+            {
+                return await AttachToFilm(targetFilmId, categorisedItem, submitOptions);
+            }
+
             var filmAdmission = await AdmitOrStop(
                 CatalogueLanguageTextReader.ForParentAndChild(
                     source.Title, source.Description, source.Title, source.Description, "Film", "Film"),
@@ -120,6 +126,7 @@ public class CatalogueKindSubmitter(
             }
 
             var film = CreateFilm(source);
+            MergePlatformServices(film, categorisedItem);
             if (filmAdmission.Admission.LanguageCode != null)
             {
                 film.Language = filmAdmission.Admission.LanguageCode;
@@ -170,6 +177,12 @@ public class CatalogueKindSubmitter(
             if (existing != null)
             {
                 return AlreadyExists(SubmitClassification.NewsReport, existing.Id);
+            }
+
+            if (submitOptions.TargetNewsOrganisationId is Guid targetOrgId &&
+                submitOptions.TargetNewsReportId is Guid targetReportId)
+            {
+                return await AttachToNewsReport(targetOrgId, targetReportId, categorisedItem, submitOptions);
             }
 
             var saved = await SaveNewsReport(source, categorisedItem, submitOptions);
@@ -677,4 +690,118 @@ public class CatalogueKindSubmitter(
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private async Task<SubmitResult> AttachToFilm(
+        Guid filmId,
+        CategorisedItem categorisedItem,
+        SubmitOptions submitOptions)
+    {
+        var version = await films.GetFilmForUpdate(filmId);
+        if (version == null)
+        {
+            throw new InvalidOperationException($"No film exists for id '{filmId}'.");
+        }
+
+        var film = version.Film;
+        MergePlatformServices(film, categorisedItem);
+        if (submitOptions.LanguageProbe)
+        {
+            return LanguageProbeResult(SubmitClassification.Film, false);
+        }
+
+        var details = await enrichment.Enrich(film, categorisedItem);
+        if (submitOptions.PersistToDatabase)
+        {
+            var replaced = await films.TryReplace(film, version.ETag);
+            if (!replaced)
+            {
+                version = await films.GetFilmForUpdate(filmId) ??
+                          throw new InvalidOperationException($"No film exists for id '{filmId}'.");
+                film = version.Film;
+                MergePlatformServices(film, categorisedItem);
+                details = await enrichment.Enrich(film, categorisedItem);
+                await films.TryReplace(film, version.ETag);
+            }
+        }
+
+        return AlreadyExists(SubmitClassification.Film, film.Id) with
+        {
+            FilmSearchSource = film,
+            SubmitEpisodeDetails = details,
+            EpisodeResult = SubmitResultState.Enriched
+        };
+    }
+
+    private async Task<SubmitResult> AttachToNewsReport(
+        Guid organisationId,
+        Guid reportId,
+        CategorisedItem categorisedItem,
+        SubmitOptions submitOptions)
+    {
+        var report = await newsReports.GetNewsReport(organisationId, reportId);
+        if (report == null)
+        {
+            throw new InvalidOperationException(
+                $"No news report '{reportId}' exists under organisation '{organisationId}'.");
+        }
+
+        var organisation = await newsOrganisations.GetNewsOrganisation(organisationId) ??
+                           throw new InvalidOperationException($"No news organisation exists for id '{organisationId}'.");
+        MergePlatformServices(report, categorisedItem);
+        if (submitOptions.LanguageProbe)
+        {
+            return LanguageProbeResult(SubmitClassification.NewsReport, false);
+        }
+
+        var details = await enrichment.Enrich(report, organisation, organisation.Indexing, categorisedItem);
+        if (submitOptions.PersistToDatabase)
+        {
+            await newsReports.Save(report);
+        }
+
+        return AlreadyExists(SubmitClassification.NewsReport, report.Id) with
+        {
+            CatalogueSearchSource = ImmediateSearchSource(
+                organisation, report, CatalogueParentKind.NewsOrganisation),
+            SubmitEpisodeDetails = details,
+            EpisodeResult = SubmitResultState.Enriched
+        };
+    }
+
+    private static void MergePlatformServices(ICatalogueYouTubeItem item, CategorisedItem categorisedItem)
+    {
+        var services = item.Services ?? new Dictionary<string, ServiceLink>();
+        AddService(services, ServiceKeys.YouTube, categorisedItem.ResolvedYouTubeItem?.Url,
+            categorisedItem.ResolvedYouTubeItem?.Image);
+        AddService(services, ServiceKeys.Spotify, categorisedItem.ResolvedSpotifyItem?.Url,
+            categorisedItem.ResolvedSpotifyItem?.Image);
+        AddService(services, ServiceKeys.Apple, categorisedItem.ResolvedAppleItem?.Url,
+            categorisedItem.ResolvedAppleItem?.Image);
+        item.Services = services;
+        if (item.Services.TryGetValue(ServiceKeys.YouTube, out var youtube) && youtube.Url != null)
+        {
+            item.YouTubeId = YouTubeIdResolver.Extract(youtube.Url);
+        }
+    }
+
+    private static void AddService(
+        Dictionary<string, ServiceLink> services,
+        string key,
+        Uri? url,
+        Uri? image)
+    {
+        if (url == null)
+        {
+            return;
+        }
+
+        if (!services.TryGetValue(key, out var link))
+        {
+            link = new ServiceLink();
+            services[key] = link;
+        }
+
+        link.Url ??= url;
+        link.Image ??= image;
+    }
 }

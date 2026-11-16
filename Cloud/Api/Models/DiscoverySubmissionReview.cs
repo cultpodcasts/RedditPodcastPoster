@@ -32,6 +32,10 @@ public sealed class DiscoverySubmissionApplyRequest
     public Dictionary<Guid, string>? IdentityDecisions { get; init; }
 
     public Dictionary<Guid, string>? SelectedIdentityKeys { get; init; }
+
+    public Dictionary<Guid, string>? KindDecisions { get; init; }
+
+    public Dictionary<Guid, string>? SelectedKindKeys { get; init; }
 }
 
 public sealed class DiscoverySubmissionRetryRequest
@@ -47,6 +51,10 @@ public sealed class DiscoverySubmissionRetryRequest
     public Dictionary<Guid, string>? IdentityDecisions { get; init; }
 
     public Dictionary<Guid, string>? SelectedIdentityKeys { get; init; }
+
+    public Dictionary<Guid, string>? KindDecisions { get; init; }
+
+    public Dictionary<Guid, string>? SelectedKindKeys { get; init; }
 }
 
 public sealed class DiscoverySubmissionReleaseRequest
@@ -86,6 +94,9 @@ public enum DiscoverySubmissionCommandStatus
 
     /// <summary>Nothing was created; the caller must answer an unsupported-language prompt. Submission is not left Applying.</summary>
     LanguageDecisionRequired,
+
+    /// <summary>Nothing was created; the caller must confirm or skip a kind suggestion. Submission is not left Applying.</summary>
+    KindDecisionRequired,
 
     /// <summary>Nothing was created; the caller must pick an authority identity. Submission is not left Applying.</summary>
     IdentityDecisionRequired
