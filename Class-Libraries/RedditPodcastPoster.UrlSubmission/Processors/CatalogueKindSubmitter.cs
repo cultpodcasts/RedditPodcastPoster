@@ -621,12 +621,12 @@ public class CatalogueKindSubmitter(
         ResolvedNonPodcastServiceItem source)
         where T : class, IPlayable
     {
-        if (source.Url is null)
+        if (source.Url is null || source.StreamingService is null)
         {
             return null;
         }
 
-        var serviceKey = StreamingServiceWire.ToKey(source.StreamingService);
+        var serviceKey = StreamingServiceWire.ToKey(source.StreamingService.Value);
         var canonical = CanonicalStoredUrl(source.Url);
         return await repository.GetBy(item =>
             item.Services != null && item.Services[serviceKey].Url == canonical);
@@ -634,7 +634,7 @@ public class CatalogueKindSubmitter(
 
     private Dictionary<string, ServiceLink> ServiceMap(ResolvedNonPodcastServiceItem source)
     {
-        if (source.Url is null)
+        if (source.Url is null || source.StreamingService is null)
         {
             return new Dictionary<string, ServiceLink>();
         }
@@ -647,7 +647,7 @@ public class CatalogueKindSubmitter(
 
         return new Dictionary<string, ServiceLink>
         {
-            [StreamingServiceWire.ToKey(source.StreamingService)] = link
+            [StreamingServiceWire.ToKey(source.StreamingService.Value)] = link
         };
     }
 
@@ -720,7 +720,12 @@ public class CatalogueKindSubmitter(
                 film = version.Film;
                 MergePlatformServices(film, categorisedItem);
                 details = await enrichment.Enrich(film, categorisedItem);
-                await films.TryReplace(film, version.ETag);
+                replaced = await films.TryReplace(film, version.ETag);
+                if (!replaced)
+                {
+                    throw new InvalidOperationException(
+                        $"Could not save film '{filmId}' because it changed while the URL was being attached.");
+                }
             }
         }
 
@@ -738,13 +743,14 @@ public class CatalogueKindSubmitter(
         CategorisedItem categorisedItem,
         SubmitOptions submitOptions)
     {
-        var report = await newsReports.GetNewsReport(organisationId, reportId);
-        if (report == null)
+        var version = await newsReports.GetNewsReportWithETag(organisationId, reportId);
+        if (version == null)
         {
             throw new InvalidOperationException(
                 $"No news report '{reportId}' exists under organisation '{organisationId}'.");
         }
 
+        var report = version.Item;
         var organisation = await newsOrganisations.GetNewsOrganisation(organisationId) ??
                            throw new InvalidOperationException($"No news organisation exists for id '{organisationId}'.");
         MergePlatformServices(report, categorisedItem);
@@ -756,7 +762,22 @@ public class CatalogueKindSubmitter(
         var details = await enrichment.Enrich(report, organisation, organisation.Indexing, categorisedItem);
         if (submitOptions.PersistToDatabase)
         {
-            await newsReports.Save(report);
+            var replaced = await newsReports.TryReplace(report, version.ETag);
+            if (!replaced)
+            {
+                version = await newsReports.GetNewsReportWithETag(organisationId, reportId) ??
+                          throw new InvalidOperationException(
+                              $"No news report '{reportId}' exists under organisation '{organisationId}'.");
+                report = version.Item;
+                MergePlatformServices(report, categorisedItem);
+                details = await enrichment.Enrich(report, organisation, organisation.Indexing, categorisedItem);
+                replaced = await newsReports.TryReplace(report, version.ETag);
+                if (!replaced)
+                {
+                    throw new InvalidOperationException(
+                        $"Could not save news report '{reportId}' because it changed while the URL was being attached.");
+                }
+            }
         }
 
         return AlreadyExists(SubmitClassification.NewsReport, report.Id) with
@@ -778,7 +799,8 @@ public class CatalogueKindSubmitter(
         AddService(services, ServiceKeys.Apple, categorisedItem.ResolvedAppleItem?.Url,
             categorisedItem.ResolvedAppleItem?.Image);
         item.Services = services;
-        if (item.Services.TryGetValue(ServiceKeys.YouTube, out var youtube) && youtube.Url != null)
+        if (string.IsNullOrWhiteSpace(item.YouTubeId) &&
+            item.Services.TryGetValue(ServiceKeys.YouTube, out var youtube) && youtube.Url != null)
         {
             item.YouTubeId = YouTubeIdResolver.Extract(youtube.Url);
         }
