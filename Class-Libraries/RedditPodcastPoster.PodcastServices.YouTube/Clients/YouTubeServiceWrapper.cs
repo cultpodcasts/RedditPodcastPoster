@@ -17,7 +17,7 @@ public class YouTubeServiceWrapper(
     int initialRingIndex,
     IYouTubeIndexerKeyStateService? indexerKeyStateService,
     ILogger<YouTubeServiceWrapper> logger
-) : IYouTubeServiceWrapper, IAsyncDisposable
+) : IYouTubeServiceWrapper, IAsyncDisposable, IDisposable
 {
     private ApplicationWrapper _applicationWrapper = applicationWrapper;
     private int _reattempt;
@@ -84,6 +84,11 @@ public class YouTubeServiceWrapper(
                 ApplicationName = application.Application.Name
             });
         _applicationWrapper = application;
+    }
+
+    public void Dispose()
+    {
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
     public async ValueTask DisposeAsync()
