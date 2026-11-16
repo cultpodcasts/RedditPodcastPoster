@@ -31,11 +31,11 @@ flowchart LR
 
 ### G0 — Parity sign-off
 
-| ID | Work | Repo |
-|----|------|------|
-| SP-G0 | Gate checklist | RPP |
-| SP-0.1 | Record parity baseline in docs | RPP |
-| SP-0.2 | Response shape nits (release ms, podcastName, context) | Api |
+| ID | Work | Repo | Notes |
+|----|------|------|-------|
+| SP-G0 | Gate checklist | RPP | |
+| SP-0.1 | Record parity baseline in docs | RPP | |
+| SP-0.2 | Response shape nits (release ms, podcastName, context) | Api | |
 | SP-0.3 | Decision: full-description vs strict-content soak | RPP | **Done 16 Nov 2026:** option A + guests from soak day one |
 
 ### G1 — Production engine
@@ -82,14 +82,14 @@ flowchart LR
 
 ### G5 — Retire + enhancements
 
-| ID | Work | Repo |
-|----|------|------|
-| SP-G5 | Gate checklist | RPP |
-| SP-5.1 | Retire Azure index + hourly indexer | RPP |
+| ID | Work | Repo | Notes |
+|----|------|------|-------|
+| SP-G5 | Gate checklist | RPP | |
+| SP-5.1 | Retire Azure index + hourly indexer | RPP | |
 | SP-5.2 | Drop leftover Azure cap-driven slimming | RPP | guests + full descriptions moved to G1/G2 (16 Nov 2026) |
-| SP-5.3 | Autosuggest enrichment from D1 | Api |
-| SP-5.4 | Spell-correct / did-you-mean | Api |
-| SP-5.5 | Recency blend + proximity boost | Api |
+| SP-5.3 | Autosuggest enrichment from D1 | Api | |
+| SP-5.4 | Spell-correct / did-you-mean | Api | |
+| SP-5.5 | Recency blend + proximity boost | Api | |
 
 Full URL table: epic §8.5. Issued 2026-11-08.
 
