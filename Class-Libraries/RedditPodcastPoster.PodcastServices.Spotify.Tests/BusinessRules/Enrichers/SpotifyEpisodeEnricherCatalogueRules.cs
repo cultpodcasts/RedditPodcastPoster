@@ -374,6 +374,83 @@ public class SpotifyEpisodeEnricherCatalogueRules
         logger.Warnings.Should().Contain(m => m.Contains("Skipping Spotify episode"));
     }
 
+    [Fact(DisplayName =
+        "When the matched Spotify episode fits another YouTube-discovered episode of the show that still has no " +
+        "Spotify id better than the episode being enriched, the enricher leaves it for that episode, because the " +
+        "indexer must give each catalogue item to the best-matching episode, not the first one processed (#1445).")]
+    public async Task enrich_leaves_spotify_episode_for_better_matching_rival()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.SpotifyId = _fixture.CreateSpotifyId());
+        var audioLength = TimeSpan.FromMinutes(52);
+        var audioDay = DomainTestFixture.UtcDateDaysAgo(1);
+        const string rivalTitle = "Order quietly removes a travelling preacher for a year";
+        var claimant = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            podcast,
+            audioDay.AddHours(9),
+            audioLength + TimeSpan.FromMinutes(2),
+            "Former followers speak about the preacher");
+        var rival = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            podcast,
+            audioDay.AddHours(15),
+            audioLength + TimeSpan.FromSeconds(1),
+            rivalTitle);
+        var alreadyEnriched = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(
+            podcast,
+            release: audioDay.AddHours(15),
+            length: audioLength,
+            title: rivalTitle);
+        claimant.Subjects = ["Religious Orders"];
+        rival.Subjects = ["Religious Orders"];
+        var spotifyId = _fixture.CreateSpotifyId();
+        var fullEpisode = CreateFullEpisode(spotifyId, rivalTitle, audioDay, audioLength);
+        var sut = CreateEnricher(new FixedFullEpisodeResolver(fullEpisode));
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [claimant, alreadyEnriched, rival], claimant),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        claimant.SpotifyId.Should().BeNullOrWhiteSpace();
+        rival.SpotifyId.Should().BeNullOrWhiteSpace();
+        enrichmentContext.SpotifyUrlUpdated.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When the episode being enriched has no YouTube identity, the enricher attaches the matched Spotify episode " +
+        "without the batch check, because that check only scores YouTube-discovered episodes.")]
+    public async Task enrich_attaches_spotify_for_non_youtube_episode_without_batch_check()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast(p => p.SpotifyId = _fixture.CreateSpotifyId());
+        var audioLength = TimeSpan.FromMinutes(52);
+        var audioDay = DomainTestFixture.UtcDateDaysAgo(1);
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.Title = _fixture.CreateTitle();
+            e.Length = audioLength;
+            e.ReleaseUtc = audioDay;
+            e.AppleId = _fixture.CreateAppleId();
+        });
+        var spotifyId = _fixture.CreateSpotifyId();
+        var fullEpisode = CreateFullEpisode(spotifyId, episode.Title, audioDay, audioLength);
+        var sut = CreateEnricher(new FixedFullEpisodeResolver(fullEpisode));
+        var enrichmentContext = new EnrichmentContext();
+
+        // Act
+        await sut.Enrich(
+            new EnrichmentRequest(podcast, [episode], episode),
+            new IndexingContext(),
+            enrichmentContext);
+
+        // Assert
+        episode.SpotifyId.Should().Be(spotifyId);
+        enrichmentContext.SpotifyUrlUpdated.Should().BeTrue();
+    }
+
     private SpotifyEpisodeEnricher CreateEnricher(
         ISpotifyEpisodeResolver resolver,
         ILogger<SpotifyEpisodeEnricher>? logger = null) =>
