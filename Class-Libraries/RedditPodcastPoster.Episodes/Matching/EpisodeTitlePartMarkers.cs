@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace RedditPodcastPoster.UrlSubmission.Matching;
+namespace RedditPodcastPoster.Episodes.Matching;
 
 /// <summary>
 /// Part and episode numbers carried in an episode title, so multi-part releases with an identical
