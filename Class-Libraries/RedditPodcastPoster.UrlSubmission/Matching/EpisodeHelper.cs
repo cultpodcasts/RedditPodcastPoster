@@ -19,8 +19,22 @@ public class EpisodeHelper : IEpisodeHelper
     /// </summary>
     public const int MinCrossPlatformFuzzyTitleMatch = 70;
 
-    /// <summary>Duration band for a YouTube↔audio pair; mirrors the cross-platform band in <c>EpisodePlatformMatcher</c>.</summary>
-    public static readonly TimeSpan CrossPlatformDurationTolerance = TimeSpan.FromMinutes(5);
+    /// <summary>
+    /// Floor of the duration band for a YouTube↔audio pair. Tighter than the generic 5-minute
+    /// cross-platform band because this path relaxes the title bar (#1445 review).
+    /// </summary>
+    public static readonly TimeSpan CrossPlatformDurationToleranceFloor = TimeSpan.FromMinutes(2);
+
+    /// <summary>Proportional duration band for a YouTube↔audio pair, as a fraction of the longer length.</summary>
+    public const double CrossPlatformDurationToleranceFraction = 0.03;
+
+    /// <summary>Greater of <see cref="CrossPlatformDurationToleranceFloor"/> and 3% of the longer length.</summary>
+    public static TimeSpan CrossPlatformDurationTolerance(TimeSpan left, TimeSpan right)
+    {
+        var longer = left > right ? left : right;
+        var proportional = TimeSpan.FromTicks((long)(longer.Ticks * CrossPlatformDurationToleranceFraction));
+        return proportional > CrossPlatformDurationToleranceFloor ? proportional : CrossPlatformDurationToleranceFloor;
+    }
 
     public bool IsMatchingEpisode(Episode episode, CategorisedItem categorisedItem)
     {
@@ -80,7 +94,7 @@ public class EpisodeHelper : IEpisodeHelper
             // (MatchOtherServices) resolve can point at a different stored episode, so it must also
             // look like the submitted episode before it is accepted (#1445).
             if (matchesAuthorityIdentity || authority is null || authority.Service == Service.Other ||
-                IsPlausiblySameEpisode(episode, authority, categorisedItem.MatchingPodcast))
+                IsPlausiblySameEpisode(episode, authority))
             {
                 return true;
             }
@@ -107,6 +121,12 @@ public class EpisodeHelper : IEpisodeHelper
 
         var episodeTitle = NormaliseTitle(episode.Title);
         var resolvedTitle = authority.Title;
+        if (EpisodeTitlePartMarkers.Conflict(resolvedTitle, episodeTitle))
+        {
+            // pt.I vs pt.II (or ep 3 vs ep 4) are different episodes however close the stems are.
+            return false;
+        }
+
         if (resolvedTitle == episodeTitle || resolvedTitle.Contains(episodeTitle) ||
             episodeTitle.Contains(resolvedTitle))
         {
@@ -125,7 +145,8 @@ public class EpisodeHelper : IEpisodeHelper
     /// YouTube↔audio pair (#1445): the stored episode carries the other platform's identity and is
     /// missing the submitted one, releases share a calendar day (or sit within the same-release
     /// window, or line up with the podcast's YouTube publishing delay), durations are within the
-    /// cross-platform band, and the titles clear <see cref="MinCrossPlatformFuzzyTitleMatch"/>.
+    /// cross-platform band (<see cref="CrossPlatformDurationTolerance"/>), the titles carry no conflicting
+    /// part or episode number, and they clear <see cref="MinCrossPlatformFuzzyTitleMatch"/>.
     /// </summary>
     private static bool IsCrossPlatformMatch(Episode episode, ResolvedAuthority authority, Podcast? podcast)
     {
@@ -134,23 +155,29 @@ public class EpisodeHelper : IEpisodeHelper
             return false;
         }
 
-        return ReleaseAndDurationAgree(episode, authority, podcast) &&
+        return !EpisodeTitlePartMarkers.Conflict(authority.Title, NormaliseTitle(episode.Title)) &&
+               ReleaseAndDurationAgree(episode, authority, podcast) &&
                FuzzyMatcher.Score(authority.Title, NormaliseTitle(episode.Title)) >=
                MinCrossPlatformFuzzyTitleMatch;
     }
 
-    private static bool IsPlausiblySameEpisode(Episode episode, ResolvedAuthority authority, Podcast? podcast)
+    /// <summary>
+    /// A secondary-id hit needs title evidence: equal, contained, or fuzzy at the cross-platform bar,
+    /// with no conflicting part or episode number. Release and duration alone are not enough, because a
+    /// same-day sibling (the other part, or a similar-length daily episode) would pass (#1445 review).
+    /// </summary>
+    private static bool IsPlausiblySameEpisode(Episode episode, ResolvedAuthority authority)
     {
         var episodeTitle = NormaliseTitle(episode.Title);
-        if (authority.Title == episodeTitle ||
-            authority.Title.Contains(episodeTitle) ||
-            episodeTitle.Contains(authority.Title) ||
-            FuzzyMatcher.Score(authority.Title, episodeTitle) >= MinCrossPlatformFuzzyTitleMatch)
+        if (EpisodeTitlePartMarkers.Conflict(authority.Title, episodeTitle))
         {
-            return true;
+            return false;
         }
 
-        return ReleaseAndDurationAgree(episode, authority, podcast);
+        return authority.Title == episodeTitle ||
+               authority.Title.Contains(episodeTitle) ||
+               episodeTitle.Contains(authority.Title) ||
+               FuzzyMatcher.Score(authority.Title, episodeTitle) >= MinCrossPlatformFuzzyTitleMatch;
     }
 
     private static bool ReleaseAndDurationAgree(Episode episode, ResolvedAuthority authority, Podcast? podcast)
@@ -161,7 +188,7 @@ public class EpisodeHelper : IEpisodeHelper
         }
 
         var durationDelta = (authority.Duration - episode.Length).Duration();
-        if (durationDelta > CrossPlatformDurationTolerance)
+        if (durationDelta > CrossPlatformDurationTolerance(authority.Duration, episode.Length))
         {
             return false;
         }

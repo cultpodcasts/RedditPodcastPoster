@@ -109,7 +109,8 @@ public class SubmitYouTubeAudioEpisodeMatchRules
         var item = SpotifySubmit(
             AudioTitle,
             _audioRelease,
-            YouTubeLength - EpisodeHelper.CrossPlatformDurationTolerance - TimeSpan.FromSeconds(1));
+            YouTubeLength - EpisodeHelper.CrossPlatformDurationTolerance(YouTubeLength, YouTubeLength) -
+            TimeSpan.FromSeconds(1));
 
         // Act
         var result = Sut.IsMatchingEpisode(stored, item);
@@ -220,6 +221,115 @@ public class SubmitYouTubeAudioEpisodeMatchRules
 
         // Assert
         result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When the durations differ by just under the YouTube↔audio band (the greater of 2 minutes or 3%), " +
+        "the edited-title pair still matches, because the band is inclusive of near-identical lengths.")]
+    public void spotify_submit_matches_when_duration_is_just_inside_cross_platform_band()
+    {
+        // Arrange
+        var band = EpisodeHelper.CrossPlatformDurationTolerance(YouTubeLength, YouTubeLength);
+        var stored = StoredYouTubeEpisode(_audioRelease.Add(YouTubeLagBehindAudio), YouTubeLength);
+        var item = SpotifySubmit(AudioTitle, _audioRelease, YouTubeLength - band + TimeSpan.FromSeconds(1));
+
+        // Act
+        var result = Sut.IsMatchingEpisode(stored, item);
+
+        // Assert
+        band.Should().BeLessThan(TimeSpan.FromMinutes(5), "the band is tighter than the generic cross-platform band");
+        result.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "When the stored YouTube episode is part I and the submitted Spotify episode is part II of the same " +
+        "story on the same day with a similar duration, it does not match, because differing part numbers " +
+        "mark different episodes however close the titles score.")]
+    public void spotify_submit_part_two_does_not_match_youtube_part_one_on_same_day()
+    {
+        // Arrange
+        var partOneTitle = YouTubeTitle.Replace("(pt.II)", "(pt.I)");
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            _podcast, _audioRelease.Add(YouTubeLagBehindAudio), YouTubeLength - TimeSpan.FromSeconds(60),
+            partOneTitle);
+        var item = SpotifySubmit(AudioTitle, _audioRelease, AudioLength);
+
+        // Act
+        var result = Sut.IsMatchingEpisode(stored, item);
+
+        // Assert
+        FuzzyMatcher.Score(AudioTitle, partOneTitle)
+            .Should().BeGreaterThanOrEqualTo(EpisodeHelper.MinCrossPlatformFuzzyTitleMatch,
+                "the part marker, not the fuzzy score, is what must block this pair");
+        result.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a submitted title differs from a stored title only by its part number, the title-only path " +
+        "does not match, because part 1 and part 2 of a story are different episodes even at a 95+ score.")]
+    public void title_only_path_does_not_match_differing_part_numbers()
+    {
+        // Arrange
+        var stem = _fixture.CreateLongTitle();
+        var storedTitle = stem + " (part 1)";
+        var submittedTitle = stem + " (part 2)";
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            _podcast, _audioRelease.AddDays(-10), YouTubeLength, storedTitle);
+        var item = SpotifySubmit(submittedTitle, _audioRelease, AudioLength);
+
+        // Act
+        var result = Sut.IsMatchingEpisode(stored, item);
+
+        // Assert
+        FuzzyMatcher.Score(submittedTitle, storedTitle).Should().BeGreaterThanOrEqualTo(95,
+            "the titles must clear the title-only bar so the part guard is what blocks them");
+        result.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a stored title is contained in the submitted title but the part numbers differ (pt 1 vs pt 10), " +
+        "the stored episode does not match, because containment must not cross part numbers.")]
+    public void contains_path_does_not_match_differing_part_numbers()
+    {
+        // Arrange
+        var stem = _fixture.CreateTitle();
+        var storedTitle = stem + " pt 1";
+        var submittedTitle = stem + " pt 10";
+        var stored = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            _podcast, _audioRelease.AddDays(-10), YouTubeLength, storedTitle);
+        var item = SpotifySubmit(submittedTitle, _audioRelease, AudioLength);
+
+        // Act
+        var result = Sut.IsMatchingEpisode(stored, item);
+
+        // Assert
+        submittedTitle.Should().Contain(storedTitle);
+        result.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a secondary Apple id resolved for a Spotify submit is on a stored episode with an unrelated title " +
+        "but the same day and the same duration, that episode does not match, because a secondary id hit " +
+        "needs title evidence and release and duration alone are not enough.")]
+    public void secondary_apple_id_on_unrelated_title_same_day_same_duration_does_not_match()
+    {
+        // Arrange
+        var appleId = _fixture.CreateAppleId();
+        var unrelatedTitle = _fixture.CreateTitleNotContainedIn(AudioTitle);
+        var sibling = _fixture.CreateStoredEpisodeWithYouTubeOnly(
+            _podcast, _audioRelease.Add(YouTubeLagBehindAudio), AudioLength, unrelatedTitle);
+        EpisodeServicePresence.SetAppleIdentity(sibling, appleId);
+        var item = SpotifySubmit(AudioTitle, _audioRelease, AudioLength) with
+        {
+            ResolvedAppleItem = AppleItem(appleId)
+        };
+
+        // Act
+        var result = Sut.IsMatchingEpisode(sibling, item);
+
+        // Assert
+        FuzzyMatcher.Score(AudioTitle, unrelatedTitle).Should().BeLessThan(EpisodeHelper.MinCrossPlatformFuzzyTitleMatch);
+        result.Should().BeFalse();
     }
 
     private Episode StoredYouTubeEpisode(DateTime release, TimeSpan length) =>
