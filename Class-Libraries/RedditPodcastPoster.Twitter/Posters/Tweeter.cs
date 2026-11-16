@@ -90,7 +90,7 @@ public class Tweeter(
     {
         if (run.Posts >= _options.MaxPosts)
         {
-            logger.LogWarning(
+            logger.LogInformation(
                 "Stopping tweet run because max-posts limit was reached. Posts: {Posts}, Max-posts: {MaxPosts}.",
                 run.Posts,
                 _options.MaxPosts);
@@ -133,6 +133,15 @@ public class Tweeter(
                 return true;
             }
 
+            if (IsResolvedSkip(tweetStatus.TweetSendStatus))
+            {
+                logger.LogInformation(
+                    "Skipping {ContentKind} with id '{EpisodeId}' after {Status}; it is already resolved and does not count against the post or failure budget.",
+                    podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id,
+                    tweetStatus.TweetSendStatus);
+                return true;
+            }
+
             return RecordFailure(run);
         }
         catch (Exception ex)
@@ -165,6 +174,13 @@ public class Tweeter(
     public static bool StopsRun(TweetSendStatus status) =>
         status is TweetSendStatus.TooManyRequests or TweetSendStatus.PaymentRequired
             or TweetSendStatus.AuthenticationFailed;
+
+    /// <summary>
+    /// The document is already persisted as done, so the candidate is a skip, not a failure
+    /// and not a sent post. <see cref="TweetSendStatus.Untweetable"/> never reaches X.
+    /// </summary>
+    public static bool IsResolvedSkip(TweetSendStatus status) =>
+        status is TweetSendStatus.Untweetable or TweetSendStatus.DuplicateForbidden;
 
     private void LogRunStopped(TweetSendStatus status, PodcastEpisode podcastEpisode)
     {
