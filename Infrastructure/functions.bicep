@@ -17,11 +17,11 @@ param apiEndpoint string
 @secure()
 param blueskyPassword string
 @secure()
-@description('Auth0 search-index-writer M2M client id, prod tenant (RPP #1460). Read by deploy.yml from HCP Terraform workspace cultpodcasts-auth0; empty leaves the production D1 sync target unconfigured.')
-param searchIndexWriterClientId string = ''
+@description('Auth0 search-index-writer M2M client id, prod tenant (RPP #1460). Key Vault Search-Index-Writer-ClientId.')
+param searchIndexWriterClientId string
 @secure()
-@description('Auth0 search-index-writer M2M client secret, prod tenant (RPP #1460). Never in Key Vault or a file: deploy.yml reads it from HCP state per run.')
-param searchIndexWriterClientSecret string = ''
+@description('Auth0 search-index-writer M2M client secret, prod tenant (RPP #1460). Key Vault Search-Index-Writer-ClientSecret.')
+param searchIndexWriterClientSecret string
 @description('D1 search sync (SP-2.1) to the production search index (api Worker POST /search/admin/docs). Off until Jon switches it on.')
 param d1SearchProductionEnabled bool = false
 @secure()
@@ -217,8 +217,8 @@ var auth0Client= {
 // D1 search sync (epic #1312 SP-2.1 / SP-2.5): the Functions mirror search writes to the production D1 index
 // through the api Worker's POST /search/admin/docs with the prod-tenant Auth0 search-index-writer M2M token,
 // via api__Endpoint (the Bot Fight bypass host, same as every other M2M call). There are only production
-// Functions, so there is no preview target. Off until Jon switches d1SearchProductionEnabled on; with no
-// client id/secret the sync is skipped (logged), so an empty HCP read never breaks Azure indexing.
+// Functions, so there is no preview target. Off until Jon switches d1SearchProductionEnabled on. The client
+// id/secret come from Key Vault (Search-Index-Writer-ClientId / -ClientSecret) like the other Auth0 secrets.
 var d1Search= {
     d1Search__Enabled: string(d1SearchProductionEnabled)
     d1Search__Endpoint: apiEndpoint

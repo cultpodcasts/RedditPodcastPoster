@@ -256,27 +256,6 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/function-application-insights.bicep
         parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}"}'
-    # RPP #1460 (SP-2.5): the prod-tenant Auth0 search-index-writer M2M credentials live only in HCP
-    # Terraform state (Api repo, infra/terraform/auth0, workspace cultpodcasts-auth0). Read them here and hand them to functions.bicepparam
-    # (readEnvironmentVariable), so no one copies the secret by hand. The secret is masked before it
-    # reaches GITHUB_ENV. Without the TF_TOKEN_APP_TERRAFORM_IO secret this warns and exports nothing:
-    # the D1 sync stays unconfigured and Azure indexing is unaffected.
-    - name: Checkout workflow scripts
-      uses: actions/checkout@v7
-      if: needs.build.outputs.run_provision == 'true'
-      with:
-        sparse-checkout: .github/scripts
-        path: workflow-src
-    - name: Search-index writer credentials (HCP Terraform outputs)
-      if: needs.build.outputs.run_provision == 'true'
-      env:
-        TF_TOKEN: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-      run: |
-        set -euo pipefail
-        script=workflow-src/.github/scripts/hcp-terraform-outputs.cjs
-        node "$script" --org cultpodcasts --workspace cultpodcasts-auth0 \
-          --output client_id=SEARCH_INDEX_WRITER_CLIENT_ID \
-          --output client_secret=SEARCH_INDEX_WRITER_CLIENT_SECRET
     - name: Functions (Deploy Bicep)
       id: bicepfunctionsdeploy
       uses: azure/bicep-deploy@v2.5.0

@@ -34,33 +34,30 @@ Expected volume: tens of mutations/hour — far below any batching threshold.
 
 The Functions call the api Worker's `POST /search/admin/docs` with an Auth0 **M2M** token for the
 dedicated `search-index-writer` app in the **prod** Auth0 tenant (Api#284/#285, Terraform in the Api
-repo). Its client secret exists only as a sensitive output in HCP Terraform state. Nobody copies it.
-There are only production Functions, so they know only the **production** D1 index; the staging
-tenant's writer app and the preview D1 index are never used by the Functions (Jon, 17 Nov 2026):
+repo). There are only production Functions, so they know only the **production** D1 index; the
+staging tenant's writer app and the preview D1 index are never used by the Functions (Jon, 17 Nov 2026).
+The credentials reach bicep from Key Vault with `az.getSecret`, like `Auth0-ClientId`/`Auth0-ClientSecret`:
 
 ```mermaid
 flowchart LR
-  TF["Api repo auth0-stack.yml<br/>terraform apply"] -->|sensitive output| HCP["HCP Terraform<br/>cultpodcasts-auth0"]
-  HCP -->|"deploy.yml provision<br/>.github/scripts/hcp-terraform-outputs.cjs<br/>(masked)"| ENV["job env<br/>SEARCH_INDEX_WRITER_*"]
-  ENV -->|"functions.bicepparam<br/>readEnvironmentVariable"| BICEP["functions.bicep<br/>d1Search__*"]
+  TF["Api repo auth0-stack.yml<br/>terraform output (prod)"] -->|"Jon, once"| KV["Key Vault<br/>Search-Index-Writer-*"]
+  KV -->|"functions.bicepparam<br/>az.getSecret"| BICEP["functions.bicep<br/>d1Search__*"]
   BICEP --> FN["api / indexer app settings"]
 ```
 
-| Endpoint | Auth0 tenant | HCP workspace | Switch (`functions.bicepparam`) |
-|----------|--------------|---------------|-------------------------------|
-| `api__Endpoint` (Key Vault `Api-Endpoint`, the Bot Fight bypass host) | prod (`auth.cultpodcasts.com`) | `cultpodcasts-auth0` | `d1SearchProductionEnabled` (default **false** until Jon's OK) |
+| Endpoint | Auth0 tenant | Key Vault secrets | Switch (`functions.bicepparam`) |
+|----------|--------------|-------------------|-------------------------------|
+| `api__Endpoint` (Key Vault `Api-Endpoint`, the Bot Fight bypass host) | prod (`auth.cultpodcasts.com`) | `Search-Index-Writer-ClientId`, `Search-Index-Writer-ClientSecret` | `d1SearchProductionEnabled` (default **false** until Jon's OK) |
 
-- **One-time setup (Jon):** RPP repo secret `TF_TOKEN_APP_TERRAFORM_IO`, an HCP Terraform API token
-  that can read the state outputs of `cultpodcasts-auth0` (org `cultpodcasts`). The free plan has no
-  teams, so this is a user token, like the Api repo's secret of the same name.
-- **No token:** provision warns, exports nothing, and the app settings get empty credentials; the
-  sync is skipped and logged. Azure indexing is unaffected.
-- **Token that cannot read the outputs**, or a workspace without them: provision fails, so a
-  half-configured deploy never ships.
-- **Rotation / rebuilt client:** re-run *Provision and Deploy* with `run_provision` after the Auth0
-  apply. App settings only change when provision runs.
-- Azure stays on bicep and Auth0 on Terraform; neither wraps the other. Key Vault is not used for
-  this secret, so the Api repo needs no Azure login.
+- **One-time setup (Jon), before this deploys:** create the two Key Vault secrets in the management
+  vault (`AZURE_KEYVAULT_NAME`): `Search-Index-Writer-ClientId` and `Search-Index-Writer-ClientSecret`,
+  with the prod `search-index-writer` client's id and secret from the Api repo's Auth0 Terraform output
+  (workspace `cultpodcasts-auth0`, outputs `client_id` and `client_secret`). Like every other
+  `az.getSecret`, provision fails if they are missing.
+- **Rotation / rebuilt client:** update the two secrets, then re-run *Provision and Deploy* with
+  `run_provision`. App settings only change when provision runs.
+- With the switch off (the default), the settings are present but nothing is sent; Azure indexing is
+  unaffected either way.
 
 ### Weekly reconcile
 
