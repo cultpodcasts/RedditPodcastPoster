@@ -47,11 +47,17 @@ flowchart LR
 | Target | Endpoint | Auth0 tenant | HCP workspace | Switch (`functions.bicepparam`) |
 |--------|----------|--------------|---------------|-------------------------------|
 | `production` | `api__Endpoint` (Key Vault `Api-Endpoint`, the Bot Fight bypass host) | prod (`auth.cultpodcasts.com`) | `cultpodcasts-auth0` | `d1SearchProductionEnabled` |
-| `preview` | `https://api-preview.cultpodcasts.com/` | staging (`auth-staging.cultpodcasts.com`) | `cultpodcasts-auth0-preview` | `d1SearchPreviewEnabled` |
+| `preview` | optional Key Vault `Api-Preview-Endpoint` (the api-preview workers.dev bypass host), else `https://api-preview.cultpodcasts.com/` | staging (`auth-staging.cultpodcasts.com`) | `cultpodcasts-auth0-preview` | `d1SearchPreviewEnabled` |
 
 - **One-time setup (Jon):** RPP repo secret `TF_TOKEN_APP_TERRAFORM_IO`, an HCP Terraform API token
   that can read state outputs of both Auth0 workspaces (org `cultpodcasts`). The free plan has no
   teams, so this is a user token, like the Api repo's secret of the same name.
+- **One-time setup (Jon), preview endpoint:** Key Vault secret `Api-Preview-Endpoint` = the
+  api-preview Worker's workers.dev URL. Zone Bot Fight Mode challenges Azure -> custom-domain M2M
+  POSTs (Api `docs/hero-curation-m2m-edge.md`). The value is never committed. Provision reads it
+  with `az keyvault secret show`. If it's missing or unreadable (the deploy identity needs secret
+  *get* on the data plane), provision warns and uses the public host, which may be challenged. The
+  writer logs this as a Cloudflare challenge.
 - **No token:** provision warns, exports nothing, and the targets get empty credentials; the sync
   skips them and logs it. Azure indexing is unaffected.
 - **Token that cannot read the outputs**, or a workspace without them: provision fails, so a

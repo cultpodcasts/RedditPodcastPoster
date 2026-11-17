@@ -262,7 +262,7 @@ jobs:
     # reaches GITHUB_ENV. Without the TF_TOKEN_APP_TERRAFORM_IO secret this warns and exports nothing:
     # the D1 sync targets stay unconfigured and Azure indexing is unaffected.
     - name: Checkout workflow scripts
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       if: needs.build.outputs.run_provision == 'true'
       with:
         sparse-checkout: .github/scripts
@@ -280,6 +280,25 @@ jobs:
         node "$script" --org cultpodcasts --workspace cultpodcasts-auth0-preview \
           --output client_id=SEARCH_INDEX_WRITER_PREVIEW_CLIENT_ID \
           --output client_secret=SEARCH_INDEX_WRITER_PREVIEW_CLIENT_SECRET
+    # RPP #1460: zone Bot Fight Mode challenges Azure -> custom-domain M2M POSTs (Api
+    # docs/hero-curation-m2m-edge.md), so the preview D1 target needs the api-preview Worker's
+    # workers.dev host, which must never be committed. It is read from the OPTIONAL Key Vault secret
+    # Api-Preview-Endpoint (masked). If it is missing or unreadable, this warns and bicep falls back to
+    # https://api-preview.cultpodcasts.com/. Unlike az.getSecret in bicepparam, a missing secret
+    # never fails provision.
+    - name: Search-index preview endpoint (optional Key Vault secret)
+      if: needs.build.outputs.run_provision == 'true'
+      run: |
+        set -uo pipefail
+        value="$(az keyvault secret show --vault-name "$AZURE_KEYVAULT_NAME" --name Api-Preview-Endpoint --query value -o tsv 2>/dev/null)" || value=""
+        value="$(printf '%s' "$value" | tr -d '\r\n')"
+        if [ -n "$value" ]; then
+          echo "::add-mask::$value"
+          echo "SEARCH_INDEX_PREVIEW_ENDPOINT=$value" >> "$GITHUB_ENV"
+          echo "Preview D1 target endpoint: Key Vault Api-Preview-Endpoint."
+        else
+          echo "::warning::Key Vault secret Api-Preview-Endpoint not found or not readable; the preview D1 target uses https://api-preview.cultpodcasts.com/ (Bot Fight Mode may challenge it)."
+        fi
     - name: Functions (Deploy Bicep)
       id: bicepfunctionsdeploy
       uses: azure/bicep-deploy@v2.5.0

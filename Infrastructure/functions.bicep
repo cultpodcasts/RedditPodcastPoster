@@ -32,6 +32,9 @@ param searchIndexWriterPreviewClientSecret string = ''
 param d1SearchProductionEnabled bool = false
 @description('D1 search sync (SP-2.1) to the preview search index (api-preview, staging Auth0 tenant).')
 param d1SearchPreviewEnabled bool = false
+
+@description('RPP #1460: api-preview Worker base URL for the preview D1 target. The deploy reads it from the optional Key Vault secret Api-Preview-Endpoint (the Bot Fight bypass host, never committed). The default is the public custom domain.')
+param searchIndexPreviewEndpoint string = 'https://api-preview.cultpodcasts.com/'
 @secure()
 param cloudflareAccountId string
 @secure()
@@ -237,7 +240,7 @@ var d1Search= {
     d1Search__Targets__0__ClientSecret: searchIndexWriterClientSecret
     d1Search__Targets__1__Name: 'preview'
     d1Search__Targets__1__Enabled: string(d1SearchPreviewEnabled)
-    d1Search__Targets__1__Endpoint: 'https://api-preview.cultpodcasts.com/'
+    d1Search__Targets__1__Endpoint: searchIndexPreviewEndpoint
     d1Search__Targets__1__Auth0Domain: auth0StagingDomain
     d1Search__Targets__1__Audience: auth0Audience
     d1Search__Targets__1__ClientId: searchIndexWriterPreviewClientId

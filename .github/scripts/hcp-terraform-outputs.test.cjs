@@ -17,7 +17,7 @@ function fakeHcp({ outputs = null, status = {} } = {}) {
     { id: 'wsout-secret', attributes: { name: 'client_secret', sensitive: true, value: null } },
   ];
   const fetchImpl = async (url, init) => {
-    calls.push({ url, auth: init.headers.Authorization });
+    calls.push({ url, auth: init.headers.Authorization, accept: init.headers.Accept });
     const path = new URL(url).pathname;
     const body = (data) => ({ ok: !(path in status), status: status[path] ?? 200, json: async () => data });
     if (path === '/api/v2/organizations/cultpodcasts/workspaces/cultpodcasts-auth0') return body({ data: { id: 'ws-1' } });
@@ -38,6 +38,7 @@ test('reads a plain output from the list and a sensitive one from its own endpoi
     ['SEARCH_INDEX_WRITER_CLIENT_SECRET', SECRET, true],
   ]);
   assert.ok(calls.every((c) => c.auth === 'Bearer t'));
+  assert.ok(calls.every((c) => c.accept === 'application/vnd.api+json'));
 });
 
 test('masks every sensitive value before it reaches GITHUB_ENV, and never logs a value', async () => {

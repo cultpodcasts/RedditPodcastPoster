@@ -50,7 +50,7 @@ function parseArgs(argv) {
 
 async function getJson(fetchImpl, token, url) {
   const response = await fetchImpl(url, {
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/vnd.api+json' },
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.api+json' },
   });
   if (!response.ok) {
     // The body can name the workspace but never holds a secret; still keep it out of the log.

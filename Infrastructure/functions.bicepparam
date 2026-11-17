@@ -10,6 +10,7 @@ param searchIndexWriterClientSecret= readEnvironmentVariable('SEARCH_INDEX_WRITE
 param searchIndexWriterPreviewClientId= readEnvironmentVariable('SEARCH_INDEX_WRITER_PREVIEW_CLIENT_ID', '')
 param searchIndexWriterPreviewClientSecret= readEnvironmentVariable('SEARCH_INDEX_WRITER_PREVIEW_CLIENT_SECRET', '')
 // D1 search sync switches (SP-2.1). Preview first; production only on Jon's say-so.
+param searchIndexPreviewEndpoint= readEnvironmentVariable('SEARCH_INDEX_PREVIEW_ENDPOINT', 'https://api-preview.cultpodcasts.com/')
 param d1SearchPreviewEnabled= true
 param d1SearchProductionEnabled= false
 param blueskyPassword= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Bluesky-Password')
