@@ -347,6 +347,8 @@ public sealed class DiscoveryKindSuggester(
     /// Titles agree when the folded forms are equal, or when the shorter is a word-bounded run inside
     /// the longer and is at least <see cref="MinWordBoundedTitleLength"/> characters. Folding is
     /// case-insensitive and strips punctuation. A short title such as "Cult" only matches that exact title.
+    /// A leading article does not count towards the length, so "The Cult" (an AKA of The Manson Massacre)
+    /// does not match "Escaping Rama (Part 3): Life After The Cult" (#1457).
     /// </summary>
     internal const int MinWordBoundedTitleLength = 8;
 
@@ -366,12 +368,28 @@ public sealed class DiscoveryKindSuggester(
 
         var shorter = left.Length <= right.Length ? left : right;
         var longer = left.Length <= right.Length ? right : left;
-        if (shorter.Length < MinWordBoundedTitleLength)
+        if (WithoutLeadingArticle(shorter).Length < MinWordBoundedTitleLength)
         {
             return false;
         }
 
         return $" {longer} ".Contains($" {shorter} ", StringComparison.Ordinal);
+    }
+
+    private static readonly string[] LeadingArticles = ["the ", "a ", "an "];
+
+    /// <summary>Drops one leading English article from a folded title, so it cannot pad a short title.</summary>
+    internal static string WithoutLeadingArticle(string folded)
+    {
+        foreach (var article in LeadingArticles)
+        {
+            if (folded.StartsWith(article, StringComparison.Ordinal))
+            {
+                return folded[article.Length..];
+            }
+        }
+
+        return folded;
     }
 
     internal static string FoldTitle(string? title)
