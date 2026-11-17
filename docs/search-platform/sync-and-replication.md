@@ -30,6 +30,35 @@ public hostnames). The Functions are production only, so they hold production se
 
 Expected volume: tens of mutations/hour — far below any batching threshold.
 
+### Writer credentials (SP-2.5, #1460)
+
+The Functions call the api Worker's `POST /search/admin/docs` with an Auth0 **M2M** token for the
+dedicated `search-index-writer` app in the **prod** Auth0 tenant (Api#284/#285, Terraform in the Api
+repo). There are only production Functions, so they know only the **production** D1 index; the
+staging tenant's writer app and the preview D1 index are never used by the Functions (Jon, 17 Nov 2026).
+The credentials reach bicep from Key Vault with `az.getSecret`, like `Auth0-ClientId`/`Auth0-ClientSecret`:
+
+```mermaid
+flowchart LR
+  TF["Api repo auth0-stack.yml<br/>terraform output (prod)"] -->|"Jon, once"| KV["Key Vault<br/>Search-Index-Writer-*"]
+  KV -->|"functions.bicepparam<br/>az.getSecret"| BICEP["functions.bicep<br/>d1Search__*"]
+  BICEP --> FN["api / indexer app settings"]
+```
+
+| Endpoint | Auth0 tenant | Key Vault secrets | Switch (`functions.bicepparam`) |
+|----------|--------------|-------------------|-------------------------------|
+| `api__Endpoint` (Key Vault `Api-Endpoint`, the Bot Fight bypass host) | prod (`auth.cultpodcasts.com`) | `Search-Index-Writer-ClientId`, `Search-Index-Writer-ClientSecret` | `d1SearchProductionEnabled` (default **false** until Jon's OK) |
+
+- **One-time setup (Jon), before this deploys:** create the two Key Vault secrets in the management
+  vault (`AZURE_KEYVAULT_NAME`): `Search-Index-Writer-ClientId` and `Search-Index-Writer-ClientSecret`,
+  with the prod `search-index-writer` client's id and secret from the Api repo's Auth0 Terraform output
+  (workspace `cultpodcasts-auth0`, outputs `client_id` and `client_secret`). Like every other
+  `az.getSecret`, provision fails if they are missing.
+- **Rotation / rebuilt client:** update the two secrets, then re-run *Provision and Deploy* with
+  `run_provision`. App settings only change when provision runs.
+- With the switch off (the default), the settings are present but nothing is sent; Azure indexing is
+  unaffected either way.
+
 ### As built (SP-2.1, #1321)
 
 Code: `Class-Libraries/RedditPodcastPoster.EntitySearchIndexer/D1Search/`. Azure is untouched; D1 is written
