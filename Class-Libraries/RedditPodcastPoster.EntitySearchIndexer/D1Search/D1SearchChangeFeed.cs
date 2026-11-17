@@ -15,7 +15,7 @@ public interface ID1SearchChangeFeed
 
     /// <summary>
     /// The hourly drip: <see cref="Sync"/> from now minus <see cref="D1SearchOptions.DripLookbackMinutes"/>.
-    /// A no-op when no target is active.
+    /// A no-op when the sync is not active.
     /// </summary>
     Task<D1SearchChangeFeedResult> Drip(CancellationToken cancellationToken);
 }
@@ -217,7 +217,7 @@ public sealed class D1SearchChangeFeed(
     }
 }
 
-/// <param name="Ran">At least one D1 target was active.</param>
+/// <param name="Ran">The D1 sync was active.</param>
 /// <param name="Succeeded">Every document was built and every write succeeded.</param>
 /// <param name="FailedToBuild">Playables whose document could not be built (logged with their id).</param>
 public sealed record D1SearchChangeFeedResult(

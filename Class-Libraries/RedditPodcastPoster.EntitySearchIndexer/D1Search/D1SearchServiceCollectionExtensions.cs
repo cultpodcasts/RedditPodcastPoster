@@ -7,8 +7,8 @@ namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 public static class D1SearchServiceCollectionExtensions
 {
     /// <summary>
-    /// The D1 search writer (section <c>d1Search</c>). Safe to register everywhere: with no enabled, configured
-    /// target (every console app, local runs) <see cref="ID1SearchIndexWriter.IsActive"/> is false and nothing is
+    /// The D1 search writer (section <c>d1Search</c>). Safe to register everywhere: unless <c>d1Search</c> is
+    /// enabled and configured (only the production Functions; never console apps or local runs) <see cref="ID1SearchIndexWriter.IsActive"/> is false and nothing is
     /// sent. The change feed needs <c>AddRepositories()</c>.
     /// </summary>
     public static IServiceCollection AddD1SearchSync(this IServiceCollection services)

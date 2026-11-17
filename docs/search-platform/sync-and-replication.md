@@ -26,7 +26,7 @@ Worker applies one `db.batch()`:
 
 Transport: shared-secret header (like today’s `api-key`) or Auth0 M2M. Prefer landing on
 the api Worker then **service binding** to the search Worker (avoids Bot Fight Mode on
-public hostnames). Plan preview + production secrets together.
+public hostnames). The Functions are production only, so they hold production secrets only.
 
 Expected volume: tens of mutations/hour — far below any batching threshold.
 
@@ -45,7 +45,6 @@ flowchart LR
   E -->|"same episodes it pushes to Azure"| W
   CF --> W["D1SearchIndexWriter<br/>≤100 upserts / ≤1000 deletes per request<br/>1 retry on 429/5xx/network<br/>no retry on a Cloudflare challenge"]
   W -->|"M2M token (prod tenant)"| PA["api__Endpoint → POST /search/admin/docs → cultpodcasts-search"]
-  W -->|"M2M token (staging tenant)"| PV["api-preview → POST /search/admin/docs → cultpodcasts-search-preview"]
 ```
 
 | Path | What | Why |
@@ -59,11 +58,14 @@ flowchart LR
   description, `guests` and `modifiedAt` (= `_ts` × 1000) are added (SP-0.3). Eligibility
   (`D1SearchEligibility`) is Azure's: removed episode or podcast, denormalised `parentRemoved`, removed film.
 - **Never breaks Azure:** the writer catches every D1, network and Auth0 failure, logs it at Error with the
-  target and the Worker's message, and returns it. The Publisher guards the drip again. Azure results are
+  status and the Worker's message, and returns it. The Publisher guards the drip again. Azure results are
   returned unchanged.
-- **Switches:** `d1Search:Targets:N:Enabled`. A target without endpoint or credentials is skipped with one
-  warning. Console apps have no targets, so they never write D1.
-- **Tokens:** one Auth0 client_credentials token per target, cached until five minutes before expiry (Auth0
+- **One index:** the Functions write the **production** D1 index only (there are no preview Functions; Jon,
+  17 Nov 2026). Settings `d1Search:Enabled`, `Endpoint`, `Auth0Domain`, `Audience`, `ClientId`, `ClientSecret`.
+- **Switch:** `d1Search:Enabled` (bicep `d1SearchProductionEnabled`, **false** until Jon's OK). Enabled without
+  endpoint or credentials is skipped with one warning. Console apps have no `d1Search` settings, so they never
+  write D1.
+- **Tokens:** one Auth0 client_credentials token, cached until five minutes before expiry (Auth0
   meters M2M tokens); a 401 drops it.
 
 ### Weekly reconcile

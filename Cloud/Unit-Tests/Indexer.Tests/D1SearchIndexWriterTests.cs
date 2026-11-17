@@ -16,18 +16,18 @@ public class D1SearchIndexWriterTests
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly RecordingHandler _handler = new();
-    private readonly D1SearchOptions _options = new() { RetryDelayMilliseconds = 0 };
+    private readonly D1SearchOptions _options;
 
     public D1SearchIndexWriterTests()
     {
-        _options.Targets.Add(Target("production"));
+        _options = Configured();
         _mocker.Use<IOptions<D1SearchOptions>>(Options.Create(_options));
         _mocker.Use(TimeProvider.System);
         _mocker.GetMock<IHttpClientFactory>()
             .Setup(f => f.CreateClient(D1SearchIndexWriter.HttpClientName))
             .Returns(() => new HttpClient(_handler, disposeHandler: false));
         _mocker.GetMock<ID1SearchTokenSource>()
-            .Setup(t => t.GetToken(It.IsAny<D1SearchTarget>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.GetToken(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _fixture.CreateTitle());
     }
 
@@ -46,19 +46,20 @@ public class D1SearchIndexWriterTests
         // Assert
         _handler.Bodies.Select(b => b.GetProperty("upserts").GetArrayLength()).Should().Equal(100, 100, 50);
         result.Succeeded.Should().BeTrue();
-        result.Targets.Single().Upserted.Should().Be(250);
+        result.Upserted.Should().Be(250);
         _handler.Paths.Should().OnlyContain(p => p == "/search/admin/docs");
     }
 
-    [Fact(DisplayName =
-        "A target that is switched off, or switched on without credentials, is never called, because the D1 sync must " +
-        "stay inert until SP-2.5 has delivered the writer's credentials and Jon has enabled it.")]
-    public async Task skips_disabled_and_unconfigured_targets()
+    [Theory(DisplayName =
+        "A sync that is switched off, or switched on without credentials, never calls the search Worker, because the " +
+        "D1 sync must stay inert until SP-2.5 has delivered the writer's credentials and Jon has enabled it.")]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task skips_a_disabled_or_unconfigured_sync(bool enabled, bool hasSecret)
     {
         // Arrange
-        _options.Targets.Clear();
-        _options.Targets.Add(Target("off", t => t.Enabled = false));
-        _options.Targets.Add(Target("no-secret", t => t.ClientSecret = string.Empty));
+        _options.Enabled = enabled;
+        _options.ClientSecret = hasSecret ? _fixture.CreateTitle() : string.Empty;
         var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
 
         // Act
@@ -66,7 +67,7 @@ public class D1SearchIndexWriterTests
 
         // Assert
         sut.IsActive.Should().BeFalse();
-        result.Targets.Should().BeEmpty();
+        result.Ran.Should().BeFalse();
         _handler.Bodies.Should().BeEmpty();
     }
 
@@ -88,8 +89,8 @@ public class D1SearchIndexWriterTests
     }
 
     [Fact(DisplayName =
-        "A Cloudflare challenge page fails the target as a challenge, without a retry, because Bot Fight Mode repeats " +
-        "the challenge and the fix is the target's bypass host, not another attempt.")]
+        "A Cloudflare challenge page fails the write as a challenge, without a retry, because Bot Fight Mode repeats " +
+        "the challenge and the fix is the bypass host, not another attempt.")]
     public async Task a_cloudflare_challenge_is_reported_and_not_retried()
     {
         // Arrange
@@ -102,13 +103,13 @@ public class D1SearchIndexWriterTests
         // Assert
         _handler.Bodies.Should().HaveCount(1);
         result.Succeeded.Should().BeFalse();
-        result.Targets.Single().Error.Should().Contain("Cloudflare Bot Fight challenge");
+        result.Error.Should().Contain("Cloudflare Bot Fight challenge");
     }
 
     [Fact(DisplayName =
-        "A 400 from the search Worker fails the target without throwing and without a retry, because a D1 failure " +
+        "A 400 from the search Worker fails the write without throwing and without a retry, because a D1 failure " +
         "must never break Azure indexing and a bad body will not get better.")]
-    public async Task a_400_fails_the_target_without_throwing()
+    public async Task a_400_fails_the_write_without_throwing()
     {
         // Arrange
         _handler.Statuses.Enqueue(HttpStatusCode.BadRequest);
@@ -120,7 +121,7 @@ public class D1SearchIndexWriterTests
         // Assert
         _handler.Bodies.Should().HaveCount(1);
         result.Succeeded.Should().BeFalse();
-        result.Targets.Single().Error.Should().Contain("HTTP 400");
+        result.Error.Should().Contain("HTTP 400");
     }
 
     [Fact(DisplayName =
@@ -137,16 +138,16 @@ public class D1SearchIndexWriterTests
 
         // Assert
         result.Succeeded.Should().BeFalse();
-        _mocker.GetMock<ID1SearchTokenSource>().Verify(t => t.Invalidate(_options.Targets[0]), Times.Once);
+        _mocker.GetMock<ID1SearchTokenSource>().Verify(t => t.Invalidate(), Times.Once);
     }
 
     [Fact(DisplayName =
-        "A token failure fails the target without throwing, because Auth0 being down must not break Azure indexing.")]
+        "A token failure fails the write without throwing, because Auth0 being down must not break Azure indexing.")]
     public async Task a_token_failure_does_not_throw()
     {
         // Arrange
         _mocker.GetMock<ID1SearchTokenSource>()
-            .Setup(t => t.GetToken(It.IsAny<D1SearchTarget>(), It.IsAny<CancellationToken>()))
+            .Setup(t => t.GetToken(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new D1SearchWriteException(_fixture.CreateTitle()));
         var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
 
@@ -179,21 +180,16 @@ public class D1SearchIndexWriterTests
         body.GetProperty("deletes").GetArrayLength().Should().Be(0);
     }
 
-    private D1SearchTarget Target(string name, Action<D1SearchTarget>? customise = null)
+    private D1SearchOptions Configured() => new()
     {
-        var target = new D1SearchTarget
-        {
-            Name = name,
-            Enabled = true,
-            Endpoint = new Uri("https://api.example.test/"),
-            Auth0Domain = "auth.example.test",
-            Audience = "https://api.example.test/",
-            ClientId = _fixture.CreateTitle(),
-            ClientSecret = _fixture.CreateTitle()
-        };
-        customise?.Invoke(target);
-        return target;
-    }
+        Enabled = true,
+        Endpoint = new Uri("https://api.example.test/"),
+        Auth0Domain = "auth.example.test",
+        Audience = "https://api.example.test/",
+        ClientId = _fixture.CreateTitle(),
+        ClientSecret = _fixture.CreateTitle(),
+        RetryDelayMilliseconds = 0
+    };
 
     private D1SearchDocument Document(string? id = null) => new()
     {

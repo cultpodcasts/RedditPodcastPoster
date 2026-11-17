@@ -225,8 +225,8 @@ public class EpisodeSearchIndexerService(
 
     /// <summary>
     /// Mirrors the episodes into the D1 search index (SP-2.1): the same eligibility as Azure (plus the denormalised
-    /// <c>parentRemoved</c> the Azure pull filters on), the full description and guests. A no-op when no D1 target is
-    /// active; a D1 failure is logged by the writer and never changes the Azure outcome.
+    /// <c>parentRemoved</c> the Azure pull filters on), the full description and guests. A no-op when the D1 sync is
+    /// not active; a D1 failure is logged by the writer and never changes the Azure outcome.
     /// </summary>
     private async Task MirrorToD1(IReadOnlyCollection<PodcastEpisode> podcastEpisodes, CancellationToken c)
     {
