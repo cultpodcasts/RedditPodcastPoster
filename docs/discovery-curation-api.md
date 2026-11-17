@@ -432,6 +432,14 @@ Apply on `PartiallyApplied`, or `ApplyFailed` with outcomes, is **409** (use ret
 any episode submit, in which case `itemOutcomes` is null and the reports were returned to `PendingSupervisor`
 (apply again or release). Once an episode submit was attempted reports stay `Processed` (no double ingestion).
 
+**200** decision hold (`status` `LanguageDecisionRequired`, `KindDecisionRequired` or `IdentityDecisionRequired`):
+the preflight needs a supervisor answer before anything is claimed or ingested. The submission is restored to its
+previous status, but the claim and restore both write it, so the response carries the **new `etag`**. Re-POST apply
+with that `etag` plus the decision maps (`languageDecisions`, `kindDecisions` `select|continue|cancel` keyed by
+result id, `selectedKindKeys`, `identityDecisions`, `selectedIdentityKeys`); the page's original etag is stale and
+gets **409**. **400** `InvalidKindDecision` and the report-claim **409** also return the new `etag`. If the restore
+cannot be recorded the response is **500** `ApplyFailed` with the "Outcome could not be recorded" message (#1456).
+
 > Note: an ingester result that is not an exception (e.g. `NoUrls`, `DifferentPodcasts`) counts as `Succeeded`
 > with that `message`, matching the existing `Accepted` result state; only exceptions are `Failed`.
 

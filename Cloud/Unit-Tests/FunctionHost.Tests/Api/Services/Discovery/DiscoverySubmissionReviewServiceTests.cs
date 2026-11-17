@@ -24,6 +24,7 @@ public class DiscoverySubmissionReviewServiceTests
         _ => new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Failed);
     private bool _refuseReplace;
     private readonly HashSet<int> _refuseReplaceOnCall = [];
+    private readonly List<string> _writtenETags = [];
     private int _replaceCalls;
     private int _getCalls;
     private DiscoverySubmission? _rereadSubmission;
@@ -46,7 +47,9 @@ public class DiscoverySubmissionReviewServiceTests
                 }
 
                 _replaced.Add(Snapshot(s));
-                return _fixture.Create<string>();
+                var etag = _fixture.Create<string>();
+                _writtenETags.Add(etag);
+                return etag;
             });
         _mocker.GetMock<IDiscoveryResultsService>()
             .Setup(s => s.GetDocuments(It.IsAny<IEnumerable<Guid>>()))
@@ -925,6 +928,86 @@ public class DiscoverySubmissionReviewServiceTests
         _replaced.Should().BeEmpty();
     }
 
+
+    [Theory(DisplayName =
+        "When apply pauses for a preflight decision or report conflict, it returns the final persisted etag so a follow-up decision can claim the submission without a false stale-etag conflict.")]
+    [InlineData(DiscoveryCurationSubmitStatus.LanguageDecisionRequired, DiscoverySubmissionCommandStatus.LanguageDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.KindDecisionRequired, DiscoverySubmissionCommandStatus.KindDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.InvalidKindDecision, DiscoverySubmissionCommandStatus.Invalid)]
+    [InlineData(DiscoveryCurationSubmitStatus.IdentityDecisionRequired, DiscoverySubmissionCommandStatus.IdentityDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.Conflict, DiscoverySubmissionCommandStatus.Conflict)]
+    public async Task apply_preflight_returns_final_etag(DiscoveryCurationSubmitStatus preflight,
+        DiscoverySubmissionCommandStatus expected)
+    {
+        // Arrange
+        ArrangeHeldSubmission();
+        var originalETag = _submission!.ETag;
+        _ingest = _ => new DiscoveryCurationSubmitResult(preflight,
+            new DiscoverySubmitOutcome(preflight.ToString(), false, [], new EntitySearchIndexerResponse()));
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Apply(_submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(expected);
+        _writtenETags.Should().HaveCount(2);
+        result.ETag.Should().Be(_writtenETags.Last()).And.NotBe(originalETag).And.NotBe(_writtenETags.First());
+        _replaced.Last().Status.Should().Be(DiscoverySubmissionStatus.Pending);
+        result.SubmissionStatus.Should().BeNull("the DTO must expose the decision status, not Pending");
+    }
+
+    [Theory(DisplayName =
+        "When the restored apply hold cannot be persisted, the command reports OutcomeNotRecorded without claiming that the submission is ready for a decision re-POST.")]
+    [InlineData(DiscoveryCurationSubmitStatus.LanguageDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.KindDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.InvalidKindDecision)]
+    [InlineData(DiscoveryCurationSubmitStatus.IdentityDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.Conflict)]
+    public async Task apply_preflight_failed_write_is_reported(DiscoveryCurationSubmitStatus preflight)
+    {
+        // Arrange
+        ArrangeHeldSubmission();
+        _ingest = _ => new DiscoveryCurationSubmitResult(preflight);
+        _refuseReplaceOnCall.Add(2);
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.ApplyFailed);
+        result.Message.Should().Be(DiscoverySubmissionReviewService.OutcomeNotRecorded);
+        result.ETag.Should().BeNull();
+        _replaced.Should().ContainSingle().Which.Status.Should().Be(DiscoverySubmissionStatus.Applying);
+    }
+
+    [Fact(DisplayName =
+        "When a supervisor keeps a prompted item as a podcast, the decision re-POST uses the returned etag, carries continue by result id, and applies the held submission.")]
+    public async Task keep_as_podcast_repost_applies_with_returned_etag()
+    {
+        // Arrange
+        var (_, kept, _, _) = ArrangeHeldSubmission();
+        var caller = Supervisor();
+        _ingest = _ => new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.KindDecisionRequired,
+            new DiscoverySubmitOutcome("KindDecisionRequired", false, [], new EntitySearchIndexerResponse()));
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+        var hold = await sut.Apply(_submission!.Id, ApplyRequest([kept]), caller, CancellationToken.None);
+        _submission.ETag = _writtenETags.Last(); // Cosmos GET returns the version persisted by the hold.
+        _ingest = Ingest();
+
+        // Act
+        var result = await sut.Apply(_submission.Id, new DiscoverySubmissionApplyRequest
+        {
+            ETag = hold.ETag!, AcceptedResultIds = [kept], KindDecisions = new() { [kept] = "continue" }
+        }, caller, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
+        result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.Applied);
+        _applied.Last().KindDecisions.Should().ContainKey(kept).WhoseValue.Should().Be("continue");
+        _replaced.Last().ItemOutcomes.Should().ContainSingle().Which.ResultId.Should().Be(kept);
+    }
 
     [Fact(DisplayName =
         "When apply is held for a kind decision, the submission is restored to its previous status, KindDecisionRequired is appended to history, and the command returns KindDecisionRequired with the prompt message.")]
