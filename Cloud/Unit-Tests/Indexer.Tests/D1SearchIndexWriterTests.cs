@@ -2,9 +2,10 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Auth0.Configuration;
+using RedditPodcastPoster.EdgeApi.Configuration;
 using RedditPodcastPoster.EntitySearchIndexer.D1Search;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
@@ -17,11 +18,21 @@ public class D1SearchIndexWriterTests
     private readonly AutoMocker _mocker = new();
     private readonly RecordingHandler _handler = new();
     private readonly D1SearchOptions _options;
+    private readonly D1SearchConnection _connection;
+    private readonly ApiOptions _api = new() { Endpoint = new Uri("https://api.example.test/") };
+    private readonly Auth0Options _auth0 = new()
+    {
+        Domain = "auth.example.test",
+        Audience = "https://api.example.test/",
+        ClientId = "curator-client-id",
+        ClientSecret = "curator-client-secret"
+    };
 
     public D1SearchIndexWriterTests()
     {
         _options = Configured();
-        _mocker.Use<IOptions<D1SearchOptions>>(Options.Create(_options));
+        _connection = Connection();
+        _mocker.Use(_connection);
         _mocker.Use(TimeProvider.System);
         _mocker.GetMock<IHttpClientFactory>()
             .Setup(f => f.CreateClient(D1SearchIndexWriter.HttpClientName))
@@ -69,6 +80,61 @@ public class D1SearchIndexWriterTests
         sut.IsActive.Should().BeFalse();
         result.Ran.Should().BeFalse();
         _handler.Bodies.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "The D1SearchReconcile console's writer is active with Enabled off, because the console does not use the " +
+        "Functions switch and stays dry unless --write.")]
+    public async Task console_writer_is_active_when_enabled_is_off()
+    {
+        // Arrange
+        _options.Enabled = false;
+        _connection.RequireEnabled = false;
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        var result = await sut.Write([Document()], [], CancellationToken.None);
+
+        // Assert
+        sut.IsActive.Should().BeTrue();
+        result.Ran.Should().BeTrue();
+        result.Succeeded.Should().BeTrue();
+        _handler.Paths.Should().Equal("/search/admin/docs");
+    }
+
+    [Fact(DisplayName =
+        "The D1SearchReconcile console's writer stays inactive without d1Search:ClientSecret, because user secrets " +
+        "must still supply the search-index-writer credentials.")]
+    public async Task console_writer_skips_when_the_writer_secret_is_missing()
+    {
+        // Arrange
+        _options.Enabled = false;
+        _options.ClientSecret = string.Empty;
+        _connection.RequireEnabled = false;
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        var result = await sut.Write([Document()], [], CancellationToken.None);
+
+        // Assert
+        sut.IsActive.Should().BeFalse();
+        result.Ran.Should().BeFalse();
+        _handler.Bodies.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "The writer talks to api:Endpoint and does not need a d1Search endpoint, because the host is reused from " +
+        "the existing api settings.")]
+    public async Task writes_to_the_api_endpoint()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        await sut.Write([Document()], [], CancellationToken.None);
+
+        // Assert
+        _handler.Hosts.Should().Equal("api.example.test");
     }
 
     [Fact(DisplayName =
@@ -221,13 +287,13 @@ public class D1SearchIndexWriterTests
     private D1SearchOptions Configured() => new()
     {
         Enabled = true,
-        Endpoint = new Uri("https://api.example.test/"),
-        Auth0Domain = "auth.example.test",
-        Audience = "https://api.example.test/",
         ClientId = _fixture.CreateTitle(),
         ClientSecret = _fixture.CreateTitle(),
         RetryDelayMilliseconds = 0
     };
+
+    private D1SearchConnection Connection(bool requireEnabled = true) =>
+        new(_options, _api, _auth0, requireEnabled);
 
     private D1SearchDocument Document(string? id = null) => new()
     {
@@ -247,9 +313,11 @@ public class D1SearchIndexWriterTests
         public List<string> Queries { get; } = [];
         public List<JsonElement> Bodies { get; } = [];
         public List<string> Paths { get; } = [];
+        public List<string> Hosts { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
+            Hosts.Add(request.RequestUri!.Host);
             if (request.Method == HttpMethod.Get)
             {
                 Paths.Add(request.RequestUri!.AbsolutePath);

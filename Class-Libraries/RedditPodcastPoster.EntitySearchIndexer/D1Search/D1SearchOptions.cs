@@ -4,27 +4,20 @@ namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 /// The D1 search sync (epic #1312, SP-2.1 #1321), configuration section <c>d1Search</c>: the <b>production</b> D1
 /// search index, reached through the api Worker's <c>POST /search/admin/docs</c> with an Auth0 M2M token for the prod
 /// tenant's <c>search-index-writer</c> app. There are only production Functions, so there is one index and no preview
-/// target (Jon, 17 Nov 2026). Credentials reach the app settings from Key Vault (<c>SearchIndex-Writer-ClientId</c> / <c>-ClientSecret</c>, SP-2.5 #1460).
+/// target (Jon, 17 Nov 2026). The endpoint, Auth0 domain and audience are reused from the existing <c>api</c> and
+/// <c>auth0client</c> sections. The only D1-specific secrets are <see cref="ClientId"/> and <see cref="ClientSecret"/>
+/// (Functions: Key Vault <c>SearchIndex-Writer-ClientId</c> / <c>-ClientSecret</c> via bicep, SP-2.5 #1460).
 /// </summary>
 public sealed class D1SearchOptions
 {
-    /// <summary>The switch (<c>d1SearchProductionEnabled</c> in bicep, off until Jon's OK): when off nothing is sent.</summary>
+    /// <summary>
+    /// The Functions switch (<c>d1SearchProductionEnabled</c> in bicep, off until Jon's OK): when off the Functions
+    /// send nothing. The <c>D1SearchReconcile</c> console does not use this; it is dry unless <c>--write</c>.
+    /// </summary>
     public bool Enabled { get; set; }
 
-    /// <summary>api Worker base URL (the Bot Fight bypass host, <c>api__Endpoint</c>); routes are relative to it.</summary>
-    public Uri? Endpoint { get; set; }
-
-    /// <summary>Auth0 tenant (custom) domain the token is requested from, e.g. <c>auth.cultpodcasts.com</c>.</summary>
-    public string Auth0Domain { get; set; } = string.Empty;
-
-    public string Audience { get; set; } = string.Empty;
     public string ClientId { get; set; } = string.Empty;
     public string ClientSecret { get; set; } = string.Empty;
-
-    /// <summary>Enabled and every value present. Enabled without credentials is skipped and logged.</summary>
-    public bool IsUsable => Enabled && Endpoint is not null && !string.IsNullOrWhiteSpace(Auth0Domain) &&
-                            !string.IsNullOrWhiteSpace(Audience) && !string.IsNullOrWhiteSpace(ClientId) &&
-                            !string.IsNullOrWhiteSpace(ClientSecret);
 
     /// <summary>
     /// How far back the hourly drip (<see cref="D1SearchChangeFeed"/>) looks for changed playables, by Cosmos
@@ -55,6 +48,7 @@ public sealed class D1SearchReconcileOptions
     /// The share of the index (missing + stale + orphans, over the larger of D1 and Cosmos) above which the reconcile
     /// refuses to patch: that much drift means something is broken, and the fix is a full rebuild (SP-2.3) or a
     /// deliberate backfill (the console's <c>--allow-drift</c>), not a quiet weekly patch.
+    /// For the console this lives in <c>appsettings.json</c>, not user secrets.
     /// </summary>
     public double DriftThreshold { get; set; } = 0.05;
 }

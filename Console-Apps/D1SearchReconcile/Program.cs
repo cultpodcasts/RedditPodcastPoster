@@ -1,13 +1,14 @@
 // SP-2.2 (#1322): reconcile the D1 search index with Cosmos, and the initial backfill.
-// Dry run unless --write is given. The index and credentials come from the d1Search section in local user secrets
-// (see Console-Apps/README.md); the deployed Functions only ever know the production index.
+// Dry run unless --write is given. Writer credentials come from d1Search:ClientId / ClientSecret in local
+// user secrets (see Console-Apps/README.md); the host, Auth0 domain and audience are the existing api:Endpoint
+// and auth0client settings. Non-secret defaults live in this console's appsettings.json. The deployed Functions
+// only ever know the production index, and they read Key Vault through bicep, which this console never does.
 using System.Reflection;
 using CommandLine;
 using D1SearchReconcile;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.D1Search;
@@ -45,7 +46,7 @@ async Task<int> Run(D1SearchReconcileRequestOptions options)
     }
 
     using var scope = host.Services.CreateScope();
-    var endpoint = scope.ServiceProvider.GetRequiredService<IOptions<D1SearchOptions>>().Value.Endpoint;
+    var endpoint = scope.ServiceProvider.GetRequiredService<D1SearchConnection>().Endpoint;
     Console.WriteLine($"D1 search index: {endpoint?.Host ?? "(not configured)"}; {(request.Write ? "WRITE" : "dry run")}.");
     var reconciler = scope.ServiceProvider.GetRequiredService<ID1SearchReconciler>();
     var r = await reconciler.Reconcile(request, CancellationToken.None);
@@ -56,8 +57,8 @@ async Task<int> Run(D1SearchReconcileRequestOptions options)
     if (r.Outcome == D1SearchReconcileOutcome.NotConfigured)
     {
         Console.Error.WriteLine(
-            "The D1 search sync is not enabled and configured: set d1Search:Enabled, Endpoint, Auth0Domain, Audience, " +
-            "ClientId and ClientSecret in user secrets.");
+            "The D1 search sync is not configured: set d1Search:ClientId and d1Search:ClientSecret in user secrets " +
+            "(api:Endpoint, auth0client:Domain and auth0client:Audience are reused from the existing settings).");
     }
 
     return D1SearchReconcileRequest.ExitCode(r);
