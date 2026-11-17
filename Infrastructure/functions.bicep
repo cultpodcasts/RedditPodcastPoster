@@ -428,6 +428,8 @@ var twitter= {
     twitter__AuthMode: twitterAuthMode
     twitter__OAuth2ClientId: twitterOAuth2ClientId
     twitter__OAuth2ClientSecret: twitterOAuth2ClientSecret
+    twitter__MaxPosts: 2
+    twitter__MaxFailures: 5
 }
 
 var youtube= {

@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Models.Episodes;
-using RedditPodcastPoster.Twitter.Builders;
-using RedditPodcastPoster.Twitter.Clients;
-using RedditPodcastPoster.Twitter.Dtos;
+using RedditPodcastPoster.Twitter.Configuration;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
@@ -15,9 +14,12 @@ public class Tweeter(
     IPodcastEpisodeProvider podcastEpisodeProvider,
     IShortnerService shortnerService,
     ICataloguePlayableSocialPosts cataloguePlayableSocialPosts,
+    IOptions<TwitterOptions> options,
     ILogger<Tweeter> logger)
     : ITweeter
 {
+    private readonly TwitterOptions _options = options.Value;
+
     public async Task Tweet(
         bool youTubeRefreshed,
         bool spotifyRefreshed,
@@ -37,54 +39,65 @@ public class Tweeter(
             throw;
         }
 
-        var tweeted = false;
-        var stopRun = false;
+        var run = new TweetRun();
         foreach (var podcastEpisode in untweeted.ToArray())
         {
-            if (tweeted || stopRun)
+            if (!await TryTweet(podcastEpisode, run))
             {
                 break;
             }
-
-            (tweeted, stopRun) = await TryTweet(podcastEpisode);
         }
 
-        if (tweeted || stopRun)
+        // Podcast episodes go first. TV episodes, news reports and films fill any remaining
+        // slots in the same max-posts and failure budget.
+        if (!run.Stopped && run.Posts < _options.MaxPosts)
         {
-            return;
-        }
-
-        // Podcast episodes go first. A TV episode, news report or film is tweeted only when no podcast
-        // episode was, so the one-tweet-per-run cadence is unchanged.
-        IReadOnlyList<PodcastEpisode> catalogueUntweeted;
-        try
-        {
-            catalogueUntweeted = await cataloguePlayableSocialPosts.GetUntweeted();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failure to find untweeted TV episodes, news reports or films.");
-            return;
-        }
-
-        foreach (var item in catalogueUntweeted)
-        {
-            if (tweeted || stopRun)
+            IReadOnlyList<PodcastEpisode> catalogueUntweeted;
+            try
             {
-                break;
+                catalogueUntweeted = await cataloguePlayableSocialPosts.GetUntweeted();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failure to find untweeted TV episodes, news reports or films.");
+                return;
             }
 
-            (tweeted, stopRun) = await TryTweet(item);
+            foreach (var item in catalogueUntweeted)
+            {
+                if (!await TryTweet(item, run))
+                {
+                    break;
+                }
+            }
         }
     }
 
-    /// <summary>
-    /// Sends one candidate. <c>StopRun</c> is true when X refused for a reason that applies to every candidate
-    /// (rate limit, depleted credits, rejected credentials), so the run ends without trying, and paying for, the rest.
-    /// The candidate keeps <c>Tweeted=false</c> and is tried again on the next run.
-    /// </summary>
-    private async Task<(bool Tweeted, bool StopRun)> TryTweet(PodcastEpisode podcastEpisode)
+    private sealed class TweetRun
     {
+        public int Posts { get; set; }
+        public int Failures { get; set; }
+        public bool Stopped { get; set; }
+    }
+
+    /// <summary>
+    /// Sends one candidate. Returns false when the run must stop: the post cap was reached, the
+    /// failure cap was reached, or X refused for a reason that applies to every candidate
+    /// (rate limit, depleted credits, rejected credentials). A run-wide refusal leaves the
+    /// candidate with <c>Tweeted=false</c> so it is tried again on the next run.
+    /// </summary>
+    private async Task<bool> TryTweet(PodcastEpisode podcastEpisode, TweetRun run)
+    {
+        if (run.Posts >= _options.MaxPosts)
+        {
+            logger.LogInformation(
+                "Stopping tweet run because max-posts limit was reached. Posts: {Posts}, Max-posts: {MaxPosts}.",
+                run.Posts,
+                _options.MaxPosts);
+            run.Stopped = true;
+            return false;
+        }
+
         try
         {
             Uri? shortUrl;
@@ -107,13 +120,29 @@ public class Tweeter(
             }
 
             var tweetStatus = await tweetPoster.PostTweet(podcastEpisode, shortUrl, hasShareImage);
-            var stopRun = StopsRun(tweetStatus.TweetSendStatus);
-            if (stopRun)
+            if (StopsRun(tweetStatus.TweetSendStatus))
             {
                 LogRunStopped(tweetStatus.TweetSendStatus, podcastEpisode);
+                run.Stopped = true;
+                return false;
             }
 
-            return (tweetStatus.TweetSendStatus == TweetSendStatus.Sent, stopRun);
+            if (tweetStatus.TweetSendStatus == TweetSendStatus.Sent)
+            {
+                run.Posts++;
+                return true;
+            }
+
+            if (IsResolvedSkip(tweetStatus.TweetSendStatus))
+            {
+                logger.LogInformation(
+                    "Skipping {ContentKind} with id '{EpisodeId}' after {Status}; it is already resolved and does not count against the post or failure budget.",
+                    podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id,
+                    tweetStatus.TweetSendStatus);
+                return true;
+            }
+
+            return RecordFailure(run);
         }
         catch (Exception ex)
         {
@@ -121,14 +150,37 @@ public class Tweeter(
                 "Unable to tweet {ContentKind} with id '{EpisodeId}' with title '{EpisodeTitle}' from parent with id '{PodcastId}' and name '{PodcastName}'.",
                 podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id, podcastEpisode.Episode.Title,
                 podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name);
-            return (false, false);
+            return RecordFailure(run);
         }
+    }
+
+    private bool RecordFailure(TweetRun run)
+    {
+        run.Failures++;
+        if (run.Failures >= _options.MaxFailures)
+        {
+            logger.LogWarning(
+                "Stopping tweet run because failure threshold was reached. Failures: {Failures}, Max-failures: {MaxFailures}.",
+                run.Failures,
+                _options.MaxFailures);
+            run.Stopped = true;
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>Statuses that mean no further post can succeed in this run.</summary>
     public static bool StopsRun(TweetSendStatus status) =>
         status is TweetSendStatus.TooManyRequests or TweetSendStatus.PaymentRequired
             or TweetSendStatus.AuthenticationFailed;
+
+    /// <summary>
+    /// The document is already persisted as done, so the candidate is a skip, not a failure
+    /// and not a sent post. <see cref="TweetSendStatus.Untweetable"/> never reaches X.
+    /// </summary>
+    public static bool IsResolvedSkip(TweetSendStatus status) =>
+        status is TweetSendStatus.Untweetable or TweetSendStatus.DuplicateForbidden;
 
     private void LogRunStopped(TweetSendStatus status, PodcastEpisode podcastEpisode)
     {

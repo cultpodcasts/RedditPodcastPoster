@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -7,6 +8,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Twitter.Builders;
+using RedditPodcastPoster.Twitter.Configuration;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.Twitter.Posters;
 using RedditPodcastPoster.UrlShortening.Extensions;
@@ -21,6 +23,11 @@ public class UntweetableSkipRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+
+    public UntweetableSkipRules()
+    {
+        _mocker.Use(Options.Create(new TwitterOptions()));
+    }
 
     [Fact(DisplayName =
         "When BuildTweet fails because the title budget is exhausted, then the podcast episode is saved with tweetSkipReason and Tweeted=true, because the hourly run must not rewrite the shortener every hour.")]

@@ -226,7 +226,7 @@ public class DiscoveryKindSuggesterRules
 
 
     [Theory(DisplayName =
-        "TitlesAgree uses folded equality, or a word-bounded run of at least eight characters, so a short title such as Cult only matches that exact title.")]
+        "TitlesAgree uses folded equality, or a word-bounded run of at least eight characters not counting a leading article, so a short title such as Cult or The Cult only matches that exact title.")]
     [InlineData("Father's House (2024)", "Father's House", true)]
     [InlineData("Night Film", "night-film", true)]
     [InlineData("Cult", "Cult", true)]
@@ -234,6 +234,14 @@ public class DiscoveryKindSuggesterRules
     [InlineData("Most titles mention a cult following", "Cult", false)]
     [InlineData("A later Dateline NBC exclusive", "Dateline NBC", true)]
     [InlineData("Documentary", "menta", false)]
+    [InlineData("Escaping Rama (Part 3): Life After The Cult", "The Cult", false)]
+    [InlineData("The Cult", "The Cult", true)]
+    [InlineData("Inside a family business", "A Family", false)]
+    [InlineData("Inside an Island Cult", "An Island", false)]
+    [InlineData("Inside An Island Cult", "Inside An", true)]
+    [InlineData("Life After The Cult explained", "After The", true)]
+    [InlineData("Revisiting The Manson Massacre tonight", "The Manson Massacre", true)]
+    [InlineData("Watching The Paradise Lost trilogy", "The Paradise Lost", true)]
     public void titles_agree_uses_folded_equality_or_word_bounded_minimum(string left, string right, bool expected)
     {
         // Arrange
@@ -262,6 +270,54 @@ public class DiscoveryKindSuggesterRules
 
         // Assert
         hold.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "SuggestAsync does not offer a catalogue film for an episode title that only ends in the film's short article-padded AKA, because The Manson Massacre's AKA The Cult must not flag Escaping Rama (Part 3): Life After The Cult (#1457).")]
+    public async Task article_padded_short_alternative_title_is_not_suggested()
+    {
+        // Arrange
+        var mocker = SetupUnmapped(out _, out var films, out _, out _, out _);
+        var film = new Film("The Manson Massacre")
+        {
+            Id = Guid.NewGuid(),
+            Length = TimeSpan.FromMinutes(50),
+            AlternativeTitles = ["Together Girls", "Girls in Bondage", "The Cult"]
+        };
+        films.Setup(x => x.GetAll()).Returns(new[] { film }.ToAsyncEnumerable());
+        var suggester = mocker.CreateInstance<DiscoveryKindSuggester>();
+        var result = UnmappedResult("Escaping Rama (Part 3): Life After The Cult", TimeSpan.FromMinutes(55),
+            showName: "Beans & Banter");
+
+        // Act
+        var hold = await suggester.SuggestAsync(result);
+
+        // Assert
+        hold.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "SuggestAsync still offers a catalogue film whose long alternative title appears word-bounded in the episode title, because only article padding is discounted.")]
+    public async Task long_alternative_title_is_still_suggested()
+    {
+        // Arrange
+        var mocker = SetupUnmapped(out _, out var films, out _, out _, out _);
+        var film = new Film("The Manson Massacre")
+        {
+            Id = Guid.NewGuid(),
+            Length = TimeSpan.FromMinutes(50),
+            AlternativeTitles = ["The Cult", "Girls in Bondage"]
+        };
+        films.Setup(x => x.GetAll()).Returns(new[] { film }.ToAsyncEnumerable());
+        var suggester = mocker.CreateInstance<DiscoveryKindSuggester>();
+        var result = UnmappedResult("Girls in Bondage (full film)", TimeSpan.FromMinutes(51));
+
+        // Act
+        var hold = await suggester.SuggestAsync(result);
+
+        // Assert
+        hold.Should().NotBeNull();
+        hold!.Candidates.Should().ContainSingle().Which.Key.Should().Be(DiscoveryKindKeys.Film(film.Id));
     }
 
     [Fact(DisplayName =

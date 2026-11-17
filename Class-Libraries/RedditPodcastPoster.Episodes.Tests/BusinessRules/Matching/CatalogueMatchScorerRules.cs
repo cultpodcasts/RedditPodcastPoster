@@ -541,7 +541,7 @@ public class CatalogueMatchScorerRules
 
     [Fact(DisplayName =
         "When the catalogue row has no duration (Apple omitting durationInMilliseconds), " +
-        "same-calendar-day release and disjoint titles with empty subjects stay below the threshold, " +
+        "same-calendar-day release and disjoint titles with empty subjects stay below the threshold (score zero), " +
         "because missing duration must not revive release-only attaches.")]
     public void missing_catalogue_duration_same_day_disjoint_titles_fails_threshold()
     {
@@ -574,7 +574,9 @@ public class CatalogueMatchScorerRules
         var score = CatalogueMatchScorer.Score(probe, catalogue);
 
         // Assert
-        score.Should().Be(CatalogueMatchScorer.SameCalendarDayReleasePoints);
+        // #1445 title-evidence gate: no title, no duration and no description short-circuit to zero instead of
+        // the release-only 25. The outcome is unchanged: the pair stayed below the threshold before and after.
+        score.Should().Be(0);
         CatalogueMatchScorer.MeetsMatchThreshold(probe, catalogue).Should().BeFalse();
     }
 

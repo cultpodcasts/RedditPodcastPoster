@@ -41,6 +41,34 @@ public class TwitterOptions
     /// </summary>
     public bool ShortUrlOnlyWhenShareImage { get; set; }
     public long TwitterId { get; set; }
+
+    /// <summary>
+    /// Inclusive upper bound for <see cref="MaxPosts"/>. A typo such as 20 or 200 must not pass
+    /// validation, because X bills per post.
+    /// </summary>
+    public const int MaxPostsLimit = 10;
+
+    /// <summary>
+    /// Inclusive upper bound for <see cref="MaxFailures"/>.
+    /// </summary>
+    public const int MaxFailuresLimit = 20;
+
+    /// <summary>
+    /// Maximum tweets sent in one run. Podcast episodes are posted first; TV, news and film items
+    /// fill any remaining slots. Defaults to 1, which is the historical one-tweet-per-run cadence.
+    /// Must be between 1 and <see cref="MaxPostsLimit"/> inclusive. Production Functions set this
+    /// with <c>twitter__MaxPosts</c>.
+    /// </summary>
+    public int MaxPosts { get; set; } = 1;
+
+    /// <summary>
+    /// Maximum unsuccessful posts in one run before the run stops. Run-wide X refusals
+    /// (rate limit, depleted credits, rejected credentials) stop the run immediately and
+    /// do not use this budget. Untweetable and DuplicateForbidden results are skips, not
+    /// failures: those documents are already resolved and do not spend this budget. Defaults to 5,
+    /// matching Bluesky. Must be between 1 and <see cref="MaxFailuresLimit"/> inclusive.
+    /// </summary>
+    public int MaxFailures { get; set; } = 5;
 }
 
 public enum TwitterAuthMode
