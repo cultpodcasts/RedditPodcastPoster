@@ -49,11 +49,9 @@ public class EpisodeTrailerAttachServiceRules
     private Func<WriteResult> _redirectResult = () => new WriteResult(true);
     private readonly List<Film> _createdFilms = [];
     private int _createAttempts;
-    // Barriers: hold the first arriving call until the second arrives, so two attaches overlap at that step.
-    private TaskCompletionSource? _createGate;
-    private int _createArrivals;
-    private TaskCompletionSource? _nameLookupGate;
-    private int _nameLookupArrivals;
+    // Holds: stop the first call at that step until the test releases it, so a second call runs in between.
+    private Hold? _createHold;
+    private Hold? _nameLookupHold;
     private Action<Film>? _afterCreate;
     private readonly InMemoryTrailerClaims _claims = new();
     private int _filmDeletes;
@@ -154,11 +152,11 @@ public class EpisodeTrailerAttachServiceRules
         return film;
     }
 
-    /// <summary>Cosmos create: false when a document already has the id. Waits at <see cref="_createGate"/> when set.</summary>
+    /// <summary>Cosmos create: false when a document already has the id. Waits at <see cref="_createHold"/> when set.</summary>
     private async Task<bool> TryCreate(Film film)
     {
         _createAttempts++;
-        await Arrive(_createGate, ref _createArrivals);
+        await Hold.At(_createHold);
         if (_films.ContainsKey(film.Id))
         {
             return false;
@@ -174,26 +172,11 @@ public class EpisodeTrailerAttachServiceRules
     private async IAsyncEnumerable<Film> NameLookup(Expression<Func<Film, bool>> selector)
     {
         var matches = _films.Keys.Select(id => Stored(id)!).Where(selector.Compile()).ToArray();
-        await Arrive(_nameLookupGate, ref _nameLookupArrivals);
+        await Hold.At(_nameLookupHold);
         foreach (var film in matches)
         {
             yield return film;
         }
-    }
-
-    private static Task Arrive(TaskCompletionSource? gate, ref int arrivals)
-    {
-        if (gate is null)
-        {
-            return Task.CompletedTask;
-        }
-
-        if (++arrivals == 2)
-        {
-            gate.TrySetResult();
-        }
-
-        return gate.Task;
     }
 
     private Film? Stored(Guid id) =>
@@ -925,12 +908,13 @@ public class EpisodeTrailerAttachServiceRules
         // Arrange
         var (podcast, episode) = SeedEpisode();
         var filmName = _fixture.CreateTitle();
-        _createGate = new TaskCompletionSource();
+        _createHold = new Hold();
 
         // Act
-        var results = await Task.WhenAll(
-            AttachCreating(podcast.Id, episode.Id, filmName),
-            AttachCreating(podcast.Id, episode.Id, filmName.ToUpperInvariant()));
+        var results = await Interleave(
+            _createHold,
+            () => AttachCreating(podcast.Id, episode.Id, filmName),
+            () => AttachCreating(podcast.Id, episode.Id, filmName.ToUpperInvariant()));
 
         // Assert
         _createAttempts.Should().Be(2);
@@ -949,16 +933,18 @@ public class EpisodeTrailerAttachServiceRules
         // Arrange
         var (podcast, episode) = SeedEpisode();
         var filmName = _fixture.CreateTitle();
-        _nameLookupGate = new TaskCompletionSource();
+        _nameLookupHold = new Hold();
 
         // Act
-        var results = await Task.WhenAll(
-            AttachCreating(podcast.Id, episode.Id, filmName),
-            AttachCreating(podcast.Id, episode.Id, filmName));
+        var results = await Interleave(
+            _nameLookupHold,
+            () => AttachCreating(podcast.Id, episode.Id, filmName),
+            () => AttachCreating(podcast.Id, episode.Id, filmName));
 
         // Assert
         results.Should().OnlyContain(r => r.Status == EpisodeTrailerAttachStatus.Accepted);
         results.Select(r => r.FilmId).Distinct().Should().ContainSingle();
+        _createAttempts.Should().Be(1);
         _createdFilms.Should().ContainSingle();
         _films.Keys.Select(Stored).Should().ContainSingle()
             .Which!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
@@ -970,12 +956,13 @@ public class EpisodeTrailerAttachServiceRules
     {
         // Arrange
         var (podcast, episode) = SeedEpisode();
-        _claims.Gate = new TaskCompletionSource();
+        _claims.Hold = new Hold();
 
         // Act
-        var results = await Task.WhenAll(
-            AttachCreating(podcast.Id, episode.Id, _fixture.CreateTitle()),
-            AttachCreating(podcast.Id, episode.Id, _fixture.CreateTitle()));
+        var results = await Interleave(
+            _claims.Hold,
+            () => AttachCreating(podcast.Id, episode.Id, _fixture.CreateTitle()),
+            () => AttachCreating(podcast.Id, episode.Id, _fixture.CreateTitle()));
 
         // Assert
         var winner = results.Should().ContainSingle(r => r.Status == EpisodeTrailerAttachStatus.Accepted).Subject;
@@ -1241,15 +1228,54 @@ public class EpisodeTrailerAttachServiceRules
     }
 
     /// <summary>
+    /// Runs two calls in a set order, never at the same time:
+    /// <list type="number">
+    /// <item><paramref name="first"/> starts and stops at <paramref name="hold"/>.</item>
+    /// <item><paramref name="second"/> runs to completion.</item>
+    /// <item><paramref name="first"/> is released and finishes.</item>
+    /// </list>
+    /// Every fake here completes synchronously, so <paramref name="first"/> has reached the hold by the time it returns
+    /// its task; if it has not, the test fails here instead of waiting.
+    /// </summary>
+    private static async Task<EpisodeTrailerAttachResult[]> Interleave(
+        Hold hold,
+        Func<Task<EpisodeTrailerAttachResult>> first,
+        Func<Task<EpisodeTrailerAttachResult>> second)
+    {
+        var held = first();
+        hold.Reached.Should().BeTrue("the first call must stop at the hold before the second call starts");
+        var secondResult = await second();
+        hold.Release();
+        return [await held, secondResult];
+    }
+
+    /// <summary>
+    /// Stops the first call that reaches a step until the test releases it. Later calls go straight through, so the
+    /// order of the two calls is set by the test, not by thread timing.
+    /// </summary>
+    private sealed class Hold
+    {
+        private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _arrivals;
+
+        public bool Reached => _arrivals > 0;
+
+        public static Task At(Hold? hold) => hold?.Arrive() ?? Task.CompletedTask;
+
+        public void Release() => _released.SetResult();
+
+        private Task Arrive() => ++_arrivals == 1 ? _released.Task : Task.CompletedTask;
+    }
+
+    /// <summary>
     /// LookUps claims like Cosmos: a create fails when the id exists, a takeover must match the version it read.
-    /// <see cref="Gate"/> holds the first claimer until the second arrives, so both have passed every check.
+    /// <see cref="Hold"/> stops the first claimer before it reads the claim, after it has passed every check.
     /// </summary>
     private sealed class InMemoryTrailerClaims : IFilmTrailerClaimStore
     {
         private readonly Dictionary<Guid, (FilmTrailerClaim Claim, int Version)> _claims = [];
-        private int _arrivals;
 
-        public TaskCompletionSource? Gate { get; set; }
+        public Hold? Hold { get; set; }
 
         public void Seed(Guid episodeId, Guid filmId, DateTime claimedUtc) =>
             _claims[episodeId] = (new FilmTrailerClaim { EpisodeId = episodeId, FilmId = filmId, ClaimedUtc = claimedUtc }, 1);
@@ -1258,7 +1284,7 @@ public class EpisodeTrailerAttachServiceRules
 
         public async Task<FilmTrailerClaimAttempt> TryClaim(Guid episodeId, Guid filmId, DateTime nowUtc)
         {
-            await Arrive(Gate, ref _arrivals);
+            await Hold.At(Hold);
             if (!_claims.TryGetValue(episodeId, out var held))
             {
                 Seed(episodeId, filmId, nowUtc);
