@@ -11,28 +11,15 @@ namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 
 public interface ID1SearchIndexWriter
 {
-    /// <summary>At least one target is enabled and fully configured. Callers skip building documents when false.</summary>
+    /// <summary>The sync is enabled and fully configured. Callers skip building documents when false.</summary>
     bool IsActive { get; }
 
     /// <summary>
-    /// Sends the upserts and deletes to every usable target. <b>Never throws</b> for a D1, network or Auth0 failure:
+    /// Sends the upserts and deletes to the production D1 search index. <b>Never throws</b> for a D1, network or Auth0 failure:
     /// the outcome is logged and returned, so a D1 problem can never break Azure indexing or a curator request.
     /// Only cancellation of <paramref name="cancellationToken"/> propagates.
     /// </summary>
     Task<D1SearchWriteResult> Write(
-        IReadOnlyCollection<D1SearchDocument> upserts,
-        IReadOnlyCollection<string> deletes,
-        CancellationToken cancellationToken);
-
-    /// <summary>Names of the enabled, fully configured targets, in configuration order.</summary>
-    IReadOnlyList<string> UsableTargets { get; }
-
-    /// <summary>
-    /// Like <see cref="Write(IReadOnlyCollection{D1SearchDocument},IReadOnlyCollection{string},CancellationToken)"/>
-    /// to one target only (the SP-2.2 reconcile works per target). An unknown or unusable name writes nothing.
-    /// </summary>
-    Task<D1SearchWriteResult> Write(
-        string targetName,
         IReadOnlyCollection<D1SearchDocument> upserts,
         IReadOnlyCollection<string> deletes,
         CancellationToken cancellationToken);
@@ -41,19 +28,19 @@ public interface ID1SearchIndexWriter
 public interface ID1SearchInventoryReader
 {
     /// <summary>
-    /// Every <c>{ id, modifiedAt }</c> in one target's D1 search index, paged through the api Worker's
+    /// Every <c>{ id, modifiedAt }</c> in the production D1 search index, paged through the api Worker's
     /// <c>GET /search/admin/docs/inventory</c> (Api, SP-2.2). Throws <see cref="D1SearchWriteException"/> or
     /// <see cref="D1SearchHttpException"/> when it can't read the whole inventory: a partial inventory would turn live
     /// documents into "orphans", so the caller must not reconcile on one.
     /// </summary>
-    Task<IReadOnlyDictionary<string, long>> ReadInventory(string targetName, CancellationToken cancellationToken);
+    Task<IReadOnlyDictionary<string, long>> ReadInventory(CancellationToken cancellationToken);
 }
 
 /// <summary>
-/// Writes to the D1 search index through each target's api Worker <c>POST /search/admin/docs</c> (Api SP-1.4):
+/// Writes to the production D1 search index through the api Worker's <c>POST /search/admin/docs</c> (Api SP-1.4):
 /// at most 100 upserts and 1000 deletes per request, each id once, one D1 transaction per request. Writes are
 /// idempotent (the Worker's <c>modifiedAt</c> guard), so a failed request is retried once and a failed run is
-/// simply repeated by the next drip. Failures are logged at Error with the target, status and the Worker's
+/// simply repeated by the next drip. Failures are logged at Error with the status and the Worker's
 /// message (never the token).
 /// </summary>
 public sealed class D1SearchIndexWriter(
@@ -78,35 +65,44 @@ public sealed class D1SearchIndexWriter(
     private readonly D1SearchOptions _options = options.Value;
     private int _loggedUnusable;
 
-    public bool IsActive => _options.Targets.Any(t => t.IsUsable);
+    public bool IsActive => _options.IsUsable;
 
-    public IReadOnlyList<string> UsableTargets =>
-        _options.Targets.Where(t => t.IsUsable).Select(t => t.Name).ToArray();
-
-    public Task<D1SearchWriteResult> Write(
+    public async Task<D1SearchWriteResult> Write(
         IReadOnlyCollection<D1SearchDocument> upserts,
         IReadOnlyCollection<string> deletes,
-        CancellationToken cancellationToken) =>
-        Write(_ => true, upserts, deletes, cancellationToken);
-
-    public Task<D1SearchWriteResult> Write(
-        string targetName,
-        IReadOnlyCollection<D1SearchDocument> upserts,
-        IReadOnlyCollection<string> deletes,
-        CancellationToken cancellationToken) =>
-        Write(t => string.Equals(t.Name, targetName, StringComparison.Ordinal), upserts, deletes, cancellationToken);
-
-    public async Task<IReadOnlyDictionary<string, long>> ReadInventory(string targetName, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
-        var target = _options.Targets.FirstOrDefault(t => t.IsUsable && string.Equals(t.Name, targetName, StringComparison.Ordinal))
-                     ?? throw new D1SearchWriteException($"D1 search target '{targetName}' is not enabled and configured.");
+        ArgumentNullException.ThrowIfNull(upserts);
+        ArgumentNullException.ThrowIfNull(deletes);
+        if (!IsActive)
+        {
+            LogUnusableOnce();
+            return D1SearchWriteResult.Skipped;
+        }
+
+        var (upsertList, deleteList) = Normalise(upserts, deletes);
+        if (upsertList.Count == 0 && deleteList.Count == 0)
+        {
+            return D1SearchWriteResult.Skipped;
+        }
+
+        return await Send(upsertList, deleteList, cancellationToken);
+    }
+
+    public async Task<IReadOnlyDictionary<string, long>> ReadInventory(CancellationToken cancellationToken)
+    {
+        if (!IsActive)
+        {
+            throw new D1SearchWriteException("The D1 search sync is not enabled and configured (d1Search).");
+        }
+
         var inventory = new Dictionary<string, long>(StringComparer.Ordinal);
         string? after = null;
         do
         {
             var query = $"?limit={InventoryPageSize}" + (after is null ? string.Empty : $"&after={Uri.EscapeDataString(after)}");
-            var page = await WithRetry(target, () => SendOnce<InventoryPage>(
-                target, HttpMethod.Get, InventoryRoute + query, null, cancellationToken), cancellationToken);
+            var page = await WithRetry(() => SendOnce<InventoryPage>(
+                HttpMethod.Get, InventoryRoute + query, null, cancellationToken), cancellationToken);
             foreach (var item in page.Items ?? [])
             {
                 inventory[item.Id] = item.ModifiedAt;
@@ -120,36 +116,11 @@ public sealed class D1SearchIndexWriter(
             after = page.Next;
         } while (after is not null);
 
-        logger.LogInformation("D1 search inventory of target '{Target}': {Count} document(s).", target.Name, inventory.Count);
+        logger.LogInformation("D1 search inventory: {Count} document(s).", inventory.Count);
         return inventory;
     }
 
-    private async Task<D1SearchWriteResult> Write(
-        Func<D1SearchTarget, bool> include,
-        IReadOnlyCollection<D1SearchDocument> upserts,
-        IReadOnlyCollection<string> deletes,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(upserts);
-        ArgumentNullException.ThrowIfNull(deletes);
-        LogUnusableTargetsOnce();
-        var (upsertList, deleteList) = Normalise(upserts, deletes);
-        if (upsertList.Count == 0 && deleteList.Count == 0)
-        {
-            return new D1SearchWriteResult([]);
-        }
-
-        var outcomes = new List<D1SearchTargetOutcome>();
-        foreach (var target in _options.Targets.Where(t => t.IsUsable && include(t)))
-        {
-            outcomes.Add(await WriteTarget(target, upsertList, deleteList, cancellationToken));
-        }
-
-        return new D1SearchWriteResult(outcomes);
-    }
-
-    private async Task<D1SearchTargetOutcome> WriteTarget(
-        D1SearchTarget target,
+    private async Task<D1SearchWriteResult> Send(
         IReadOnlyList<D1SearchDocument> upserts,
         IReadOnlyList<string> deletes,
         CancellationToken cancellationToken)
@@ -165,7 +136,7 @@ public sealed class D1SearchIndexWriter(
                 deletes.Skip(i * MaxDeletesPerRequest).Take(MaxDeletesPerRequest).ToArray());
             try
             {
-                var outcome = await SendWithRetry(target, body, cancellationToken);
+                var outcome = await SendWithRetry(body, cancellationToken);
                 upserted += outcome.Upserted;
                 deleted += outcome.Deleted;
                 stale += outcome.Stale?.Length ?? 0;
@@ -175,28 +146,23 @@ public sealed class D1SearchIndexWriter(
             {
                 // Later chunks would most likely fail the same way; the next drip replays the lot (idempotent).
                 logger.LogError(ex,
-                    "D1 search write to target '{Target}' failed on request {Request} of {Requests} " +
+                    "D1 search write failed on request {Request} of {Requests} " +
                     "({Upserts} upsert(s), {Deletes} delete(s) in this call). Azure indexing is unaffected; the next drip retries. {Message}",
-                    target.Name, i + 1, requests, upserts.Count, deletes.Count, ex.Message);
-                return new D1SearchTargetOutcome(target.Name, false, upserted, deleted, stale, notFound, ex.Message);
+                    i + 1, requests, upserts.Count, deletes.Count, ex.Message);
+                return new D1SearchWriteResult(true, false, upserted, deleted, stale, notFound, ex.Message);
             }
         }
 
         logger.LogInformation(
-            "D1 search write to target '{Target}': upserted {Upserted}, deleted {Deleted}, stale {Stale}, not-found {NotFound} " +
-            "({Requests} request(s)).",
-            target.Name, upserted, deleted, stale, notFound, requests);
-        return new D1SearchTargetOutcome(target.Name, true, upserted, deleted, stale, notFound, null);
+            "D1 search write: upserted {Upserted}, deleted {Deleted}, stale {Stale}, not-found {NotFound} ({Requests} request(s)).",
+            upserted, deleted, stale, notFound, requests);
+        return new D1SearchWriteResult(true, true, upserted, deleted, stale, notFound, null);
     }
 
-    private Task<AdminDocsOutcome> SendWithRetry(
-        D1SearchTarget target,
-        AdminDocsRequest body,
-        CancellationToken cancellationToken) =>
-        WithRetry(target, () => SendOnce<AdminDocsOutcome>(target, HttpMethod.Post, Route, body, cancellationToken),
-            cancellationToken);
+    private Task<AdminDocsOutcome> SendWithRetry(AdminDocsRequest body, CancellationToken cancellationToken) =>
+        WithRetry(() => SendOnce<AdminDocsOutcome>(HttpMethod.Post, Route, body, cancellationToken), cancellationToken);
 
-    private async Task<T> WithRetry<T>(D1SearchTarget target, Func<Task<T>> send, CancellationToken cancellationToken)
+    private async Task<T> WithRetry<T>(Func<Task<T>> send, CancellationToken cancellationToken)
     {
         try
         {
@@ -204,21 +170,20 @@ public sealed class D1SearchIndexWriter(
         }
         catch (Exception ex) when (IsRetryable(ex, cancellationToken))
         {
-            logger.LogWarning("D1 search request to target '{Target}' failed ({Message}); retrying once.", target.Name, ex.Message);
+            logger.LogWarning("D1 search request failed ({Message}); retrying once.", ex.Message);
             await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, _options.RetryDelayMilliseconds)), timeProvider, cancellationToken);
             return await send();
         }
     }
 
     private async Task<T> SendOnce<T>(
-        D1SearchTarget target,
         HttpMethod method,
         string relativeUri,
         object? body,
         CancellationToken cancellationToken) where T : class
     {
-        var token = await tokenSource.GetToken(target, cancellationToken);
-        using var request = new HttpRequestMessage(method, new Uri(target.Endpoint!, relativeUri));
+        var token = await tokenSource.GetToken(cancellationToken);
+        using var request = new HttpRequestMessage(method, new Uri(_options.Endpoint!, relativeUri));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         if (body is not null)
         {
@@ -232,7 +197,7 @@ public sealed class D1SearchIndexWriter(
         {
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                tokenSource.Invalidate(target);
+                tokenSource.Invalidate();
             }
 
             var challenged = CloudflareChallengeResponse.LooksLikeBotChallenge(response.StatusCode, text);
@@ -246,8 +211,8 @@ public sealed class D1SearchIndexWriter(
     private static string Describe(HttpStatusCode status, string body, bool challenged)
     {
         var hint = challenged
-            ? " (Cloudflare Bot Fight challenge, the Worker never saw it: point this target at the api Worker's " +
-              "bypass host, Key Vault Api-Endpoint / Api-Preview-Endpoint)"
+            ? " (Cloudflare Bot Fight challenge, the Worker never saw it: d1Search:Endpoint must be the api Worker's " +
+              "bypass host, Key Vault Api-Endpoint)"
             : status switch
             {
                 HttpStatusCode.Unauthorized => " (token rejected: wrong tenant or audience for this api Worker?)",
@@ -290,19 +255,16 @@ public sealed class D1SearchIndexWriter(
         return (byId.Values.ToArray(), deleteList);
     }
 
-    private void LogUnusableTargetsOnce()
+    private void LogUnusableOnce()
     {
-        if (Interlocked.Exchange(ref _loggedUnusable, 1) == 1)
+        if (!_options.Enabled || Interlocked.Exchange(ref _loggedUnusable, 1) == 1)
         {
             return;
         }
 
-        foreach (var target in _options.Targets.Where(t => t.Enabled && !t.IsUsable))
-        {
-            logger.LogWarning(
-                "D1 search target '{Target}' is enabled but has no endpoint or Auth0 credentials; it is skipped " +
-                "(RPP #1460: provision exports them from HCP Terraform).", target.Name);
-        }
+        logger.LogWarning(
+            "D1 search sync is enabled but has no endpoint or Auth0 credentials; nothing is sent " +
+            "(RPP #1460: provision exports them from HCP Terraform).");
     }
 
     private sealed record AdminDocsRequest(
@@ -333,19 +295,18 @@ public sealed class D1SearchHttpException(HttpStatusCode statusCode, string mess
     public bool IsCloudflareChallenge { get; } = isCloudflareChallenge;
 }
 
-/// <param name="Target">Target name.</param>
-/// <param name="Succeeded">Every request to the target succeeded.</param>
-/// <param name="Error">Why the target failed; null on success.</param>
-public sealed record D1SearchTargetOutcome(
-    string Target,
+/// <param name="Ran">The sync is active and there was something to send.</param>
+/// <param name="Succeeded">Every request succeeded (true when nothing ran).</param>
+/// <param name="Error">Why the write failed; null on success.</param>
+public sealed record D1SearchWriteResult(
+    bool Ran,
     bool Succeeded,
     int Upserted,
     int Deleted,
     int Stale,
     int NotFound,
-    string? Error);
-
-public sealed record D1SearchWriteResult(IReadOnlyList<D1SearchTargetOutcome> Targets)
+    string? Error)
 {
-    public bool Succeeded => Targets.All(t => t.Succeeded);
+    /// <summary>Nothing sent: the sync is off or unconfigured, or the call had nothing to write.</summary>
+    public static D1SearchWriteResult Skipped { get; } = new(false, true, 0, 0, 0, 0, null);
 }

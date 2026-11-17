@@ -1,11 +1,13 @@
-// SP-2.2 (#1322): reconcile the D1 search index(es) with Cosmos, and the initial backfill.
-// Dry run unless --write --target <name> is given. Credentials: the d1Search section (see docs/search-platform/sync-and-replication.md).
+// SP-2.2 (#1322): reconcile the D1 search index with Cosmos, and the initial backfill.
+// Dry run unless --write is given. The index and credentials come from the d1Search section in local user secrets
+// (see Console-Apps/README.md); the deployed Functions only ever know the production index.
 using System.Reflection;
 using CommandLine;
 using D1SearchReconcile;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.D1Search;
@@ -35,7 +37,7 @@ return await Parser.Default.ParseArguments<D1SearchReconcileRequestOptions>(args
 
 async Task<int> Run(D1SearchReconcileRequestOptions options)
 {
-    var request = D1SearchReconcileRequest.FromCommandLine(options.Targets, options.Write, options.AllowDrift, out var error);
+    var request = D1SearchReconcileRequest.FromCommandLine(options.Write, options.AllowDrift, out var error);
     if (request is null)
     {
         Console.Error.WriteLine(error);
@@ -43,20 +45,20 @@ async Task<int> Run(D1SearchReconcileRequestOptions options)
     }
 
     using var scope = host.Services.CreateScope();
+    var endpoint = scope.ServiceProvider.GetRequiredService<IOptions<D1SearchOptions>>().Value.Endpoint;
+    Console.WriteLine($"D1 search index: {endpoint?.Host ?? "(not configured)"}; {(request.Write ? "WRITE" : "dry run")}.");
     var reconciler = scope.ServiceProvider.GetRequiredService<ID1SearchReconciler>();
-    var reports = await reconciler.Reconcile(request, CancellationToken.None);
-    foreach (var r in reports)
+    var r = await reconciler.Reconcile(request, CancellationToken.None);
+    Console.WriteLine(
+        $"{r.Outcome}. D1 {r.D1Documents}, eligible {r.Eligible}, missing {r.Missing}, stale {r.Stale}, " +
+        $"orphans {r.Orphans}, not built {r.FailedToBuild}, drift {r.Drift:P2}; upserted {r.Upserted}, deleted {r.Deleted}." +
+        (r.Error is null ? string.Empty : $" Error: {r.Error}"));
+    if (r.Outcome == D1SearchReconcileOutcome.NotConfigured)
     {
-        Console.WriteLine(
-            $"{r.Target}: {r.Outcome}. D1 {r.D1Documents}, eligible {r.Eligible}, missing {r.Missing}, stale {r.Stale}, " +
-            $"orphans {r.Orphans}, not built {r.FailedToBuild}, drift {r.Drift:P2}; upserted {r.Upserted}, deleted {r.Deleted}." +
-            (r.Error is null ? string.Empty : $" Error: {r.Error}"));
+        Console.Error.WriteLine(
+            "The D1 search sync is not enabled and configured: set d1Search:Enabled, Endpoint, Auth0Domain, Audience, " +
+            "ClientId and ClientSecret in user secrets.");
     }
 
-    if (reports.Count == 0)
-    {
-        Console.Error.WriteLine("No D1 search target is enabled and configured (d1Search:Targets).");
-    }
-
-    return D1SearchReconcileRequest.ExitCode(reports);
+    return D1SearchReconcileRequest.ExitCode(r);
 }

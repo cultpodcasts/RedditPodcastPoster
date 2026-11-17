@@ -10,13 +10,11 @@ namespace Indexer.Tests;
 
 public class D1SearchReconcilerTests
 {
-    private const string Preview = "preview";
-    private const string Production = "production";
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private readonly D1SearchOptions _options = new();
-    private readonly Dictionary<string, Dictionary<string, long>> _inventories = new() { [Production] = [], [Preview] = [] };
-    private readonly List<(string Target, string[] Upserts, string[] Deletes)> _writes = [];
+    private readonly List<(string[] Upserts, string[] Deletes)> _writes = [];
+    private Dictionary<string, long> _inventory = [];
     private List<D1SearchCandidate> _catalogue = [];
 
     public D1SearchReconcilerTests()
@@ -26,23 +24,22 @@ public class D1SearchReconcilerTests
             .Setup(c => c.Read(0, It.IsAny<CancellationToken>()))
             .Returns(() => _catalogue.ToAsyncEnumerable());
         _mocker.GetMock<ID1SearchInventoryReader>()
-            .Setup(r => r.ReadInventory(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string target, CancellationToken _) => _inventories[target]);
+            .Setup(r => r.ReadInventory(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _inventory);
         var writer = _mocker.GetMock<ID1SearchIndexWriter>();
-        writer.SetupGet(w => w.UsableTargets).Returns([Production, Preview]);
-        writer.Setup(w => w.Write(It.IsAny<string>(), It.IsAny<IReadOnlyCollection<D1SearchDocument>>(),
+        writer.SetupGet(w => w.IsActive).Returns(true);
+        writer.Setup(w => w.Write(It.IsAny<IReadOnlyCollection<D1SearchDocument>>(),
                 It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string target, IReadOnlyCollection<D1SearchDocument> u, IReadOnlyCollection<string> d,
-                CancellationToken _) =>
+            .ReturnsAsync((IReadOnlyCollection<D1SearchDocument> u, IReadOnlyCollection<string> d, CancellationToken _) =>
             {
-                _writes.Add((target, u.Select(x => x.Id).ToArray(), d.ToArray()));
-                return new D1SearchWriteResult([new D1SearchTargetOutcome(target, true, u.Count, d.Count, 0, 0, null)]);
+                _writes.Add((u.Select(x => x.Id).ToArray(), d.ToArray()));
+                return new D1SearchWriteResult(true, true, u.Count, d.Count, 0, 0, null);
             });
     }
 
     [Fact(DisplayName =
-        "A reconcile counts missing, stale and orphaned documents per target and writes nothing unless the target is a " +
-        "write target, because the reconcile is a dry run by default and prod D1 is never written without Jon's OK.")]
+        "A reconcile counts missing, stale and orphaned documents and writes nothing unless asked to write, because the " +
+        "reconcile is a dry run by default and prod D1 is never written without Jon's OK.")]
     public async Task dry_run_reports_drift_and_writes_nothing()
     {
         // Arrange
@@ -51,25 +48,25 @@ public class D1SearchReconcilerTests
         var missing = Candidate(modifiedAt: 30);
         var orphan = _fixture.CreateGuid().ToString();
         _catalogue = [inSync, stale, missing];
-        _inventories[Production] = new() { [inSync.Id] = 10, [stale.Id] = 19, [orphan] = 5 };
+        _inventory = new() { [inSync.Id] = 10, [stale.Id] = 19, [orphan] = 5 };
         var sut = _mocker.CreateInstance<D1SearchReconciler>();
 
         // Act
-        var reports = await sut.Reconcile(new D1SearchReconcileRequest([Production], []), CancellationToken.None);
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None);
 
         // Assert
-        reports.Single().Should().BeEquivalentTo(new
+        report.Should().BeEquivalentTo(new
         {
-            Target = Production, Outcome = D1SearchReconcileOutcome.DryRun, D1Documents = 3, Eligible = 3, Missing = 1,
-            Stale = 1, Orphans = 1, Drift = 1.0
+            Outcome = D1SearchReconcileOutcome.DryRun, D1Documents = 3, Eligible = 3, Missing = 1, Stale = 1,
+            Orphans = 1, Drift = 1.0
         });
         _writes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "A write target within the drift threshold gets only its missing and stale documents upserted and its orphans " +
-        "deleted, because re-sending unchanged documents costs a D1 FTS rewrite each.")]
-    public async Task write_target_patches_only_the_drift()
+        "A write within the drift threshold upserts only the missing and stale documents and deletes the orphans, " +
+        "because re-sending unchanged documents costs a D1 FTS rewrite each.")]
+    public async Task write_patches_only_the_drift()
     {
         // Arrange
         _options.Reconcile.DriftThreshold = 0.5;
@@ -77,20 +74,20 @@ public class D1SearchReconcilerTests
         var missing = Candidate(modifiedAt: 10);
         var orphan = _fixture.CreateGuid().ToString();
         _catalogue = [..docs, missing];
-        _inventories[Preview] = docs.ToDictionary(d => d.Id, _ => 10L);
-        _inventories[Preview][orphan] = 1;
+        _inventory = docs.ToDictionary(d => d.Id, _ => 10L);
+        _inventory[orphan] = 1;
         var sut = _mocker.CreateInstance<D1SearchReconciler>();
 
         // Act
-        var reports = await sut.Reconcile(new D1SearchReconcileRequest([Preview], [Preview]), CancellationToken.None);
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true), CancellationToken.None);
 
         // Assert
-        reports.Single().Should().BeEquivalentTo(new
+        report.Should().BeEquivalentTo(new
             { Outcome = D1SearchReconcileOutcome.Patched, Missing = 1, Orphans = 1, Upserted = 1, Deleted = 1 });
         _writes.Should().BeEquivalentTo(new[]
         {
-            (Preview, new[] { missing.Id }, Array.Empty<string>()),
-            (Preview, Array.Empty<string>(), new[] { orphan })
+            (new[] { missing.Id }, Array.Empty<string>()),
+            (Array.Empty<string>(), new[] { orphan })
         });
     }
 
@@ -104,14 +101,14 @@ public class D1SearchReconcilerTests
         var sut = _mocker.CreateInstance<D1SearchReconciler>();
 
         // Act
-        var refused = await sut.Reconcile(new D1SearchReconcileRequest([Preview], [Preview]), CancellationToken.None);
-        var backfill = await sut.Reconcile(new D1SearchReconcileRequest([Preview], [Preview], AllowAboveDriftThreshold: true),
+        var refused = await sut.Reconcile(new D1SearchReconcileRequest(true), CancellationToken.None);
+        var backfill = await sut.Reconcile(new D1SearchReconcileRequest(true, AllowAboveDriftThreshold: true),
             CancellationToken.None);
 
         // Assert
-        refused.Single().Outcome.Should().Be(D1SearchReconcileOutcome.RefusedDrift);
-        refused.Single().Succeeded.Should().BeFalse();
-        backfill.Single().Should().BeEquivalentTo(new { Outcome = D1SearchReconcileOutcome.Patched, Upserted = 250 });
+        refused.Outcome.Should().Be(D1SearchReconcileOutcome.RefusedDrift);
+        refused.Succeeded.Should().BeFalse();
+        backfill.Should().BeEquivalentTo(new { Outcome = D1SearchReconcileOutcome.Patched, Upserted = 250 });
         _writes.Select(w => w.Upserts.Length).Should().Equal(100, 100, 50);
     }
 
@@ -124,40 +121,59 @@ public class D1SearchReconcilerTests
         var failed = new D1SearchCandidate(_fixture.CreateGuid().ToString(), null, BuildFailed: true);
         var excluded = new D1SearchCandidate(_fixture.CreateGuid().ToString(), null);
         _catalogue = [failed, excluded];
-        _inventories[Production] = new() { [failed.Id] = 1, [excluded.Id] = 1 };
+        _inventory = new() { [failed.Id] = 1, [excluded.Id] = 1 };
         var sut = _mocker.CreateInstance<D1SearchReconciler>();
 
         // Act
-        var report = (await sut.Reconcile(new D1SearchReconcileRequest([Production], []), CancellationToken.None)).Single();
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None);
 
         // Assert
         report.Should().BeEquivalentTo(new { Orphans = 1, FailedToBuild = 1, Eligible = 0 });
     }
 
     [Fact(DisplayName =
-        "When a target's inventory can't be read, that target fails and nothing is written, because a partial " +
-        "inventory would make live documents look like orphans.")]
-    public async Task an_unreadable_inventory_fails_the_target_without_writing()
+        "When the inventory can't be read, the reconcile fails and nothing is written, because a partial inventory " +
+        "would make live documents look like orphans.")]
+    public async Task an_unreadable_inventory_fails_without_writing()
     {
         // Arrange
         _mocker.GetMock<ID1SearchInventoryReader>()
-            .Setup(r => r.ReadInventory(Production, It.IsAny<CancellationToken>()))
+            .Setup(r => r.ReadInventory(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new D1SearchWriteException(_fixture.CreateTitle()));
         _catalogue = [Candidate(modifiedAt: 1)];
         var sut = _mocker.CreateInstance<D1SearchReconciler>();
 
         // Act
-        var reports = await sut.Reconcile(new D1SearchReconcileRequest(null, [Production, Preview], true), CancellationToken.None);
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true, true), CancellationToken.None);
 
         // Assert
-        reports.Select(r => (r.Target, r.Outcome)).Should().Equal(
-            (Production, D1SearchReconcileOutcome.Failed), (Preview, D1SearchReconcileOutcome.Patched));
-        _writes.Should().OnlyContain(w => w.Target == Preview);
+        report.Outcome.Should().Be(D1SearchReconcileOutcome.Failed);
+        report.Error.Should().NotBeNullOrEmpty();
+        _writes.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "Cosmos is read once to plan however many targets there are, and once more only when one of them writes, " +
-        "because a scan per target would not fit the weekly timer's budget and doubles the Cosmos cost.")]
+        "When the sync is not enabled and configured, the reconcile reads nothing and reports NotConfigured, because a " +
+        "switched-off sync must cost nothing and the console must exit non-zero.")]
+    public async Task not_configured_reads_nothing()
+    {
+        // Arrange
+        _mocker.GetMock<ID1SearchIndexWriter>().SetupGet(w => w.IsActive).Returns(false);
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true), CancellationToken.None);
+
+        // Assert
+        report.Outcome.Should().Be(D1SearchReconcileOutcome.NotConfigured);
+        D1SearchReconcileRequest.ExitCode(report).Should().Be(1);
+        Reads().Should().Be(0);
+        _mocker.GetMock<ID1SearchInventoryReader>().Invocations.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Cosmos is read once to plan, and once more only when writing, because a full scan is the reconcile's biggest " +
+        "cost and the weekly timer has a 4.5-minute budget.")]
     public async Task cosmos_is_scanned_once_to_plan_and_once_to_write()
     {
         // Arrange
@@ -165,30 +181,25 @@ public class D1SearchReconcilerTests
         var sut = _mocker.CreateInstance<D1SearchReconciler>();
 
         // Act
-        await sut.Reconcile(new D1SearchReconcileRequest(null, []), CancellationToken.None);
+        await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None);
         var dryRunReads = Reads();
-        await sut.Reconcile(new D1SearchReconcileRequest(null, [Production, Preview], true), CancellationToken.None);
+        await sut.Reconcile(new D1SearchReconcileRequest(true, true), CancellationToken.None);
 
         // Assert
         dryRunReads.Should().Be(1);
         Reads().Should().Be(3);
-        _writes.Select(w => w.Target).Should().BeEquivalentTo([Production, Preview]);
+        _writes.Should().HaveCount(1);
     }
 
-    private int Reads() => _mocker.GetMock<ID1SearchCatalogue>().Invocations.Count(i => i.Method.Name == nameof(ID1SearchCatalogue.Read));
-
-    [Theory(DisplayName =
-        "The console needs --target with --write and --write with --allow-drift, because a write to the production " +
-        "index must always be named on the command line.")]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, true)]
-    public void console_command_line_rules(bool write, bool allowDrift, bool named)
+    [Fact(DisplayName =
+        "The console refuses --allow-drift without --write, because allowing drift only means something when writing.")]
+    public void console_allow_drift_needs_write()
     {
         // Arrange
-        string[] targets = named ? [Preview] : [];
+        const bool write = false;
 
         // Act
-        var request = D1SearchReconcileRequest.FromCommandLine(targets, write, allowDrift, out var error);
+        var request = D1SearchReconcileRequest.FromCommandLine(write, true, out var error);
 
         // Assert
         request.Should().BeNull();
@@ -196,19 +207,21 @@ public class D1SearchReconcilerTests
     }
 
     [Fact(DisplayName =
-        "Without --write the console asks for a dry run of the named targets, because reading is always safe.")]
+        "Without --write the console asks for a dry run, because reading is always safe.")]
     public void console_defaults_to_a_dry_run()
     {
         // Arrange
-        string[] targets = [Production];
+        const bool write = false;
 
         // Act
-        var request = D1SearchReconcileRequest.FromCommandLine(targets, false, false, out var error);
+        var request = D1SearchReconcileRequest.FromCommandLine(write, false, out var error);
 
         // Assert
         error.Should().BeNull();
-        request.Should().BeEquivalentTo(new { Targets = new[] { Production }, WriteTargets = Array.Empty<string>() });
+        request.Should().Be(new D1SearchReconcileRequest(false));
     }
+
+    private int Reads() => _mocker.GetMock<ID1SearchCatalogue>().Invocations.Count(i => i.Method.Name == nameof(ID1SearchCatalogue.Read));
 
     private D1SearchCandidate Candidate(long modifiedAt)
     {

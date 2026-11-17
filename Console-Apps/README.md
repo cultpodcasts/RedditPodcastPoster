@@ -474,24 +474,22 @@ FilmSearchPusher --full      # push all films and remove orphaned film documents
 
 ### D1SearchReconcile
 
-**Purpose:** Reconcile the Cloudflare D1 search index(es) with Cosmos (SP-2.2, [#1322](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1322)), and do the **initial backfill**. Same code as the Indexer's weekly `D1SearchReconcile` timer, without the function's 5-minute limit. **Dry run unless `--write --target <name>`.**
+**Purpose:** Reconcile the Cloudflare D1 search index with Cosmos (SP-2.2, [#1322](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1322)), and do the **initial backfill**. Same code as the Indexer's weekly `D1SearchReconcile` timer, without the function's 5-minute limit. **Dry run unless `--write`.**
 
 **Run:** `dotnet run --project Console-Apps/D1SearchReconcile --` · PATH: `D1SearchReconcile`
 
 | Option | Description |
 |--------|-------------|
-| `-t, --target` | `production`, `preview` or both (comma-separated). Default: every enabled, configured target |
-| `--write` | Write to the named targets (needs `--target`). Without it, the run reads D1's inventory and Cosmos and reports, and writes nothing |
+| `--write` | Patch the index `d1Search:Endpoint` points at. Without it, the run reads D1's inventory and Cosmos and reports, and writes nothing |
 | `--allow-drift` | With `--write`: patch even above `d1Search:Reconcile:DriftThreshold` (default 5%). For the initial backfill (D1 empty) or a deliberate repair |
 
-**Config:** Cosmos as for the other consoles, plus the `d1Search` section (user secrets): `d1Search:Targets:0:Name`, `Enabled=true`, `Endpoint` (the api Worker; production uses the Bot Fight bypass host, Key Vault `Api-Endpoint`), `Auth0Domain`, `Audience` (`https://api.cultpodcasts.com/`), `ClientId` and `ClientSecret` (HCP Terraform outputs of `cultpodcasts-auth0` / `cultpodcasts-auth0-preview`). Exit code `1` when a target fails or is refused for drift.
+**Config:** Cosmos as for the other consoles, plus the `d1Search` section in **local user secrets** (never in deployed config): `d1Search:Enabled=true`, `d1Search:Endpoint` (the api Worker's Bot Fight bypass host, Key Vault `Api-Endpoint`), `d1Search:Auth0Domain`, `d1Search:Audience` (`https://api.cultpodcasts.com/`), `d1Search:ClientId` and `d1Search:ClientSecret` (the prod `search-index-writer` client, Key Vault `Search-Index-Writer-ClientId` / `Search-Index-Writer-ClientSecret`). The run prints the index host and whether it writes before it starts. Exit code `1` when the sync is not configured, the run fails, or it is refused for drift.
 
-How it works: it pages the target's `{ id, modifiedAt }` inventory (`GET /search/admin/docs/inventory`) and streams Cosmos once to count missing, stale (D1 `modifiedAt` older than Cosmos `_ts`) and orphans (in D1 but not eligible). With `--write`, if the drift is within the threshold or `--allow-drift` is set, it streams Cosmos again, upserts only the missing and stale documents (100 per request), then deletes the orphans (1000 per request). Writes are idempotent; a stopped run can just be run again.
+How it works: it pages the index's `{ id, modifiedAt }` inventory (`GET /search/admin/docs/inventory`) and streams Cosmos once to count missing, stale (D1 `modifiedAt` older than Cosmos `_ts`) and orphans (in D1 but not eligible). With `--write`, if the drift is within the threshold or `--allow-drift` is set, it streams Cosmos again, upserts only the missing and stale documents (100 per request), then deletes the orphans (1000 per request). Writes are idempotent; a stopped run can just be run again.
 
 ```powershell
-D1SearchReconcile                                          # dry run, every configured target
-D1SearchReconcile --target preview --write --allow-drift   # initial preview backfill
-D1SearchReconcile --target production --write --allow-drift  # initial production backfill: Jon's call
+D1SearchReconcile                            # dry run
+D1SearchReconcile --write --allow-drift      # initial production backfill: Jon's call
 ```
 
 ### DeleteSearchDocument

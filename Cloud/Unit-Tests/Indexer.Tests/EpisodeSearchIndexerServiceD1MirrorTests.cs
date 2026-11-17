@@ -49,7 +49,7 @@ public class EpisodeSearchIndexerServiceD1MirrorTests
                 It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
             .Callback<IReadOnlyCollection<D1SearchDocument>, IReadOnlyCollection<string>, CancellationToken>(
                 (u, d, _) => _d1Writes.Add((u.ToArray(), d.ToArray())))
-            .ReturnsAsync(new D1SearchWriteResult([]));
+            .ReturnsAsync(D1SearchWriteResult.Skipped);
     }
 
     [Fact(DisplayName =

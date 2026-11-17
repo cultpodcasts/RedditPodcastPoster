@@ -21,28 +21,30 @@ public class D1SearchReconcileTriggerRules
         _mocker.GetMock<ID1SearchReconciler>()
             .Setup(r => r.Reconcile(It.IsAny<D1SearchReconcileRequest>(), It.IsAny<CancellationToken>()))
             .Callback<D1SearchReconcileRequest, CancellationToken>((r, _) => _request = r)
-            .ReturnsAsync([]);
+            .ReturnsAsync(new D1SearchReconcileReport(D1SearchReconcileOutcome.InSync, 0, 0, 0, 0, 0, 0, 0));
     }
 
-    [Fact(DisplayName =
-        "When the weekly reconcile timer fires, then it reconciles every target and writes only the configured write " +
-        "targets, never above the drift threshold, because the timer is a dry run until Jon names a target.")]
-    public async Task timer_writes_only_configured_targets_within_the_threshold()
+    [Theory(DisplayName =
+        "When the weekly reconcile timer fires, then it writes only when d1Search:Reconcile:Write is set, never above " +
+        "the drift threshold, because the timer is a dry run until Jon turns writing on.")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task timer_writes_only_when_configured_within_the_threshold(bool write)
     {
         // Arrange
-        _options.Reconcile.WriteTargets = ["preview"];
+        _options.Reconcile.Write = write;
         var sut = _mocker.CreateInstance<D1SearchReconcileTrigger>();
 
         // Act
         await sut.Reconcile(CancellationToken.None);
 
         // Assert
-        _request.Should().BeEquivalentTo(new D1SearchReconcileRequest(null, ["preview"]));
+        _request.Should().Be(new D1SearchReconcileRequest(write));
     }
 
     [Fact(DisplayName =
-        "When no D1 target is configured, then the timer does nothing, because a switched-off sync must cost nothing.")]
-    public async Task timer_does_nothing_without_a_target()
+        "When the D1 sync is off, then the timer does nothing, because a switched-off sync must cost nothing.")]
+    public async Task timer_does_nothing_when_the_sync_is_off()
     {
         // Arrange
         _mocker.GetMock<ID1SearchIndexWriter>().SetupGet(w => w.IsActive).Returns(false);

@@ -7,10 +7,10 @@ namespace Indexer.Triggers;
 
 /// <summary>
 /// SP-2.2 (#1322): the weekly Cosmos-to-D1 search reconcile, Sunday 04:30 UTC, after the hourly runs have settled.
-/// <b>Dry-run unless configured:</b> it writes only to the targets in <c>d1Search:Reconcile:WriteTargets</c> (empty
-/// by default), and never above the drift threshold. The initial backfill is too long for this function's 5-minute
-/// limit and needs <c>--allow-drift</c>, so it runs from the <c>D1SearchReconcile</c> console. When no target is
-/// configured, this does nothing.
+/// <b>Dry-run unless configured:</b> it patches the production index only when <c>d1Search:Reconcile:Write</c> is
+/// true (false by default), and never above the drift threshold. The initial backfill is too long for this function's
+/// 5-minute limit and needs <c>--allow-drift</c>, so it runs from the <c>D1SearchReconcile</c> console. When the sync
+/// is off (<c>d1Search:Enabled</c>), this does nothing.
 /// Never throws: a D1 problem must not page anyone through a failed Indexer run; the outcome is in the log.
 /// </summary>
 public class D1SearchReconcileTrigger(
@@ -39,7 +39,7 @@ public class D1SearchReconcileTrigger(
     {
         if (!writer.IsActive)
         {
-            logger.LogInformation("D1SearchReconcile: no D1 search target is enabled and configured; nothing to do.");
+            logger.LogInformation("D1SearchReconcile: the D1 search sync is not enabled and configured; nothing to do.");
             return;
         }
 
@@ -47,10 +47,9 @@ public class D1SearchReconcileTrigger(
         budget.CancelAfter(Budget);
         try
         {
-            var request = new D1SearchReconcileRequest(null, options.Value.Reconcile.WriteTargets);
-            var reports = await reconciler.Reconcile(request, budget.Token);
-            logger.LogInformation("D1SearchReconcile completed: {Reports}.",
-                string.Join("; ", reports.Select(r => $"{r.Target}={r.Outcome}")));
+            var request = new D1SearchReconcileRequest(options.Value.Reconcile.Write);
+            var report = await reconciler.Reconcile(request, budget.Token);
+            logger.LogInformation("D1SearchReconcile completed: {Outcome}.", report.Outcome);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

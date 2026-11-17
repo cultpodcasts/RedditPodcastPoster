@@ -35,7 +35,7 @@ public class D1SearchChangeFeedTests
                 It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
             .Callback<IReadOnlyCollection<D1SearchDocument>, IReadOnlyCollection<string>, CancellationToken>(
                 (u, d, _) => _writes.Add((u.ToArray(), d.ToArray())))
-            .ReturnsAsync(new D1SearchWriteResult([]));
+            .ReturnsAsync(D1SearchWriteResult.Skipped);
         _mocker.GetMock<IEpisodeRepository>()
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Episode, bool>>>()))
             .Returns(() => _episodes.ToAsyncEnumerable());

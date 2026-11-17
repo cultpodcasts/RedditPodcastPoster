@@ -26,7 +26,7 @@ Worker applies one `db.batch()`:
 
 Transport: shared-secret header (like today’s `api-key`) or Auth0 M2M. Prefer landing on
 the api Worker then **service binding** to the search Worker (avoids Bot Fight Mode on
-public hostnames). Plan preview + production secrets together.
+public hostnames). The Functions are production only, so they hold production secrets only.
 
 Expected volume: tens of mutations/hour — far below any batching threshold.
 
@@ -45,7 +45,6 @@ flowchart LR
   E -->|"same episodes it pushes to Azure"| W
   CF --> W["D1SearchIndexWriter<br/>≤100 upserts / ≤1000 deletes per request<br/>1 retry on 429/5xx/network<br/>no retry on a Cloudflare challenge"]
   W -->|"M2M token (prod tenant)"| PA["api__Endpoint → POST /search/admin/docs → cultpodcasts-search"]
-  W -->|"M2M token (staging tenant)"| PV["api-preview → POST /search/admin/docs → cultpodcasts-search-preview"]
 ```
 
 | Path | What | Why |
@@ -59,11 +58,14 @@ flowchart LR
   description, `guests` and `modifiedAt` (= `_ts` × 1000) are added (SP-0.3). Eligibility
   (`D1SearchEligibility`) is Azure's: removed episode or podcast, denormalised `parentRemoved`, removed film.
 - **Never breaks Azure:** the writer catches every D1, network and Auth0 failure, logs it at Error with the
-  target and the Worker's message, and returns it. The Publisher guards the drip again. Azure results are
+  status and the Worker's message, and returns it. The Publisher guards the drip again. Azure results are
   returned unchanged.
-- **Switches:** `d1Search:Targets:N:Enabled`. A target without endpoint or credentials is skipped with one
-  warning. Console apps have no targets, so they never write D1.
-- **Tokens:** one Auth0 client_credentials token per target, cached until five minutes before expiry (Auth0
+- **One index:** the Functions write the **production** D1 index only (there are no preview Functions; Jon,
+  17 Nov 2026). Settings `d1Search:Enabled`, `Endpoint`, `Auth0Domain`, `Audience`, `ClientId`, `ClientSecret`.
+- **Switch:** `d1Search:Enabled` (bicep `d1SearchProductionEnabled`, **false** until Jon's OK). Enabled without
+  endpoint or credentials is skipped with one warning. Console apps have no `d1Search` settings, so they never
+  write D1.
+- **Tokens:** one Auth0 client_credentials token, cached until five minutes before expiry (Auth0
   meters M2M tokens); a 401 drops it.
 
 ### Weekly reconcile
@@ -78,20 +80,20 @@ Define a **drift threshold**: small → patch; large / failed migration / tokeni
 flowchart LR
   T["Indexer timer D1SearchReconcile<br/>Sun 04:30 UTC, 4.5 min budget"] --> R
   C["D1SearchReconcile console<br/>(backfill, full passes)"] --> R
-  R["D1SearchReconciler (per target)"] -->|"GET /search/admin/docs/inventory<br/>(Api, keyset pages of 5000)"| INV["D1 {id, modifiedAt}"]
+  R["D1SearchReconciler (production index)"] -->|"GET /search/admin/docs/inventory<br/>(Api, keyset pages of 5000)"| INV["D1 {id, modifiedAt}"]
   R -->|"pass 1: ids only"| CAT["D1SearchCatalogue<br/>(Cosmos, same builders as the drip)"]
-  R -->|"write target and drift within threshold<br/>(or --allow-drift)"| P2["pass 2: upsert missing/stale (100/req)<br/>then delete orphans (1000/req)"]
+  R -->|"write requested and drift within threshold<br/>(or --allow-drift)"| P2["pass 2: upsert missing/stale (100/req)<br/>then delete orphans (1000/req)"]
 ```
 
 | | |
 |---|---|
 | **Missing / stale / orphan** | Missing: eligible in Cosmos, not in D1. Stale: D1 `modifiedAt` older than Cosmos `_ts`. Orphan: in D1 but not eligible in Cosmos (removed, ineligible, hard-deleted, podcast gone). A playable whose document fails to build is neither written nor deleted. |
 | **Drift** | (missing + stale + orphans) / max(D1 count, eligible count). Above `d1Search:Reconcile:DriftThreshold` (default **5%**), nothing is written (outcome `RefusedDrift`). Use a full rebuild (SP-2.3) or a deliberate `--allow-drift` backfill. |
-| **Dry run by default** | The timer writes only to targets in `d1Search:Reconcile:WriteTargets` (empty by default; nothing in bicep sets it). The console writes only with `--write --target <name>`. **Production D1 is written only when Jon names it.** |
-| **Initial backfill** | D1 is empty, so drift is 100%. Use `D1SearchReconcile --target preview --write --allow-drift`, then `production` with Jon's OK. It's too long for the Indexer's 5-minute `functionTimeout`, so it runs from the console. Re-running is safe (idempotent; `modifiedAt` guard). |
-| **One scan, many targets** | Cosmos is scanned once to plan (`id → modifiedAt` of eligible playables) and diffed against each target's inventory. A second scan happens only if some target writes, and it routes each document to every target that planned it. |
-| **Memory** | The eligible map and inventories (about 90k ids each) and id sets only. Documents are streamed, never all held. |
-| **Failure** | An unreadable inventory fails that target (a partial one would make live documents orphans). A failed write stops that target and reports `Failed`. The timer never throws. |
+| **Dry run by default** | The timer writes only when `d1Search:Reconcile:Write` is `true` (false by default; nothing in bicep sets it). The console writes only with `--write`. **Production D1 is written only with Jon's OK.** |
+| **Initial backfill** | D1 is empty, so drift is 100%. Use `D1SearchReconcile --write --allow-drift` with Jon's OK (the console's `d1Search` settings come from local user secrets). It's too long for the Indexer's 5-minute `functionTimeout`, so it runs from the console. Re-running is safe (idempotent; `modifiedAt` guard). |
+| **Two scans at most** | Cosmos is scanned once to plan (`id → modifiedAt` of eligible playables) and diffed against the D1 inventory. A second scan happens only when writing, and it sends just the planned documents. |
+| **Memory** | The eligible map and the inventory (about 90k ids each) and id sets only. Documents are streamed, never all held. |
+| **Failure** | An unreadable inventory fails the run (a partial one would make live documents orphans). A failed write stops the run and reports `Failed`. With the sync off the outcome is `NotConfigured` and nothing is read. The timer never throws. |
 
 ### Weekly reset / blue-green (“drip failed, rebuild”)
 
