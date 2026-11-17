@@ -94,17 +94,19 @@ public interface ID1SearchReconciler
 /// <summary>
 /// The SP-2.2 (#1322) reconcile. It catches what the push mirror and the hourly drip can't: hard-deleted Cosmos
 /// documents (no <c>_ts</c> to see), writes lost in a long outage, and drift of any kind. It's also the initial
-/// backfill (an empty D1 is 100% "missing").
+/// backfill (an empty D1 is 100% "missing"). Cosmos is the same for every target, so it is scanned <b>once</b> to
+/// plan and at most <b>once more</b> to write, however many targets there are.
 /// <list type="number">
-/// <item>Read the target's whole inventory (<c>{ id, modifiedAt }</c>, about 90k small entries). A partial inventory
-/// fails the target: it would turn live documents into orphans.</item>
-/// <item>Pass 1 streams the catalogue from <c>_ts</c> 0 and keeps only ids: eligible, missing and stale. Orphans are
-/// the inventory ids that aren't eligible. A candidate whose document failed to build is neither written nor deleted.
-/// </item>
-/// <item>A dry run, an in-sync index or drift above the threshold stops here.</item>
-/// <item>Pass 2 streams the catalogue again and upserts only the planned ids, 100 per request; then orphans are
-/// deleted, 1000 per request. Documents are never all held in memory. A playable that changed in between is still
-/// right: the Worker's <c>modifiedAt</c> guard keeps the newest, and the drip covers the rest.</item>
+/// <item>Pass 1 streams the catalogue from <c>_ts</c> 0 and keeps <c>id → modifiedAt</c> of the eligible playables
+/// (about 90k longs) and the ids whose document failed to build (neither written nor deleted).</item>
+/// <item>Each target's whole inventory (<c>{ id, modifiedAt }</c>) is diffed against that: missing, stale, orphans.
+/// A target whose inventory can't be read fails on its own; a partial inventory would turn live documents into
+/// orphans.</item>
+/// <item>A dry run, an in-sync index or drift above the threshold stops there for that target.</item>
+/// <item>Pass 2 (only when some target writes) streams the catalogue again and routes each document to every write
+/// target that planned it, 100 per request; then each target's orphans are deleted, 1000 per request. A target whose
+/// write fails stops; the others carry on. Documents are never all held in memory. A playable that changed in between
+/// is still right: the Worker's <c>modifiedAt</c> guard keeps the newest, and the drip covers the rest.</item>
 /// </list>
 /// </summary>
 public sealed class D1SearchReconciler(
@@ -130,162 +132,201 @@ public sealed class D1SearchReconciler(
             logger.LogWarning("D1 search reconcile: target '{Target}' is not enabled and configured; skipped.", unknown);
         }
 
-        var reports = new List<D1SearchReconcileReport>();
-        foreach (var target in targets)
+        if (targets.Count == 0)
         {
-            var write = request.WriteTargets.Contains(target, StringComparer.Ordinal);
-            reports.Add(await ReconcileTarget(target, write, request.AllowAboveDriftThreshold, cancellationToken));
+            return [];
         }
 
-        return reports;
-    }
-
-    private async Task<D1SearchReconcileReport> ReconcileTarget(
-        string target,
-        bool write,
-        bool allowAboveDriftThreshold,
-        CancellationToken cancellationToken)
-    {
-        D1SearchReconcileReport report;
+        CatalogueSnapshot snapshot;
         try
         {
-            var inventory = await inventoryReader.ReadInventory(target, cancellationToken);
-            var plan = await Plan(inventory, cancellationToken);
-            report = plan.ToReport(target, inventory.Count, D1SearchReconcileOutcome.DryRun);
-
-            if (plan.Missing + plan.Stale + plan.Orphans.Count == 0)
-            {
-                report = report with { Outcome = D1SearchReconcileOutcome.InSync };
-            }
-            else if (!write)
-            {
-                // Stays DryRun.
-            }
-            else if (report.Drift > _options.DriftThreshold && !allowAboveDriftThreshold)
-            {
-                report = report with { Outcome = D1SearchReconcileOutcome.RefusedDrift };
-            }
-            else
-            {
-                var (upserted, deleted, error) = await Apply(target, plan, cancellationToken);
-                report = report with
-                {
-                    Outcome = error is null ? D1SearchReconcileOutcome.Patched : D1SearchReconcileOutcome.Failed,
-                    Upserted = upserted,
-                    Deleted = deleted,
-                    Error = error
-                };
-            }
+            snapshot = await ReadCatalogue(cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            logger.LogError(ex, "D1 search reconcile of target '{Target}' failed; nothing more was written. {Message}",
-                target, ex.Message);
-            return new D1SearchReconcileReport(target, D1SearchReconcileOutcome.Failed, 0, 0, 0, 0, 0, 0, 0, Error: ex.Message);
+            logger.LogError(ex, "D1 search reconcile could not read Cosmos; nothing was written. {Message}", ex.Message);
+            return targets.Select(t => Log(Failed(t, ex.Message))).ToArray();
         }
 
-        Log(report);
-        return report;
+        var states = new List<TargetState>();
+        foreach (var target in targets)
+        {
+            states.Add(await PlanTarget(target, snapshot, request, cancellationToken));
+        }
+
+        var writing = states.Where(s => s.Writes).ToArray();
+        if (writing.Length > 0)
+        {
+            await Apply(writing, cancellationToken);
+        }
+
+        return states.Select(s => Log(s.Final())).ToArray();
     }
 
-    private async Task<ReconcilePlan> Plan(IReadOnlyDictionary<string, long> inventory, CancellationToken cancellationToken)
+    private async Task<CatalogueSnapshot> ReadCatalogue(CancellationToken cancellationToken)
     {
-        var eligible = new HashSet<string>(StringComparer.Ordinal);
+        var eligible = new Dictionary<string, long>(StringComparer.Ordinal);
         var buildFailed = new HashSet<string>(StringComparer.Ordinal);
-        var upserts = new HashSet<string>(StringComparer.Ordinal);
-        int missing = 0, stale = 0;
         await foreach (var candidate in catalogue.Read(0, cancellationToken).WithCancellation(cancellationToken))
         {
             if (candidate.BuildFailed)
             {
                 buildFailed.Add(candidate.Id);
-                continue;
             }
-
-            if (candidate.Document is not { } document || !eligible.Add(candidate.Id))
+            else if (candidate.Document is { } document)
             {
-                continue;
+                // A kind change can bring an id twice; the first document wins, as pass 2 sends the first too.
+                eligible.TryAdd(candidate.Id, document.ModifiedAt);
             }
+        }
 
-            if (!inventory.TryGetValue(candidate.Id, out var modifiedAt))
+        return new CatalogueSnapshot(eligible, buildFailed);
+    }
+
+    private async Task<TargetState> PlanTarget(
+        string target,
+        CatalogueSnapshot snapshot,
+        D1SearchReconcileRequest request,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyDictionary<string, long> inventory;
+        try
+        {
+            inventory = await inventoryReader.ReadInventory(target, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "D1 search reconcile of target '{Target}' could not read its inventory; nothing was written. {Message}",
+                target, ex.Message);
+            return TargetState.Done(Failed(target, ex.Message));
+        }
+
+        int missing = 0, stale = 0;
+        var upserts = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (id, modifiedAt) in snapshot.Eligible)
+        {
+            if (!inventory.TryGetValue(id, out var stored))
             {
                 missing++;
-                upserts.Add(candidate.Id);
+                upserts.Add(id);
             }
-            else if (modifiedAt < document.ModifiedAt)
+            else if (stored < modifiedAt)
             {
                 stale++;
-                upserts.Add(candidate.Id);
+                upserts.Add(id);
             }
         }
 
         var orphans = inventory.Keys
-            .Where(id => !eligible.Contains(id) && !buildFailed.Contains(id))
+            .Where(id => !snapshot.Eligible.ContainsKey(id) && !snapshot.BuildFailed.Contains(id))
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
-        return new ReconcilePlan(eligible.Count, missing, stale, orphans, upserts, buildFailed.Count);
+        var drift = (double)(missing + stale + orphans.Length) / Math.Max(1, Math.Max(inventory.Count, snapshot.Eligible.Count));
+        var report = new D1SearchReconcileReport(target, D1SearchReconcileOutcome.DryRun, inventory.Count,
+            snapshot.Eligible.Count, missing, stale, orphans.Length, snapshot.BuildFailed.Count, drift);
+
+        if (upserts.Count + orphans.Length == 0)
+        {
+            return TargetState.Done(report with { Outcome = D1SearchReconcileOutcome.InSync });
+        }
+
+        if (!request.WriteTargets.Contains(target, StringComparer.Ordinal))
+        {
+            return TargetState.Done(report);
+        }
+
+        if (drift > _options.DriftThreshold && !request.AllowAboveDriftThreshold)
+        {
+            return TargetState.Done(report with { Outcome = D1SearchReconcileOutcome.RefusedDrift });
+        }
+
+        return new TargetState(report, upserts, orphans);
     }
 
-    private async Task<(int Upserted, int Deleted, string? Error)> Apply(
-        string target,
-        ReconcilePlan plan,
-        CancellationToken cancellationToken)
+    private async Task Apply(IReadOnlyList<TargetState> states, CancellationToken cancellationToken)
     {
-        int upserted = 0, deleted = 0;
-        var pending = new HashSet<string>(plan.Upserts, StringComparer.Ordinal);
-        var batch = new List<D1SearchDocument>(D1SearchIndexWriter.MaxUpsertsPerRequest);
-
-        async Task<string?> Flush()
+        try
         {
-            if (batch.Count == 0)
+            if (states.Any(s => s.Pending.Count > 0))
             {
-                return null;
-            }
-
-            var result = await writer.Write(target, batch.ToArray(), [], cancellationToken);
-            batch.Clear();
-            var outcome = result.Targets.SingleOrDefault();
-            upserted += outcome?.Upserted ?? 0;
-            return outcome is { Succeeded: true } ? null : outcome?.Error ?? "the write reached no target";
-        }
-
-        if (pending.Count > 0)
-        {
-            await foreach (var candidate in catalogue.Read(0, cancellationToken).WithCancellation(cancellationToken))
-            {
-                if (candidate.Document is not { } document || !pending.Remove(candidate.Id))
+                await foreach (var candidate in catalogue.Read(0, cancellationToken).WithCancellation(cancellationToken))
                 {
-                    continue;
+                    if (candidate.Document is not { } document)
+                    {
+                        continue;
+                    }
+
+                    foreach (var state in states)
+                    {
+                        if (state.Error is null && state.Pending.Remove(candidate.Id))
+                        {
+                            state.Batch.Add(document);
+                            if (state.Batch.Count >= D1SearchIndexWriter.MaxUpsertsPerRequest)
+                            {
+                                await Flush(state, cancellationToken);
+                            }
+                        }
+                    }
+
+                    if (states.All(s => s.Error is not null || s.Pending.Count == 0))
+                    {
+                        break;
+                    }
                 }
 
-                batch.Add(document);
-                if (batch.Count >= D1SearchIndexWriter.MaxUpsertsPerRequest && await Flush() is { } error)
+                foreach (var state in states.Where(s => s.Error is null))
                 {
-                    return (upserted, deleted, error);
+                    await Flush(state, cancellationToken);
                 }
             }
-
-            if (await Flush() is { } last)
-            {
-                return (upserted, deleted, last);
-            }
         }
-
-        foreach (var chunk in plan.Orphans.Chunk(D1SearchIndexWriter.MaxDeletesPerRequest))
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            var result = await writer.Write(target, [], chunk, cancellationToken);
-            var outcome = result.Targets.SingleOrDefault();
-            deleted += outcome?.Deleted ?? 0;
-            if (outcome is not { Succeeded: true })
+            logger.LogError(ex, "D1 search reconcile stopped reading Cosmos while writing. {Message}", ex.Message);
+            foreach (var state in states.Where(s => s.Error is null))
             {
-                return (upserted, deleted, outcome?.Error ?? "the write reached no target");
+                state.Error = ex.Message;
             }
+
+            return;
         }
 
-        return (upserted, deleted, null);
+        foreach (var state in states.Where(s => s.Error is null))
+        {
+            foreach (var chunk in state.Orphans.Chunk(D1SearchIndexWriter.MaxDeletesPerRequest))
+            {
+                var outcome = (await writer.Write(state.Report.Target, [], chunk, cancellationToken)).Targets.SingleOrDefault();
+                state.Deleted += outcome?.Deleted ?? 0;
+                if (outcome is not { Succeeded: true })
+                {
+                    state.Error = outcome?.Error ?? "the write reached no target";
+                    break;
+                }
+            }
+        }
     }
 
-    private void Log(D1SearchReconcileReport r)
+    private async Task Flush(TargetState state, CancellationToken cancellationToken)
+    {
+        if (state.Batch.Count == 0)
+        {
+            return;
+        }
+
+        var outcome = (await writer.Write(state.Report.Target, state.Batch.ToArray(), [], cancellationToken)).Targets
+            .SingleOrDefault();
+        state.Batch.Clear();
+        state.Upserted += outcome?.Upserted ?? 0;
+        if (outcome is not { Succeeded: true })
+        {
+            state.Error = outcome?.Error ?? "the write reached no target";
+        }
+    }
+
+    private static D1SearchReconcileReport Failed(string target, string error) =>
+        new(target, D1SearchReconcileOutcome.Failed, 0, 0, 0, 0, 0, 0, 0, Error: error);
+
+    private D1SearchReconcileReport Log(D1SearchReconcileReport r)
     {
         var level = r.Outcome switch
         {
@@ -302,21 +343,33 @@ public sealed class D1SearchReconciler(
                 ? " Drift is above the threshold: nothing written. Run a full rebuild (SP-2.3), or the D1SearchReconcile " +
                   "console with --write --allow-drift for a deliberate backfill."
                 : string.Empty);
+        return r;
     }
 
-    private sealed record ReconcilePlan(
-        int Eligible,
-        int Missing,
-        int Stale,
-        IReadOnlyList<string> Orphans,
-        IReadOnlySet<string> Upserts,
-        int FailedToBuild)
+    private sealed record CatalogueSnapshot(IReadOnlyDictionary<string, long> Eligible, IReadOnlySet<string> BuildFailed);
+
+    /// <summary>One target's plan and, for a write target, its progress through pass 2.</summary>
+    private sealed class TargetState(D1SearchReconcileReport report, HashSet<string> pending, IReadOnlyList<string> orphans)
     {
-        public D1SearchReconcileReport ToReport(string target, int d1Documents, D1SearchReconcileOutcome outcome)
-        {
-            var drift = (double)(Missing + Stale + Orphans.Count) / Math.Max(1, Math.Max(d1Documents, Eligible));
-            return new D1SearchReconcileReport(target, outcome, d1Documents, Eligible, Missing, Stale, Orphans.Count,
-                FailedToBuild, drift);
-        }
+        public D1SearchReconcileReport Report { get; } = report;
+        public HashSet<string> Pending { get; } = pending;
+        public IReadOnlyList<string> Orphans { get; } = orphans;
+        public List<D1SearchDocument> Batch { get; } = new(D1SearchIndexWriter.MaxUpsertsPerRequest);
+        public bool Writes { get; private init; } = true;
+        public int Upserted { get; set; }
+        public int Deleted { get; set; }
+        public string? Error { get; set; }
+
+        public static TargetState Done(D1SearchReconcileReport report) => new(report, [], []) { Writes = false };
+
+        public D1SearchReconcileReport Final() => !Writes
+            ? Report
+            : Report with
+            {
+                Outcome = Error is null ? D1SearchReconcileOutcome.Patched : D1SearchReconcileOutcome.Failed,
+                Upserted = Upserted,
+                Deleted = Deleted,
+                Error = Error
+            };
     }
 }

@@ -155,6 +155,28 @@ public class D1SearchReconcilerTests
         _writes.Should().OnlyContain(w => w.Target == Preview);
     }
 
+    [Fact(DisplayName =
+        "Cosmos is read once to plan however many targets there are, and once more only when one of them writes, " +
+        "because a scan per target would not fit the weekly timer's budget and doubles the Cosmos cost.")]
+    public async Task cosmos_is_scanned_once_to_plan_and_once_to_write()
+    {
+        // Arrange
+        _catalogue = [Candidate(modifiedAt: 1)];
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        await sut.Reconcile(new D1SearchReconcileRequest(null, []), CancellationToken.None);
+        var dryRunReads = Reads();
+        await sut.Reconcile(new D1SearchReconcileRequest(null, [Production, Preview], true), CancellationToken.None);
+
+        // Assert
+        dryRunReads.Should().Be(1);
+        Reads().Should().Be(3);
+        _writes.Select(w => w.Target).Should().BeEquivalentTo([Production, Preview]);
+    }
+
+    private int Reads() => _mocker.GetMock<ID1SearchCatalogue>().Invocations.Count(i => i.Method.Name == nameof(ID1SearchCatalogue.Read));
+
     [Theory(DisplayName =
         "The console needs --target with --write and --write with --allow-drift, because a write to the production " +
         "index must always be named on the command line.")]

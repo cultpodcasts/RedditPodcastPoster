@@ -89,7 +89,8 @@ flowchart LR
 | **Drift** | (missing + stale + orphans) / max(D1 count, eligible count). Above `d1Search:Reconcile:DriftThreshold` (default **5%**), nothing is written (outcome `RefusedDrift`). Use a full rebuild (SP-2.3) or a deliberate `--allow-drift` backfill. |
 | **Dry run by default** | The timer writes only to targets in `d1Search:Reconcile:WriteTargets` (empty by default; nothing in bicep sets it). The console writes only with `--write --target <name>`. **Production D1 is written only when Jon names it.** |
 | **Initial backfill** | D1 is empty, so drift is 100%. Use `D1SearchReconcile --target preview --write --allow-drift`, then `production` with Jon's OK. It's too long for the Indexer's 5-minute `functionTimeout`, so it runs from the console. Re-running is safe (idempotent; `modifiedAt` guard). |
-| **Memory** | The inventory (about 90k ids) and id sets only. Documents are streamed in both passes, never all held. |
+| **One scan, many targets** | Cosmos is scanned once to plan (`id → modifiedAt` of eligible playables) and diffed against each target's inventory. A second scan happens only if some target writes, and it routes each document to every target that planned it. |
+| **Memory** | The eligible map and inventories (about 90k ids each) and id sets only. Documents are streamed, never all held. |
 | **Failure** | An unreadable inventory fails that target (a partial one would make live documents orphans). A failed write stops that target and reports `Failed`. The timer never throws. |
 
 ### Weekly reset / blue-green (“drip failed, rebuild”)
