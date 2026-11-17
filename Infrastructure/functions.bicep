@@ -17,6 +17,22 @@ param apiEndpoint string
 @secure()
 param blueskyPassword string
 @secure()
+@description('Auth0 search-index-writer M2M client id, prod tenant (RPP #1460). Read by deploy.yml from HCP Terraform workspace cultpodcasts-auth0; empty leaves the production D1 sync target unconfigured.')
+param searchIndexWriterClientId string = ''
+@secure()
+@description('Auth0 search-index-writer M2M client secret, prod tenant (RPP #1460). Never in Key Vault or a file: deploy.yml reads it from HCP state per run.')
+param searchIndexWriterClientSecret string = ''
+@secure()
+@description('Auth0 search-index-writer M2M client id, staging tenant (RPP #1460). From HCP Terraform workspace cultpodcasts-auth0-preview.')
+param searchIndexWriterPreviewClientId string = ''
+@secure()
+@description('Auth0 search-index-writer M2M client secret, staging tenant (RPP #1460).')
+param searchIndexWriterPreviewClientSecret string = ''
+@description('D1 search sync (SP-2.1) to the production search index (api Worker POST /search/admin/docs). Off until Jon switches it on.')
+param d1SearchProductionEnabled bool = false
+@description('D1 search sync (SP-2.1) to the preview search index (api-preview, staging Auth0 tenant).')
+param d1SearchPreviewEnabled bool = false
+@secure()
 param cloudflareAccountId string
 @secure()
 param cloudflareKVApiToken string
@@ -204,6 +220,28 @@ var auth0Client= {
     auth0client__ClientId: auth0ClientId
     auth0client__ClientSecret: auth0ClientSecret
     auth0client__Domain: auth0Domain
+}
+
+// D1 search sync (epic #1312 SP-2.1 / SP-2.5): the Functions mirror search writes to the D1 index through
+// the api Worker's POST /search/admin/docs with the Auth0 search-index-writer M2M token. Production goes
+// through api__Endpoint (the Bot Fight bypass host, same as every other M2M call); preview through
+// api-preview with the staging tenant. A target with no client id/secret is skipped (logged), so an
+// empty HCP read never breaks Azure indexing.
+var d1Search= {
+    d1Search__Targets__0__Name: 'production'
+    d1Search__Targets__0__Enabled: string(d1SearchProductionEnabled)
+    d1Search__Targets__0__Endpoint: apiEndpoint
+    d1Search__Targets__0__Auth0Domain: auth0Domain
+    d1Search__Targets__0__Audience: auth0Audience
+    d1Search__Targets__0__ClientId: searchIndexWriterClientId
+    d1Search__Targets__0__ClientSecret: searchIndexWriterClientSecret
+    d1Search__Targets__1__Name: 'preview'
+    d1Search__Targets__1__Enabled: string(d1SearchPreviewEnabled)
+    d1Search__Targets__1__Endpoint: 'https://api-preview.cultpodcasts.com/'
+    d1Search__Targets__1__Auth0Domain: auth0StagingDomain
+    d1Search__Targets__1__Audience: auth0Audience
+    d1Search__Targets__1__ClientId: searchIndexWriterPreviewClientId
+    d1Search__Targets__1__ClientSecret: searchIndexWriterPreviewClientSecret
 }
 
 var bluesky= {
@@ -537,6 +575,7 @@ var coreSettings= union(
 var apiSettings= union(
     coreSettings,
     auth0,
+    d1Search,
     indexer,
     postingCriteria,
     youtubeChannel
@@ -551,6 +590,7 @@ var discoverySettings= union(
 
 var indexerSettings= union(
     coreSettings,
+    d1Search,
     indexer,
     poster,
     postingCriteria,

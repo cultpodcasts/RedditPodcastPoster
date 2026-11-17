@@ -3,6 +3,15 @@ using './functions.bicep'
 param auth0ClientId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Auth0-ClientId')
 param auth0ClientSecret= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Auth0-ClientSecret')
 param apiEndpoint= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Api-Endpoint')
+// RPP #1460 (SP-2.5): Auth0 search-index-writer credentials, exported by deploy.yml from HCP Terraform
+// (Api repo infra/terraform/auth0). '' when the HCP token secret is absent: the D1 sync target is skipped.
+param searchIndexWriterClientId= readEnvironmentVariable('SEARCH_INDEX_WRITER_CLIENT_ID', '')
+param searchIndexWriterClientSecret= readEnvironmentVariable('SEARCH_INDEX_WRITER_CLIENT_SECRET', '')
+param searchIndexWriterPreviewClientId= readEnvironmentVariable('SEARCH_INDEX_WRITER_PREVIEW_CLIENT_ID', '')
+param searchIndexWriterPreviewClientSecret= readEnvironmentVariable('SEARCH_INDEX_WRITER_PREVIEW_CLIENT_SECRET', '')
+// D1 search sync switches (SP-2.1). Preview first; production only on Jon's say-so.
+param d1SearchPreviewEnabled= true
+param d1SearchProductionEnabled= false
 param blueskyPassword= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Bluesky-Password')
 param cloudflareAccountId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Cloudflare-AccountId')
 param cloudflareKVApiToken= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Cloudflare-KVApiToken')
