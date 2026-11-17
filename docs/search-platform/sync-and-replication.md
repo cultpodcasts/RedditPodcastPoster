@@ -40,18 +40,18 @@ The credentials reach bicep from Key Vault with `az.getSecret`, like `Auth0-Clie
 
 ```mermaid
 flowchart LR
-  TF["Api repo auth0-stack.yml<br/>terraform output (prod)"] -->|"Jon, once"| KV["Key Vault<br/>Search-Index-Writer-*"]
+  TF["Api repo auth0-stack.yml<br/>terraform output (prod)"] -->|"Jon, once"| KV["Key Vault<br/>SearchIndex-Writer-*"]
   KV -->|"functions.bicepparam<br/>az.getSecret"| BICEP["functions.bicep<br/>d1Search__*"]
   BICEP --> FN["api / indexer app settings"]
 ```
 
 | Endpoint | Auth0 tenant | Key Vault secrets | Switch (`functions.bicepparam`) |
 |----------|--------------|-------------------|-------------------------------|
-| `api__Endpoint` (Key Vault `Api-Endpoint`, the Bot Fight bypass host) | prod (`auth.cultpodcasts.com`) | `Search-Index-Writer-ClientId`, `Search-Index-Writer-ClientSecret` | `d1SearchProductionEnabled` (default **false** until Jon's OK) |
+| `api__Endpoint` (Key Vault `Api-Endpoint`, the Bot Fight bypass host) | prod (`auth.cultpodcasts.com`) | `SearchIndex-Writer-ClientId`, `SearchIndex-Writer-ClientSecret` | `d1SearchProductionEnabled` (default **false** until Jon's OK) |
 
-- **One-time setup (Jon), before this deploys:** create the two Key Vault secrets in the management
-  vault (`AZURE_KEYVAULT_NAME`): `Search-Index-Writer-ClientId` and `Search-Index-Writer-ClientSecret`,
-  with the prod `search-index-writer` client's id and secret from the Api repo's Auth0 Terraform output
+- **One-time setup (Jon; done 17 Nov 2026):** the two Key Vault secrets in the management
+  vault (`AZURE_KEYVAULT_NAME`), `SearchIndex-Writer-ClientId` and `SearchIndex-Writer-ClientSecret`,
+  hold the prod `search-index-writer` client's id and secret from the Api repo's Auth0 Terraform output
   (workspace `cultpodcasts-auth0`, outputs `client_id` and `client_secret`). Like every other
   `az.getSecret`, provision fails if they are missing.
 - **Rotation / rebuilt client:** update the two secrets, then re-run *Provision and Deploy* with

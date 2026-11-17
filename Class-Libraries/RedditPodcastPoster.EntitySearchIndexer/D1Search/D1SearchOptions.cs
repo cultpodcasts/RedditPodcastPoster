@@ -4,7 +4,7 @@ namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 /// The D1 search sync (epic #1312, SP-2.1 #1321), configuration section <c>d1Search</c>: the <b>production</b> D1
 /// search index, reached through the api Worker's <c>POST /search/admin/docs</c> with an Auth0 M2M token for the prod
 /// tenant's <c>search-index-writer</c> app. There are only production Functions, so there is one index and no preview
-/// target (Jon, 17 Nov 2026). Credentials reach the app settings from Key Vault (<c>Search-Index-Writer-ClientId</c> / <c>-ClientSecret</c>, SP-2.5 #1460).
+/// target (Jon, 17 Nov 2026). Credentials reach the app settings from Key Vault (<c>SearchIndex-Writer-ClientId</c> / <c>-ClientSecret</c>, SP-2.5 #1460).
 /// </summary>
 public sealed class D1SearchOptions
 {

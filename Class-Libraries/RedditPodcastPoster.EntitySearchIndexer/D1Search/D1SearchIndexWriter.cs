@@ -264,7 +264,7 @@ public sealed class D1SearchIndexWriter(
 
         logger.LogWarning(
             "D1 search sync is enabled but has no endpoint or Auth0 credentials; nothing is sent " +
-            "(RPP #1460: Key Vault Search-Index-Writer-ClientId / -ClientSecret, applied by provision).");
+            "(RPP #1460: Key Vault SearchIndex-Writer-ClientId / -ClientSecret, applied by provision).");
     }
 
     private sealed record AdminDocsRequest(
