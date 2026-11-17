@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using RedditPodcastPoster.EntitySearchIndexer.D1Search;
 using RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
@@ -12,6 +13,7 @@ public static class ServiceCollectionExtensions
     {
         return services
             .AddSearch()
+            .AddD1SearchSync()
             .AddScoped<IPlayableSearchDocumentSwap, PlayableSearchDocumentSwap>()
             .AddScoped<IEpisodeSearchIndexerService, EpisodeSearchIndexerService>();
     }

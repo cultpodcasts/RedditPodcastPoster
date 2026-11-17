@@ -1,0 +1,251 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
+
+public interface ID1SearchIndexWriter
+{
+    /// <summary>At least one target is enabled and fully configured. Callers skip building documents when false.</summary>
+    bool IsActive { get; }
+
+    /// <summary>
+    /// Sends the upserts and deletes to every usable target. <b>Never throws</b> for a D1, network or Auth0 failure:
+    /// the outcome is logged and returned, so a D1 problem can never break Azure indexing or a curator request.
+    /// Only cancellation of <paramref name="cancellationToken"/> propagates.
+    /// </summary>
+    Task<D1SearchWriteResult> Write(
+        IReadOnlyCollection<D1SearchDocument> upserts,
+        IReadOnlyCollection<string> deletes,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Writes to the D1 search index through each target's api Worker <c>POST /search/admin/docs</c> (Api SP-1.4):
+/// at most 100 upserts and 1000 deletes per request, each id once, one D1 transaction per request. Writes are
+/// idempotent (the Worker's <c>modifiedAt</c> guard), so a failed request is retried once and a failed run is
+/// simply repeated by the next drip. Failures are logged at Error with the target, status and the Worker's
+/// message (never the token).
+/// </summary>
+public sealed class D1SearchIndexWriter(
+    IHttpClientFactory httpClientFactory,
+    ID1SearchTokenSource tokenSource,
+    IOptions<D1SearchOptions> options,
+    TimeProvider timeProvider,
+    ILogger<D1SearchIndexWriter> logger) : ID1SearchIndexWriter
+{
+    public const string HttpClientName = "d1-search";
+    public const int MaxUpsertsPerRequest = 100;
+    public const int MaxDeletesPerRequest = 1000;
+    private const string Route = "search/admin/docs";
+
+    private static readonly JsonSerializerOptions Json = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private readonly D1SearchOptions _options = options.Value;
+    private bool _loggedUnusable;
+
+    public bool IsActive => _options.Targets.Any(t => t.IsUsable);
+
+    public async Task<D1SearchWriteResult> Write(
+        IReadOnlyCollection<D1SearchDocument> upserts,
+        IReadOnlyCollection<string> deletes,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(upserts);
+        ArgumentNullException.ThrowIfNull(deletes);
+        LogUnusableTargetsOnce();
+        var (upsertList, deleteList) = Normalise(upserts, deletes);
+        if (upsertList.Count == 0 && deleteList.Count == 0)
+        {
+            return new D1SearchWriteResult([]);
+        }
+
+        var outcomes = new List<D1SearchTargetOutcome>();
+        foreach (var target in _options.Targets.Where(t => t.IsUsable))
+        {
+            outcomes.Add(await WriteTarget(target, upsertList, deleteList, cancellationToken));
+        }
+
+        return new D1SearchWriteResult(outcomes);
+    }
+
+    private async Task<D1SearchTargetOutcome> WriteTarget(
+        D1SearchTarget target,
+        IReadOnlyList<D1SearchDocument> upserts,
+        IReadOnlyList<string> deletes,
+        CancellationToken cancellationToken)
+    {
+        int upserted = 0, deleted = 0, stale = 0, notFound = 0;
+        var requests = Math.Max(
+            (upserts.Count + MaxUpsertsPerRequest - 1) / MaxUpsertsPerRequest,
+            (deletes.Count + MaxDeletesPerRequest - 1) / MaxDeletesPerRequest);
+        for (var i = 0; i < requests; i++)
+        {
+            var body = new AdminDocsRequest(
+                upserts.Skip(i * MaxUpsertsPerRequest).Take(MaxUpsertsPerRequest).ToArray(),
+                deletes.Skip(i * MaxDeletesPerRequest).Take(MaxDeletesPerRequest).ToArray());
+            try
+            {
+                var outcome = await SendWithRetry(target, body, cancellationToken);
+                upserted += outcome.Upserted;
+                deleted += outcome.Deleted;
+                stale += outcome.Stale?.Length ?? 0;
+                notFound += outcome.NotFound?.Length ?? 0;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                // Later chunks would most likely fail the same way; the next drip replays the lot (idempotent).
+                logger.LogError(ex,
+                    "D1 search write to target '{Target}' failed on request {Request} of {Requests} " +
+                    "({Upserts} upsert(s), {Deletes} delete(s) in this call). Azure indexing is unaffected; the next drip retries. {Message}",
+                    target.Name, i + 1, requests, upserts.Count, deletes.Count, ex.Message);
+                return new D1SearchTargetOutcome(target.Name, false, upserted, deleted, stale, notFound, ex.Message);
+            }
+        }
+
+        logger.LogInformation(
+            "D1 search write to target '{Target}': upserted {Upserted}, deleted {Deleted}, stale {Stale}, not-found {NotFound} " +
+            "({Requests} request(s)).",
+            target.Name, upserted, deleted, stale, notFound, requests);
+        return new D1SearchTargetOutcome(target.Name, true, upserted, deleted, stale, notFound, null);
+    }
+
+    private async Task<AdminDocsOutcome> SendWithRetry(
+        D1SearchTarget target,
+        AdminDocsRequest body,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await Send(target, body, cancellationToken);
+        }
+        catch (Exception ex) when (IsRetryable(ex, cancellationToken))
+        {
+            logger.LogWarning("D1 search write to target '{Target}' failed ({Message}); retrying once.", target.Name, ex.Message);
+            await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, _options.RetryDelayMilliseconds)), timeProvider, cancellationToken);
+            return await Send(target, body, cancellationToken);
+        }
+    }
+
+    private async Task<AdminDocsOutcome> Send(D1SearchTarget target, AdminDocsRequest body, CancellationToken cancellationToken)
+    {
+        var token = await tokenSource.GetToken(target, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(target.Endpoint!, Route));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Content = JsonContent.Create(body, options: Json);
+        var client = httpClientFactory.CreateClient(HttpClientName);
+        using var response = await client.SendAsync(request, cancellationToken);
+        var text = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                tokenSource.Invalidate(target);
+            }
+
+            throw new D1SearchHttpException(response.StatusCode, Describe(response.StatusCode, text));
+        }
+
+        return JsonSerializer.Deserialize<AdminDocsOutcome>(text, Json)
+               ?? throw new D1SearchWriteException("The search index answered 200 with no outcome.");
+    }
+
+    private static string Describe(HttpStatusCode status, string body)
+    {
+        var hint = status switch
+        {
+            HttpStatusCode.Unauthorized => " (token rejected: wrong tenant or audience for this api Worker?)",
+            HttpStatusCode.Forbidden when body.TrimStart().StartsWith('{') =>
+                " (no write:search-index grant on this client? see the api Worker's search_admin.forbidden log)",
+            HttpStatusCode.Forbidden => " (looks like a Cloudflare challenge: is the endpoint the Bot Fight bypass host?)",
+            _ => string.Empty
+        };
+        var trimmed = body.Length <= 500 ? body : body[..500] + "…";
+        return $"HTTP {(int)status}{hint}: {trimmed}";
+    }
+
+    private static bool IsRetryable(Exception ex, CancellationToken cancellationToken) => ex switch
+    {
+        D1SearchHttpException http => http.StatusCode is HttpStatusCode.TooManyRequests || (int)http.StatusCode >= 500,
+        HttpRequestException => true,
+        // HttpClient timeout surfaces as TaskCanceledException without our token being cancelled.
+        TaskCanceledException => !cancellationToken.IsCancellationRequested,
+        _ => false
+    };
+
+    /// <summary>
+    /// The Worker rejects a request that names an id twice. The last upsert of an id wins; an id both upserted
+    /// and deleted is upserted (the caller decided it is in the index); deletes are de-duplicated.
+    /// </summary>
+    public static (IReadOnlyList<D1SearchDocument> Upserts, IReadOnlyList<string> Deletes) Normalise(
+        IEnumerable<D1SearchDocument> upserts,
+        IEnumerable<string> deletes)
+    {
+        var byId = new Dictionary<string, D1SearchDocument>(StringComparer.Ordinal);
+        foreach (var doc in upserts)
+        {
+            byId[doc.Id] = doc;
+        }
+
+        var deleteList = deletes
+            .Where(id => !string.IsNullOrWhiteSpace(id) && !byId.ContainsKey(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        return (byId.Values.ToArray(), deleteList);
+    }
+
+    private void LogUnusableTargetsOnce()
+    {
+        if (_loggedUnusable)
+        {
+            return;
+        }
+
+        _loggedUnusable = true;
+        foreach (var target in _options.Targets.Where(t => t.Enabled && !t.IsUsable))
+        {
+            logger.LogWarning(
+                "D1 search target '{Target}' is enabled but has no endpoint or Auth0 credentials; it is skipped " +
+                "(RPP #1460: provision exports them from HCP Terraform).", target.Name);
+        }
+    }
+
+    private sealed record AdminDocsRequest(
+        [property: JsonPropertyName("upserts")] D1SearchDocument[] Upserts,
+        [property: JsonPropertyName("deletes")] string[] Deletes);
+
+    private sealed record AdminDocsOutcome(
+        [property: JsonPropertyName("upserted")] int Upserted,
+        [property: JsonPropertyName("deleted")] int Deleted,
+        [property: JsonPropertyName("stale")] string[]? Stale,
+        [property: JsonPropertyName("notFound")] string[]? NotFound);
+}
+
+public sealed class D1SearchHttpException(HttpStatusCode statusCode, string message) : Exception(message)
+{
+    public HttpStatusCode StatusCode { get; } = statusCode;
+}
+
+/// <param name="Target">Target name.</param>
+/// <param name="Succeeded">Every request to the target succeeded.</param>
+/// <param name="Error">Why the target failed; null on success.</param>
+public sealed record D1SearchTargetOutcome(
+    string Target,
+    bool Succeeded,
+    int Upserted,
+    int Deleted,
+    int Stale,
+    int NotFound,
+    string? Error);
+
+public sealed record D1SearchWriteResult(IReadOnlyList<D1SearchTargetOutcome> Targets)
+{
+    public bool Succeeded => Targets.All(t => t.Succeeded);
+}

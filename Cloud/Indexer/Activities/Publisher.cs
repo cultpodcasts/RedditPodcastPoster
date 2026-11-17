@@ -6,6 +6,7 @@ using Indexer.Models;
 using Indexer.Services;
 using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.ContentPublisher.Publishers;
+using RedditPodcastPoster.EntitySearchIndexer.D1Search;
 using RedditPodcastPoster.Search.Services;
 
 namespace Indexer.Activities;
@@ -14,6 +15,7 @@ namespace Indexer.Activities;
 public class Publisher(
     IHomepagePublisher contentPublisher,
     ISearchIndexerService searchIndexerService,
+    ID1SearchChangeFeed d1SearchChangeFeed,
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
@@ -58,9 +60,35 @@ public class Publisher(
             throw;
         }
 
+        await DripIntoD1();
         memoryProbe.End();
 
         logger.LogInformation("{nameofRunAsync} Completed", nameof(RunAsync));
         return indexerContext with { Success = true };
+    }
+
+    /// <summary>
+    /// SP-2.1 (#1321): the D1 search index's hourly sync, next to the Azure pull indexer run above, after the
+    /// homepage so it never delays it. The change feed logs and swallows D1 and Cosmos failures; this guard keeps any
+    /// other surprise out of the activity result, so D1 can never fail the hour or Azure indexing.
+    /// </summary>
+    private async Task DripIntoD1()
+    {
+        try
+        {
+            var result = await d1SearchChangeFeed.Drip(CancellationToken.None);
+            if (result.Ran && !result.Succeeded)
+            {
+                logger.LogWarning(
+                    "{class}: D1 search drip incomplete (upserts {Upserts}, deletes {Deletes}, not built {FailedToBuild}, " +
+                    "write failures {WritesFailed}); the next hour repeats it.",
+                    nameof(Publisher), result.Upserts, result.Deletes, result.FailedToBuild, result.WritesFailed);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{class}: D1 search drip failed; Azure indexing and the homepage are unaffected.",
+                nameof(Publisher));
+        }
     }
 }

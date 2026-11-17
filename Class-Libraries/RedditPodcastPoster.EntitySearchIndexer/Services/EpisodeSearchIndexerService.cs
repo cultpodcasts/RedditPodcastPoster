@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Azure;
 using Azure.Search.Documents;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
+using RedditPodcastPoster.EntitySearchIndexer.D1Search;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.Models.Episodes;
@@ -15,6 +16,7 @@ public class EpisodeSearchIndexerService(
     IPodcastRepository podcastRepository,
     IEpisodeRepository episodeRepository,
     SearchClient searchClient,
+    ID1SearchIndexWriter d1Search,
     ILogger<EpisodeSearchIndexerService> logger) : IEpisodeSearchIndexerService
 {
     public Task<EntitySearchIndexerResponse> IndexEpisode(Guid episodeId, CancellationToken c) =>
@@ -56,6 +58,17 @@ public class EpisodeSearchIndexerService(
                 { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeNotFound };
         }
 
+        var response = await IndexInAzure(podcastEpisode, episodeId, c);
+        // SP-2.1 (#1321): the D1 index mirrors the same change, whatever Azure answered. The writer never throws.
+        await MirrorToD1([podcastEpisode], c);
+        return response;
+    }
+
+    private async Task<EntitySearchIndexerResponse> IndexInAzure(
+        PodcastEpisode podcastEpisode,
+        Guid episodeId,
+        CancellationToken c)
+    {
         try
         {
             if (EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(
@@ -98,6 +111,7 @@ public class EpisodeSearchIndexerService(
         var documents = new List<EpisodeSearchRecord>();
         var deleteIds = new List<string>();
         var podcasts = new Dictionary<Guid, Podcast>();
+        var resolved = new List<PodcastEpisode>();
 
         foreach (var episodeId in episodeIds)
         {
@@ -120,6 +134,7 @@ public class EpisodeSearchIndexerService(
                 podcasts.Add(episode.PodcastId, podcast);
             }
 
+            resolved.Add(new PodcastEpisode(podcast, episode));
             if (EpisodeSearchIndexEligibility.ShouldExcludeFromSearch(podcast, episode))
             {
                 deleteIds.Add(episodeId.ToString());
@@ -135,6 +150,16 @@ public class EpisodeSearchIndexerService(
             return new EntitySearchIndexerResponse { EpisodeIndexRequestState = EpisodeIndexRequestState.NoDocuments };
         }
 
+        var response = await IndexInAzure(documents, deleteIds, c);
+        await MirrorToD1(resolved, c);
+        return response;
+    }
+
+    private async Task<EntitySearchIndexerResponse> IndexInAzure(
+        List<EpisodeSearchRecord> documents,
+        List<string> deleteIds,
+        CancellationToken c)
+    {
         try
         {
             if (deleteIds.Count > 0)
@@ -196,6 +221,42 @@ public class EpisodeSearchIndexerService(
                 ex.Status, ex.Message);
             return new EntitySearchIndexerResponse { IndexerState = MapRequestFailedException(ex) };
         }
+    }
+
+    /// <summary>
+    /// Mirrors the episodes into the D1 search index (SP-2.1): the same eligibility as Azure (plus the denormalised
+    /// <c>parentRemoved</c> the Azure pull filters on), the full description and guests. A no-op when no D1 target is
+    /// active; a D1 failure is logged by the writer and never changes the Azure outcome.
+    /// </summary>
+    private async Task MirrorToD1(IReadOnlyCollection<PodcastEpisode> podcastEpisodes, CancellationToken c)
+    {
+        if (!d1Search.IsActive || podcastEpisodes.Count == 0)
+        {
+            return;
+        }
+
+        var upserts = new List<D1SearchDocument>();
+        var deletes = new List<string>();
+        foreach (var podcastEpisode in podcastEpisodes)
+        {
+            if (D1SearchEligibility.ShouldExclude(podcastEpisode.Podcast, podcastEpisode.Episode))
+            {
+                deletes.Add(podcastEpisode.Episode.Id.ToString());
+                continue;
+            }
+
+            try
+            {
+                upserts.Add(D1SearchDocuments.For(podcastEpisode.Podcast, podcastEpisode.Episode));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Could not build the D1 search document for episode '{episodeId}'.",
+                    podcastEpisode.Episode.Id);
+            }
+        }
+
+        await d1Search.Write(upserts, deletes, c);
     }
 
     private static IndexerState MapRequestFailedException(RequestFailedException ex) =>
