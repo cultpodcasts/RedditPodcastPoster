@@ -982,6 +982,52 @@ public class DiscoverySubmissionReviewServiceTests
         _replaced.Should().ContainSingle().Which.Status.Should().Be(DiscoverySubmissionStatus.Applying);
     }
 
+    [Theory(DisplayName =
+        "When a retry pauses for a decision, it returns the decision status with the persisted etag, so the decision re-POST can claim the submission.")]
+    [InlineData(DiscoveryCurationSubmitStatus.LanguageDecisionRequired, DiscoverySubmissionCommandStatus.LanguageDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.KindDecisionRequired, DiscoverySubmissionCommandStatus.KindDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.InvalidKindDecision, DiscoverySubmissionCommandStatus.Invalid)]
+    [InlineData(DiscoveryCurationSubmitStatus.IdentityDecisionRequired, DiscoverySubmissionCommandStatus.IdentityDecisionRequired)]
+    public async Task retry_hold_returns_persisted_etag(DiscoveryCurationSubmitStatus preflight,
+        DiscoverySubmissionCommandStatus expected)
+    {
+        // Arrange
+        ArrangePartiallyApplied();
+        _ingest = _ => new DiscoveryCurationSubmitResult(preflight);
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(expected);
+        _writtenETags.Should().HaveCount(2);
+        result.ETag.Should().Be(_writtenETags.Last());
+    }
+
+    [Theory(DisplayName =
+        "When a retry's restored decision hold cannot be recorded, it reports OutcomeNotRecorded instead of a decision prompt, so the client does not re-POST with a stale etag.")]
+    [InlineData(DiscoveryCurationSubmitStatus.LanguageDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.KindDecisionRequired)]
+    [InlineData(DiscoveryCurationSubmitStatus.InvalidKindDecision)]
+    [InlineData(DiscoveryCurationSubmitStatus.IdentityDecisionRequired)]
+    public async Task retry_hold_failed_write_is_reported(DiscoveryCurationSubmitStatus preflight)
+    {
+        // Arrange
+        ArrangePartiallyApplied();
+        _ingest = _ => new DiscoveryCurationSubmitResult(preflight);
+        _refuseReplaceOnCall.Add(2);
+        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
+
+        // Act
+        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(DiscoverySubmissionCommandStatus.ApplyFailed);
+        result.Message.Should().Be(DiscoverySubmissionReviewService.OutcomeNotRecorded);
+        result.ETag.Should().BeNull();
+    }
+
     [Fact(DisplayName =
         "When a supervisor keeps a prompted item as a podcast, the decision re-POST uses the returned etag, carries continue by result id, and applies the held submission.")]
     public async Task keep_as_podcast_repost_applies_with_returned_etag()

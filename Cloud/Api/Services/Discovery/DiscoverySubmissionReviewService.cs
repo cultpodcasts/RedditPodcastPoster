@@ -234,10 +234,10 @@ public class DiscoverySubmissionReviewService(
             submission.Status = previousStatus;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, "LanguageDecisionRequired");
-            return await PersistApplyHold(submission, claimedETag, historyAtClaim, terminal,
+            return await PersistApplyHold(submission, claimedETag, historyAtClaim,
                 new(DiscoverySubmissionCommandStatus.LanguageDecisionRequired,
                     "A language decision is required before anything is created.",
-                    Outcome: result.Outcome));
+                    Outcome: result.Outcome), terminal);
         }
 
         if (result.Status == DiscoveryCurationSubmitStatus.KindDecisionRequired)
@@ -245,10 +245,10 @@ public class DiscoverySubmissionReviewService(
             submission.Status = previousStatus;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, "KindDecisionRequired");
-            return await PersistApplyHold(submission, claimedETag, historyAtClaim, terminal,
+            return await PersistApplyHold(submission, claimedETag, historyAtClaim,
                 new(DiscoverySubmissionCommandStatus.KindDecisionRequired,
                     "A kind decision is required before anything is created.",
-                    Outcome: result.Outcome));
+                    Outcome: result.Outcome), terminal);
         }
 
         if (result.Status == DiscoveryCurationSubmitStatus.InvalidKindDecision)
@@ -256,10 +256,10 @@ public class DiscoverySubmissionReviewService(
             submission.Status = previousStatus;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, "InvalidKindDecision");
-            return await PersistApplyHold(submission, claimedETag, historyAtClaim, terminal,
+            return await PersistApplyHold(submission, claimedETag, historyAtClaim,
                 new(DiscoverySubmissionCommandStatus.Invalid,
                     "select requires a recognised selectedKindKeys entry; the item was not created as a podcast.",
-                    Outcome: result.Outcome));
+                    Outcome: result.Outcome), terminal);
         }
 
         if (result.Status == DiscoveryCurationSubmitStatus.IdentityDecisionRequired)
@@ -267,10 +267,10 @@ public class DiscoverySubmissionReviewService(
             submission.Status = previousStatus;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, "IdentityDecisionRequired");
-            return await PersistApplyHold(submission, claimedETag, historyAtClaim, terminal,
+            return await PersistApplyHold(submission, claimedETag, historyAtClaim,
                 new(DiscoverySubmissionCommandStatus.IdentityDecisionRequired,
                     "An identity decision is required before anything is created.",
-                    Outcome: result.Outcome));
+                    Outcome: result.Outcome), terminal);
         }
 
         if (result.Status == DiscoveryCurationSubmitStatus.Conflict)
@@ -279,10 +279,10 @@ public class DiscoverySubmissionReviewService(
             submission.Status = previousStatus;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, ApplyConflictAction);
-            return await PersistApplyHold(submission, claimedETag, historyAtClaim, terminal,
+            return await PersistApplyHold(submission, claimedETag, historyAtClaim,
                 new(DiscoverySubmissionCommandStatus.Conflict,
                     "One or more reports are no longer held for this submission.",
-                    InvalidIds: result.UnavailableDocumentIds));
+                    InvalidIds: result.UnavailableDocumentIds), terminal);
         }
 
         if (result.Outcome != null)
@@ -395,12 +395,11 @@ public class DiscoverySubmissionReviewService(
             submission.Status = submission.StatusBeforeInProgress ?? submission.Status;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, "LanguageDecisionRequired");
-            return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
-                result.Outcome, terminal) with
-            {
-                Status = DiscoverySubmissionCommandStatus.LanguageDecisionRequired,
-                Message = "A language decision is required before anything is created."
-            };
+            return RetryHold(
+                await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
+                    result.Outcome, terminal),
+                DiscoverySubmissionCommandStatus.LanguageDecisionRequired,
+                "A language decision is required before anything is created.");
         }
 
         if (result.Status == DiscoveryCurationSubmitStatus.KindDecisionRequired)
@@ -408,12 +407,11 @@ public class DiscoverySubmissionReviewService(
             submission.Status = submission.StatusBeforeInProgress ?? submission.Status;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, "KindDecisionRequired");
-            return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
-                result.Outcome, terminal) with
-            {
-                Status = DiscoverySubmissionCommandStatus.KindDecisionRequired,
-                Message = "A kind decision is required before anything is created."
-            };
+            return RetryHold(
+                await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
+                    result.Outcome, terminal),
+                DiscoverySubmissionCommandStatus.KindDecisionRequired,
+                "A kind decision is required before anything is created.");
         }
 
         if (result.Status == DiscoveryCurationSubmitStatus.InvalidKindDecision)
@@ -421,12 +419,11 @@ public class DiscoverySubmissionReviewService(
             submission.Status = submission.StatusBeforeInProgress ?? submission.Status;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, "InvalidKindDecision");
-            return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
-                result.Outcome, terminal) with
-            {
-                Status = DiscoverySubmissionCommandStatus.Invalid,
-                Message = "select requires a recognised selectedKindKeys entry; the item was not created as a podcast."
-            };
+            return RetryHold(
+                await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
+                    result.Outcome, terminal),
+                DiscoverySubmissionCommandStatus.Invalid,
+                "select requires a recognised selectedKindKeys entry; the item was not created as a podcast.");
         }
 
         if (result.Status == DiscoveryCurationSubmitStatus.IdentityDecisionRequired)
@@ -434,12 +431,11 @@ public class DiscoverySubmissionReviewService(
             submission.Status = submission.StatusBeforeInProgress ?? submission.Status;
             EndInProgress(submission);
             AppendHistory(submission, caller.Subject, "IdentityDecisionRequired");
-            return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
-                result.Outcome, terminal) with
-            {
-                Status = DiscoverySubmissionCommandStatus.IdentityDecisionRequired,
-                Message = "An identity decision is required before anything is created."
-            };
+            return RetryHold(
+                await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
+                    result.Outcome, terminal),
+                DiscoverySubmissionCommandStatus.IdentityDecisionRequired,
+                "An identity decision is required before anything is created.");
         }
 
         if (result.Outcome != null)
@@ -651,13 +647,21 @@ public class DiscoverySubmissionReviewService(
     /// Return the final etag so the decision re-POST can claim that version, never the page's stale version.
     /// </summary>
     private async Task<DiscoverySubmissionCommandResult> PersistApplyHold(DiscoverySubmission submission,
-        string claimedETag, int historyAtClaim, CancellationToken c, DiscoverySubmissionCommandResult result)
+        string claimedETag, int historyAtClaim, DiscoverySubmissionCommandResult result, CancellationToken c)
     {
         var finalETag = await Persist(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply, c);
         return finalETag == null
             ? new(DiscoverySubmissionCommandStatus.ApplyFailed, OutcomeNotRecorded)
             : result with { ETag = finalETag };
     }
+
+    /// <summary>
+    /// Labels a recorded retry hold with its decision status. An unrecorded restore (no etag) keeps Finish's
+    /// ApplyFailed / OutcomeNotRecorded result, so the client never re-POSTs a decision with a stale etag.
+    /// </summary>
+    private static DiscoverySubmissionCommandResult RetryHold(DiscoverySubmissionCommandResult finished,
+        DiscoverySubmissionCommandStatus status, string message) =>
+        finished.ETag == null ? finished : finished with { Status = status, Message = message };
 
     private async Task<DiscoverySubmissionCommandResult> Finish(DiscoverySubmission submission, string etag,
         int historyAtClaim, DiscoverySubmissionOperation? operation, SupervisionCaller caller,
