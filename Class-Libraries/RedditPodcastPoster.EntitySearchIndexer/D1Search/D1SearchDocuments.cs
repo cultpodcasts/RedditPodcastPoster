@@ -77,6 +77,9 @@ public static class D1SearchDocuments
             Guests = guestList is { Length: > 0 } ? guestList : null,
             PublisherSearchTerms = record.PublisherSearchTerms,
             EpisodeSearchTerms = record.EpisodeSearchTerms,
+            // Push sites often hold the copy loaded before the save, so this is the previous _ts, or 0 for a new
+            // entity. That's safe: the Worker applies an equal modifiedAt, and the hourly drip later sends the
+            // saved _ts. An older drip landing after a push is at worst overwritten by the next drip (3h lookback).
             ModifiedAt = Math.Max(0, cosmosTimestampSeconds) * 1000
         };
     }

@@ -38,12 +38,12 @@ Code: `Class-Libraries/RedditPodcastPoster.EntitySearchIndexer/D1Search/`. Azure
 ```mermaid
 flowchart LR
   subgraph Functions
-    P["Indexer Publisher (hourly)<br/>RunIndexer (Azure pull) → homepage → D1 drip"]
+    P["Indexer Publisher (hourly)<br/>RunIndexer (Azure pull) → homepage → D1 drip<br/>(drip runs even if Azure fails)"]
     E["EpisodeSearchIndexerService<br/>(Api curator edits, consoles)"]
   end
   P -->|"_ts ≥ now − 3 h, 4 containers"| CF[D1SearchChangeFeed]
   E -->|"same episodes it pushes to Azure"| W
-  CF --> W["D1SearchIndexWriter<br/>≤100 upserts / ≤1000 deletes per request<br/>1 retry on 429/5xx/network"]
+  CF --> W["D1SearchIndexWriter<br/>≤100 upserts / ≤1000 deletes per request<br/>1 retry on 429/5xx/network<br/>no retry on a Cloudflare challenge"]
   W -->|"M2M token (prod tenant)"| PA["api__Endpoint → POST /search/admin/docs → cultpodcasts-search"]
   W -->|"M2M token (staging tenant)"| PV["api-preview → POST /search/admin/docs → cultpodcasts-search-preview"]
 ```

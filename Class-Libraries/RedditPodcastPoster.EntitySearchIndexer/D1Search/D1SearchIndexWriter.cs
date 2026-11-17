@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.EdgeApi.Clients;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 
@@ -49,7 +50,7 @@ public sealed class D1SearchIndexWriter(
     };
 
     private readonly D1SearchOptions _options = options.Value;
-    private bool _loggedUnusable;
+    private int _loggedUnusable;
 
     public bool IsActive => _options.Targets.Any(t => t.IsUsable);
 
@@ -150,29 +151,33 @@ public sealed class D1SearchIndexWriter(
                 tokenSource.Invalidate(target);
             }
 
-            throw new D1SearchHttpException(response.StatusCode, Describe(response.StatusCode, text));
+            var challenged = CloudflareChallengeResponse.LooksLikeBotChallenge(response.StatusCode, text);
+            throw new D1SearchHttpException(response.StatusCode, Describe(response.StatusCode, text, challenged), challenged);
         }
 
         return JsonSerializer.Deserialize<AdminDocsOutcome>(text, Json)
                ?? throw new D1SearchWriteException("The search index answered 200 with no outcome.");
     }
 
-    private static string Describe(HttpStatusCode status, string body)
+    private static string Describe(HttpStatusCode status, string body, bool challenged)
     {
-        var hint = status switch
-        {
-            HttpStatusCode.Unauthorized => " (token rejected: wrong tenant or audience for this api Worker?)",
-            HttpStatusCode.Forbidden when body.TrimStart().StartsWith('{') =>
-                " (no write:search-index grant on this client? see the api Worker's search_admin.forbidden log)",
-            HttpStatusCode.Forbidden => " (looks like a Cloudflare challenge: is the endpoint the Bot Fight bypass host?)",
-            _ => string.Empty
-        };
-        var trimmed = body.Length <= 500 ? body : body[..500] + "…";
-        return $"HTTP {(int)status}{hint}: {trimmed}";
+        var hint = challenged
+            ? " (Cloudflare Bot Fight challenge, the Worker never saw it: point this target at the api Worker's " +
+              "bypass host, Key Vault Api-Endpoint / Api-Preview-Endpoint)"
+            : status switch
+            {
+                HttpStatusCode.Unauthorized => " (token rejected: wrong tenant or audience for this api Worker?)",
+                HttpStatusCode.Forbidden =>
+                    " (no write:search-index grant on this client? see the api Worker's search_admin.forbidden log)",
+                _ => string.Empty
+            };
+        return $"HTTP {(int)status}{hint}: {CloudflareChallengeResponse.TruncateBody(body)}";
     }
 
     private static bool IsRetryable(Exception ex, CancellationToken cancellationToken) => ex switch
     {
+        // A Cloudflare challenge repeats on retry, whatever its status.
+        D1SearchHttpException { IsCloudflareChallenge: true } => false,
         D1SearchHttpException http => http.StatusCode is HttpStatusCode.TooManyRequests || (int)http.StatusCode >= 500,
         HttpRequestException => true,
         // HttpClient timeout surfaces as TaskCanceledException without our token being cancelled.
@@ -203,12 +208,11 @@ public sealed class D1SearchIndexWriter(
 
     private void LogUnusableTargetsOnce()
     {
-        if (_loggedUnusable)
+        if (Interlocked.Exchange(ref _loggedUnusable, 1) == 1)
         {
             return;
         }
 
-        _loggedUnusable = true;
         foreach (var target in _options.Targets.Where(t => t.Enabled && !t.IsUsable))
         {
             logger.LogWarning(
@@ -228,9 +232,13 @@ public sealed class D1SearchIndexWriter(
         [property: JsonPropertyName("notFound")] string[]? NotFound);
 }
 
-public sealed class D1SearchHttpException(HttpStatusCode statusCode, string message) : Exception(message)
+public sealed class D1SearchHttpException(HttpStatusCode statusCode, string message, bool isCloudflareChallenge = false)
+    : Exception(message)
 {
     public HttpStatusCode StatusCode { get; } = statusCode;
+
+    /// <summary>The response was Cloudflare challenge HTML (Bot Fight Mode), not the api Worker's answer.</summary>
+    public bool IsCloudflareChallenge { get; } = isCloudflareChallenge;
 }
 
 /// <param name="Target">Target name.</param>

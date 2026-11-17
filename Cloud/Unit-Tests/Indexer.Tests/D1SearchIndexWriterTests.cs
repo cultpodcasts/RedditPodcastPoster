@@ -88,6 +88,24 @@ public class D1SearchIndexWriterTests
     }
 
     [Fact(DisplayName =
+        "A Cloudflare challenge page fails the target as a challenge, without a retry, because Bot Fight Mode repeats " +
+        "the challenge and the fix is the target's bypass host, not another attempt.")]
+    public async Task a_cloudflare_challenge_is_reported_and_not_retried()
+    {
+        // Arrange
+        _handler.HtmlBodies.Enqueue("<!DOCTYPE html><html><title>Just a moment...</title></html>");
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        var result = await sut.Write([Document()], [], CancellationToken.None);
+
+        // Assert
+        _handler.Bodies.Should().HaveCount(1);
+        result.Succeeded.Should().BeFalse();
+        result.Targets.Single().Error.Should().Contain("Cloudflare Bot Fight challenge");
+    }
+
+    [Fact(DisplayName =
         "A 400 from the search Worker fails the target without throwing and without a retry, because a D1 failure " +
         "must never break Azure indexing and a bad body will not get better.")]
     public async Task a_400_fails_the_target_without_throwing()
@@ -190,6 +208,7 @@ public class D1SearchIndexWriterTests
     private sealed class RecordingHandler : HttpMessageHandler
     {
         public Queue<HttpStatusCode> Statuses { get; } = new();
+        public Queue<string> HtmlBodies { get; } = new();
         public List<JsonElement> Bodies { get; } = [];
         public List<string> Paths { get; } = [];
 
@@ -198,6 +217,12 @@ public class D1SearchIndexWriterTests
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
             Bodies.Add(body.RootElement.Clone());
             Paths.Add(request.RequestUri!.AbsolutePath);
+            if (HtmlBodies.TryDequeue(out var html))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Forbidden)
+                    { Content = new StringContent(html, Encoding.UTF8, "text/html") };
+            }
+
             if (Statuses.TryDequeue(out var status))
             {
                 return new HttpResponseMessage(status)

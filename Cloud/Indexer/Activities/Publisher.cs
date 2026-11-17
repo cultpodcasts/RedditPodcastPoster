@@ -56,6 +56,9 @@ public class Publisher(
         }
         catch (Exception ex)
         {
+            // D1 must not depend on Azure: the drip still runs when the Azure indexer or the homepage fails,
+            // and the activity still fails as before.
+            await DripIntoD1();
             memoryProbe.End(false, ex.GetType().Name);
             throw;
         }
@@ -69,7 +72,7 @@ public class Publisher(
 
     /// <summary>
     /// SP-2.1 (#1321): the D1 search index's hourly sync, next to the Azure pull indexer run above, after the
-    /// homepage so it never delays it. The change feed logs and swallows D1 and Cosmos failures; this guard keeps any
+    /// homepage so it never delays it. It also runs when the Azure block throws, so D1 never depends on Azure. The change feed logs and swallows D1 and Cosmos failures; this guard keeps any
     /// other surprise out of the activity result, so D1 can never fail the hour or Azure indexing.
     /// </summary>
     private async Task DripIntoD1()
