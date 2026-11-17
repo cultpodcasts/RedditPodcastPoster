@@ -93,7 +93,7 @@ flowchart LR
   17 Nov 2026). Settings `d1Search:Enabled`, `Endpoint`, `Auth0Domain`, `Audience`, `ClientId`, `ClientSecret`.
 - **Switch:** `d1Search:Enabled` (bicep `d1SearchProductionEnabled`, **false** until Jon's OK). Enabled without
   endpoint or credentials is skipped with one warning. Console apps have no `d1Search` settings, so they never
-  write D1.
+  write D1; the one exception is `D1SearchReconcile` (SP-2.2), configured from local user secrets.
 - **Tokens:** one Auth0 client_credentials token, cached until five minutes before expiry (Auth0
   meters M2M tokens); a 401 drops it.
 
