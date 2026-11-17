@@ -215,15 +215,13 @@ var auth0Client= {
 }
 
 // D1 search sync (epic #1312 SP-2.1 / SP-2.5): the Functions mirror search writes to the production D1 index
-// through the api Worker's POST /search/admin/docs with the prod-tenant Auth0 search-index-writer M2M token,
-// via api__Endpoint (the Bot Fight bypass host, same as every other M2M call). There are only production
-// Functions, so there is no preview target. Off until Jon switches d1SearchProductionEnabled on. The client
-// id/secret come from Key Vault (SearchIndex-Writer-ClientId / -ClientSecret) like the other Auth0 secrets.
+// through the api Worker's POST /search/admin/docs with the prod-tenant Auth0 search-index-writer M2M token.
+// The host, Auth0 domain and audience are the existing api__Endpoint (the Bot Fight bypass host, Key Vault
+// Api-Endpoint), auth0client__Domain and auth0client__Audience. There are only production Functions, so there
+// is no preview target. Off until Jon switches d1SearchProductionEnabled on. The client id/secret come from
+// Key Vault (SearchIndex-Writer-ClientId / -ClientSecret) like the other Auth0 secrets.
 var d1Search= {
     d1Search__Enabled: string(d1SearchProductionEnabled)
-    d1Search__Endpoint: apiEndpoint
-    d1Search__Auth0Domain: auth0Domain
-    d1Search__Audience: auth0Audience
     d1Search__ClientId: searchIndexWriterClientId
     d1Search__ClientSecret: searchIndexWriterClientSecret
 }

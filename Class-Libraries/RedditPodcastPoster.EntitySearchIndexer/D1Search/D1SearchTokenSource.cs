@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.Options;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 
@@ -20,12 +19,12 @@ public interface ID1SearchTokenSource
 /// </summary>
 public sealed class D1SearchTokenSource(
     IHttpClientFactory httpClientFactory,
-    IOptions<D1SearchOptions> options,
+    D1SearchConnection connection,
     TimeProvider timeProvider) : ID1SearchTokenSource
 {
     public const string HttpClientName = "d1-search-auth0";
     private static readonly TimeSpan RefreshBeforeExpiry = TimeSpan.FromMinutes(5);
-    private readonly D1SearchOptions _options = options.Value;
+    private readonly D1SearchConnection _connection = connection;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private volatile CachedToken? _token;
 
@@ -46,8 +45,8 @@ public sealed class D1SearchTokenSource(
 
             var client = httpClientFactory.CreateClient(HttpClientName);
             using var response = await client.PostAsJsonAsync(
-                new Uri($"https://{_options.Auth0Domain}/oauth/token"),
-                new TokenRequest(_options.ClientId, _options.ClientSecret, _options.Audience),
+                new Uri($"https://{_connection.Auth0Domain}/oauth/token"),
+                new TokenRequest(_connection.ClientId, _connection.ClientSecret, _connection.Audience),
                 cancellationToken);
             if (!response.IsSuccessStatusCode)
             {

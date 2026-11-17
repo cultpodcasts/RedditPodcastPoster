@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using RedditPodcastPoster.EdgeApi.Clients;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
@@ -46,7 +45,7 @@ public interface ID1SearchInventoryReader
 public sealed class D1SearchIndexWriter(
     IHttpClientFactory httpClientFactory,
     ID1SearchTokenSource tokenSource,
-    IOptions<D1SearchOptions> options,
+    D1SearchConnection connection,
     TimeProvider timeProvider,
     ILogger<D1SearchIndexWriter> logger) : ID1SearchIndexWriter, ID1SearchInventoryReader
 {
@@ -62,10 +61,10 @@ public sealed class D1SearchIndexWriter(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
-    private readonly D1SearchOptions _options = options.Value;
+    private readonly D1SearchConnection _connection = connection;
     private int _loggedUnusable;
 
-    public bool IsActive => _options.IsUsable;
+    public bool IsActive => _connection.IsActive;
 
     public async Task<D1SearchWriteResult> Write(
         IReadOnlyCollection<D1SearchDocument> upserts,
@@ -93,7 +92,7 @@ public sealed class D1SearchIndexWriter(
     {
         if (!IsActive)
         {
-            throw new D1SearchWriteException("The D1 search sync is not enabled and configured (d1Search).");
+            throw new D1SearchWriteException("The D1 search sync is not configured.");
         }
 
         var inventory = new Dictionary<string, long>(StringComparer.Ordinal);
@@ -171,7 +170,7 @@ public sealed class D1SearchIndexWriter(
         catch (Exception ex) when (IsRetryable(ex, cancellationToken))
         {
             logger.LogWarning("D1 search request failed ({Message}); retrying once.", ex.Message);
-            await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, _options.RetryDelayMilliseconds)), timeProvider, cancellationToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, _connection.RetryDelayMilliseconds)), timeProvider, cancellationToken);
             return await send();
         }
     }
@@ -183,7 +182,7 @@ public sealed class D1SearchIndexWriter(
         CancellationToken cancellationToken) where T : class
     {
         var token = await tokenSource.GetToken(cancellationToken);
-        using var request = new HttpRequestMessage(method, new Uri(_options.Endpoint!, relativeUri));
+        using var request = new HttpRequestMessage(method, new Uri(_connection.Endpoint!, relativeUri));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         if (body is not null)
         {
@@ -211,8 +210,8 @@ public sealed class D1SearchIndexWriter(
     private static string Describe(HttpStatusCode status, string body, bool challenged)
     {
         var hint = challenged
-            ? " (Cloudflare Bot Fight challenge, the Worker never saw it: d1Search:Endpoint must be the api Worker's " +
-              "bypass host, Key Vault Api-Endpoint)"
+            ? " (Cloudflare Bot Fight challenge, the Worker never saw it: api:Endpoint must be the api Worker's " +
+              "bypass host, Key Vault Api-Endpoint for the Functions)"
             : status switch
             {
                 HttpStatusCode.Unauthorized => " (token rejected: wrong tenant or audience for this api Worker?)",
@@ -257,13 +256,14 @@ public sealed class D1SearchIndexWriter(
 
     private void LogUnusableOnce()
     {
-        if (!_options.Enabled || Interlocked.Exchange(ref _loggedUnusable, 1) == 1)
+        if (!_connection.Enabled || Interlocked.Exchange(ref _loggedUnusable, 1) == 1)
         {
             return;
         }
 
         logger.LogWarning(
-            "D1 search sync is enabled but has no endpoint or Auth0 credentials; nothing is sent " +
+            "D1 search sync is enabled but has no api:Endpoint, auth0client Domain/Audience, or " +
+            "d1Search ClientId/ClientSecret; nothing is sent " +
             "(RPP #1460: Key Vault SearchIndex-Writer-ClientId / -ClientSecret, applied by provision).");
     }
 

@@ -30,6 +30,8 @@
     <ProjectReference Include="..\..\Indexer\Indexer.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Bluesky\RedditPodcastPoster.Bluesky.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.EntitySearchIndexer\RedditPodcastPoster.EntitySearchIndexer.csproj" />
+    <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.EdgeApi\RedditPodcastPoster.EdgeApi.csproj" />
+    <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Auth0\RedditPodcastPoster.Auth0.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Episodes.TestSupport\RedditPodcastPoster.Episodes.TestSupport.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Search\RedditPodcastPoster.Search.csproj" />
     <ProjectReference Include="..\..\..\Class-Libraries\RedditPodcastPoster.Twitter\RedditPodcastPoster.Twitter.csproj" />
