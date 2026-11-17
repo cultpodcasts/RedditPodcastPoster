@@ -26,40 +26,35 @@ Worker applies one `db.batch()`:
 
 Transport: shared-secret header (like today’s `api-key`) or Auth0 M2M. Prefer landing on
 the api Worker then **service binding** to the search Worker (avoids Bot Fight Mode on
-public hostnames). Plan preview + production secrets together.
+public hostnames). The Functions are production only, so they hold production secrets only.
 
 Expected volume: tens of mutations/hour — far below any batching threshold.
 
 ### Writer credentials (SP-2.5, #1460)
 
 The Functions call the api Worker's `POST /search/admin/docs` with an Auth0 **M2M** token for the
-dedicated `search-index-writer` app (Api#284/#285, Terraform in the Api repo, one app per tenant). Its
-client secret exists only as a sensitive output in HCP Terraform state. Nobody copies it:
+dedicated `search-index-writer` app in the **prod** Auth0 tenant (Api#284/#285, Terraform in the Api
+repo). Its client secret exists only as a sensitive output in HCP Terraform state. Nobody copies it.
+There are only production Functions, so they know only the **production** D1 index; the staging
+tenant's writer app and the preview D1 index are never used by the Functions (Jon, 17 Nov 2026):
 
 ```mermaid
 flowchart LR
-  TF["Api repo auth0-stack.yml<br/>terraform apply"] -->|sensitive output| HCP["HCP Terraform<br/>cultpodcasts-auth0 / -preview"]
+  TF["Api repo auth0-stack.yml<br/>terraform apply"] -->|sensitive output| HCP["HCP Terraform<br/>cultpodcasts-auth0"]
   HCP -->|"deploy.yml provision<br/>.github/scripts/hcp-terraform-outputs.cjs<br/>(masked)"| ENV["job env<br/>SEARCH_INDEX_WRITER_*"]
-  ENV -->|"functions.bicepparam<br/>readEnvironmentVariable"| BICEP["functions.bicep<br/>d1Search__Targets__N__*"]
+  ENV -->|"functions.bicepparam<br/>readEnvironmentVariable"| BICEP["functions.bicep<br/>d1Search__*"]
   BICEP --> FN["api / indexer app settings"]
 ```
 
-| Target | Endpoint | Auth0 tenant | HCP workspace | Switch (`functions.bicepparam`) |
-|--------|----------|--------------|---------------|-------------------------------|
-| `production` | `api__Endpoint` (Key Vault `Api-Endpoint`, the Bot Fight bypass host) | prod (`auth.cultpodcasts.com`) | `cultpodcasts-auth0` | `d1SearchProductionEnabled` |
-| `preview` | optional Key Vault `Api-Preview-Endpoint` (the api-preview workers.dev bypass host), else `https://api-preview.cultpodcasts.com/` | staging (`auth-staging.cultpodcasts.com`) | `cultpodcasts-auth0-preview` | `d1SearchPreviewEnabled` |
+| Endpoint | Auth0 tenant | HCP workspace | Switch (`functions.bicepparam`) |
+|----------|--------------|---------------|-------------------------------|
+| `api__Endpoint` (Key Vault `Api-Endpoint`, the Bot Fight bypass host) | prod (`auth.cultpodcasts.com`) | `cultpodcasts-auth0` | `d1SearchProductionEnabled` (default **false** until Jon's OK) |
 
 - **One-time setup (Jon):** RPP repo secret `TF_TOKEN_APP_TERRAFORM_IO`, an HCP Terraform API token
-  that can read state outputs of both Auth0 workspaces (org `cultpodcasts`). The free plan has no
+  that can read the state outputs of `cultpodcasts-auth0` (org `cultpodcasts`). The free plan has no
   teams, so this is a user token, like the Api repo's secret of the same name.
-- **One-time setup (Jon), preview endpoint:** Key Vault secret `Api-Preview-Endpoint` = the
-  api-preview Worker's workers.dev URL. Zone Bot Fight Mode challenges Azure -> custom-domain M2M
-  POSTs (Api `docs/hero-curation-m2m-edge.md`). The value is never committed. Provision reads it
-  with `az keyvault secret show`. If it's missing or unreadable (the deploy identity needs secret
-  *get* on the data plane), provision warns and uses the public host, which may be challenged. The
-  writer logs this as a Cloudflare challenge.
-- **No token:** provision warns, exports nothing, and the targets get empty credentials; the sync
-  skips them and logs it. Azure indexing is unaffected.
+- **No token:** provision warns, exports nothing, and the app settings get empty credentials; the
+  sync is skipped and logged. Azure indexing is unaffected.
 - **Token that cannot read the outputs**, or a workspace without them: provision fails, so a
   half-configured deploy never ships.
 - **Rotation / rebuilt client:** re-run *Provision and Deploy* with `run_provision` after the Auth0

@@ -7,11 +7,7 @@ param apiEndpoint= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID')
 // (Api repo infra/terraform/auth0). '' when the HCP token secret is absent: the D1 sync target is skipped.
 param searchIndexWriterClientId= readEnvironmentVariable('SEARCH_INDEX_WRITER_CLIENT_ID', '')
 param searchIndexWriterClientSecret= readEnvironmentVariable('SEARCH_INDEX_WRITER_CLIENT_SECRET', '')
-param searchIndexWriterPreviewClientId= readEnvironmentVariable('SEARCH_INDEX_WRITER_PREVIEW_CLIENT_ID', '')
-param searchIndexWriterPreviewClientSecret= readEnvironmentVariable('SEARCH_INDEX_WRITER_PREVIEW_CLIENT_SECRET', '')
-// D1 search sync switches (SP-2.1). Preview first; production only on Jon's say-so.
-param searchIndexPreviewEndpoint= readEnvironmentVariable('SEARCH_INDEX_PREVIEW_ENDPOINT', 'https://api-preview.cultpodcasts.com/')
-param d1SearchPreviewEnabled= true
+// D1 search sync switch (SP-2.1): production only (there are no preview Functions); off until Jon's OK.
 param d1SearchProductionEnabled= false
 param blueskyPassword= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Bluesky-Password')
 param cloudflareAccountId= az.getSecret(readEnvironmentVariable('INPUT_SUBSCRIPTION-ID'), readEnvironmentVariable('MANAGEMENT_RESOURCEGROUP_NAME'), readEnvironmentVariable('AZURE_KEYVAULT_NAME'), 'Cloudflare-AccountId')
