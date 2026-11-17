@@ -35,4 +35,26 @@ public sealed class D1SearchOptions
 
     /// <summary>Delay before the single retry of a retryable write failure (429, 5xx, network).</summary>
     public int RetryDelayMilliseconds { get; set; } = 2000;
+
+    /// <summary>The weekly reconcile (SP-2.2 #1322), section <c>d1Search:Reconcile</c>.</summary>
+    public D1SearchReconcileOptions Reconcile { get; set; } = new();
+}
+
+/// <summary>
+/// The weekly Cosmos-to-D1 reconcile (SP-2.2 #1322). <b>Dry-run by default:</b> the timer patches the index only when
+/// <see cref="Write"/> is true (false by default, Jon's call), and never when the drift is above
+/// <see cref="DriftThreshold"/>. The initial backfill runs from the <c>D1SearchReconcile</c> console with
+/// <c>--write --allow-drift</c>.
+/// </summary>
+public sealed class D1SearchReconcileOptions
+{
+    /// <summary>The timer may patch the index. When false (the default) it reports only.</summary>
+    public bool Write { get; set; }
+
+    /// <summary>
+    /// The share of the index (missing + stale + orphans, over the larger of D1 and Cosmos) above which the reconcile
+    /// refuses to patch: that much drift means something is broken, and the fix is a full rebuild (SP-2.3) or a
+    /// deliberate backfill (the console's <c>--allow-drift</c>), not a quiet weekly patch.
+    /// </summary>
+    public double DriftThreshold { get; set; } = 0.05;
 }

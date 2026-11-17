@@ -51,6 +51,7 @@ public class D1SearchChangeFeedTests
         _mocker.GetMock<IFilmRepository>()
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .Returns(() => _films.ToAsyncEnumerable());
+        _mocker.Use<ID1SearchCatalogue>(_mocker.CreateInstance<D1SearchCatalogue>());
     }
 
     [Fact(DisplayName =

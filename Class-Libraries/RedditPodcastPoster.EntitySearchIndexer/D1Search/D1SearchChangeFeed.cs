@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 
@@ -38,11 +36,7 @@ public interface ID1SearchChangeFeed
 /// </list>
 /// </summary>
 public sealed class D1SearchChangeFeed(
-    IEpisodeRepository episodeRepository,
-    IPodcastRepository podcastRepository,
-    ITvShowEpisodeRepository tvShowEpisodeRepository,
-    INewsReportRepository newsReportRepository,
-    IFilmRepository filmRepository,
+    ID1SearchCatalogue catalogue,
     ID1SearchIndexWriter writer,
     IOptions<D1SearchOptions> options,
     TimeProvider timeProvider,
@@ -73,60 +67,20 @@ public sealed class D1SearchChangeFeed(
         var failedToBuild = 0;
         try
         {
-            var podcasts = new Dictionary<Guid, Podcast?>();
-            await foreach (var episode in episodeRepository.GetAllBy(e => e.Timestamp >= sinceTs)
-                               .WithCancellation(cancellationToken))
+            await foreach (var candidate in catalogue.Read(sinceTs, cancellationToken).WithCancellation(cancellationToken))
             {
-                if (!podcasts.TryGetValue(episode.PodcastId, out var podcast))
+                if (candidate.BuildFailed)
                 {
-                    podcast = await podcastRepository.GetPodcast(episode.PodcastId);
-                    podcasts[episode.PodcastId] = podcast;
+                    failedToBuild++;
                 }
-
-                if (podcast is null || D1SearchEligibility.ShouldExclude(podcast, episode))
+                else if (candidate.Document is null)
                 {
-                    // An episode without its podcast cannot be indexed (Azure's push path refuses it too).
-                    await batch.Delete(episode.Id.ToString());
-                    continue;
+                    await batch.Delete(candidate.Id);
                 }
-
-                failedToBuild += await batch.Upsert(episode.Id, () => D1SearchDocuments.For(podcast, episode), logger);
-            }
-
-            await foreach (var episode in tvShowEpisodeRepository.GetAllBy(e => e.Timestamp >= sinceTs)
-                               .WithCancellation(cancellationToken))
-            {
-                if (D1SearchEligibility.ShouldExclude(episode))
+                else
                 {
-                    await batch.Delete(episode.Id.ToString());
-                    continue;
+                    await batch.Upsert(candidate.Document);
                 }
-
-                failedToBuild += await batch.Upsert(episode.Id, () => D1SearchDocuments.For(episode), logger);
-            }
-
-            await foreach (var report in newsReportRepository.GetAllBy(r => r.Timestamp >= sinceTs)
-                               .WithCancellation(cancellationToken))
-            {
-                if (D1SearchEligibility.ShouldExclude(report))
-                {
-                    await batch.Delete(report.Id.ToString());
-                    continue;
-                }
-
-                failedToBuild += await batch.Upsert(report.Id, () => D1SearchDocuments.For(report), logger);
-            }
-
-            await foreach (var film in filmRepository.GetAllBy(f => f.Timestamp >= sinceTs)
-                               .WithCancellation(cancellationToken))
-            {
-                if (D1SearchEligibility.ShouldExclude(film))
-                {
-                    await batch.Delete(film.Id.ToString());
-                    continue;
-                }
-
-                failedToBuild += await batch.Upsert(film.Id, () => D1SearchDocuments.For(film), logger);
             }
 
             await batch.Flush();
@@ -162,19 +116,8 @@ public sealed class D1SearchChangeFeed(
         public int Deletes { get; private set; }
         public bool WritesFailed { get; private set; }
 
-        public async Task<int> Upsert(Guid id, Func<D1SearchDocument> build, ILogger logger)
+        public async Task Upsert(D1SearchDocument document)
         {
-            D1SearchDocument document;
-            try
-            {
-                document = build();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "D1 search change feed could not build the document for playable '{Id}'.", id);
-                return 1;
-            }
-
             _upserts.Add(document);
             _upserted.Add(document.Id);
             _deletes.Remove(document.Id);
@@ -183,8 +126,6 @@ public sealed class D1SearchChangeFeed(
             {
                 await Flush();
             }
-
-            return 0;
         }
 
         public async Task Delete(string id)

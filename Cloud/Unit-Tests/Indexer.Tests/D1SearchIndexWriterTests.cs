@@ -180,6 +180,44 @@ public class D1SearchIndexWriterTests
         body.GetProperty("deletes").GetArrayLength().Should().Be(0);
     }
 
+    [Fact(DisplayName =
+        "The inventory pages through GET search/admin/docs/inventory, passing next back as after until it is null, " +
+        "because the reconcile needs every id in the index and a page holds at most 5000.")]
+    public async Task reads_the_whole_inventory_page_by_page()
+    {
+        // Arrange
+        var first = _fixture.CreateGuid().ToString();
+        var second = _fixture.CreateGuid().ToString();
+        _handler.InventoryPages.Enqueue($"{{\"items\":[{{\"id\":\"{first}\",\"modifiedAt\":5}}],\"next\":\"{first}\"}}");
+        _handler.InventoryPages.Enqueue($"{{\"items\":[{{\"id\":\"{second}\",\"modifiedAt\":7}}],\"next\":null}}");
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        var inventory = await sut.ReadInventory(CancellationToken.None);
+
+        // Assert
+        inventory.Should().BeEquivalentTo(new Dictionary<string, long> { [first] = 5, [second] = 7 });
+        _handler.Paths.Should().OnlyContain(p => p == "/search/admin/docs/inventory");
+        _handler.Queries.Should().Equal("?limit=5000", $"?limit=5000&after={first}");
+    }
+
+    [Fact(DisplayName =
+        "Asking for the inventory when the sync is not enabled and configured throws, because a reconcile without the " +
+        "whole inventory would treat live documents as orphans.")]
+    public async Task inventory_when_not_configured_throws()
+    {
+        // Arrange
+        _options.Enabled = false;
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        var act = () => sut.ReadInventory(CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<D1SearchWriteException>();
+        _handler.Paths.Should().BeEmpty();
+    }
+
     private D1SearchOptions Configured() => new()
     {
         Enabled = true,
@@ -205,11 +243,21 @@ public class D1SearchIndexWriterTests
     {
         public Queue<HttpStatusCode> Statuses { get; } = new();
         public Queue<string> HtmlBodies { get; } = new();
+        public Queue<string> InventoryPages { get; } = new();
+        public List<string> Queries { get; } = [];
         public List<JsonElement> Bodies { get; } = [];
         public List<string> Paths { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
+            if (request.Method == HttpMethod.Get)
+            {
+                Paths.Add(request.RequestUri!.AbsolutePath);
+                Queries.Add(request.RequestUri.Query);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                    { Content = new StringContent(InventoryPages.Dequeue(), Encoding.UTF8, "application/json") };
+            }
+
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
             Bodies.Add(body.RootElement.Clone());
             Paths.Add(request.RequestUri!.AbsolutePath);

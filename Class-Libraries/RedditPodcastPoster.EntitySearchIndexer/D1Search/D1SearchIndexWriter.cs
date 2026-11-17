@@ -25,6 +25,17 @@ public interface ID1SearchIndexWriter
         CancellationToken cancellationToken);
 }
 
+public interface ID1SearchInventoryReader
+{
+    /// <summary>
+    /// Every <c>{ id, modifiedAt }</c> in the production D1 search index, paged through the api Worker's
+    /// <c>GET /search/admin/docs/inventory</c> (Api, SP-2.2). Throws <see cref="D1SearchWriteException"/> or
+    /// <see cref="D1SearchHttpException"/> when it can't read the whole inventory: a partial inventory would turn live
+    /// documents into "orphans", so the caller must not reconcile on one.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, long>> ReadInventory(CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// Writes to the production D1 search index through the api Worker's <c>POST /search/admin/docs</c> (Api SP-1.4):
 /// at most 100 upserts and 1000 deletes per request, each id once, one D1 transaction per request. Writes are
@@ -37,12 +48,14 @@ public sealed class D1SearchIndexWriter(
     ID1SearchTokenSource tokenSource,
     IOptions<D1SearchOptions> options,
     TimeProvider timeProvider,
-    ILogger<D1SearchIndexWriter> logger) : ID1SearchIndexWriter
+    ILogger<D1SearchIndexWriter> logger) : ID1SearchIndexWriter, ID1SearchInventoryReader
 {
     public const string HttpClientName = "d1-search";
     public const int MaxUpsertsPerRequest = 100;
     public const int MaxDeletesPerRequest = 1000;
     private const string Route = "search/admin/docs";
+    private const string InventoryRoute = "search/admin/docs/inventory";
+    public const int InventoryPageSize = 5000;
 
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -74,6 +87,37 @@ public sealed class D1SearchIndexWriter(
         }
 
         return await Send(upsertList, deleteList, cancellationToken);
+    }
+
+    public async Task<IReadOnlyDictionary<string, long>> ReadInventory(CancellationToken cancellationToken)
+    {
+        if (!IsActive)
+        {
+            throw new D1SearchWriteException("The D1 search sync is not enabled and configured (d1Search).");
+        }
+
+        var inventory = new Dictionary<string, long>(StringComparer.Ordinal);
+        string? after = null;
+        do
+        {
+            var query = $"?limit={InventoryPageSize}" + (after is null ? string.Empty : $"&after={Uri.EscapeDataString(after)}");
+            var page = await WithRetry(() => SendOnce<InventoryPage>(
+                HttpMethod.Get, InventoryRoute + query, null, cancellationToken), cancellationToken);
+            foreach (var item in page.Items ?? [])
+            {
+                inventory[item.Id] = item.ModifiedAt;
+            }
+
+            if (page.Next is not null && page.Next == after)
+            {
+                throw new D1SearchWriteException("The search index inventory did not advance; stopping.");
+            }
+
+            after = page.Next;
+        } while (after is not null);
+
+        logger.LogInformation("D1 search inventory: {Count} document(s).", inventory.Count);
+        return inventory;
     }
 
     private async Task<D1SearchWriteResult> Send(
@@ -115,26 +159,37 @@ public sealed class D1SearchIndexWriter(
         return new D1SearchWriteResult(true, true, upserted, deleted, stale, notFound, null);
     }
 
-    private async Task<AdminDocsOutcome> SendWithRetry(AdminDocsRequest body, CancellationToken cancellationToken)
+    private Task<AdminDocsOutcome> SendWithRetry(AdminDocsRequest body, CancellationToken cancellationToken) =>
+        WithRetry(() => SendOnce<AdminDocsOutcome>(HttpMethod.Post, Route, body, cancellationToken), cancellationToken);
+
+    private async Task<T> WithRetry<T>(Func<Task<T>> send, CancellationToken cancellationToken)
     {
         try
         {
-            return await SendOnce(body, cancellationToken);
+            return await send();
         }
         catch (Exception ex) when (IsRetryable(ex, cancellationToken))
         {
-            logger.LogWarning("D1 search write failed ({Message}); retrying once.", ex.Message);
+            logger.LogWarning("D1 search request failed ({Message}); retrying once.", ex.Message);
             await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, _options.RetryDelayMilliseconds)), timeProvider, cancellationToken);
-            return await SendOnce(body, cancellationToken);
+            return await send();
         }
     }
 
-    private async Task<AdminDocsOutcome> SendOnce(AdminDocsRequest body, CancellationToken cancellationToken)
+    private async Task<T> SendOnce<T>(
+        HttpMethod method,
+        string relativeUri,
+        object? body,
+        CancellationToken cancellationToken) where T : class
     {
         var token = await tokenSource.GetToken(cancellationToken);
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.Endpoint!, Route));
+        using var request = new HttpRequestMessage(method, new Uri(_options.Endpoint!, relativeUri));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Content = JsonContent.Create(body, options: Json);
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body, body.GetType(), options: Json);
+        }
+
         var client = httpClientFactory.CreateClient(HttpClientName);
         using var response = await client.SendAsync(request, cancellationToken);
         var text = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -149,8 +204,8 @@ public sealed class D1SearchIndexWriter(
             throw new D1SearchHttpException(response.StatusCode, Describe(response.StatusCode, text, challenged), challenged);
         }
 
-        return JsonSerializer.Deserialize<AdminDocsOutcome>(text, Json)
-               ?? throw new D1SearchWriteException("The search index answered 200 with no outcome.");
+        return JsonSerializer.Deserialize<T>(text, Json)
+               ?? throw new D1SearchWriteException("The search index answered 200 with no body.");
     }
 
     private static string Describe(HttpStatusCode status, string body, bool challenged)
@@ -215,6 +270,14 @@ public sealed class D1SearchIndexWriter(
     private sealed record AdminDocsRequest(
         [property: JsonPropertyName("upserts")] D1SearchDocument[] Upserts,
         [property: JsonPropertyName("deletes")] string[] Deletes);
+
+    private sealed record InventoryPage(
+        [property: JsonPropertyName("items")] InventoryItem[]? Items,
+        [property: JsonPropertyName("next")] string? Next);
+
+    private sealed record InventoryItem(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("modifiedAt")] long ModifiedAt);
 
     private sealed record AdminDocsOutcome(
         [property: JsonPropertyName("upserted")] int Upserted,

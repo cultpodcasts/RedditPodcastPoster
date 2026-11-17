@@ -93,7 +93,7 @@ flowchart LR
   17 Nov 2026). Settings `d1Search:Enabled`, `Endpoint`, `Auth0Domain`, `Audience`, `ClientId`, `ClientSecret`.
 - **Switch:** `d1Search:Enabled` (bicep `d1SearchProductionEnabled`, **false** until Jon's OK). Enabled without
   endpoint or credentials is skipped with one warning. Console apps have no `d1Search` settings, so they never
-  write D1.
+  write D1; the one exception is `D1SearchReconcile` (SP-2.2), configured from local user secrets.
 - **Tokens:** one Auth0 client_credentials token, cached until five minutes before expiry (Auth0
   meters M2M tokens); a 401 drops it.
 
@@ -102,6 +102,27 @@ flowchart LR
 Indexer timer: Cosmos id inventory ↔ D1 ids → upsert missing/stale, delete orphans.
 Define a **drift threshold**: small → patch; large / failed migration / tokenizer change
 → full rebuild (below).
+
+#### As built (SP-2.2, #1322)
+
+```mermaid
+flowchart LR
+  T["Indexer timer D1SearchReconcile<br/>Sun 04:30 UTC, 4.5 min budget"] --> R
+  C["D1SearchReconcile console<br/>(backfill, full passes)"] --> R
+  R["D1SearchReconciler (production index)"] -->|"GET /search/admin/docs/inventory<br/>(Api, keyset pages of 5000)"| INV["D1 {id, modifiedAt}"]
+  R -->|"pass 1: ids only"| CAT["D1SearchCatalogue<br/>(Cosmos, same builders as the drip)"]
+  R -->|"write requested and drift within threshold<br/>(or --allow-drift)"| P2["pass 2: upsert missing/stale (100/req)<br/>then delete orphans (1000/req)"]
+```
+
+| | |
+|---|---|
+| **Missing / stale / orphan** | Missing: eligible in Cosmos, not in D1. Stale: D1 `modifiedAt` older than Cosmos `_ts`. Orphan: in D1 but not eligible in Cosmos (removed, ineligible, hard-deleted, podcast gone). A playable whose document fails to build is neither written nor deleted. |
+| **Drift** | (missing + stale + orphans) / max(D1 count, eligible count). Above `d1Search:Reconcile:DriftThreshold` (default **5%**), nothing is written (outcome `RefusedDrift`). Use a full rebuild (SP-2.3) or a deliberate `--allow-drift` backfill. |
+| **Dry run by default** | The timer writes only when `d1Search:Reconcile:Write` is `true` (false by default; nothing in bicep sets it). The console writes only with `--write`. **Production D1 is written only with Jon's OK.** |
+| **Initial backfill** | D1 is empty, so drift is 100%. Use `D1SearchReconcile --write --allow-drift` with Jon's OK (the console's `d1Search` settings come from local user secrets). It's too long for the Indexer's 5-minute `functionTimeout`, so it runs from the console. Re-running is safe (idempotent; `modifiedAt` guard). |
+| **Two scans at most** | Cosmos is scanned once to plan (`id → modifiedAt` of eligible playables) and diffed against the D1 inventory. A second scan happens only when writing, and it sends just the planned documents. |
+| **Memory** | The eligible map and the inventory (about 90k ids each) and id sets only. Documents are streamed, never all held. |
+| **Failure** | An unreadable inventory fails the run (a partial one would make live documents orphans). A failed write stops the run and reports `Failed`. With the sync off the outcome is `NotConfigured` and nothing is read. The timer never throws. |
 
 ### Weekly reset / blue-green (“drip failed, rebuild”)
 
