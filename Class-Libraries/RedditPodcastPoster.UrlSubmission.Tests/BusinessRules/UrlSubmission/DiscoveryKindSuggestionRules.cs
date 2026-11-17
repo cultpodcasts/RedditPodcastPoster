@@ -237,6 +237,9 @@ public class DiscoveryKindSuggesterRules
     [InlineData("Escaping Rama (Part 3): Life After The Cult", "The Cult", false)]
     [InlineData("The Cult", "The Cult", true)]
     [InlineData("Inside a family business", "A Family", false)]
+    [InlineData("Inside an Island Cult", "An Island", false)]
+    [InlineData("Inside An Island Cult", "Inside An", true)]
+    [InlineData("Life After The Cult explained", "After The", true)]
     [InlineData("Revisiting The Manson Massacre tonight", "The Manson Massacre", true)]
     [InlineData("Watching The Paradise Lost trilogy", "The Paradise Lost", true)]
     public void titles_agree_uses_folded_equality_or_word_bounded_minimum(string left, string right, bool expected)
