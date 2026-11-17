@@ -944,6 +944,7 @@ public class EpisodeTrailerAttachServiceRules
         // Assert
         results.Should().OnlyContain(r => r.Status == EpisodeTrailerAttachStatus.Accepted);
         results.Select(r => r.FilmId).Distinct().Should().ContainSingle();
+        _createAttempts.Should().Be(1);
         _createdFilms.Should().ContainSingle();
         _films.Keys.Select(Stored).Should().ContainSingle()
             .Which!.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
@@ -1227,10 +1228,14 @@ public class EpisodeTrailerAttachServiceRules
     }
 
     /// <summary>
-    /// Runs two calls one after the other inside each other, with no real concurrency: <paramref name="first"/> runs
-    /// until it stops at <paramref name="hold"/>, <paramref name="second"/> then runs to completion, and only then is
-    /// <paramref name="first"/> released to finish. Every fake here completes synchronously, so <paramref name="first"/>
-    /// has reached the hold by the time it returns its task; if it has not, the test fails here instead of waiting.
+    /// Runs two calls in a set order, never at the same time:
+    /// <list type="number">
+    /// <item><paramref name="first"/> starts and stops at <paramref name="hold"/>.</item>
+    /// <item><paramref name="second"/> runs to completion.</item>
+    /// <item><paramref name="first"/> is released and finishes.</item>
+    /// </list>
+    /// Every fake here completes synchronously, so <paramref name="first"/> has reached the hold by the time it returns
+    /// its task; if it has not, the test fails here instead of waiting.
     /// </summary>
     private static async Task<EpisodeTrailerAttachResult[]> Interleave(
         Hold hold,
