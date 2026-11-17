@@ -26,9 +26,38 @@ Worker applies one `db.batch()`:
 
 Transport: shared-secret header (like today’s `api-key`) or Auth0 M2M. Prefer landing on
 the api Worker then **service binding** to the search Worker (avoids Bot Fight Mode on
-public hostnames). Plan preview + production secrets together.
+public hostnames). The Functions are production only, so they hold production secrets only.
 
 Expected volume: tens of mutations/hour — far below any batching threshold.
+
+### Writer credentials (SP-2.5, #1460)
+
+The Functions call the api Worker's `POST /search/admin/docs` with an Auth0 **M2M** token for the
+dedicated `search-index-writer` app in the **prod** Auth0 tenant (Api#284/#285, Terraform in the Api
+repo). There are only production Functions, so they know only the **production** D1 index; the
+staging tenant's writer app and the preview D1 index are never used by the Functions (Jon, 17 Nov 2026).
+The credentials reach bicep from Key Vault with `az.getSecret`, like `Auth0-ClientId`/`Auth0-ClientSecret`:
+
+```mermaid
+flowchart LR
+  TF["Api repo auth0-stack.yml<br/>terraform output (prod)"] -->|"Jon, once"| KV["Key Vault<br/>SearchIndex-Writer-*"]
+  KV -->|"functions.bicepparam<br/>az.getSecret"| BICEP["functions.bicep<br/>d1Search__*"]
+  BICEP --> FN["api / indexer app settings"]
+```
+
+| Endpoint | Auth0 tenant | Key Vault secrets | Switch (`functions.bicepparam`) |
+|----------|--------------|-------------------|-------------------------------|
+| `api__Endpoint` (Key Vault `Api-Endpoint`, the Bot Fight bypass host) | prod (`auth.cultpodcasts.com`) | `SearchIndex-Writer-ClientId`, `SearchIndex-Writer-ClientSecret` | `d1SearchProductionEnabled` (default **false** until Jon's OK) |
+
+- **One-time setup (Jon; done 17 Nov 2026):** the two Key Vault secrets in the management
+  vault (`AZURE_KEYVAULT_NAME`), `SearchIndex-Writer-ClientId` and `SearchIndex-Writer-ClientSecret`,
+  hold the prod `search-index-writer` client's id and secret from the Api repo's Auth0 Terraform output
+  (workspace `cultpodcasts-auth0`, outputs `client_id` and `client_secret`). Like every other
+  `az.getSecret`, provision fails if they are missing.
+- **Rotation / rebuilt client:** update the two secrets, then re-run *Provision and Deploy* with
+  `run_provision`. App settings only change when provision runs.
+- With the switch off (the default), the settings are present but nothing is sent; Azure indexing is
+  unaffected either way.
 
 ### Weekly reconcile
 
