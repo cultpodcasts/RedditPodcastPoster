@@ -472,6 +472,28 @@ FilmSearchPusher             # daily incremental push
 FilmSearchPusher --full      # push all films and remove orphaned film documents
 ```
 
+### D1SearchReconcile
+
+**Purpose:** Reconcile the Cloudflare D1 search index(es) with Cosmos (SP-2.2, [#1322](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1322)), and do the **initial backfill**. Same code as the Indexer's weekly `D1SearchReconcile` timer, without the function's 5-minute limit. **Dry run unless `--write --target <name>`.**
+
+**Run:** `dotnet run --project Console-Apps/D1SearchReconcile --` · PATH: `D1SearchReconcile`
+
+| Option | Description |
+|--------|-------------|
+| `-t, --target` | `production`, `preview` or both (comma-separated). Default: every enabled, configured target |
+| `--write` | Write to the named targets (needs `--target`). Without it, the run reads D1's inventory and Cosmos and reports, and writes nothing |
+| `--allow-drift` | With `--write`: patch even above `d1Search:Reconcile:DriftThreshold` (default 5%). For the initial backfill (D1 empty) or a deliberate repair |
+
+**Config:** Cosmos as for the other consoles, plus the `d1Search` section (user secrets): `d1Search:Targets:0:Name`, `Enabled=true`, `Endpoint` (the api Worker; production uses the Bot Fight bypass host, Key Vault `Api-Endpoint`), `Auth0Domain`, `Audience` (`https://api.cultpodcasts.com/`), `ClientId` and `ClientSecret` (HCP Terraform outputs of `cultpodcasts-auth0` / `cultpodcasts-auth0-preview`). Exit code `1` when a target fails or is refused for drift.
+
+How it works: it pages the target's `{ id, modifiedAt }` inventory (`GET /search/admin/docs/inventory`) and streams Cosmos once to count missing, stale (D1 `modifiedAt` older than Cosmos `_ts`) and orphans (in D1 but not eligible). With `--write`, if the drift is within the threshold or `--allow-drift` is set, it streams Cosmos again, upserts only the missing and stale documents (100 per request), then deletes the orphans (1000 per request). Writes are idempotent; a stopped run can just be run again.
+
+```powershell
+D1SearchReconcile                                          # dry run, every configured target
+D1SearchReconcile --target preview --write --allow-drift   # initial preview backfill
+D1SearchReconcile --target production --write --allow-drift  # initial production backfill: Jon's call
+```
+
 ### DeleteSearchDocument
 
 **Purpose:** Delete a document (or all episodes for a podcast) from the search index.

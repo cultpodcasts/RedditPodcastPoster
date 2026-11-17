@@ -179,6 +179,60 @@ public class D1SearchIndexWriterTests
         body.GetProperty("deletes").GetArrayLength().Should().Be(0);
     }
 
+    [Fact(DisplayName =
+        "The inventory pages through GET search/admin/docs/inventory, passing next back as after until it is null, " +
+        "because the reconcile needs every id in the index and a page holds at most 5000.")]
+    public async Task reads_the_whole_inventory_page_by_page()
+    {
+        // Arrange
+        var first = _fixture.CreateGuid().ToString();
+        var second = _fixture.CreateGuid().ToString();
+        _handler.InventoryPages.Enqueue($"{{\"items\":[{{\"id\":\"{first}\",\"modifiedAt\":5}}],\"next\":\"{first}\"}}");
+        _handler.InventoryPages.Enqueue($"{{\"items\":[{{\"id\":\"{second}\",\"modifiedAt\":7}}],\"next\":null}}");
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        var inventory = await sut.ReadInventory("production", CancellationToken.None);
+
+        // Assert
+        inventory.Should().BeEquivalentTo(new Dictionary<string, long> { [first] = 5, [second] = 7 });
+        _handler.Paths.Should().OnlyContain(p => p == "/search/admin/docs/inventory");
+        _handler.Queries.Should().Equal("?limit=5000", $"?limit=5000&after={first}");
+    }
+
+    [Fact(DisplayName =
+        "A write to one named target reaches only that target, because the reconcile patches each index against its " +
+        "own inventory and must not write the other.")]
+    public async Task a_named_write_reaches_only_that_target()
+    {
+        // Arrange
+        _options.Targets.Add(Target("preview", t => t.Endpoint = new Uri("https://preview.example.test/")));
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        var result = await sut.Write("preview", [Document()], [], CancellationToken.None);
+
+        // Assert
+        result.Targets.Select(t => t.Target).Should().Equal("preview");
+        _handler.Bodies.Should().HaveCount(1);
+        sut.UsableTargets.Should().Equal("production", "preview");
+    }
+
+    [Fact(DisplayName =
+        "Asking for the inventory of a target that is not configured throws, because a reconcile without the whole " +
+        "inventory would treat live documents as orphans.")]
+    public async Task inventory_of_an_unconfigured_target_throws()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        var act = () => sut.ReadInventory("preview", CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<D1SearchWriteException>();
+    }
+
     private D1SearchTarget Target(string name, Action<D1SearchTarget>? customise = null)
     {
         var target = new D1SearchTarget
@@ -209,11 +263,21 @@ public class D1SearchIndexWriterTests
     {
         public Queue<HttpStatusCode> Statuses { get; } = new();
         public Queue<string> HtmlBodies { get; } = new();
+        public Queue<string> InventoryPages { get; } = new();
+        public List<string> Queries { get; } = [];
         public List<JsonElement> Bodies { get; } = [];
         public List<string> Paths { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
+            if (request.Method == HttpMethod.Get)
+            {
+                Paths.Add(request.RequestUri!.AbsolutePath);
+                Queries.Add(request.RequestUri.Query);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                    { Content = new StringContent(InventoryPages.Dequeue(), Encoding.UTF8, "application/json") };
+            }
+
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
             Bodies.Add(body.RootElement.Clone());
             Paths.Add(request.RequestUri!.AbsolutePath);

@@ -72,6 +72,26 @@ Indexer timer: Cosmos id inventory ↔ D1 ids → upsert missing/stale, delete o
 Define a **drift threshold**: small → patch; large / failed migration / tokenizer change
 → full rebuild (below).
 
+#### As built (SP-2.2, #1322)
+
+```mermaid
+flowchart LR
+  T["Indexer timer D1SearchReconcile<br/>Sun 04:30 UTC, 4.5 min budget"] --> R
+  C["D1SearchReconcile console<br/>(backfill, full passes)"] --> R
+  R["D1SearchReconciler (per target)"] -->|"GET /search/admin/docs/inventory<br/>(Api, keyset pages of 5000)"| INV["D1 {id, modifiedAt}"]
+  R -->|"pass 1: ids only"| CAT["D1SearchCatalogue<br/>(Cosmos, same builders as the drip)"]
+  R -->|"write target and drift within threshold<br/>(or --allow-drift)"| P2["pass 2: upsert missing/stale (100/req)<br/>then delete orphans (1000/req)"]
+```
+
+| | |
+|---|---|
+| **Missing / stale / orphan** | Missing: eligible in Cosmos, not in D1. Stale: D1 `modifiedAt` older than Cosmos `_ts`. Orphan: in D1 but not eligible in Cosmos (removed, ineligible, hard-deleted, podcast gone). A playable whose document fails to build is neither written nor deleted. |
+| **Drift** | (missing + stale + orphans) / max(D1 count, eligible count). Above `d1Search:Reconcile:DriftThreshold` (default **5%**), nothing is written (outcome `RefusedDrift`). Use a full rebuild (SP-2.3) or a deliberate `--allow-drift` backfill. |
+| **Dry run by default** | The timer writes only to targets in `d1Search:Reconcile:WriteTargets` (empty by default; nothing in bicep sets it). The console writes only with `--write --target <name>`. **Production D1 is written only when Jon names it.** |
+| **Initial backfill** | D1 is empty, so drift is 100%. Use `D1SearchReconcile --target preview --write --allow-drift`, then `production` with Jon's OK. It's too long for the Indexer's 5-minute `functionTimeout`, so it runs from the console. Re-running is safe (idempotent; `modifiedAt` guard). |
+| **Memory** | The inventory (about 90k ids) and id sets only. Documents are streamed in both passes, never all held. |
+| **Failure** | An unreadable inventory fails that target (a partial one would make live documents orphans). A failed write stops that target and reports `Failed`. The timer never throws. |
+
 ### Weekly reset / blue-green (“drip failed, rebuild”)
 
 **Preferred: in-place shadow rebuild**
