@@ -18,10 +18,16 @@ public class D1SearchReconcilerTests
     private readonly List<(string[] Upserts, string[] Deletes)> _writes = [];
     private Dictionary<string, long> _inventory = [];
     private List<D1SearchCandidate> _catalogue = [];
+    private List<D1SearchCandidate> _byId = [];
 
     public D1SearchReconcilerTests()
     {
         _mocker.Use<IOptions<D1SearchOptions>>(Options.Create(_options));
+        _mocker.Use(TimeProvider.System);
+        _mocker.GetMock<ID1SearchCatalogue>()
+            .Setup(c => c.ReadByIds(It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .Returns((IReadOnlyCollection<string> ids, CancellationToken _) =>
+                _byId.Where(c => ids.Contains(c.Id)).ToAsyncEnumerable());
         _mocker.GetMock<ID1SearchCatalogue>()
             .Setup(c => c.Read(0, It.IsAny<CancellationToken>()))
             .Returns(() => _catalogue.ToAsyncEnumerable());
@@ -591,6 +597,120 @@ public class D1SearchReconcilerTests
         report.Outcome.Should().Be(D1SearchReconcileOutcome.Failed);
         report.Scan.Should().BeNull();
         _writes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "An incremental reconcile counts an eligible id that D1 lacks outside the _ts window as missing and sends it " +
+        "on a write, so eligible = D1 - orphans + missing instead of eligible exceeding D1 with missing 0 (#1479).")]
+    public async Task incremental_counts_and_sends_missing_outside_the_window()
+    {
+        // Arrange
+        const long since = 1_700_000_000;
+        var inWindow = Candidate(modifiedAt: since * 1000);
+        var old = Enumerable.Range(0, 20).Select(_ => Candidate(modifiedAt: 1000)).ToList();
+        var lost = Candidate(modifiedAt: 1000);
+        _catalogue = [inWindow];
+        _byId = [lost];
+        _inventory = old.ToDictionary(c => c.Id, _ => 1000L);
+        _inventory[inWindow.Id] = since * 1000;
+        SetupIncremental(since, [inWindow.Id, ..old.Select(c => c.Id), lost.Id]);
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var dryRun = await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None);
+        var written = await sut.Reconcile(new D1SearchReconcileRequest(true), CancellationToken.None);
+
+        // Assert
+        dryRun.Should().BeEquivalentTo(new
+        {
+            Outcome = D1SearchReconcileOutcome.DryRun, D1Documents = 22, Eligible = 23, Missing = 1, Stale = 0,
+            Orphans = 0
+        });
+        (dryRun.D1Documents - dryRun.Orphans + dryRun.Missing).Should().Be(dryRun.Eligible);
+        written.Should().BeEquivalentTo(new { Outcome = D1SearchReconcileOutcome.Patched, Missing = 1, Upserted = 1 });
+        _writes.Should().BeEquivalentTo(new[] { (new[] { lost.Id }, Array.Empty<string>()) });
+        _mocker.GetMock<ID1SearchCatalogue>().Verify(
+            c => c.ReadByIds(It.Is<IReadOnlyCollection<string>>(ids => ids.Count == 1 && ids.Contains(lost.Id)),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _mocker.GetMock<ID1SearchCatalogue>().Verify(
+            c => c.Read(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "An eligible id outside the window that the full rules now exclude (or that is gone) is not counted as " +
+        "eligible or missing, so the summary agrees with the full scan and never shows a permanent gap (#1479).")]
+    public async Task incremental_drops_ids_the_full_rules_exclude()
+    {
+        // Arrange
+        const long since = 1_700_000_000;
+        var inWindow = Candidate(modifiedAt: since * 1000);
+        var excluded = new D1SearchCandidate(_fixture.CreateGuid().ToString(), null);
+        var gone = _fixture.CreateGuid().ToString();
+        _catalogue = [inWindow];
+        _byId = [excluded];
+        _inventory = new() { [inWindow.Id] = since * 1000 };
+        SetupIncremental(since, [inWindow.Id, excluded.Id, gone]);
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None);
+
+        // Assert
+        report.Should().BeEquivalentTo(new
+        {
+            Outcome = D1SearchReconcileOutcome.InSync, D1Documents = 1, Eligible = 1, Missing = 0, Orphans = 0
+        });
+    }
+
+    [Fact(DisplayName =
+        "An eligible id outside the window whose document fails to build is kept as not built, never counted " +
+        "missing or written, as in a full scan (#1479).")]
+    public async Task incremental_keeps_outside_build_failures()
+    {
+        // Arrange
+        const long since = 1_700_000_000;
+        var failed = new D1SearchCandidate(_fixture.CreateGuid().ToString(), null, BuildFailed: true);
+        _catalogue = [];
+        _byId = [failed];
+        SetupIncremental(since, [failed.Id]);
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None);
+
+        // Assert
+        report.Should().BeEquivalentTo(new { Missing = 0, FailedToBuild = 1, Orphans = 0 });
+        _writes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "The saved watermark never passes the start of the catalogue read (less the safety margin), so a playable " +
+        "saved during the read in a part already streamed is re-read next time instead of skipped by a later save's " +
+        "_ts (#1479).")]
+    public async Task watermark_stays_before_the_read_started()
+    {
+        // Arrange
+        var now = DateTimeOffset.UtcNow;
+        _mocker.Use<TimeProvider>(new FixedTime(now));
+        var savedDuringRead = now.ToUnixTimeSeconds() + 60;
+        _catalogue = [Candidate(modifiedAt: savedDuringRead * 1000) with { TimestampSeconds = savedDuringRead }];
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true, true), CancellationToken.None);
+
+        // Assert
+        report.Outcome.Should().Be(D1SearchReconcileOutcome.Patched);
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>().Verify(
+            s => s.SaveAsync(
+                It.Is<D1SearchReconcileWatermark>(w =>
+                    w.HighWaterMark == now.ToUnixTimeSeconds() - D1SearchReconciler.WatermarkSafetySeconds),
+                It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private sealed class FixedTime(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 
     private void SetupIncremental(long since, IEnumerable<string> eligibleIds)

@@ -167,8 +167,13 @@ public interface ID1SearchReconciler
 /// (the window is small). A failed write stops the run and leaves the watermark where it was. Documents are never
 /// all held in memory on a full pass. A playable that changed in between is still right: the Worker's
 /// <c>modifiedAt</c> guard keeps the newest, and the drip covers the rest.</item>
-/// <item>The watermark advances to the highest Cosmos <c>_ts</c> considered only after a successful
-/// <c>--write</c> run (patched or already in sync).</item>
+/// <item>An incremental compare also looks up, by id, every eligible id that is absent from D1 but outside the
+/// window, so <c>missing</c> covers the whole catalogue and those documents are sent (#1479). Then
+/// <c>eligible = D1 - orphans + missing</c> holds for both scans (build failures aside).</item>
+/// <item>The watermark advances only after a successful <c>--write</c> run (patched or already in sync), to the
+/// highest Cosmos <c>_ts</c> considered, but never past the moment the catalogue read started (less
+/// <see cref="WatermarkSafetySeconds"/>). A playable saved during the read, in a part already streamed, would
+/// otherwise sit below a watermark set by a later save and never be read again (#1479).</item>
 /// </list>
 /// </summary>
 public sealed class D1SearchReconciler(
@@ -177,8 +182,16 @@ public sealed class D1SearchReconciler(
     ID1SearchIndexWriter writer,
     ID1SearchReconcileWatermarkStore watermarkStore,
     IOptions<D1SearchOptions> options,
+    TimeProvider timeProvider,
     ILogger<D1SearchReconciler> logger) : ID1SearchReconciler
 {
+    /// <summary>
+    /// The watermark stays this far before the start of the catalogue read, so Cosmos <c>_ts</c> (server clock) and
+    /// this machine's clock may disagree by up to this much without a playable being skipped. Re-reading a few
+    /// minutes' changes is cheap (#1479).
+    /// </summary>
+    public const long WatermarkSafetySeconds = 300;
+
     /// <summary>
     /// After the first candidate, report every this many catalogue items so the bar moves during
     /// the first Cosmos page and per-podcast lookups, not only every 100 documents.
@@ -222,6 +235,8 @@ public sealed class D1SearchReconciler(
 
         D1SearchReconcileReport Done(D1SearchReconcileReport r) => Log(r with { Scan = scan, SinceTs = sinceTs });
 
+        // #1479: nothing saved from here on can be skipped by the watermark this run saves.
+        var readStartedSeconds = timeProvider.GetUtcNow().ToUnixTimeSeconds() - WatermarkSafetySeconds;
         CatalogueSnapshot snapshot;
         try
         {
@@ -251,6 +266,22 @@ public sealed class D1SearchReconciler(
             return Done(Failed(ex.Message, snapshot.EligibleCount, snapshot.BuildFailed.Count));
         }
 
+        if (incremental)
+        {
+            try
+            {
+                snapshot = await AddMissingOutsideWindow(snapshot, inventory, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                logger.LogError(ex,
+                    "D1 search reconcile could not read the eligible playables missing outside the window; nothing " +
+                    "was written. {Message}", ex.Message);
+                return Done(Failed(ex.Message, snapshot.EligibleCount, snapshot.BuildFailed.Count));
+            }
+        }
+
+        var watermarkSeconds = Math.Min(snapshot.MaxTimestampSeconds, readStartedSeconds);
         var planStarted = Stopwatch.StartNew();
         var plan = Plan(snapshot, inventory);
         logger.LogInformation(
@@ -261,7 +292,7 @@ public sealed class D1SearchReconciler(
         if (plan.Upserts.Count + plan.Orphans.Count == 0)
         {
             var inSync = report with { Outcome = D1SearchReconcileOutcome.InSync };
-            await TryAdvanceWatermark(request, inSync, snapshot.MaxTimestampSeconds, cancellationToken);
+            await TryAdvanceWatermark(request, inSync, watermarkSeconds, cancellationToken);
             return Done(inSync);
         }
 
@@ -283,7 +314,7 @@ public sealed class D1SearchReconciler(
             Deleted = deleted,
             Error = error
         };
-        await TryAdvanceWatermark(request, written, snapshot.MaxTimestampSeconds, cancellationToken);
+        await TryAdvanceWatermark(request, written, watermarkSeconds, cancellationToken);
         return Done(written);
     }
 
@@ -371,6 +402,79 @@ public sealed class D1SearchReconciler(
         return new CatalogueSnapshot(eligible, buildFailed, allEligibleIds, maxTimestampSeconds, held, parentChanged);
     }
 
+    /// <summary>
+    /// #1479: an incremental read only builds the <c>_ts</c> window, but its eligible count is the whole catalogue's
+    /// id projection. An eligible id outside the window that D1 lacks (lost push, or a save the old watermark skipped)
+    /// was neither counted as missing nor sent, so <c>eligible</c> exceeded <c>D1</c> while <c>missing</c> said 0.
+    /// Those ids are read by id here, with the same rules as a full read: a buildable one joins the window as
+    /// missing (and is sent on a write); one that is now excluded or gone leaves the eligible set, because the full
+    /// rules are the ones the index follows; a failed build is kept, as in a full scan.
+    /// </summary>
+    private async Task<CatalogueSnapshot> AddMissingOutsideWindow(
+        CatalogueSnapshot snapshot,
+        IReadOnlyDictionary<string, long> inventory,
+        CancellationToken cancellationToken)
+    {
+        var outside = snapshot.AllEligibleIds!
+            .Where(id => !snapshot.Eligible.ContainsKey(id)
+                         && !snapshot.BuildFailed.Contains(id)
+                         && !inventory.ContainsKey(id))
+            .ToHashSet(StringComparer.Ordinal);
+        if (outside.Count == 0)
+        {
+            return snapshot;
+        }
+
+        var eligible = new Dictionary<string, long>(snapshot.Eligible, StringComparer.Ordinal);
+        var held = new Dictionary<string, D1SearchDocument>(snapshot.HeldDocuments!, StringComparer.Ordinal);
+        var buildFailed = new HashSet<string>(snapshot.BuildFailed, StringComparer.Ordinal);
+        var found = new HashSet<string>(StringComparer.Ordinal);
+        await foreach (var candidate in catalogue.ReadByIds(outside, cancellationToken)
+                           .WithCancellation(cancellationToken))
+        {
+            if (!outside.Contains(candidate.Id))
+            {
+                continue;
+            }
+
+            if (candidate.BuildFailed)
+            {
+                buildFailed.Add(candidate.Id);
+                found.Add(candidate.Id);
+            }
+            else if (candidate.Document is { } document)
+            {
+                // A kind change can bring an id twice; the document wins, as in a full read.
+                eligible.TryAdd(candidate.Id, document.ModifiedAt);
+                held.TryAdd(candidate.Id, document);
+                found.Add(candidate.Id);
+            }
+        }
+
+        var notEligible = outside.Where(id => !found.Contains(id)).ToList();
+        var allEligibleIds = new HashSet<string>(snapshot.AllEligibleIds!, StringComparer.Ordinal);
+        allEligibleIds.ExceptWith(notEligible);
+        logger.LogInformation(
+            "D1 search reconcile: {Outside} eligible id(s) missing from D1 outside the window; {Found} read by id " +
+            "({Excluded} now excluded or gone).",
+            outside.Count, found.Count, notEligible.Count);
+        if (notEligible.Count > 0)
+        {
+            logger.LogWarning(
+                "D1 search reconcile: the eligible-id projection and the full eligibility rules disagree on {Count} " +
+                "id(s), e.g. {Sample}; they are not counted as eligible.",
+                notEligible.Count, string.Join(", ", notEligible.Take(5)));
+        }
+
+        return snapshot with
+        {
+            Eligible = eligible,
+            HeldDocuments = held,
+            BuildFailed = buildFailed,
+            AllEligibleIds = allEligibleIds
+        };
+    }
+
     private static long TimestampSeconds(D1SearchCandidate candidate)
     {
         if (candidate.TimestampSeconds > 0)
@@ -399,12 +503,16 @@ public sealed class D1SearchReconciler(
             }
         }
 
-        var eligibleIds = snapshot.AllEligibleIds ?? snapshot.Eligible.Keys.ToHashSet(StringComparer.Ordinal);
+        // #1479: a window document is eligible even if it became so after the id projection, so every id counted
+        // missing is also counted eligible.
+        var eligibleIds = snapshot.AllEligibleIds is { } all
+            ? all.Union(snapshot.Eligible.Keys).ToHashSet(StringComparer.Ordinal)
+            : snapshot.Eligible.Keys.ToHashSet(StringComparer.Ordinal);
         var orphans = inventory.Keys
             .Where(id => !eligibleIds.Contains(id) && !snapshot.BuildFailed.Contains(id))
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
-        var eligibleCount = snapshot.AllEligibleIds?.Count ?? snapshot.Eligible.Count;
+        var eligibleCount = eligibleIds.Count;
         var drift = (double)(missing + stale + orphans.Length) / Math.Max(1, Math.Max(inventory.Count, eligibleCount));
         var report = new D1SearchReconcileReport(D1SearchReconcileOutcome.DryRun, inventory.Count,
             eligibleCount, missing, stale, orphans.Length, snapshot.BuildFailed.Count, drift);
