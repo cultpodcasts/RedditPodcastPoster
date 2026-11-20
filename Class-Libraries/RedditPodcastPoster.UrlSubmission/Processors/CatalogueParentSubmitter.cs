@@ -51,6 +51,16 @@ public class CatalogueParentSubmitter(
         IndexingContext indexingContext,
         SubmitOptions submitOptions)
     {
+        if (submitOptions.ServiceLinkConflict == ServiceLinkConflictChoice.Cancel)
+        {
+            // #1483: a cancelled service-link conflict writes nothing here either (backstop: the Api returns
+            // Cancelled before submitting).
+            logger.LogInformation(
+                "Service-link conflict answered cancel for '{Url}' under {Kind} '{ParentId}': nothing written.",
+                url, parent.Kind, parent.Parent.Id);
+            return new SubmitResult(SubmitResultState.None, SubmitResultState.None, ContentKind: parent.ContentKind);
+        }
+
         var transient = (parent.Indexing ?? new CatalogueIndexingSource()).ToTransientPodcast(parent.Parent);
 
         // The parent's stored playables are its "episodes": the categoriser and processor match the URL against them
