@@ -2,6 +2,7 @@ using FluentAssertions;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Curation;
 
@@ -177,9 +178,9 @@ public class EpisodeServiceLinksRules
     }
 
     [Fact(DisplayName =
-        "A split-off episode is never posted automatically: Reddit is marked posted, X is skipped with the " +
-        "split-off reason rather than the legacy tweeted flag, and Bluesky is marked posted (#1484).")]
-    public void split_off_episode_is_never_posted()
+        "A pending split-off episode is blocked from posting on every channel: Reddit is marked posted, X is " +
+        "skipped with the split-off reason rather than the legacy tweeted flag, and Bluesky is marked posted (#1484).")]
+    public void pending_split_off_episode_is_not_posted()
     {
         // Arrange
         var source = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
@@ -199,8 +200,8 @@ public class EpisodeServiceLinksRules
     }
 
     [Fact(DisplayName =
-        "A split-off episode is hidden from the public until a curator approves it: it is stored removed and " +
-        "awaiting approval, and clearing removed approves it (#1484).")]
+        "A split-off episode is pending review and hidden from the public until a curator approves it; approving it " +
+        "makes it public (#1484).")]
     public void split_off_episode_is_hidden_until_approved()
     {
         // Arrange
@@ -212,10 +213,114 @@ public class EpisodeServiceLinksRules
 
         // Assert
         split.Removed.Should().BeTrue();
+        split.SplitOffStatus.Should().Be(SplitOffStatus.Pending);
+        source.SplitOffStatus.Should().BeNull();
         EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeTrue();
+        EpisodeServiceLinks.IsHeldForReview(split).Should().BeTrue();
         EpisodeServiceLinks.IsAwaitingApproval(source).Should().BeFalse();
-        split.Removed = false;
-        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeFalse("a curator cleared removed: it is approved");
+        EpisodeServiceLinks.Approve(split).Should().BeTrue();
+        split.Removed.Should().BeFalse();
+        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeFalse();
+        EpisodeServiceLinks.IsHeldForReview(split).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Approving a split-off clears the posting blocks it was created with (Reddit posted, the X skip reason, the " +
+        "Bluesky flag), so the normal posting jobs may post it under their usual rules (#1484).")]
+    public void approving_a_split_off_clears_its_posting_blocks()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+
+        // Act
+        var changed = EpisodeServiceLinks.Approve(split);
+
+        // Assert
+        changed.Should().BeTrue();
+        split.SplitOffStatus.Should().Be(SplitOffStatus.Approved);
+        split.Posted.Should().BeFalse();
+        split.TweetSkipReason.Should().BeNull();
+        split.Tweeted.Should().BeFalse();
+        split.BlueskyPosted.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Rejecting a split-off keeps it hidden and blocked from posting, and a rejected split-off is still held for " +
+        "review rather than awaiting approval (#1484).")]
+    public void rejecting_a_split_off_keeps_it_hidden_and_unposted()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+
+        // Act
+        var changed = EpisodeServiceLinks.Reject(split);
+
+        // Assert
+        changed.Should().BeTrue();
+        split.SplitOffStatus.Should().Be(SplitOffStatus.Rejected);
+        split.Removed.Should().BeTrue();
+        split.Posted.Should().BeTrue();
+        split.TweetSkipReason.Should().Be(EpisodeServiceLinks.SplitOffTweetSkipReason);
+        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeFalse();
+        EpisodeServiceLinks.IsHeldForReview(split).Should().BeTrue();
+        EpisodeServiceLinks.Reject(split).Should().BeFalse("rejecting again changes nothing");
+    }
+
+    [Fact(DisplayName =
+        "An approved split-off that is later removed (e.g. unplayable) stays approved: it does not go back to " +
+        "pending review (#1484).")]
+    public void approved_split_off_later_removed_stays_approved()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+        EpisodeServiceLinks.Approve(split);
+
+        // Act
+        split.Removed = true;
+
+        // Assert
+        split.SplitOffStatus.Should().Be(SplitOffStatus.Approved);
+        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeFalse();
+        EpisodeServiceLinks.IsHeldForReview(split).Should().BeFalse();
+        EpisodeServiceLinks.Approve(split).Should().BeFalse("approving an approved split-off changes nothing");
+    }
+
+    [Fact(DisplayName =
+        "Approving a split-off again after it was approved, posted and then rejected makes it public but never " +
+        "re-arms posting: only the first approval clears the split-off's posting blocks (#1484).")]
+    public void re_approving_a_posted_split_off_does_not_re_arm_posting()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+        EpisodeServiceLinks.Approve(split);
+        split.Posted = true;
+        split.TweetPost = _fixture.CreateTitle(1);
+        EpisodeServiceLinks.Reject(split);
+
+        // Act
+        EpisodeServiceLinks.Approve(split);
+
+        // Assert
+        split.SplitOffStatus.Should().Be(SplitOffStatus.Approved);
+        split.Removed.Should().BeFalse();
+        split.Posted.Should().BeTrue();
+        split.Tweeted.Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "Only a split-off episode can be approved or rejected (#1484).")]
+    public void approving_or_rejecting_an_ordinary_episode_throws()
+    {
+        // Arrange
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
+
+        // Act
+        var approve = () => EpisodeServiceLinks.Approve(episode);
+        var reject = () => EpisodeServiceLinks.Reject(episode);
+
+        // Assert
+        approve.Should().Throw<InvalidOperationException>();
+        reject.Should().Throw<InvalidOperationException>();
+        episode.SplitOffStatus.Should().BeNull();
     }
 
     [Fact(DisplayName =
@@ -254,5 +359,142 @@ public class EpisodeServiceLinksRules
 
         // Assert
         act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact(DisplayName =
+        "Splitting the same links off the same stored episode twice gives the same split-off id (a name-based v5 " +
+        "GUID), so an overwrite retried after a failed save replaces the saved split-off instead of adding another (#1482).")]
+    public void split_off_id_is_deterministic()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var episodeId = _fixture.CreateGuid();
+        Episode Source() => _fixture.BuildEpisode()
+            .WithId(episodeId)
+            .WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .Create();
+
+        // Act
+        var first = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify]).Episode;
+        var second = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify]).Episode;
+
+        // Assert
+        first.Id.Should().Be(second.Id);
+        first.Id.Version.Should().Be(5);
+        first.Id.Should().NotBe(episodeId);
+    }
+
+    [Fact(DisplayName =
+        "A different stored episode, or different links on it, gives a different split-off id, so the deterministic " +
+        "id never reuses another episode's split-off (#1482).")]
+    public void split_off_id_depends_on_episode_and_links()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var otherSpotifyId = _fixture.CreateSpotifyId();
+        var episodeId = _fixture.CreateGuid();
+        var source = _fixture.BuildEpisode().WithId(episodeId).WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId)).Create();
+        var otherLinks = _fixture.BuildEpisode().WithId(episodeId).WithPodcast(_podcast)
+            .WithSpotify(otherSpotifyId, _fixture.DefaultSpotifyUrl(otherSpotifyId)).Create();
+        var otherEpisode = _fixture.BuildEpisode().WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId)).Create();
+
+        // Act
+        var id = EpisodeServiceLinks.SplitOffId(source);
+
+        // Assert
+        id.Should().NotBe(EpisodeServiceLinks.SplitOffId(otherLinks));
+        id.Should().NotBe(EpisodeServiceLinks.SplitOffId(otherEpisode));
+        EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode.Id.Should().Be(id);
+    }
+
+    [Fact(DisplayName =
+        "The split-off id covers the stored episode's Spotify and Apple links whatever subset conflicts, so an " +
+        "overwrite whose secondary Apple link resolves on one attempt and not the next still gets the same id (#1482).")]
+    public void split_off_id_does_not_depend_on_the_conflicting_keys()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var appleId = _fixture.CreateAppleId();
+        var episodeId = _fixture.CreateGuid();
+        Episode Source() => _fixture.BuildEpisode()
+            .WithId(episodeId)
+            .WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
+            .Create();
+
+        // Act
+        var both = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify, ServiceKeys.Apple]).Episode;
+        var spotifyOnly = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify]).Episode;
+
+        // Assert
+        spotifyOnly.Id.Should().Be(both.Id);
+        EpisodeServiceLinks.SplitOffId(Source()).Should().Be(both.Id);
+    }
+
+    [Fact(DisplayName =
+        "Finishing a split onto the existing split-off keeps its details, clears links it already holds from the " +
+        "stored episode, and reports that it needs no save when it gained no link (#1482).")]
+    public void split_off_onto_existing_keeps_its_details()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var appleId = _fixture.CreateAppleId();
+        var episodeId = _fixture.CreateGuid();
+        Episode Source() => _fixture.BuildEpisode()
+            .WithId(episodeId)
+            .WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
+            .Create();
+        var existing = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify, ServiceKeys.Apple]).Episode;
+        var editedTitle = _fixture.CreateTitle();
+        existing.Title = editedTitle;
+        var source = Source();
+
+        // Act
+        var result = EpisodeServiceLinks.SplitOffOnto(source, existing, [ServiceKeys.Spotify]);
+
+        // Assert
+        result.Episode.Should().BeSameAs(existing);
+        result.Reused.Should().BeTrue();
+        result.SplitOffChanged.Should().BeFalse();
+        result.Moved.Should().BeEquivalentTo([ServiceKeys.Spotify, ServiceKeys.Apple]);
+        existing.Title.Should().Be(editedTitle);
+        EpisodeServicePresence.SpotifyEpisodeId(source).Should().BeNull();
+        EpisodeServicePresence.AppleEpisodeId(source).Should().BeNull();
+        EpisodeServicePresence.SpotifyEpisodeId(existing).Should().Be(spotifyId);
+        EpisodeServicePresence.AppleEpisodeId(existing).Should().Be(appleId);
+    }
+
+    [Fact(DisplayName =
+        "Finishing a split onto an existing split-off that lacks a conflicting link moves that link onto it and " +
+        "reports that it must be saved (#1482).")]
+    public void split_off_onto_existing_adds_a_missing_link()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var appleId = _fixture.CreateAppleId();
+        var episodeId = _fixture.CreateGuid();
+        Episode Source() => _fixture.BuildEpisode()
+            .WithId(episodeId)
+            .WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
+            .Create();
+        var existing = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify]).Episode;
+        var source = Source();
+
+        // Act
+        var result = EpisodeServiceLinks.SplitOffOnto(source, existing, [ServiceKeys.Spotify, ServiceKeys.Apple]);
+
+        // Assert
+        result.SplitOffChanged.Should().BeTrue();
+        EpisodeServicePresence.AppleEpisodeId(existing).Should().Be(appleId);
+        EpisodeServicePresence.AppleEpisodeId(source).Should().BeNull();
+        EpisodeServicePresence.SpotifyEpisodeId(source).Should().BeNull();
     }
 }

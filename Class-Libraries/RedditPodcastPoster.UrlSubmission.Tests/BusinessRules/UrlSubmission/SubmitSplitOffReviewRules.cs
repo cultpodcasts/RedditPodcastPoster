@@ -63,13 +63,13 @@ public class SubmitSplitOffReviewRules
     }
 
     [Fact(DisplayName =
-        "Once a curator has approved a split-off (cleared removed), it is an ordinary episode again and a submit " +
-        "that matches it enriches it.")]
+        "Once a curator has approved a split-off, it is an ordinary episode again and a submit that matches it " +
+        "enriches it.")]
     public async Task approved_split_off_is_matched_normally()
     {
         // Arrange
         var (stored, splitOff) = StoredWithPartlySavedSplitOff();
-        splitOff.Removed = false;
+        EpisodeServiceLinks.Approve(splitOff);
         var item = SpotifyAndAppleSubmit([splitOff, stored]);
         var sut = ArrangeProcessor();
 
@@ -79,6 +79,58 @@ public class SubmitSplitOffReviewRules
         // Assert
         result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
         result.Episode!.Id.Should().Be(splitOff.Id);
+    }
+
+    [Fact(DisplayName =
+        "A rejected split-off is never matched by title alone either: after a partly saved overwrite, a create-new " +
+        "submit of the same episode creates a new episode instead of enriching the rejected split-off.")]
+    public async Task rejected_split_off_is_not_title_matched()
+    {
+        // Arrange
+        var (stored, splitOff) = StoredWithPartlySavedSplitOff();
+        EpisodeServiceLinks.Reject(splitOff);
+        var item = SpotifyAndAppleSubmit([splitOff, stored]);
+        var sut = ArrangeProcessor();
+
+        // Act
+        var result = await sut.ProcessCategorisedItem(item, Options(ServiceLinkConflictChoice.CreateNew));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.Created);
+        result.Episode!.Id.Should().NotBe(splitOff.Id);
+        EpisodeServicePresence.AppleEpisodeId(splitOff).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a submit matches both a hidden split-off (by the submitted Spotify link it holds) and its stored " +
+        "episode (by a resolved YouTube link and the same title), the split-off holding the submitted link is the " +
+        "one matched, and it stays hidden.")]
+    public async Task submitted_link_holder_wins_a_title_tie_with_the_stored_episode()
+    {
+        // Arrange
+        var youTubeId = _fixture.CreateYouTubeId();
+        var (stored, splitOff) = StoredWithCompletedSplitOff();
+        EpisodeServicePresence.SetYouTubeIdentity(stored, youTubeId);
+        EpisodeServicePresence.Upsert(stored, ServiceKeys.YouTube, _fixture.DefaultYouTubeUrl(youTubeId), null);
+        var spotifyId = EpisodeServicePresence.SpotifyEpisodeId(splitOff)!;
+        var spotify = new CategorisedSpotifyItem(
+            _fixture.CreateSpotifyId(), spotifyId, _podcast.Name, string.Empty, string.Empty, _title,
+            string.Empty, _release, _length, _fixture.DefaultSpotifyUrl(spotifyId), false, null);
+        var youTube = new CategorisedYouTubeItem(
+            _fixture.CreateYouTubeChannelId(), youTubeId, _podcast.Name, string.Empty, string.Empty, _title,
+            string.Empty, _release, _length, _fixture.DefaultYouTubeUrl(youTubeId), false, null, null);
+        var item = new CategorisedItem(_podcast, [stored, splitOff], null, spotify, null, youTube, null, Service.Spotify);
+        var sut = ArrangeProcessor();
+
+        // Act
+        var result = await sut.ProcessCategorisedItem(item, Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        result.ServiceLinkConflict.Should().BeNull();
+        result.Episode!.Id.Should().Be(splitOff.Id);
+        splitOff.Removed.Should().BeTrue();
+        EpisodeServiceLinks.IsAwaitingApproval(splitOff).Should().BeTrue();
+        _mocker.GetMock<IEpisodeFactory>().Verify(x => x.CreateEpisode(It.IsAny<CategorisedItem>()), Times.Never);
     }
 
     [Fact(DisplayName =

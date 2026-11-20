@@ -110,6 +110,17 @@ public class SubmitUrlService(
                 }
 
                 serviceLinkConflictEpisodeId = submitUrlModel.ServiceLinkConflictEpisodeId;
+                if (serviceLinkConflictChoice == ServiceLinkConflictChoice.Cancel)
+                {
+                    // #1483: the curator cancelled a service-link conflict prompt. Nothing is submitted, so no path
+                    // (podcast, catalogue kind or catalogue parent) can write; the submitter keeps its own early
+                    // returns as a backstop.
+                    logger.LogInformation(
+                        "{RunName}: Service-link conflict answered cancel for '{Url}': nothing submitted.",
+                        nameof(SubmitAsync), submitUrlModel.Url);
+                    return new SubmitUrlResult(SubmitUrlStatus.Cancelled,
+                        new SubmitResult(SubmitResultState.None, SubmitResultState.None));
+                }
             }
             else if (!string.IsNullOrWhiteSpace(submitUrlModel.ServiceLinkConflictDecision) ||
                      submitUrlModel.ServiceLinkConflictEpisodeId != null)

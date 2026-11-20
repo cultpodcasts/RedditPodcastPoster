@@ -27,6 +27,7 @@ public partial class CreateSearchIndexProcessor(
     SearchIndexClient searchIndexClient,
     SearchIndexerClient searchIndexerClient,
     ISearchIndexerService searchIndexerService,
+    IRebuildFilmPush rebuildFilmPush,
     IOptions<CosmosDbSettings> cosmosDbSettings,
     ILogger<CreateSearchIndexProcessor> logger)
 {
@@ -53,7 +54,12 @@ public partial class CreateSearchIndexProcessor(
     private static readonly TimeSpan Frequency = TimeSpan.FromMinutes(30);
     private readonly CosmosDbSettings _cosmosDbSettings = cosmosDbSettings.Value;
 
-    public async Task Process(CreateSearchIndexRequest request)
+    /// <summary>
+    /// Runs the request. Returns <c>false</c> only when the planned film push after a teardown + run-indexer did not
+    /// complete (failed, incomplete, or skipped because the rebuilt index is not the configured one), so the CLI can
+    /// exit non-zero; everything else that goes wrong throws, as before.
+    /// </summary>
+    public async Task<bool> Process(CreateSearchIndexRequest request)
     {
         var plan = SearchIndexRebuildPlan.For(request);
         await EnsureSiblingQuotaFits(request, plan);
@@ -116,10 +122,10 @@ public partial class CreateSearchIndexProcessor(
             await EnsureSiblingPlayableIndexers(request);
         }
 
-        if (plan.TearDownSiblings)
+        if (plan.TearDownSiblings && !plan.PushFilms)
         {
             logger.LogWarning(
-                "The recreated index has no film documents. Run 'FilmSearchPusher' (it detects the empty index and pushes every film) or 'FilmSearchPusher --full'.");
+                "The recreated index has no film documents. The scheduled refresh pushes every film back within the hour (it detects the empty index); to restore them now, re-run with --run-indexer or run 'FilmSearchPusher --full'.");
         }
 
         if (plan.ResetSiblings)
@@ -152,7 +158,33 @@ public partial class CreateSearchIndexProcessor(
                     await RunIndexerWithRetries(request, source.IndexerName);
                 }
             }
+
+            return await PushFilmsIfPlanned(plan, request.IndexName);
         }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The last step of a run-indexer, after the episode and sibling indexers: a full film push when the plan asks for
+    /// one (teardown + run-indexer). <c>true</c> when no push is planned or the push completed.
+    /// </summary>
+    internal async Task<bool> PushFilmsIfPlanned(SearchIndexRebuildPlan plan, string? indexName)
+    {
+        if (!plan.PushFilms)
+        {
+            return true;
+        }
+
+        var pushed = await rebuildFilmPush.PushAfterRebuild(indexName!, CancellationToken.None);
+        if (!pushed)
+        {
+            logger.LogError(
+                "The rebuilt index '{IndexName}' has not had every film pushed back. Run 'FilmSearchPusher --full' (or wait for the scheduled refresh) to restore them.",
+                indexName);
+        }
+
+        return pushed;
     }
 
     private async Task RunIndexerWithRetries(CreateSearchIndexRequest request, string? indexerName)

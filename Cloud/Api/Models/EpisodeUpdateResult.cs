@@ -4,9 +4,13 @@ public enum EpisodeUpdateStatus
 {
     Accepted,
     NotFound,
-    Failed
+    Failed,
+
+    /// <summary>The change is not valid for this episode (<see cref="EpisodeUpdateResult.Message"/> says why).</summary>
+    BadRequest
 }
 
 public record EpisodeUpdateResult(
     EpisodeUpdateStatus Status,
-    EpisodeUpdateOutcome? Outcome = null);
+    EpisodeUpdateOutcome? Outcome = null,
+    string? Message = null);

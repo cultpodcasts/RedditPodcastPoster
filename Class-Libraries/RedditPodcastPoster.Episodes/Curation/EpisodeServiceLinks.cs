@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -63,23 +65,19 @@ public static class EpisodeServiceLinks
     /// The new episode starts as a copy of the source's details (title, description, release, length, language,
     /// subjects, matches, search terms, hashtag, guests and parent fields) for the curator to correct.
     /// <para>
-    /// #1484: it is <b>hidden until a curator reviews and approves it</b> (<see cref="IsAwaitingApproval"/>): it is
-    /// stored <see cref="Models.Catalogue.Playable.Removed"/>, the existing "not public" state (no public page,
-    /// search, homepage or posting), and marked with <see cref="SplitOffTweetSkipReason"/>, which also keeps it off X
-    /// for good. A curator approves it by clearing Removed in the episode editor. It is a recovery record and is
-    /// never posted automatically (Reddit is marked posted; Bluesky has no skip reason, so its legacy manual-mark flag
-    /// is set).
+    /// #1484: it is <b>pending curator review</b> (<see cref="Episode.SplitOffStatus"/> =
+    /// <see cref="SplitOffStatus.Pending"/>): hidden (<see cref="Models.Catalogue.Playable.Removed"/>, so no public
+    /// page, search, D1, homepage or posting) and blocked from every posting channel (Reddit marked posted,
+    /// <see cref="SplitOffTweetSkipReason"/> for X, the legacy Bluesky flag). A curator approves it
+    /// (<see cref="Approve"/>: public, posting blocks cleared, posted under the usual rules) or rejects it
+    /// (<see cref="Reject"/>: stays hidden, never posted). Until approved it is matched by a submit only by one of its
+    /// own service ids and is never a service-link conflict candidate (<see cref="IsHeldForReview"/>).
     /// </para>
     /// <para>
-    /// Reusing Removed (rather than a separate approval status, which is not decided yet) has known limits:
-    /// <list type="bullet">
-    /// <item>Pending and rejected look the same: a split-off the curator decides is junk and leaves Removed stays
-    /// "awaiting approval" until it is deleted, and an approved split-off that is later removed (e.g. unplayable)
-    /// reads as awaiting again.</item>
-    /// <item>Approving never posts it: clearing Removed leaves Posted, the X skip reason and the Bluesky flag set. That
-    /// is right when the old links were the same, already-posted episode. If they turn out to be a different,
-    /// never-posted episode, the curator also has to untick Posted / Tweeted / Bluesky by hand.</item>
-    /// </list>
+    /// #1482: its id is deterministic (<see cref="SplitOffId"/>: a name-based v5 GUID of the source id and its stored
+    /// Spotify and Apple links), so an overwrite retried after a failed save gets the same id. A caller that finds an
+    /// episode with that id already stored must use <see cref="SplitOffOnto"/> instead, so the saved split-off (and
+    /// any curator edits to it, including an approval or rejection) is reused rather than rebuilt.
     /// </para>
     /// </summary>
     /// <exception cref="InvalidOperationException">The source carries none of <paramref name="serviceKeys"/>.</exception>
@@ -89,6 +87,7 @@ public static class EpisodeServiceLinks
         ArgumentNullException.ThrowIfNull(serviceKeys);
         var split = new Episode
         {
+            Id = SplitOffId(source),
             PodcastId = source.PodcastId,
             PodcastName = source.PodcastName,
             Title = source.Title,
@@ -108,6 +107,7 @@ public static class EpisodeServiceLinks
             ParentMetadataVersion = source.ParentMetadataVersion,
             ParentRemoved = source.ParentRemoved,
             Removed = true,
+            SplitOffStatus = SplitOffStatus.Pending,
             Posted = true,
             TweetSkipReason = SplitOffTweetSkipReason,
             OldBlueskyPosted = true
@@ -125,23 +125,191 @@ public static class EpisodeServiceLinks
     }
 
     /// <summary>
-    /// <c>tweetSkipReason</c> code on an episode created by <see cref="SplitOff"/> (#1484). It never goes to X, and
-    /// while it is also <see cref="Models.Catalogue.Playable.Removed"/> it is awaiting curator approval.
+    /// <c>tweetSkipReason</c> set on a new split-off (#1484) so X never posts it while it is pending review.
+    /// <see cref="Approve"/> clears it.
     /// </summary>
     public const string SplitOffTweetSkipReason = "split-off";
 
-    /// <summary>
-    /// True for a split-off that a curator has not approved yet (#1484): still hidden
-    /// (<see cref="Models.Catalogue.Playable.Removed"/>) and marked <see cref="SplitOffTweetSkipReason"/>. Such an
-    /// episode is not public. A submit matches it only by one of its own service ids (never by title alone), so it
-    /// cannot be enriched in place of the stored episode it was split from, and is not a service-link conflict
-    /// candidate. A rejected split-off (left Removed) also reads as awaiting; see <see cref="SplitOff"/>.
-    /// </summary>
+    /// <summary>True for a split-off a curator has not reviewed yet (#1484).</summary>
     public static bool IsAwaitingApproval(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        return episode.Removed &&
-               string.Equals(episode.TweetSkipReason, SplitOffTweetSkipReason, StringComparison.Ordinal);
+        return episode.SplitOffStatus == SplitOffStatus.Pending;
+    }
+
+    /// <summary>
+    /// True for a split-off that is pending review or was rejected (#1484): not public. A submit matches it only by
+    /// one of its own service ids (never by title alone), so it is never enriched in place of the stored episode it
+    /// was split from, and it is never a service-link conflict candidate, so an overwrite never lands submitted links
+    /// on a hidden episode. An approved split-off is an ordinary episode.
+    /// </summary>
+    public static bool IsHeldForReview(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        return episode.SplitOffStatus is SplitOffStatus.Pending or SplitOffStatus.Rejected;
+    }
+
+    /// <summary>
+    /// #1484: a curator approves a pending (or previously rejected) split-off. It becomes public (Removed cleared)
+    /// and, the first time, the posting blocks <see cref="SplitOff"/> set are cleared (Reddit posted flag, the X skip
+    /// reason, the legacy Bluesky flag), so the normal posting jobs may post it under their usual rules (release
+    /// window, ignored, delayed YouTube publishing). Nothing is posted here. The blocks are only cleared while
+    /// <see cref="SplitOffTweetSkipReason"/> is still set, so approving again after a rejection never re-arms posting
+    /// of an episode that was already posted. Approving an approved split-off changes nothing.
+    /// </summary>
+    /// <returns>True when anything changed.</returns>
+    /// <exception cref="InvalidOperationException">The episode is not a split-off.</exception>
+    public static bool Approve(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        if (episode.SplitOffStatus is null)
+        {
+            throw new InvalidOperationException($"Episode '{episode.Id}' is not a split-off.");
+        }
+
+        if (episode.SplitOffStatus == SplitOffStatus.Approved)
+        {
+            return false;
+        }
+
+        episode.SplitOffStatus = SplitOffStatus.Approved;
+        episode.Removed = false;
+        if (string.Equals(episode.TweetSkipReason, SplitOffTweetSkipReason, StringComparison.Ordinal))
+        {
+            episode.TweetSkipReason = null;
+            episode.Posted = false;
+            if (string.IsNullOrWhiteSpace(episode.BlueskyPost))
+            {
+                episode.OldBlueskyPosted = null;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// #1484: a curator rejects a split-off. It is hidden (Removed) and stays out of public and posting; its posting
+    /// state is left as it is. Rejecting a rejected split-off changes nothing.
+    /// </summary>
+    /// <returns>True when anything changed.</returns>
+    /// <exception cref="InvalidOperationException">The episode is not a split-off.</exception>
+    public static bool Reject(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        if (episode.SplitOffStatus is null)
+        {
+            throw new InvalidOperationException($"Episode '{episode.Id}' is not a split-off.");
+        }
+
+        if (episode.SplitOffStatus == SplitOffStatus.Rejected && episode.Removed)
+        {
+            return false;
+        }
+
+        episode.SplitOffStatus = SplitOffStatus.Rejected;
+        episode.Removed = true;
+        return true;
+    }
+
+    /// <summary>Namespace of <see cref="SplitOffId"/> (#1482).</summary>
+    public static readonly Guid SplitOffIdNamespace = Guid.Parse("6f0d2c4e-91a7-4b3d-8e55-2a7c9b1f4d08");
+
+    /// <summary>The links that name a split-off (<see cref="SplitOffId"/>), whatever subset is being split off.</summary>
+    private static readonly string[] SplitOffIdKeys = [ServiceKeys.Apple, ServiceKeys.Spotify];
+
+    /// <summary>
+    /// The id of the episode split off <paramref name="source"/>: a name-based (RFC 4122 v5, SHA-1) GUID of the
+    /// source id and its stored Spotify and Apple links (id, or url when there is no id), <b>always both</b>, whatever
+    /// keys conflict on a given attempt. A secondary Apple resolve can succeed on one attempt and not the next, and
+    /// the stored links only change once the stored episode's save succeeds, so the id is stable across a retried
+    /// overwrite (#1482). Shared by <see cref="SplitOff"/> and the submit conflict gate, which uses it to recognise
+    /// an already-saved split-off. Ordinary episodes have random (v4) ids, so only a split-off can carry this id.
+    /// </summary>
+    public static Guid SplitOffId(Episode source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var name = new StringBuilder(source.Id.ToString("D"));
+        foreach (var key in SplitOffIdKeys)
+        {
+            var link = Read(source, key);
+            if (!link.IsEmpty)
+            {
+                name.Append('|').Append(key).Append('=').Append(link.Id ?? link.Url!.ToString());
+            }
+        }
+
+        return NameBasedGuid(SplitOffIdNamespace, name.ToString());
+    }
+
+    /// <summary>
+    /// #1482: finishes an interrupted split onto <paramref name="existing"/>, the split-off already saved for
+    /// <paramref name="source"/> (its id is <see cref="SplitOffId"/>). The existing episode's details, including any
+    /// curator edits, are kept. For each Spotify / Apple key that <paramref name="existing"/> already holds with the
+    /// same link, the link is cleared from <paramref name="source"/>, which completes the earlier move even if that
+    /// key does not conflict on this attempt. Each of <paramref name="serviceKeys"/> it does not hold yet is moved
+    /// onto it (<see cref="EpisodeServiceLinkSplit.SplitOffChanged"/> is then true and it must be saved). A key it
+    /// holds with a different link is left on the source.
+    /// </summary>
+    public static EpisodeServiceLinkSplit SplitOffOnto(
+        Episode source,
+        Episode existing,
+        IReadOnlyCollection<string> serviceKeys)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(existing);
+        ArgumentNullException.ThrowIfNull(serviceKeys);
+        if (existing.Id != SplitOffId(source))
+        {
+            throw new ArgumentException(
+                $"Episode '{existing.Id}' is not the split-off of episode '{source.Id}'.", nameof(existing));
+        }
+
+        var moved = new List<string>();
+        var changed = false;
+        foreach (var key in SplitOffIdKeys.Union(serviceKeys, StringComparer.Ordinal))
+        {
+            var link = Read(source, key);
+            if (link.IsEmpty)
+            {
+                continue;
+            }
+
+            var held = Read(existing, key);
+            if (!held.IsEmpty && held.SameAs(link))
+            {
+                Clear(source, key);
+                moved.Add(key);
+            }
+            else if (held.IsEmpty && serviceKeys.Contains(key, StringComparer.Ordinal))
+            {
+                Write(existing, key, link);
+                Clear(source, key);
+                moved.Add(key);
+                changed = true;
+            }
+        }
+
+        if (!serviceKeys.Any(key => moved.Contains(key, StringComparer.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                $"Episode '{source.Id}' carries none of the service links '{string.Join("', '", serviceKeys)}' to split off onto '{existing.Id}'.");
+        }
+
+        return new EpisodeServiceLinkSplit(existing, moved, Reused: true, SplitOffChanged: changed);
+    }
+
+    private static Guid NameBasedGuid(Guid namespaceId, string name)
+    {
+        var namespaceBytes = namespaceId.ToByteArray(bigEndian: true);
+        var nameBytes = Encoding.UTF8.GetBytes(name);
+        var input = new byte[namespaceBytes.Length + nameBytes.Length];
+        namespaceBytes.CopyTo(input, 0);
+        nameBytes.CopyTo(input, namespaceBytes.Length);
+        var hash = SHA1.HashData(input);
+        var bytes = hash.AsSpan(0, 16).ToArray();
+        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x50);
+        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
+        return new Guid(bytes, bigEndian: true);
     }
 
     private static ServiceLinkSnapshot Read(Episode episode, string key) =>
@@ -209,6 +377,13 @@ public static class EpisodeServiceLinks
 public sealed record EpisodeServiceLinkMove(IReadOnlyList<string> Moved, IReadOnlyList<string> Conflicting);
 
 /// <summary>Outcome of <see cref="EpisodeServiceLinks.SplitOff"/>.</summary>
-/// <param name="Episode">The new episode holding the split-off links. Not yet saved.</param>
-/// <param name="Moved">Service keys moved onto <paramref name="Episode"/>.</param>
-public sealed record EpisodeServiceLinkSplit(Episode Episode, IReadOnlyList<string> Moved);
+/// <param name="Episode">The episode holding the split-off links: new and not yet saved, or the reused split-off.</param>
+/// <param name="Moved">Service keys moved onto <paramref name="Episode"/> (or already on it and cleared from the source).</param>
+/// <param name="Reused">The split-off already existed (<see cref="EpisodeServiceLinks.SplitOffOnto"/>, #1482).</param>
+/// <param name="SplitOffChanged">The split-off must be saved: always for a new one; for a reused one only when a link
+/// was added to it, so a curator's edits are never overwritten by a rebuild.</param>
+public sealed record EpisodeServiceLinkSplit(
+    Episode Episode,
+    IReadOnlyList<string> Moved,
+    bool Reused = false,
+    bool SplitOffChanged = true);

@@ -10,8 +10,10 @@ using RedditPodcastPoster.Bluesky.Managers;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Twitter.Managers;
@@ -390,6 +392,157 @@ public class EpisodeUpdateServiceTests
         result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
         _saved.Should().Be(episode);
         episode.Guests.Should().Equal(guest);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a curator approves a pending split-off, then it is saved public with its posting blocks cleared and indexed, and nothing is un-posted, because approval lets the normal posting jobs post it (#1484).")]
+    public async Task update_approving_a_split_off_makes_it_public_and_postable()
+    {
+        // Arrange
+        var (episode, podcast) = ResolvedSplitOffPair();
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id,
+                new EpisodeChangeRequest { SplitOffStatus = SplitOffStatus.Approved }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        _saved.Should().Be(episode);
+        episode.SplitOffStatus.Should().Be(SplitOffStatus.Approved);
+        episode.Removed.Should().BeFalse();
+        episode.Posted.Should().BeFalse();
+        episode.TweetSkipReason.Should().BeNull();
+        episode.BlueskyPosted.Should().BeFalse();
+        _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
+            s => s.IndexEpisode(podcast, episode, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<ITweetManager>().Verify(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()), Times.Never);
+        _mocker.GetMock<IBlueskyPostManager>().Verify(m => m.RemovePost(It.IsAny<PodcastEpisode>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a curator rejects a pending split-off, then it is saved rejected and still removed and is not indexed, because a rejected split-off stays out of public (#1484).")]
+    public async Task update_rejecting_a_split_off_keeps_it_hidden()
+    {
+        // Arrange
+        var (episode, podcast) = ResolvedSplitOffPair();
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id,
+                new EpisodeChangeRequest { SplitOffStatus = SplitOffStatus.Rejected }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        _saved.Should().Be(episode);
+        episode.SplitOffStatus.Should().Be(SplitOffStatus.Rejected);
+        episode.Removed.Should().BeTrue();
+        episode.TweetSkipReason.Should().Be(EpisodeServiceLinks.SplitOffTweetSkipReason);
+        _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
+            s => s.IndexEpisode(It.IsAny<Podcast>(), It.IsAny<Episode>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "Plain English rule: a split-off held for review is made public only by approving it, so clearing removed on a pending or rejected split-off is a bad request and nothing is saved (#1484).")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task update_clearing_removed_on_a_held_split_off_is_rejected(bool rejected)
+    {
+        // Arrange
+        var (episode, podcast) = ResolvedSplitOffPair();
+        if (rejected)
+        {
+            EpisodeServiceLinks.Reject(episode);
+        }
+
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id, new EpisodeChangeRequest { Removed = false }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        result.Message.Should().NotBeNullOrWhiteSpace();
+        _saved.Should().BeNull();
+        episode.Removed.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: an approved split-off later removed (e.g. unplayable) can be un-removed like any episode, because it is no longer held for review (#1484).")]
+    public async Task update_clearing_removed_on_an_approved_split_off_is_accepted()
+    {
+        // Arrange
+        var (episode, podcast) = ResolvedSplitOffPair();
+        EpisodeServiceLinks.Approve(episode);
+        episode.Removed = true;
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id, new EpisodeChangeRequest { Removed = false }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        episode.Removed.Should().BeFalse();
+        episode.SplitOffStatus.Should().Be(SplitOffStatus.Approved);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: only a split-off can be approved or rejected, a split-off cannot be set back to pending, and approve or reject cannot be combined with the opposite removed, so each is a bad request and nothing is saved (#1484).")]
+    public async Task update_invalid_split_off_review_is_a_bad_request()
+    {
+        // Arrange
+        var (ordinary, ordinaryPodcast) = ResolvedOldPair();
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var approveOrdinary = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(ordinaryPodcast.Id, ordinary.Id,
+                new EpisodeChangeRequest { SplitOffStatus = SplitOffStatus.Approved }),
+            CancellationToken.None);
+        var (splitOff, podcast) = ResolvedSplitOffPair();
+        var backToPending = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, splitOff.Id,
+                new EpisodeChangeRequest { SplitOffStatus = SplitOffStatus.Pending }),
+            CancellationToken.None);
+        var approveAndRemove = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, splitOff.Id,
+                new EpisodeChangeRequest { SplitOffStatus = SplitOffStatus.Approved, Removed = true }),
+            CancellationToken.None);
+        var rejectAndUnremove = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, splitOff.Id,
+                new EpisodeChangeRequest { SplitOffStatus = SplitOffStatus.Rejected, Removed = false }),
+            CancellationToken.None);
+
+        // Assert
+        approveOrdinary.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        backToPending.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        approveAndRemove.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        rejectAndUnremove.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        _saved.Should().BeNull();
+        ordinary.SplitOffStatus.Should().BeNull();
+        splitOff.SplitOffStatus.Should().Be(SplitOffStatus.Pending);
+    }
+
+    private (Episode Episode, Podcast Podcast) ResolvedSplitOffPair()
+    {
+        var source = OldEpisode(e =>
+        {
+            var spotifyId = _fixture.CreateSpotifyId();
+            EpisodeServicePresence.SetSpotifyIdentity(e, spotifyId);
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, _fixture.DefaultSpotifyUrl(spotifyId), null);
+        });
+        var splitOff = EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode;
+        var podcast = _fixture.CreatePodcast(p => p.Id = splitOff.PodcastId);
+        _resolved = new PodcastEpisodeResolverResponse(splitOff, podcast, PodcastEpisodeResolveState.Resolved);
+        return (splitOff, podcast);
     }
 
     private (Episode Episode, Podcast Podcast) ResolvedOldPair(Action<Episode>? customize = null)

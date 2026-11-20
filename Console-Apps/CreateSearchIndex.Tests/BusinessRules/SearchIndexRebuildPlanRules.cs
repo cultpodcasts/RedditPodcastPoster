@@ -22,10 +22,11 @@ public class SearchIndexRebuildPlanRules
         plan.EnsureSiblings.Should().BeTrue();
         plan.ResetSiblings.Should().BeFalse();
         plan.RunSiblings.Should().BeFalse();
+        plan.PushFilms.Should().BeFalse("without --run-indexer the scheduled refresh pushes the films back");
     }
 
     [Fact(DisplayName =
-        "When a teardown also runs the indexer, then the siblings are run too, because the rebuilt index must get every playable back in the same run.")]
+        "When a teardown also runs the indexer, then the siblings are run and every film is pushed too, because the rebuilt index must get every playable back in the same run (#1408).")]
     public void teardown_with_run_indexer_runs_siblings()
     {
         // Arrange
@@ -36,6 +37,7 @@ public class SearchIndexRebuildPlanRules
 
         // Assert
         plan.RunSiblings.Should().BeTrue();
+        plan.PushFilms.Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -52,6 +54,7 @@ public class SearchIndexRebuildPlanRules
         plan.TearDownSiblings.Should().BeFalse();
         plan.EnsureSiblings.Should().BeTrue();
         plan.RunSiblings.Should().BeTrue();
+        plan.PushFilms.Should().BeFalse("the index and its film documents are kept");
     }
 
     [Fact(DisplayName =
@@ -65,7 +68,7 @@ public class SearchIndexRebuildPlanRules
         var plan = SearchIndexRebuildPlan.For(request);
 
         // Assert
-        plan.Should().Be(new SearchIndexRebuildPlan(false, false, false, false));
+        plan.Should().Be(new SearchIndexRebuildPlan(false, false, false, false, false));
     }
 
     [Fact(DisplayName =
@@ -113,6 +116,6 @@ public class SearchIndexRebuildPlanRules
         var plan = SearchIndexRebuildPlan.For(request);
 
         // Assert
-        plan.Should().Be(new SearchIndexRebuildPlan(false, false, false, false));
+        plan.Should().Be(new SearchIndexRebuildPlan(false, false, false, false, false));
     }
 }

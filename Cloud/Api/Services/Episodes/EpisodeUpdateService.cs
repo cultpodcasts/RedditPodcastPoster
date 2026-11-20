@@ -64,6 +64,16 @@ public class EpisodeUpdateService(
                 nameof(UpdateAsync), episodeChangeRequestWrapper.EpisodeId, podcastEpisodeResolverResponse.Podcast.Id,
                 JsonSerializer.Serialize(podcastEpisodeResolverResponse.Episode));
 
+            var splitOffReviewError = EpisodeChangeApplier.SplitOffReviewError(
+                podcastEpisodeResolverResponse.Episode,
+                episodeChangeRequestWrapper.EpisodeChangeRequest);
+            if (splitOffReviewError != null)
+            {
+                logger.LogWarning("Episode change for episode-id '{EpisodeId}' rejected: {Reason}",
+                    episodeChangeRequestWrapper.EpisodeId, splitOffReviewError);
+                return new EpisodeUpdateResult(EpisodeUpdateStatus.BadRequest, Message: splitOffReviewError);
+            }
+
             // Taken before the change is applied: a legacy un-tweet (no stored tweet id) searches X for the post by the
             // release and length it was made with, not the ones this request writes (#1204). Never saved.
             var tweetRemovalTarget = episodeChangeRequestWrapper.EpisodeChangeRequest.Tweeted == false &&
@@ -169,8 +179,9 @@ public class EpisodeUpdateService(
 
             try
             {
-                if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.HasValue &&
-                    episodeChangeRequestWrapper.EpisodeChangeRequest.Removed.Value)
+                // #1484: rejecting a split-off hides it, as removing does.
+                if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed == true ||
+                    episodeChangeRequestWrapper.EpisodeChangeRequest.SplitOffStatus == SplitOffStatus.Rejected)
                 {
                     await searchIndexCleanup.DeleteSearchEntry(
                         podcastEpisodeResolverResponse.Podcast.Name,

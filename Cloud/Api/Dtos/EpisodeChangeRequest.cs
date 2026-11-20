@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 
@@ -37,6 +38,14 @@ public class EpisodeChangeRequest
 
     [JsonPropertyName("removed")]
     public bool? Removed { get; set; }
+
+    /// <summary>
+    /// #1484: <c>approved</c> or <c>rejected</c>, for a split-off episode only (400 otherwise, and for
+    /// <c>pending</c>). Approving makes it public and lets the posting jobs post it under their usual rules;
+    /// rejecting keeps it hidden.
+    /// </summary>
+    [JsonPropertyName("splitOffStatus")]
+    public SplitOffStatus? SplitOffStatus { get; set; }
 
     [JsonPropertyName("explicit")]
     public bool? Explicit { get; set; }

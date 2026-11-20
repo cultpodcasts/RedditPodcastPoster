@@ -1,7 +1,9 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -294,6 +296,212 @@ public class SubmitServiceLinkConflictRules
         episodes.SavedEpisodes.Select(x => x.Id).Should().Equal(splitOff.Id, stored.Id);
     }
 
+    [Theory(DisplayName =
+        "When an overwrite's stored-episode save throws after the split-off was saved, and the curator retries the " +
+        "overwrite, the stored episode is overwritten and the saved split-off is reused, so there is one split-off " +
+        "holding the old links, never a second copy or a split of the split-off (#1482).")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task overwrite_retried_after_stored_save_failure_is_idempotent(bool splitOffListedFirst)
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title);
+        var oldSpotifyId = EpisodeServicePresence.SpotifyEpisodeId(stored);
+        var item = SpotifySubmit(_title, [stored]);
+        var episodes = new InMemoryEpisodeRepository();
+        episodes.Seed(stored);
+        var saves = 0;
+        episodes.OnSaving = () =>
+        {
+            if (++saves == 2)
+            {
+                throw new InvalidOperationException(_fixture.CreateTitle());
+            }
+        };
+        _mocker.Use<IEpisodeRepository>(episodes);
+        _mocker.Use<IPodcastRepository>(new InMemoryPodcastRepository());
+        UseRealPodcastPipeline();
+        var options = Options(ServiceLinkConflictChoice.Overwrite, stored.Id);
+        var failed = () => _mocker.CreateInstance<CategorisedItemProcessor>().ProcessCategorisedItem(item, options);
+        await failed.Should().ThrowAsync<InvalidOperationException>();
+        var firstSplitOff = episodes.SavedEpisodes.Should().ContainSingle().Subject;
+        episodes.OnSaving = null;
+        var reloadedStored = (await episodes.GetEpisode(_podcast.Id, stored.Id))!;
+        var reloadedSplitOff = (await episodes.GetEpisode(_podcast.Id, firstSplitOff.Id))!;
+        Episode[] reloaded = splitOffListedFirst ? [reloadedSplitOff, reloadedStored] : [reloadedStored, reloadedSplitOff];
+        var retry = item with { MatchingPodcastEpisodes = reloaded };
+
+        // Act
+        var result = await _mocker.CreateInstance<CategorisedItemProcessor>().ProcessCategorisedItem(retry, options);
+
+        // Assert
+        result.SplitOffEpisode!.Id.Should().Be(firstSplitOff.Id);
+        var podcastEpisodes = await episodes.GetByPodcastId(_podcast.Id).ToListAsync();
+        podcastEpisodes.Should().HaveCount(2);
+        var saved = podcastEpisodes.Single(x => x.Id == stored.Id);
+        EpisodeServicePresence.SpotifyEpisodeId(saved).Should().Be(item.ResolvedSpotifyItem!.EpisodeId);
+        var splitOff = podcastEpisodes.Single(x => x.Id == firstSplitOff.Id);
+        EpisodeServicePresence.SpotifyEpisodeId(splitOff).Should().Be(oldSpotifyId);
+    }
+
+    [Theory(DisplayName =
+        "When a curator re-submits after an overwrite whose stored-episode save failed, the prompt holds the stored " +
+        "episode, never the split-off that holds the same links, whatever the list order (#1482).")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void prompt_after_partial_overwrite_holds_the_stored_episode(bool splitOffListedFirst)
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title);
+        var item = SpotifySubmit(_title, [stored]);
+        var storedCopy = StoredEpisodeWithSpotify(_title);
+        storedCopy.Id = stored.Id;
+        EpisodeServicePresence.SetSpotifyIdentity(storedCopy, EpisodeServicePresence.SpotifyEpisodeId(stored));
+        EpisodeServicePresence.Upsert(storedCopy, ServiceKeys.Spotify,
+            EpisodeServicePresence.TryGetUrl(stored, ServiceKeys.Spotify), null);
+        var splitOff = EpisodeServiceLinks.SplitOff(storedCopy, [ServiceKeys.Spotify]).Episode;
+        Episode[] reloaded = splitOffListedFirst ? [splitOff, stored] : [stored, splitOff];
+
+        // Act
+        var outcome = Gate.Evaluate(item with { MatchingPodcastEpisodes = reloaded },
+            Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        outcome.Kind.Should().Be(ServiceLinkConflictOutcomeKind.Hold);
+        outcome.Hold!.EpisodeId.Should().Be(stored.Id);
+        VerifyDropLogged(splitOff.Id, Times.Once());
+    }
+
+    [Theory(DisplayName =
+        "When an overwrite's secondary Apple link resolves on one attempt and not on the retry (or the other way " +
+        "round), the retry still finds the split-off saved by the failed attempt, so there is one split-off holding " +
+        "both old links and the stored episode keeps neither (#1482).")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task overwrite_retry_with_apple_resolving_differently_reuses_the_split_off(bool appleOnFirstAttempt)
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title);
+        var oldSpotifyId = EpisodeServicePresence.SpotifyEpisodeId(stored);
+        var oldAppleId = _fixture.CreateAppleId();
+        EpisodeServicePresence.SetAppleIdentity(stored, oldAppleId);
+        EpisodeServicePresence.Upsert(stored, ServiceKeys.Apple, _fixture.DefaultAppleUrl(oldAppleId), null);
+        var spotifyOnly = SpotifySubmit(_title, [stored]);
+        var withApple = spotifyOnly with { ResolvedAppleItem = AppleItem(_title) };
+        var episodes = new InMemoryEpisodeRepository();
+        episodes.Seed(stored);
+        var saves = 0;
+        episodes.OnSaving = () =>
+        {
+            if (++saves == 2)
+            {
+                throw new InvalidOperationException(_fixture.CreateTitle());
+            }
+        };
+        _mocker.Use<IEpisodeRepository>(episodes);
+        _mocker.Use<IPodcastRepository>(new InMemoryPodcastRepository());
+        UseRealPodcastPipeline();
+        var options = Options(ServiceLinkConflictChoice.Overwrite, stored.Id);
+        var first = appleOnFirstAttempt ? withApple : spotifyOnly;
+        var failed = () => _mocker.CreateInstance<CategorisedItemProcessor>().ProcessCategorisedItem(first, options);
+        await failed.Should().ThrowAsync<InvalidOperationException>();
+        var firstSplitOff = episodes.SavedEpisodes.Should().ContainSingle().Subject;
+        episodes.OnSaving = null;
+        Episode[] reloaded =
+        [
+            (await episodes.GetEpisode(_podcast.Id, stored.Id))!,
+            (await episodes.GetEpisode(_podcast.Id, firstSplitOff.Id))!
+        ];
+        var retry = (appleOnFirstAttempt ? spotifyOnly : withApple) with { MatchingPodcastEpisodes = reloaded };
+
+        // Act
+        var result = await _mocker.CreateInstance<CategorisedItemProcessor>().ProcessCategorisedItem(retry, options);
+
+        // Assert
+        result.SplitOffEpisode!.Id.Should().Be(firstSplitOff.Id);
+        var podcastEpisodes = await episodes.GetByPodcastId(_podcast.Id).ToListAsync();
+        podcastEpisodes.Should().HaveCount(2);
+        var splitOff = podcastEpisodes.Single(x => x.Id == firstSplitOff.Id);
+        EpisodeServicePresence.SpotifyEpisodeId(splitOff).Should().Be(oldSpotifyId);
+        EpisodeServicePresence.AppleEpisodeId(splitOff).Should().Be(oldAppleId);
+        var saved = podcastEpisodes.Single(x => x.Id == stored.Id);
+        EpisodeServicePresence.SpotifyEpisodeId(saved).Should().Be(retry.ResolvedSpotifyItem!.EpisodeId);
+        EpisodeServicePresence.AppleEpisodeId(saved).Should().NotBe(oldAppleId);
+    }
+
+    [Fact(DisplayName =
+        "When an overwrite is retried after its stored-episode save failed and a curator has since edited the " +
+        "split-off, the retry reuses the split-off without saving over it, so the curator's edits are kept (#1482).")]
+    public async Task overwrite_retry_keeps_curator_edits_to_the_split_off()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title);
+        var oldSpotifyId = EpisodeServicePresence.SpotifyEpisodeId(stored);
+        var item = SpotifySubmit(_title, [stored]);
+        var episodes = new InMemoryEpisodeRepository();
+        episodes.Seed(stored);
+        var saves = 0;
+        episodes.OnSaving = () =>
+        {
+            if (++saves == 2)
+            {
+                throw new InvalidOperationException(_fixture.CreateTitle());
+            }
+        };
+        _mocker.Use<IEpisodeRepository>(episodes);
+        _mocker.Use<IPodcastRepository>(new InMemoryPodcastRepository());
+        UseRealPodcastPipeline();
+        var options = Options(ServiceLinkConflictChoice.Overwrite, stored.Id);
+        var failed = () => _mocker.CreateInstance<CategorisedItemProcessor>().ProcessCategorisedItem(item, options);
+        await failed.Should().ThrowAsync<InvalidOperationException>();
+        var firstSplitOff = episodes.SavedEpisodes.Should().ContainSingle().Subject;
+        episodes.OnSaving = null;
+        var edited = (await episodes.GetEpisode(_podcast.Id, firstSplitOff.Id))!;
+        var curatorTitle = _fixture.CreateTitle();
+        edited.Title = curatorTitle;
+        episodes.Seed(edited);
+        Episode[] reloaded = [(await episodes.GetEpisode(_podcast.Id, stored.Id))!, edited];
+        var retry = item with { MatchingPodcastEpisodes = reloaded };
+
+        // Act
+        var result = await _mocker.CreateInstance<CategorisedItemProcessor>().ProcessCategorisedItem(retry, options);
+
+        // Assert
+        result.SplitOffEpisode!.Id.Should().Be(firstSplitOff.Id);
+        episodes.SavedEpisodes.Count(x => x.Id == firstSplitOff.Id).Should().Be(1, "only the failed attempt saved it");
+        var splitOff = (await episodes.GetEpisode(_podcast.Id, firstSplitOff.Id))!;
+        splitOff.Title.Should().Be(curatorTitle);
+        EpisodeServicePresence.SpotifyEpisodeId(splitOff).Should().Be(oldSpotifyId);
+        var saved = (await episodes.GetEpisode(_podcast.Id, stored.Id))!;
+        EpisodeServicePresence.SpotifyEpisodeId(saved).Should().Be(item.ResolvedSpotifyItem!.EpisodeId);
+    }
+
+    [Fact(DisplayName =
+        "An approved split-off whose stored episode has since been overwritten (it now carries different links) is " +
+        "a normal conflict candidate again: it is not dropped and can be held for the curator (#1482, #1484).")]
+    public void split_off_of_an_overwritten_episode_stays_a_candidate()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title);
+        var splitOff = EpisodeServiceLinks.SplitOff(stored, [ServiceKeys.Spotify]).Episode;
+        // #1484: a pending split-off is never a candidate; once approved it is an ordinary episode.
+        EpisodeServiceLinks.Approve(splitOff);
+        var newSpotifyId = _fixture.CreateSpotifyId();
+        EpisodeServicePresence.SetSpotifyIdentity(stored, newSpotifyId);
+        EpisodeServicePresence.Upsert(stored, ServiceKeys.Spotify, _fixture.DefaultSpotifyUrl(newSpotifyId), null);
+        stored.Title = $"{_title} {_fixture.CreateShortTitle()}";
+        var item = SpotifySubmit(_title, [splitOff, stored]);
+        Helper.ConflictingServiceKeys(stored, item).Should().NotBeEmpty("the stored episode is a candidate too");
+
+        // Act
+        var outcome = Gate.Evaluate(item, Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        outcome.Kind.Should().Be(ServiceLinkConflictOutcomeKind.Hold);
+        outcome.Hold!.EpisodeId.Should().Be(splitOff.Id);
+        VerifyDropLogged(splitOff.Id, Times.Never());
+    }
+
     [Fact(DisplayName =
         "When a service-link conflict is held for the curator, nothing is saved and the episode is neither " +
         "enriched nor created.")]
@@ -350,6 +558,18 @@ public class SubmitServiceLinkConflictRules
         // Assert
         parsed.Should().BeFalse();
     }
+
+    private void VerifyDropLogged(Guid splitOffId, Times times) =>
+        _mocker.GetMock<ILogger<ServiceLinkConflictGate>>().Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) =>
+                    state.ToString()!.Contains(splitOffId.ToString()) &&
+                    state.ToString()!.Contains("split-off of a partly saved overwrite")),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            times);
 
     /// <summary>Real gate, matcher, enricher and podcast processor; only subject/guest lookups are stubbed.</summary>
     private void UseRealPodcastPipeline()

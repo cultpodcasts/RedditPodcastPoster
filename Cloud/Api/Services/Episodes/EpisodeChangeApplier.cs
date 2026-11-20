@@ -12,6 +12,7 @@ using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.BBC.Matching;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
@@ -61,6 +62,17 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         if (episodeChangeRequest.Explicit != null)
         {
             episode.Explicit = episodeChangeRequest.Explicit.Value;
+        }
+
+        // #1484: before the posting flags below, so a curator's explicit flag in the same change still wins.
+        switch (episodeChangeRequest.SplitOffStatus)
+        {
+            case SplitOffStatus.Approved:
+                EpisodeServiceLinks.Approve(episode);
+                break;
+            case SplitOffStatus.Rejected:
+                EpisodeServiceLinks.Reject(episode);
+                break;
         }
 
         if (episodeChangeRequest.Ignored != null)
@@ -329,6 +341,33 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         return changeState;
+    }
+
+    /// <summary>
+    /// #1484: why a change cannot be applied to <paramref name="episode"/>'s split-off review state, or null.
+    /// Only a split-off can be approved or rejected (never set back to pending); approve and reject cannot be combined
+    /// with the opposite <c>removed</c>; and a split-off held for review (pending or rejected) is made public only by
+    /// approving it, never by clearing <c>removed</c>, so pending and rejected split-offs stay out of public.
+    /// </summary>
+    internal static string? SplitOffReviewError(Episode episode, EpisodeChangeRequest request)
+    {
+        switch (request.SplitOffStatus)
+        {
+            case null:
+                return request.Removed == false && EpisodeServiceLinks.IsHeldForReview(episode)
+                    ? "This split-off is held for review: approve it to make it public."
+                    : null;
+            case SplitOffStatus.Pending:
+                return "A split-off can only be approved or rejected.";
+            case not null when episode.SplitOffStatus is null:
+                return "Only a split-off episode can be approved or rejected.";
+            case SplitOffStatus.Approved when request.Removed == true:
+                return "An approved split-off cannot also be removed in the same change.";
+            case SplitOffStatus.Rejected when request.Removed == false:
+                return "A rejected split-off stays removed.";
+            default:
+                return null;
+        }
     }
 
     /// <summary>

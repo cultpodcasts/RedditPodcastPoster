@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -144,6 +145,16 @@ public class FilmRepository(
         return CatalogueFeed.Count(
             iterator,
             ex => logger.LogError(ex, "{method}: error counting films.", nameof(Count)));
+    }
+
+    public Task<int> CountSearchable()
+    {
+        var iterator = filmsContainer.GetItemQueryIterator<int>(
+            new QueryDefinition($"SELECT VALUE COUNT(1) FROM c WHERE {Playable.CosmosNotRemovedSqlFor("c")}"));
+
+        return CatalogueFeed.Count(
+            iterator,
+            ex => logger.LogError(ex, "{method}: error counting searchable films.", nameof(CountSearchable)));
     }
 
     public IAsyncEnumerable<Film> GetAll()

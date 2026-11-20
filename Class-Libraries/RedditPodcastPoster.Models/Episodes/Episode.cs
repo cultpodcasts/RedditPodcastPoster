@@ -45,6 +45,16 @@ public class Episode : Playable
     [JsonPropertyOrder(90)]
     public string? PodcastName { get; set; }
 
+    /// <summary>
+    /// Set only on an episode split off another by a submit overwrite (#1484): <see cref="RedditPodcastPoster.Models.Episodes.SplitOffStatus.Pending"/>
+    /// until a curator approves or rejects it. Null on every other episode. Independent of
+    /// <see cref="Catalogue.Playable.Removed"/>: an approved split-off later removed (e.g. unplayable) stays approved.
+    /// </summary>
+    [JsonPropertyName("splitOffStatus")]
+    [JsonPropertyOrder(91)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SplitOffStatus? SplitOffStatus { get; set; }
+
     public static Episode FromSpotify(string spotifyId,
         string title,
         string description,

@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Api.Dtos.Mapping;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace Api.Dtos;
 
@@ -97,6 +98,14 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyName("removed")]
     [JsonPropertyOrder(45)]
     public bool Removed { get; set; }
+
+    /// <summary>
+    /// #1484: <c>pending</c> / <c>approved</c> / <c>rejected</c> on a split-off episode; absent on every other episode.
+    /// </summary>
+    [JsonPropertyName("splitOffStatus")]
+    [JsonPropertyOrder(451)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SplitOffStatus? SplitOffStatus { get; set; }
 
     [JsonPropertyName("lang")]
     [JsonPropertyOrder(46)]

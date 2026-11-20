@@ -7,6 +7,12 @@ public interface IFilmRepository : IRepository<Film>, IFilterableRepository<Film
     Task<Film?> GetFilm(Guid filmId);
     Task Delete(Guid filmId);
 
+    /// <summary>
+    /// Films search may hold: every film that is not removed (<c>removed</c> absent, null or false). A server-side
+    /// <c>COUNT</c>, so it reads no documents. The film search push compares it with the index's film documents.
+    /// </summary>
+    Task<int> CountSearchable();
+
     /// <summary>The film with its Cosmos ETag, for an optimistic <see cref="TryReplace"/>. Null when it does not exist.</summary>
     Task<FilmVersion?> GetFilmForUpdate(Guid filmId);
 
