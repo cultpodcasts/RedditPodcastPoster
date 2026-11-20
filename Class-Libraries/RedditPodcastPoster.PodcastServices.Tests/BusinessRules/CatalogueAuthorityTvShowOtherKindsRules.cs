@@ -137,6 +137,57 @@ public class CatalogueAuthorityTvShowOtherKindsRules
         preview.TmdbId.Should().BeNull();
     }
 
+    [Fact(DisplayName =
+        "The film fallback needs an exact title per query attempt: the full title \"3 Days in Dimona: African Hebrew " +
+        "Israelites\" does not offer a one-word \"Dimona\" film, while the before-colon attempt \"3 Days in Dimona\" " +
+        "still offers tt2464604 (#1387).")]
+    public async Task film_fallback_requires_exact_title_per_attempt()
+    {
+        // Arrange
+        const string name = "3 Days in Dimona: African Hebrew Israelites";
+        const string head = "3 Days in Dimona";
+        const string dimonaFilm = "tt2464604";
+        var oneWordFilm = _fixture.CreateImdbId();
+        _imdb[name] = [Suggestion(oneWordFilm, "Dimona", ImdbSuggestion.MovieType)];
+        _imdb[head] =
+        [
+            Suggestion(dimonaFilm, head, ImdbSuggestion.MovieType),
+            Suggestion(oneWordFilm, "Dimona", ImdbSuggestion.MovieType)
+        ];
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewTvShowOtherKindsAsync(name);
+
+        // Assert
+        preview.Candidates.Should().ContainSingle()
+            .Which.Key.Should().Be(CatalogueAuthorityCandidate.ImdbKey(dimonaFilm));
+    }
+
+    [Fact(DisplayName =
+        "The TMDB movie branch needs an exact title too: a movie whose title only sits inside the TV show's name is " +
+        "not offered and its ids are never collected (#1387).")]
+    public async Task tmdb_movie_needs_exact_title()
+    {
+        // Arrange
+        var word = _fixture.CreateTitle(1);
+        var name = $"{word} {_fixture.CreateTitleNotContainedIn(word)}";
+        var tmdbId = _fixture.CreateTmdbId();
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(client => client.SearchMoviesAsync(name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new TmdbSearchHit(tmdbId, word, TmdbTitleKind.Movie, null)]);
+        var sut = _mocker.CreateInstance<CatalogueAuthorityPreviewer>();
+
+        // Act
+        var preview = await sut.PreviewTvShowOtherKindsAsync(name);
+
+        // Assert
+        preview.Resolution.Should().Be(CatalogueAuthorityResolution.NotInAuthority);
+        preview.Candidates.Should().BeNullOrEmpty();
+        _mocker.GetMock<ICatalogueAuthorityLookup>()
+            .Verify(lookup => lookup.CollectFilmAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static ImdbSuggestion Suggestion(string imdbId, string title, string type) =>
         new(imdbId, title, type, null, null, null);
 }

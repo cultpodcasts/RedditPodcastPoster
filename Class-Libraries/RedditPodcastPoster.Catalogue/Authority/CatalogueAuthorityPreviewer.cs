@@ -298,7 +298,10 @@ public sealed class CatalogueAuthorityPreviewer(
     }
 
     /// <summary>
-    /// IMDb films and series whose title agrees with <paramref name="query"/>. A series that TMDB knows is offered as
+    /// IMDb films and series whose title <b>equals</b> <paramref name="query"/> word for word (case and punctuation
+    /// ignored). Containment is not enough: on the full title "3 Days in Dimona: African Hebrew Israelites" a film
+    /// called "Dimona" must not be offered. The shorter clauses come from <see cref="QueryAttempts"/>, so the
+    /// before-colon attempt "3 Days in Dimona" still finds the film. A series that TMDB knows is offered as
     /// its TMDB TV record, so a pick collects every TV id. Only when IMDb has nothing are TMDB movies asked, and each is
     /// offered by its IMDb id; one without an IMDb id is dropped, as it has no id a TV show can store.
     /// </summary>
@@ -309,7 +312,7 @@ public sealed class CatalogueAuthorityPreviewer(
         var candidates = new List<CatalogueAuthorityCandidate>();
         var suggestions = await imdb.SuggestAsync(query, cancellationToken).ConfigureAwait(false) ?? [];
         foreach (var suggestion in suggestions
-                     .Where(s => (s.IsFilm || s.IsSeries) && TitlesAgree(query, s.Title))
+                     .Where(s => (s.IsFilm || s.IsSeries) && TitlesEqual(query, s.Title))
                      .DistinctBy(s => s.ImdbId, StringComparer.OrdinalIgnoreCase)
                      .Take(SampleLimit))
         {
@@ -350,7 +353,7 @@ public sealed class CatalogueAuthorityPreviewer(
         }
 
         var movies = await tmdb.SearchMoviesAsync(query, cancellationToken).ConfigureAwait(false);
-        foreach (var hit in movies.Where(hit => TitlesAgree(query, hit)).Take(SampleLimit))
+        foreach (var hit in movies.Where(hit => TitlesEqual(query, hit)).Take(SampleLimit))
         {
             var ids = await lookup.CollectFilmAsync(hit.Id, cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(ids.ImdbId) ||
