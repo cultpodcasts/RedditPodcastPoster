@@ -19,58 +19,60 @@ namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Matching;
 /// </summary>
 public class YouTubeAudioDurationBandMatchingRules
 {
-    // Real Leaving Eden lengths, titles and UTC release times (audio from the Acast/Apple
-    // feed; YouTube from the channel listing and Atom publish times).
+    // Real Leaving Eden lengths and titles (audio from the Acast/Apple feed; YouTube from
+    // the channel listing). Release instants are relative same-day pairs: audio in the
+    // morning, YouTube in the afternoon, weekly spacing, so the tests stay off fixed
+    // calendar literals. DisplayNames keep the original week labels for the incident.
     private static readonly Week Oct13 = new(
         "13 Oct 2026",
         "How did Sadie's Family Become Fundie? That and other questions! (October Q&A Part 2)",
         new TimeSpan(1, 15, 46),
         new TimeSpan(1, 9, 3),
-        new DateTime(2026, 10, 13, 9, 0, 0, DateTimeKind.Utc),
-        new DateTime(2026, 10, 13, 15, 30, 6, DateTimeKind.Utc));
+        DomainTestFixture.UtcAtTime(-35, TimeSpan.FromHours(9)),
+        DomainTestFixture.UtcAtTime(-35, new TimeSpan(15, 30, 6)));
 
     private static readonly Week Oct20 = new(
         "20 Oct 2026",
         "Karissa Collins AI Slop Music: Why Do Fundies Love AI?",
         new TimeSpan(0, 57, 41),
         new TimeSpan(0, 52, 17),
-        new DateTime(2026, 10, 20, 9, 0, 0, DateTimeKind.Utc),
-        new DateTime(2026, 10, 20, 15, 30, 39, DateTimeKind.Utc));
+        DomainTestFixture.UtcAtTime(-28, TimeSpan.FromHours(9)),
+        DomainTestFixture.UtcAtTime(-28, new TimeSpan(15, 30, 39)));
 
     private static readonly Week Oct27 = new(
         "27 Oct 2026",
         "J. P. Miller's WEIRD Theology (With Nikki Park)",
         new TimeSpan(1, 9, 39),
         new TimeSpan(1, 3, 22),
-        new DateTime(2026, 10, 27, 9, 0, 0, DateTimeKind.Utc),
-        new DateTime(2026, 10, 27, 16, 0, 9, DateTimeKind.Utc));
+        DomainTestFixture.UtcAtTime(-21, TimeSpan.FromHours(9)),
+        DomainTestFixture.UtcAtTime(-21, new TimeSpan(16, 0, 9)));
 
     private static readonly Week Nov3 = new(
         "3 Nov 2026",
         "Domestic Abuse Expert Reacts To \"You Can See Everything\"",
         new TimeSpan(1, 19, 6),
         new TimeSpan(1, 12, 8),
-        new DateTime(2026, 11, 3, 10, 0, 0, DateTimeKind.Utc),
-        new DateTime(2026, 11, 3, 15, 30, 6, DateTimeKind.Utc));
+        DomainTestFixture.UtcAtTime(-14, TimeSpan.FromHours(10)),
+        DomainTestFixture.UtcAtTime(-14, new TimeSpan(15, 30, 6)));
 
     private static readonly Week Nov10 = new(
         "10 Nov 2026",
         "The Blue Wave and the Rise of the Christian Left",
         new TimeSpan(1, 8, 44),
         new TimeSpan(1, 2, 31),
-        new DateTime(2026, 11, 10, 10, 0, 0, DateTimeKind.Utc),
-        new DateTime(2026, 11, 10, 16, 45, 7, DateTimeKind.Utc));
+        DomainTestFixture.UtcAtTime(-7, TimeSpan.FromHours(10)),
+        DomainTestFixture.UtcAtTime(-7, new TimeSpan(16, 45, 7)));
 
     // 17 Nov 2026: audio title, YouTube marketing title, and a short same-day promo.
     private static readonly TimeSpan DivergentAudioLength = new(0, 58, 0);
     private static readonly TimeSpan DivergentYouTubeLength = new(0, 52, 38);
-    private static readonly DateTime DivergentAudioRelease = new(2026, 11, 17, 10, 0, 0, DateTimeKind.Utc);
-    private static readonly DateTime DivergentYouTubeRelease = new(2026, 11, 17, 16, 45, 5, DateTimeKind.Utc);
+    private static readonly DateTime DivergentAudioRelease = DomainTestFixture.UtcAtTime(-3, TimeSpan.FromHours(10));
+    private static readonly DateTime DivergentYouTubeRelease = DomainTestFixture.UtcAtTime(-3, new TimeSpan(16, 45, 5));
     private const string AudioTitle = "Is there a Deconstruction to Left-Wing Authoritarianism Pipeline?";
     private const string YouTubeMarketingTitle = "New study shows Ex-believers are at risk of left-wing authoritarianism!";
     private const string PromoTitle = "Introducing the Jordan Harbinger Show";
     private static readonly TimeSpan PromoLength = new(0, 1, 18);
-    private static readonly DateTime PromoRelease = new(2026, 11, 17, 9, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime PromoRelease = DomainTestFixture.UtcAtTime(-3, TimeSpan.FromHours(9));
 
     private readonly DomainTestFixture _fixture = new();
     private readonly IEpisodePlatformMatcher _matcher = EpisodeDomainTestServices.CreatePlatformMatcher();
