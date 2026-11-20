@@ -12,6 +12,7 @@ using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.BBC.Matching;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
@@ -61,6 +62,17 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         if (episodeChangeRequest.Explicit != null)
         {
             episode.Explicit = episodeChangeRequest.Explicit.Value;
+        }
+
+        // #1484: before the posting flags below, so a curator's explicit flag in the same change still wins.
+        switch (episodeChangeRequest.ApprovalDecision)
+        {
+            case ApprovalDecision.Approve:
+                EpisodeServiceLinks.Approve(episode);
+                break;
+            case ApprovalDecision.Reject:
+                EpisodeServiceLinks.Reject(episode);
+                break;
         }
 
         if (episodeChangeRequest.Ignored != null)
@@ -329,6 +341,32 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         return changeState;
+    }
+
+    /// <summary>
+    /// #1484: why a change cannot be applied to <paramref name="episode"/>'s approval status, or null. An episode held
+    /// for approval (awaiting or rejected) is made public only by approving it, never by clearing <c>removed</c>; only
+    /// a held episode can be rejected (null means approved, like any ordinary episode, which is hidden with
+    /// <c>removed</c>); and a decision cannot be combined with the opposite <c>removed</c>. Approving an episode that is
+    /// already approved is accepted and changes nothing.
+    /// </summary>
+    internal static string? SplitOffReviewError(Episode episode, EpisodeChangeRequest request)
+    {
+        switch (request.ApprovalDecision)
+        {
+            case null:
+                return request.Removed == false && episode.IsHeldForApproval()
+                    ? "This split-off is awaiting approval or rejected: approve it to make it public."
+                    : null;
+            case ApprovalDecision.Reject when !episode.IsHeldForApproval():
+                return "Only an episode awaiting approval can be rejected.";
+            case ApprovalDecision.Approve when request.Removed == true:
+                return "An approved split-off cannot also be removed in the same change.";
+            case ApprovalDecision.Reject when request.Removed == false:
+                return "A rejected split-off stays removed.";
+            default:
+                return null;
+        }
     }
 
     /// <summary>

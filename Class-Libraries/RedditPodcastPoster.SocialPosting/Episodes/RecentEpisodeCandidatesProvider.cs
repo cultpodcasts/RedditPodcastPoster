@@ -97,7 +97,7 @@ public class RecentEpisodeCandidatesProvider(
     {
         var episodes = await GetEpisodes(releasedSince);
         return episodes
-            .Where(x => !x.Episode.Ignored && !x.Episode.IsRemoved())
+            .Where(x => !x.Episode.Ignored && !x.Episode.IsRemoved() && !x.Episode.IsHeldForApproval())
             .ToList();
     }
 

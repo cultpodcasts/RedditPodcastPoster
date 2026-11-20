@@ -833,8 +833,8 @@ public class SubmitUrlServiceTests
     }
 
     [Fact(DisplayName =
-        "When an overwrite split the stored links off into a new episode, the API indexes both the overwritten " +
-        "episode and the split-off episode, so search shows each link once.")]
+        "When an overwrite split the stored links off into a new episode, the API indexes the overwritten episode " +
+        "and the split-off episode in one call, so search shows each link once (#1484).")]
     public async Task overwrite_indexes_episode_and_split_off()
     {
         // Arrange
@@ -855,8 +855,11 @@ public class SubmitUrlServiceTests
         // Assert
         result.Status.Should().Be(SubmitUrlStatus.Ok);
         var indexer = _mocker.GetMock<IEpisodeSearchIndexerService>();
-        indexer.Verify(s => s.IndexEpisode(episode.Id, It.IsAny<CancellationToken>()), Times.Once);
-        indexer.Verify(s => s.IndexEpisode(splitOff.Id, It.IsAny<CancellationToken>()), Times.Once);
+        indexer.Verify(s => s.IndexEpisodes(
+                It.Is<IEnumerable<Guid>>(ids => ids.SequenceEqual(new[] { episode.Id, splitOff.Id })),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        indexer.Verify(s => s.IndexEpisode(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact(DisplayName =

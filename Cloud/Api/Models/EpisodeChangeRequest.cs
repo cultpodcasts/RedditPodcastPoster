@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 
@@ -28,6 +29,9 @@ public class EpisodeChangeRequest
     public bool? Ignored { get; set; }
 
     public bool? Removed { get; set; }
+
+    /// <summary>#1484: approve (clear the approval status) or reject an episode awaiting approval.</summary>
+    public ApprovalDecision? ApprovalDecision { get; set; }
 
     public bool? Explicit { get; set; }
 
@@ -60,6 +64,7 @@ public class EpisodeChangeRequest
         UnBluesky != null ||
         Ignored != null ||
         Removed != null ||
+        ApprovalDecision != null ||
         Explicit != null ||
         Release != null ||
         Duration != null ||
@@ -82,6 +87,7 @@ public class EpisodeChangeRequest
         Posted != null ||
         Ignored != null ||
         Removed != null ||
+        ApprovalDecision != null ||
         Explicit != null ||
         Release != null ||
         Duration != null ||

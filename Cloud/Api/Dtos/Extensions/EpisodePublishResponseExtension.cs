@@ -11,7 +11,8 @@ public static class EpisodePublishResponseExtension
             Posted = outcome.Posted,
             Tweeted = outcome.Tweeted,
             BlueskyPosted = outcome.BlueskyPosted,
-            FailedTweetContent = outcome.FailedTweetContent
+            FailedTweetContent = outcome.FailedTweetContent,
+            Message = outcome.Message
         };
     }
 }

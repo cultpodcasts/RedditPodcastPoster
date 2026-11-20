@@ -1,6 +1,8 @@
 using FluentAssertions;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Episodes;
 
 namespace RedditPodcastPoster.Episodes.Tests.BusinessRules.Curation;
 
@@ -176,23 +178,198 @@ public class EpisodeServiceLinksRules
     }
 
     [Fact(DisplayName =
-        "A split-off episode is marked as already posted to Reddit, X and Bluesky, because it is a recovery record " +
-        "and must never be posted automatically.")]
-    public void split_off_episode_is_never_posted()
+        "A split-off awaits approval and is kept from posting by its approval status, not by posting flags: it carries " +
+        "no posted, X skip or Bluesky flag and none of the source's post ids, so once approved it posts under the " +
+        "usual rules (#1484).")]
+    public void split_off_awaiting_approval_is_held_by_status_not_posting_flags()
     {
         // Arrange
         var source = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
-        source.Posted = false;
+        source.Posted = true;
 
         // Act
         var split = EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode;
 
         // Assert
-        split.Posted.Should().BeTrue();
-        split.Tweeted.Should().BeTrue();
-        split.BlueskyPosted.Should().BeTrue();
+        split.IsHeldForApproval().Should().BeTrue();
+        split.Posted.Should().BeFalse();
+        split.Tweeted.Should().BeFalse();
+        split.TweetSkipReason.Should().BeNull();
+        split.BlueskyPosted.Should().BeFalse();
         split.TweetPost.Should().BeNull("the source's post ids must not be shared, or un-posting one would delete the other's post");
         split.BlueskyPost.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A split-off episode awaits approval and is hidden from the public until a curator approves it; approving it " +
+        "makes it public (#1484).")]
+    public void split_off_episode_is_hidden_until_approved()
+    {
+        // Arrange
+        var source = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
+        source.Removed = false;
+
+        // Act
+        var split = EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode;
+
+        // Assert
+        split.Removed.Should().BeTrue();
+        split.ApprovalStatus.Should().Be(ApprovalStatus.AwaitingApproval);
+        source.ApprovalStatus.Should().BeNull();
+        split.IsAwaitingApproval().Should().BeTrue();
+        split.IsHeldForApproval().Should().BeTrue();
+        source.IsAwaitingApproval().Should().BeFalse();
+        EpisodeServiceLinks.Approve(split).Should().BeTrue();
+        split.Removed.Should().BeFalse();
+        split.IsAwaitingApproval().Should().BeFalse();
+        split.IsHeldForApproval().Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Approving a split-off only changes its approval status and makes it public; no posting flag is touched, so " +
+        "the normal posting jobs may post it under their usual rules (#1484).")]
+    public void approving_a_split_off_makes_it_public_without_touching_posting_flags()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+
+        // Act
+        var changed = EpisodeServiceLinks.Approve(split);
+
+        // Assert
+        changed.Should().BeTrue();
+        split.ApprovalStatus.Should().BeNull("null means approved");
+        split.Removed.Should().BeFalse();
+        split.IsHeldForApproval().Should().BeFalse();
+        split.Posted.Should().BeFalse();
+        split.Tweeted.Should().BeFalse();
+        split.BlueskyPosted.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Rejecting a split-off keeps it hidden and held from posting by its status; a rejected split-off is held but " +
+        "no longer awaiting approval, and rejecting again changes nothing (#1484).")]
+    public void rejecting_a_split_off_keeps_it_hidden_and_unposted()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+
+        // Act
+        var changed = EpisodeServiceLinks.Reject(split);
+
+        // Assert
+        changed.Should().BeTrue();
+        split.ApprovalStatus.Should().Be(ApprovalStatus.Rejected);
+        split.Removed.Should().BeTrue();
+        split.IsAwaitingApproval().Should().BeFalse();
+        split.IsHeldForApproval().Should().BeTrue();
+        EpisodeServiceLinks.Reject(split).Should().BeFalse("rejecting again changes nothing");
+    }
+
+    [Fact(DisplayName =
+        "The approval status is stored as the enum name (AwaitingApproval / Rejected), like the other stored enums, so " +
+        "it can be queried, and is omitted (null, meaning approved) on an ordinary episode, so existing documents need " +
+        "no migration (#1484).")]
+    public void approval_status_is_stored_as_the_enum_name()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+        var ordinary = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
+
+        // Act
+        var splitJson = System.Text.Json.JsonSerializer.Serialize(split);
+        var ordinaryJson = System.Text.Json.JsonSerializer.Serialize(ordinary);
+        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<Episode>(
+            splitJson.Replace("\"AwaitingApproval\"", "\"Rejected\"", StringComparison.Ordinal));
+
+        // Assert
+        splitJson.Should().Contain("\"approvalStatus\":\"AwaitingApproval\"");
+        Episode.CosmosAwaitingApprovalSql.Should().Contain("'AwaitingApproval'");
+        ordinaryJson.Should().NotContain("approvalStatus");
+        roundTripped!.ApprovalStatus.Should().Be(ApprovalStatus.Rejected);
+    }
+
+    [Fact(DisplayName =
+        "An approved split-off that is later removed (e.g. unplayable) stays approved: it does not go back to " +
+        "awaiting approval (#1484).")]
+    public void approved_split_off_later_removed_stays_approved()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+        EpisodeServiceLinks.Approve(split);
+
+        // Act
+        split.Removed = true;
+
+        // Assert
+        split.ApprovalStatus.Should().BeNull("null means approved");
+        split.IsAwaitingApproval().Should().BeFalse();
+        split.IsHeldForApproval().Should().BeFalse();
+        EpisodeServiceLinks.Approve(split).Should().BeFalse("approving an approved split-off changes nothing");
+    }
+
+    [Fact(DisplayName =
+        "A rejected split-off can still be approved: its status is cleared (approved) and it becomes public, with no " +
+        "posting flag touched, so it posts under the usual rules (#1484).")]
+    public void approving_a_rejected_split_off_makes_it_public()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+        EpisodeServiceLinks.Reject(split);
+
+        // Act
+        var changed = EpisodeServiceLinks.Approve(split);
+
+        // Assert
+        changed.Should().BeTrue();
+        split.ApprovalStatus.Should().BeNull("null means approved");
+        split.Removed.Should().BeFalse();
+        split.Posted.Should().BeFalse();
+        split.Tweeted.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "An ordinary episode (no status) is already approved: approving it changes nothing, and it cannot be rejected, " +
+        "because only an episode awaiting approval can be (#1484).")]
+    public void ordinary_episode_is_approved_and_cannot_be_rejected()
+    {
+        // Arrange
+        var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
+        episode.Removed = false;
+
+        // Act
+        var approved = EpisodeServiceLinks.Approve(episode);
+        var reject = () => EpisodeServiceLinks.Reject(episode);
+
+        // Assert
+        approved.Should().BeFalse();
+        reject.Should().Throw<InvalidOperationException>();
+        episode.ApprovalStatus.Should().BeNull();
+        episode.Removed.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A split-off episode copies the source's search terms, guests, hashtag and subject matches, so the curator " +
+        "starts from the same details (#1484).")]
+    public void split_off_copies_search_terms_guests_hashtag_and_matches()
+    {
+        // Arrange
+        var source = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
+        source.SearchTerms = _fixture.CreateTitle();
+        source.HashTag = "#" + _fixture.CreateTitle(1).Replace(" ", string.Empty);
+        source.Guests = [_fixture.CreateTitle(2), _fixture.CreateTitle(2)];
+        source.Matches = [new PlayableSubjectMatch { Subject = _fixture.CreateTitle(1), Term = _fixture.CreateTitle(1) }];
+
+        // Act
+        var split = EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode;
+
+        // Assert
+        split.SearchTerms.Should().Be(source.SearchTerms);
+        split.HashTag.Should().Be(source.HashTag);
+        split.Guests.Should().Equal(source.Guests);
+        split.Guests.Should().NotBeSameAs(source.Guests);
+        split.Matches.Should().BeEquivalentTo(source.Matches);
+        split.Matches[0].Should().NotBeSameAs(source.Matches[0]);
     }
 
     [Fact(DisplayName =

@@ -33,11 +33,13 @@ public class PostSubmitUrlHandlerConflictTests
 
     [Fact(DisplayName =
         "When submit holds on a service-link conflict, the handler returns 200 with serviceLinkConflict naming the " +
-        "stored episode and each stored and submitted link, so the site can ask overwrite or create-new (#1416).")]
+        "stored episode, its podcast (#1484) and each stored and submitted link, so the site can ask overwrite or " +
+        "create-new and link the stored episode (#1416).")]
     public async Task service_link_conflict_returns_200_with_prompt()
     {
         // Arrange
         var episodeId = _fixture.CreateGuid();
+        var podcast = _fixture.CreatePodcast();
         var title = _fixture.CreateTitle();
         var storedUrl = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
         var submittedUrl = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
@@ -48,7 +50,8 @@ public class PostSubmitUrlHandlerConflictTests
             [new ServiceLinkConflictLink("spotify", storedUrl, submittedUrl)]);
         _serviceResult = new SubmitUrlResult(
             SubmitUrlStatus.ServiceLinkConflictDecisionRequired,
-            new SubmitResult(SubmitResultState.None, SubmitResultState.None, ServiceLinkConflict: hold));
+            new SubmitResult(SubmitResultState.None, SubmitResultState.None, Podcast: podcast,
+                ServiceLinkConflict: hold));
         var handler = _mocker.CreateInstance<PostSubmitUrlHandler>();
         var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
 
@@ -65,6 +68,7 @@ public class PostSubmitUrlHandlerConflictTests
         using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
         var conflict = doc.RootElement.GetProperty("serviceLinkConflict");
         conflict.GetProperty("episodeId").GetGuid().Should().Be(episodeId);
+        conflict.GetProperty("podcastId").GetGuid().Should().Be(podcast.Id);
         conflict.GetProperty("episodeTitle").GetString().Should().Be(title);
         var link = conflict.GetProperty("links").EnumerateArray().Should().ContainSingle().Subject;
         link.GetProperty("service").GetString().Should().Be("spotify");
@@ -72,6 +76,38 @@ public class PostSubmitUrlHandlerConflictTests
         link.GetProperty("submittedUrl").GetString().Should().Be(submittedUrl.ToString());
         (doc.RootElement.TryGetProperty("success", out var success) && success.ValueKind != JsonValueKind.Null)
             .Should().BeFalse("nothing was written, so this is not a success");
+    }
+
+    [Fact(DisplayName =
+        "When an overwrite split the stored links off into a new episode, the success reply carries " +
+        "splitOffEpisodeId alongside episodeId, so the site can point the curator at the hidden split-off (#1484).")]
+    public async Task overwrite_success_returns_split_off_episode_id()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateEpisode();
+        var splitOff = _fixture.CreateEpisode();
+        _serviceResult = new SubmitUrlResult(
+            SubmitUrlStatus.Ok,
+            new SubmitResult(SubmitResultState.Enriched, SubmitResultState.None, Episode: episode, Podcast: podcast,
+                SplitOffEpisode: splitOff));
+        var handler = _mocker.CreateInstance<PostSubmitUrlHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new SubmitUrlRequest { Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()) },
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        result.Body.Position = 0;
+        using var reader = new StreamReader(result.Body, leaveOpen: true);
+        using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
+        var success = doc.RootElement.GetProperty("success");
+        success.GetProperty("episodeId").GetGuid().Should().Be(episode.Id);
+        success.GetProperty("splitOffEpisodeId").GetGuid().Should().Be(splitOff.Id);
     }
 
     [Fact(DisplayName = "PostSubmitUrlHandler maps Conflict to 409 with the ambiguous podcast id list.")]

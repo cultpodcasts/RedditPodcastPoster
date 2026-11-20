@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People;
@@ -30,7 +31,25 @@ public class PodcastProcessor(
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
             ? [categorisedItem.MatchingEpisode]
             : categorisedItem.MatchingPodcastEpisodes!.Where(episode =>
+                // #1484: a split-off held for curator approval (AwaitingApproval or Rejected) is matched only by its own
+                // service id. By title alone (after a partly saved overwrite) it would be enriched in place of the
+                // stored episode; by id it is that episode, and matching it (still hidden) avoids a duplicate public
+                // episode.
+                SplitOffMatching.MayMatch(episode, categorisedItem) &&
                 episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
+
+        // #1484: of several matches, the episode holding the submitted (authority) service's id is the one submitted,
+        // e.g. a split-off holding the submitted Spotify id over its stored episode matching by YouTube id and title.
+        if (matchingEpisodes.Length > 1)
+        {
+            var holdingAuthorityId = matchingEpisodes
+                .Where(episode => SplitOffMatching.HoldsAuthorityId(episode, categorisedItem))
+                .ToArray();
+            if (holdingAuthorityId.Length > 0)
+            {
+                matchingEpisodes = holdingAuthorityId;
+            }
+        }
 
         Episode? matchingEpisode;
         if (matchingEpisodes.Count() > 1)

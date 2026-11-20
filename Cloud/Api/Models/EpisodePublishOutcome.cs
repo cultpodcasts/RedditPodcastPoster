@@ -8,6 +8,9 @@ public class EpisodePublishOutcome(Guid podcastId)
     public string? FailedTweetContent { get; set; }
     public Guid? PodcastId { get; init; } = podcastId;
 
+    /// <summary>Why nothing was published, when the request was refused (e.g. held for approval, #1484).</summary>
+    public string? Message { get; set; }
+
     public bool Updated()
     {
         return (Posted.HasValue && Posted.Value) ||

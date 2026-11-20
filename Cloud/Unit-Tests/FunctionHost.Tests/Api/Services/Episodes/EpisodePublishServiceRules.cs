@@ -130,6 +130,38 @@ public class EpisodePublishServiceRules
         _clearedCatalogue.Should().BeNull();
     }
 
+    [Theory(DisplayName =
+        "When a curator publishes an episode held for approval (awaiting approval or rejected), then it is refused as a bad request with an approve-it-first message: nothing is posted, no short link is made and it stays removed and unsaved (#1484).")]
+    [InlineData(ApprovalStatus.AwaitingApproval)]
+    [InlineData(ApprovalStatus.Rejected)]
+    public async Task held_episode_is_not_published(ApprovalStatus status)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.ApprovalStatus = status;
+        episode.Removed = true;
+        _podcastResolved = new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(podcast.Id, episode.Id,
+                new EpisodePublishRequest { Post = true, Tweet = true, BlueskyPost = true }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodePublishStatus.BadRequest);
+        result.Outcome!.Message.Should().Contain("approve it first");
+        result.Outcome.Updated().Should().BeFalse();
+        _shortnerWriteCalled.Should().BeFalse();
+        _tweeted.Should().BeNull();
+        _blueskyPosted.Should().BeNull();
+        _episodeSaveCalled.Should().BeFalse();
+        episode.Removed.Should().BeTrue();
+        episode.ApprovalStatus.Should().Be(status);
+    }
+
     [Fact(DisplayName =
         "When publishing a film tweet succeeds, then call the tweet poster with the catalogue site link and never save via the episode repository or shortener, because posters persist catalogue documents and film URLs are /film routes.")]
     public async Task film_tweet_success_does_not_save_episode()

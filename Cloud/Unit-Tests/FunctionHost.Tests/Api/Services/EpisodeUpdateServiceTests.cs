@@ -10,8 +10,10 @@ using RedditPodcastPoster.Bluesky.Managers;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Twitter.Managers;
@@ -390,6 +392,172 @@ public class EpisodeUpdateServiceTests
         result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
         _saved.Should().Be(episode);
         episode.Guests.Should().Equal(guest);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a curator approves a split-off awaiting approval, then its approval status is cleared to null (approved) and it is saved public and indexed, with no posting flag set and nothing un-posted, because approval lets the normal posting jobs post it (#1484).")]
+    public async Task update_approving_a_split_off_makes_it_public_and_postable()
+    {
+        // Arrange
+        var (episode, podcast) = ResolvedSplitOffPair();
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id,
+                new EpisodeChangeRequest { ApprovalDecision = ApprovalDecision.Approve }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        _saved.Should().Be(episode);
+        episode.ApprovalStatus.Should().BeNull();
+        episode.Removed.Should().BeFalse();
+        episode.Posted.Should().BeFalse();
+        episode.TweetSkipReason.Should().BeNull();
+        episode.BlueskyPosted.Should().BeFalse();
+        _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
+            s => s.IndexEpisode(podcast, episode, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<ITweetManager>().Verify(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()), Times.Never);
+        _mocker.GetMock<IBlueskyPostManager>().Verify(m => m.RemovePost(It.IsAny<PodcastEpisode>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a curator rejects a split-off awaiting approval, then it is saved Rejected and still removed and is not indexed, because a rejected split-off stays out of public (#1484).")]
+    public async Task update_rejecting_a_split_off_keeps_it_hidden()
+    {
+        // Arrange
+        var (episode, podcast) = ResolvedSplitOffPair();
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id,
+                new EpisodeChangeRequest { ApprovalDecision = ApprovalDecision.Reject }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        _saved.Should().Be(episode);
+        episode.ApprovalStatus.Should().Be(ApprovalStatus.Rejected);
+        episode.Removed.Should().BeTrue();
+        episode.IsHeldForApproval().Should().BeTrue();
+        _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
+            s => s.IndexEpisode(It.IsAny<Podcast>(), It.IsAny<Episode>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "Plain English rule: a split-off held for approval is made public only by approving it, so clearing removed on one awaiting approval or rejected is a bad request and nothing is saved (#1484).")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task update_clearing_removed_on_a_held_split_off_is_rejected(bool rejected)
+    {
+        // Arrange
+        var (episode, podcast) = ResolvedSplitOffPair();
+        if (rejected)
+        {
+            EpisodeServiceLinks.Reject(episode);
+        }
+
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id, new EpisodeChangeRequest { Removed = false }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        result.Message.Should().NotBeNullOrWhiteSpace();
+        _saved.Should().BeNull();
+        episode.Removed.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: an approved split-off later removed (e.g. unplayable) can be un-removed like any episode, because it is no longer held for approval (#1484).")]
+    public async Task update_clearing_removed_on_an_approved_split_off_is_accepted()
+    {
+        // Arrange
+        var (episode, podcast) = ResolvedSplitOffPair();
+        EpisodeServiceLinks.Approve(episode);
+        episode.Removed = true;
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, episode.Id, new EpisodeChangeRequest { Removed = false }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        episode.Removed.Should().BeFalse();
+        episode.ApprovalStatus.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: only an episode held for approval can be rejected (no status means approved, like any ordinary episode), and approve or reject cannot be combined with the opposite removed, so each is a bad request and nothing is saved (#1484).")]
+    public async Task update_invalid_split_off_review_is_a_bad_request()
+    {
+        // Arrange
+        var (ordinary, ordinaryPodcast) = ResolvedOldPair();
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var rejectOrdinary = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(ordinaryPodcast.Id, ordinary.Id,
+                new EpisodeChangeRequest { ApprovalDecision = ApprovalDecision.Reject }),
+            CancellationToken.None);
+        var (splitOff, podcast) = ResolvedSplitOffPair();
+        var approveAndRemove = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, splitOff.Id,
+                new EpisodeChangeRequest { ApprovalDecision = ApprovalDecision.Approve, Removed = true }),
+            CancellationToken.None);
+        var rejectAndUnremove = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, splitOff.Id,
+                new EpisodeChangeRequest { ApprovalDecision = ApprovalDecision.Reject, Removed = false }),
+            CancellationToken.None);
+
+        // Assert
+        rejectOrdinary.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        approveAndRemove.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        rejectAndUnremove.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        _saved.Should().BeNull();
+        ordinary.ApprovalStatus.Should().BeNull();
+        splitOff.ApprovalStatus.Should().Be(ApprovalStatus.AwaitingApproval);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: approving an ordinary episode (no status, already approved) is accepted and leaves it approved and public (#1484).")]
+    public async Task update_approving_an_ordinary_episode_changes_nothing()
+    {
+        // Arrange
+        var (ordinary, podcast) = ResolvedOldPair(e => e.Removed = false);
+        var sut = _mocker.CreateInstance<EpisodeUpdateService>();
+
+        // Act
+        var result = await sut.UpdateAsync(
+            new EpisodeChangeRequestWrapper(podcast.Id, ordinary.Id,
+                new EpisodeChangeRequest { ApprovalDecision = ApprovalDecision.Approve }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        ordinary.ApprovalStatus.Should().BeNull();
+        ordinary.Removed.Should().BeFalse();
+    }
+
+    private (Episode Episode, Podcast Podcast) ResolvedSplitOffPair()
+    {
+        var source = OldEpisode(e =>
+        {
+            var spotifyId = _fixture.CreateSpotifyId();
+            EpisodeServicePresence.SetSpotifyIdentity(e, spotifyId);
+            EpisodeServicePresence.Upsert(e, ServiceKeys.Spotify, _fixture.DefaultSpotifyUrl(spotifyId), null);
+        });
+        var splitOff = EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode;
+        var podcast = _fixture.CreatePodcast(p => p.Id = splitOff.PodcastId);
+        _resolved = new PodcastEpisodeResolverResponse(splitOff, podcast, PodcastEpisodeResolveState.Resolved);
+        return (splitOff, podcast);
     }
 
     private (Episode Episode, Podcast Podcast) ResolvedOldPair(Action<Episode>? customize = null)

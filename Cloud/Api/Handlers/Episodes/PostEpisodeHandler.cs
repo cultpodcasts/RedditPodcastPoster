@@ -24,6 +24,8 @@ public class PostEpisodeHandler(
                 await ctx.Accepted(result.Outcome!.ToDto(), c),
             EpisodeUpdateStatus.NotFound =>
                 ctx.NotFound(),
+            EpisodeUpdateStatus.BadRequest =>
+                await ctx.BadRequest(new { message = result.Message }, c),
             EpisodeUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update episode"), c),
             _ => await LogAndFail(ctx, c)

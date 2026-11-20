@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 
@@ -37,6 +38,16 @@ public class EpisodeChangeRequest
 
     [JsonPropertyName("removed")]
     public bool? Removed { get; set; }
+
+    /// <summary>
+    /// #1484: <c>"Approve"</c> or <c>"Reject"</c> an episode awaiting approval (a split-off). Approving clears its
+    /// stored <c>approvalStatus</c> (null means approved): it becomes public and the posting jobs may post it under
+    /// their usual rules. Rejecting sets <c>"Rejected"</c>: it stays hidden and is never posted. 400 when rejecting an
+    /// episode that is not held, or when it contradicts <c>removed</c>.
+    /// </summary>
+    [JsonPropertyName("approvalDecision")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public Api.Models.ApprovalDecision? ApprovalDecision { get; set; }
 
     [JsonPropertyName("explicit")]
     public bool? Explicit { get; set; }

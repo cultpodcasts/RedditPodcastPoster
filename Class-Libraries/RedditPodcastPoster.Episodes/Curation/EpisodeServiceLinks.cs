@@ -63,13 +63,21 @@ public static class EpisodeServiceLinks
     /// Splits <paramref name="serviceKeys"/> off <paramref name="source"/> into a new episode of the same podcast, so
     /// the links are kept when the source is about to take other links for those services (#1416 overwrite).
     /// The new episode starts as a copy of the source's details (title, description, release, length, language,
-    /// subjects and parent fields) for the curator to correct, and is marked as already posted on every channel:
-    /// it is a recovery record and is never posted automatically.
+    /// subjects, matches, search terms, hashtag, guests and parent fields) for the curator to correct.
+    /// <para>
+    /// #1484: it <b>awaits curator approval</b> (<see cref="Episode.ApprovalStatus"/> =
+    /// <see cref="ApprovalStatus.AwaitingApproval"/>). While held (<see cref="Episode.IsHeldForApproval"/>) it is kept
+    /// out of public pages, search, D1, the homepage and posting, and a submit matches it only by one of its own service
+    /// ids and never offers it as a service-link conflict candidate. <see cref="Models.Catalogue.Playable.Removed"/> is
+    /// also set so storage-level <c>removed</c> filters (Cosmos SQL, D1, reconcile) agree. Its posting flags are left
+    /// clear: posting keys off the status, so once a curator approves it (<see cref="Approve"/>) it is posted under the
+    /// usual rules; a rejected one (<see cref="Reject"/>) never is.
+    /// </para>
     /// <para>
     /// #1482: its id is deterministic (<see cref="SplitOffId"/>: a name-based v5 GUID of the source id and its stored
     /// Spotify and Apple links), so an overwrite retried after a failed save gets the same id. A caller that finds an
     /// episode with that id already stored must use <see cref="SplitOffOnto"/> instead, so the saved split-off (and
-    /// any curator edits to it) is reused rather than rebuilt.
+    /// any curator edits to it, including an approval or rejection) is reused rather than rebuilt.
     /// </para>
     /// </summary>
     /// <exception cref="InvalidOperationException">The source carries none of <paramref name="serviceKeys"/>.</exception>
@@ -90,13 +98,16 @@ public static class EpisodeServiceLinks
             Ignored = source.Ignored,
             Subjects = [..source.Subjects],
             RemovedSubjects = [..source.RemovedSubjects],
+            Matches = source.Matches.Select(match => match.Clone()).ToList(),
+            SearchTerms = source.SearchTerms,
+            HashTag = source.HashTag,
+            Guests = source.Guests is null ? null : [..source.Guests],
             PublisherSearchTerms = source.PublisherSearchTerms,
             PublisherLanguage = source.PublisherLanguage,
             ParentMetadataVersion = source.ParentMetadataVersion,
             ParentRemoved = source.ParentRemoved,
-            Posted = true,
-            OldTweeted = true,
-            OldBlueskyPosted = true
+            Removed = true,
+            ApprovalStatus = ApprovalStatus.AwaitingApproval
         };
         split.ReleaseUtc = source.ReleaseUtc;
 
@@ -108,6 +119,52 @@ public static class EpisodeServiceLinks
         }
 
         return new EpisodeServiceLinkSplit(split, move.Moved);
+    }
+
+    /// <summary>
+    /// #1484: a curator approves a split-off awaiting approval (or one rejected earlier) by clearing its
+    /// <see cref="Episode.ApprovalStatus"/> to null (null means approved). It becomes an ordinary public episode
+    /// (Removed cleared) and the posting jobs may post it under their usual rules (release window, ignored, delayed
+    /// YouTube publishing). Nothing is posted here and no posting flag is touched: a split-off is created with none set
+    /// and is never posted while held. Approving an episode that is already approved (null) changes nothing.
+    /// </summary>
+    /// <returns>True when anything changed.</returns>
+    public static bool Approve(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        if (episode.ApprovalStatus is null)
+        {
+            return false;
+        }
+
+        episode.ApprovalStatus = null;
+        episode.Removed = false;
+        return true;
+    }
+
+    /// <summary>
+    /// #1484: a curator rejects a split-off awaiting approval. It becomes <see cref="ApprovalStatus.Rejected"/>, stays
+    /// hidden (Removed) and is never posted. Rejecting a rejected split-off changes nothing. An approved episode (null)
+    /// cannot be rejected: it is indistinguishable from any ordinary episode, which is hidden with Removed instead.
+    /// </summary>
+    /// <returns>True when anything changed.</returns>
+    /// <exception cref="InvalidOperationException">The episode is approved (null status), not awaiting approval.</exception>
+    public static bool Reject(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        if (episode.ApprovalStatus is null)
+        {
+            throw new InvalidOperationException($"Episode '{episode.Id}' is not awaiting approval.");
+        }
+
+        if (episode.ApprovalStatus == ApprovalStatus.Rejected && episode.Removed)
+        {
+            return false;
+        }
+
+        episode.ApprovalStatus = ApprovalStatus.Rejected;
+        episode.Removed = true;
+        return true;
     }
 
     /// <summary>Namespace of <see cref="SplitOffId"/> (#1482).</summary>

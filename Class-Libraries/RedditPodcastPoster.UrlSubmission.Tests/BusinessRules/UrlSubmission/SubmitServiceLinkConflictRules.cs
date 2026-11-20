@@ -477,13 +477,15 @@ public class SubmitServiceLinkConflictRules
     }
 
     [Fact(DisplayName =
-        "A split-off whose stored episode has since been overwritten (it now carries different links) is a normal " +
-        "conflict candidate again: it is not dropped and can be held for the curator (#1482).")]
+        "An approved split-off whose stored episode has since been overwritten (it now carries different links) is " +
+        "a normal conflict candidate again: it is not dropped and can be held for the curator (#1482, #1484).")]
     public void split_off_of_an_overwritten_episode_stays_a_candidate()
     {
         // Arrange
         var stored = StoredEpisodeWithSpotify(_title);
         var splitOff = EpisodeServiceLinks.SplitOff(stored, [ServiceKeys.Spotify]).Episode;
+        // #1484: a split-off awaiting approval is never a candidate; once approved it is an ordinary episode.
+        EpisodeServiceLinks.Approve(splitOff);
         var newSpotifyId = _fixture.CreateSpotifyId();
         EpisodeServicePresence.SetSpotifyIdentity(stored, newSpotifyId);
         EpisodeServicePresence.Upsert(stored, ServiceKeys.Spotify, _fixture.DefaultSpotifyUrl(newSpotifyId), null);

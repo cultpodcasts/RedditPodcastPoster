@@ -106,12 +106,16 @@ public sealed class D1SearchCatalogue(
                                Id = e.Id,
                                PodcastId = e.PodcastId,
                                Removed = e.Removed,
-                               ParentRemoved = e.ParentRemoved
+                               ParentRemoved = e.ParentRemoved,
+                               HeldForApproval = e.ApprovalStatus != null
                            })
                            .WithCancellation(cancellationToken))
         {
+            // #1484: an episode held for approval is excluded here as the D1 mirror excludes it
+            // (D1SearchEligibility), so the eligible count never counts it whatever its removed flag says.
             if (podcasts.TryGetValue(episode.PodcastId, out var podcastRemoved)
                 && !episode.Removed
+                && !episode.HeldForApproval
                 && episode.ParentRemoved != true
                 && podcastRemoved != true)
             {
@@ -288,6 +292,9 @@ internal sealed class D1SearchEpisodeEligibilityRow
     public Guid PodcastId { get; set; }
     public bool Removed { get; set; }
     public bool? ParentRemoved { get; set; }
+
+    /// <summary>#1484: <c>approvalStatus</c> is set (absent and null mean approved).</summary>
+    public bool HeldForApproval { get; set; }
 }
 
 internal sealed class D1SearchPlayableEligibilityRow
