@@ -18,6 +18,11 @@ public enum ServiceLinkConflictOutcomeKind
     /// The stored episode's conflicting links were split off into <see cref="ServiceLinkConflictOutcome.SplitOff"/>;
     /// the submit now enriches <see cref="ServiceLinkConflictOutcome.Episode"/> with the submitted links.
     /// </summary>
+    /// <remarks>
+    /// The stored episode has already been modified in memory (its conflicting links cleared). The caller must save
+    /// <see cref="ServiceLinkConflictOutcome.SplitOff"/> before the stored episode, so a failed second save leaves the
+    /// old links stored twice rather than lost.
+    /// </remarks>
     Overwritten
 }
 

@@ -1,9 +1,16 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
+using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.People.Models;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Subjects.Enrichers;
+using RedditPodcastPoster.Subjects.Factories;
+using RedditPodcastPoster.Subjects.Models;
+using RedditPodcastPoster.UrlSubmission.Enrichers;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Matching;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -190,11 +197,12 @@ public class SubmitServiceLinkConflictRules
         EpisodeServicePresence.SpotifyEpisodeId(stored).Should().Be(oldSpotifyId);
     }
 
-    [Fact(DisplayName = "When the curator answers cancel, nothing is written.")]
+    [Fact(DisplayName = "When the curator answers cancel, nothing is written and the stored episode keeps its links.")]
     public void cancel_writes_nothing()
     {
         // Arrange
         var stored = StoredEpisodeWithSpotify(_title);
+        var oldSpotifyId = EpisodeServicePresence.SpotifyEpisodeId(stored);
         var item = SpotifySubmit(_title, [stored]);
 
         // Act
@@ -202,6 +210,7 @@ public class SubmitServiceLinkConflictRules
 
         // Assert
         outcome.Should().Be(ServiceLinkConflictOutcome.Cancelled);
+        EpisodeServicePresence.SpotifyEpisodeId(stored).Should().Be(oldSpotifyId);
     }
 
     [Fact(DisplayName =
@@ -253,6 +262,36 @@ public class SubmitServiceLinkConflictRules
         episodes.SavedEpisodes.Select(x => x.Id).Should().Equal(splitOff.Id, stored.Id);
         result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
         result.SplitOffEpisode.Should().BeSameAs(splitOff);
+    }
+
+    [Fact(DisplayName =
+        "When the curator overwrites and the real enrich path runs, the stored episode carries the submitted " +
+        "Spotify id and url, the split-off carries the old ones, and the split-off is saved first.")]
+    public async Task overwrite_end_to_end_moves_old_link_and_applies_submitted_link()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title);
+        var oldSpotifyId = EpisodeServicePresence.SpotifyEpisodeId(stored);
+        var oldSpotifyUrl = EpisodeServicePresence.TryGetUrl(stored, ServiceKeys.Spotify);
+        var item = SpotifySubmit(_title, [stored]);
+        var episodes = new InMemoryEpisodeRepository();
+        _mocker.Use<IEpisodeRepository>(episodes);
+        _mocker.Use<IPodcastRepository>(new InMemoryPodcastRepository());
+        UseRealPodcastPipeline();
+        var sut = _mocker.CreateInstance<CategorisedItemProcessor>();
+
+        // Act
+        var result = await sut.ProcessCategorisedItem(item, Options(ServiceLinkConflictChoice.Overwrite, stored.Id));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
+        result.Episode.Should().BeSameAs(stored);
+        EpisodeServicePresence.SpotifyEpisodeId(stored).Should().Be(item.ResolvedSpotifyItem!.EpisodeId);
+        EpisodeServicePresence.TryGetUrl(stored, ServiceKeys.Spotify).Should().Be(item.ResolvedSpotifyItem.Url);
+        var splitOff = result.SplitOffEpisode!;
+        EpisodeServicePresence.SpotifyEpisodeId(splitOff).Should().Be(oldSpotifyId);
+        EpisodeServicePresence.TryGetUrl(splitOff, ServiceKeys.Spotify).Should().Be(oldSpotifyUrl);
+        episodes.SavedEpisodes.Select(x => x.Id).Should().Equal(splitOff.Id, stored.Id);
     }
 
     [Fact(DisplayName =
@@ -310,6 +349,33 @@ public class SubmitServiceLinkConflictRules
 
         // Assert
         parsed.Should().BeFalse();
+    }
+
+    /// <summary>Real gate, matcher, enricher and podcast processor; only subject/guest lookups are stubbed.</summary>
+    private void UseRealPodcastPipeline()
+    {
+        var enricherMocker = new AutoMocker();
+        var descriptionHelper = enricherMocker.GetMock<IDescriptionHelper>();
+        descriptionHelper
+            .Setup(x => x.CollapseDescription(It.IsAny<string?>()))
+            .Returns<string?>(description => description ?? string.Empty);
+        descriptionHelper
+            .Setup(x => x.EnrichMissingDescription(It.IsAny<CategorisedItem>()))
+            .Returns(string.Empty);
+        enricherMocker.Use(EpisodeDomainTestServices.CreateEnrichmentApplicator());
+        enricherMocker.Use(NullLogger<EpisodeEnricher>.Instance);
+        _mocker.Use<IEpisodeEnricher>(enricherMocker.CreateInstance<EpisodeEnricher>());
+        _mocker.GetMock<ISubjectEnrichmentOptionsFactory>()
+            .Setup(x => x.CreateAsync(It.IsAny<Podcast>(), It.IsAny<Episode?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubjectEnrichmentOptions(null, null, null, string.Empty));
+        _mocker.GetMock<ISubjectEnricher>()
+            .Setup(x => x.EnrichSubjects(It.IsAny<Episode>(), It.IsAny<SubjectEnrichmentOptions?>()))
+            .ReturnsAsync(new EnrichSubjectsResult([], []));
+        _mocker.GetMock<IEpisodeGuestEnricher>()
+            .Setup(x => x.EnrichGuests(It.IsAny<Episode>(), It.IsAny<GuestEnrichmentOptions?>()))
+            .ReturnsAsync(new EnrichGuestsResult([], []));
+        _mocker.Use<IPodcastProcessor>(_mocker.CreateInstance<PodcastProcessor>());
+        _mocker.Use<IServiceLinkConflictGate>(Gate);
     }
 
     private SubmitOptions Options(ServiceLinkConflictChoice choice, Guid? episodeId = null) =>

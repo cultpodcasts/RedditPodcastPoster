@@ -9,5 +9,12 @@ namespace RedditPodcastPoster.UrlSubmission.Processors;
 /// </summary>
 public interface IServiceLinkConflictGate
 {
+    /// <summary>Decides the outcome for <paramref name="categorisedItem"/> under the curator's answer.</summary>
+    /// <remarks>
+    /// Not side-effect free: on <see cref="ServiceLinkConflictOutcomeKind.Overwritten"/> the stored episode has
+    /// already had its conflicting links moved onto <see cref="ServiceLinkConflictOutcome.SplitOff"/> in memory.
+    /// The caller must persist both episodes, the split-off first. Every other outcome leaves the stored episode
+    /// untouched. Call once per submit.
+    /// </remarks>
     ServiceLinkConflictOutcome Evaluate(CategorisedItem categorisedItem, SubmitOptions submitOptions);
 }
