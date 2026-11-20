@@ -250,11 +250,99 @@ public class EpisodeServiceLinksRules
             .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId)).Create();
 
         // Act
-        var id = EpisodeServiceLinks.SplitOffId(source, [ServiceKeys.Spotify]);
+        var id = EpisodeServiceLinks.SplitOffId(source);
 
         // Assert
-        id.Should().NotBe(EpisodeServiceLinks.SplitOffId(otherLinks, [ServiceKeys.Spotify]));
-        id.Should().NotBe(EpisodeServiceLinks.SplitOffId(otherEpisode, [ServiceKeys.Spotify]));
+        id.Should().NotBe(EpisodeServiceLinks.SplitOffId(otherLinks));
+        id.Should().NotBe(EpisodeServiceLinks.SplitOffId(otherEpisode));
         EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode.Id.Should().Be(id);
+    }
+
+    [Fact(DisplayName =
+        "The split-off id covers the stored episode's Spotify and Apple links whatever subset conflicts, so an " +
+        "overwrite whose secondary Apple link resolves on one attempt and not the next still gets the same id (#1482).")]
+    public void split_off_id_does_not_depend_on_the_conflicting_keys()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var appleId = _fixture.CreateAppleId();
+        var episodeId = _fixture.CreateGuid();
+        Episode Source() => _fixture.BuildEpisode()
+            .WithId(episodeId)
+            .WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
+            .Create();
+
+        // Act
+        var both = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify, ServiceKeys.Apple]).Episode;
+        var spotifyOnly = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify]).Episode;
+
+        // Assert
+        spotifyOnly.Id.Should().Be(both.Id);
+        EpisodeServiceLinks.SplitOffId(Source()).Should().Be(both.Id);
+    }
+
+    [Fact(DisplayName =
+        "Finishing a split onto the existing split-off keeps its details, clears links it already holds from the " +
+        "stored episode, and reports that it needs no save when it gained no link (#1482).")]
+    public void split_off_onto_existing_keeps_its_details()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var appleId = _fixture.CreateAppleId();
+        var episodeId = _fixture.CreateGuid();
+        Episode Source() => _fixture.BuildEpisode()
+            .WithId(episodeId)
+            .WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
+            .Create();
+        var existing = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify, ServiceKeys.Apple]).Episode;
+        var editedTitle = _fixture.CreateTitle();
+        existing.Title = editedTitle;
+        var source = Source();
+
+        // Act
+        var result = EpisodeServiceLinks.SplitOffOnto(source, existing, [ServiceKeys.Spotify]);
+
+        // Assert
+        result.Episode.Should().BeSameAs(existing);
+        result.Reused.Should().BeTrue();
+        result.SplitOffChanged.Should().BeFalse();
+        result.Moved.Should().BeEquivalentTo([ServiceKeys.Spotify, ServiceKeys.Apple]);
+        existing.Title.Should().Be(editedTitle);
+        EpisodeServicePresence.SpotifyEpisodeId(source).Should().BeNull();
+        EpisodeServicePresence.AppleEpisodeId(source).Should().BeNull();
+        EpisodeServicePresence.SpotifyEpisodeId(existing).Should().Be(spotifyId);
+        EpisodeServicePresence.AppleEpisodeId(existing).Should().Be(appleId);
+    }
+
+    [Fact(DisplayName =
+        "Finishing a split onto an existing split-off that lacks a conflicting link moves that link onto it and " +
+        "reports that it must be saved (#1482).")]
+    public void split_off_onto_existing_adds_a_missing_link()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var appleId = _fixture.CreateAppleId();
+        var episodeId = _fixture.CreateGuid();
+        Episode Source() => _fixture.BuildEpisode()
+            .WithId(episodeId)
+            .WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .WithApple(appleId, _fixture.DefaultAppleUrl(appleId))
+            .Create();
+        var existing = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify]).Episode;
+        var source = Source();
+
+        // Act
+        var result = EpisodeServiceLinks.SplitOffOnto(source, existing, [ServiceKeys.Spotify, ServiceKeys.Apple]);
+
+        // Assert
+        result.SplitOffChanged.Should().BeTrue();
+        EpisodeServicePresence.AppleEpisodeId(existing).Should().Be(appleId);
+        EpisodeServicePresence.AppleEpisodeId(source).Should().BeNull();
+        EpisodeServicePresence.SpotifyEpisodeId(source).Should().BeNull();
     }
 }

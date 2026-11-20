@@ -60,26 +60,47 @@ public class ServiceLinkConflictGate(
             .ToArray();
         // #1482: after an overwrite whose stored-episode save failed, the split-off (saved first) holds the same
         // links and details as the stored episode, so it conflicts too. It is never the episode to overwrite: drop
-        // any candidate whose id is the deterministic split-off id of another candidate, so the retry holds and
-        // overwrites the stored episode again and rebuilds the same split-off.
-        var splitOffIds = candidates
-            .Select(conflict => EpisodeServiceLinks.SplitOffId(conflict.Episode, conflict.Keys))
-            .ToHashSet();
-        var conflicts = candidates.Where(conflict => !splitOffIds.Contains(conflict.Episode.Id)).ToArray();
-        if (conflicts.Length == 0)
+        // any candidate whose id is the deterministic split-off id of another candidate (that is, of a stored
+        // episode still carrying the links it was split from), so the retry holds and overwrites the stored episode
+        // again and reuses that split-off. Once the stored episode's overwrite has been saved its links differ, so
+        // its split-off is a normal candidate again.
+        var splitOffSources = candidates
+            .GroupBy(conflict => EpisodeServiceLinks.SplitOffId(conflict.Episode))
+            .ToDictionary(group => group.Key, group => group.First().Episode.Id);
+        var conflicts = new List<(Episode Episode, IReadOnlyList<string> Keys)>();
+        foreach (var candidate in candidates)
+        {
+            if (splitOffSources.TryGetValue(candidate.Episode.Id, out var sourceId) && sourceId != candidate.Episode.Id)
+            {
+                logger.LogInformation(
+                    "Service-link conflict: episode '{SplitOffEpisodeId}' is the split-off of a partly saved overwrite of episode '{EpisodeId}' (still carrying the same links), so it is not offered for overwrite.",
+                    candidate.Episode.Id, sourceId);
+                continue;
+            }
+
+            conflicts.Add(candidate);
+        }
+        if (conflicts.Count == 0)
         {
             return ServiceLinkConflictOutcome.Proceed;
         }
 
-        var (episode, keys) = conflicts.Length == 1 ? conflicts[0] : Closest(conflicts, categorisedItem);
+        var (episode, keys) = conflicts.Count == 1 ? conflicts[0] : Closest(conflicts.ToArray(), categorisedItem);
         switch (submitOptions.ServiceLinkConflict)
         {
             case ServiceLinkConflictChoice.Overwrite when submitOptions.ServiceLinkConflictEpisodeId == episode.Id:
-                var split = EpisodeServiceLinks.SplitOff(episode, keys);
+                // #1482: a split-off already saved by an earlier, partly failed overwrite is reused (keeping any
+                // curator edits) instead of being rebuilt and saved over.
+                var splitOffId = EpisodeServiceLinks.SplitOffId(episode);
+                var existing = episodes.FirstOrDefault(candidate => candidate.Id == splitOffId);
+                var split = existing is null
+                    ? EpisodeServiceLinks.SplitOff(episode, keys)
+                    : EpisodeServiceLinks.SplitOffOnto(episode, existing, keys);
                 logger.LogWarning(
-                    "Service-link conflict with episode '{EpisodeId}': curator chose overwrite. Split {Services} off into new episode '{SplitOffEpisodeId}'.",
-                    episode.Id, string.Join(", ", split.Moved), split.Episode.Id);
-                return ServiceLinkConflictOutcome.Overwritten(episode, split.Episode);
+                    "Service-link conflict with episode '{EpisodeId}': curator chose overwrite. Split {Services} off into {SplitOffKind} episode '{SplitOffEpisodeId}'.",
+                    episode.Id, string.Join(", ", split.Moved), split.Reused ? "the existing split-off" : "new",
+                    split.Episode.Id);
+                return ServiceLinkConflictOutcome.Overwritten(episode, split.Episode, split.SplitOffChanged);
             case ServiceLinkConflictChoice.Overwrite:
                 logger.LogWarning(
                     "Service-link conflict is with episode '{EpisodeId}', but the overwrite answer named '{AnsweredEpisodeId}'; asking again.",
