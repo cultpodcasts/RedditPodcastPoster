@@ -82,9 +82,9 @@ public class SubmitSplitOffReviewRules
     }
 
     [Fact(DisplayName =
-        "Re-submitting the Spotify link a hidden split-off holds enriches that split-off, which stays hidden and " +
-        "posted: no new public episode is created and nothing is queued for posting.")]
-    public async Task resubmitting_split_off_own_link_enriches_it_and_creates_nothing()
+        "Re-submitting the Spotify link a hidden split-off holds matches that split-off (it already exists), which " +
+        "stays hidden and posted: no new public episode is created and nothing is queued for posting.")]
+    public async Task resubmitting_split_off_own_link_matches_it_and_creates_nothing()
     {
         // Arrange
         var (stored, splitOff) = StoredWithCompletedSplitOff();
@@ -96,7 +96,7 @@ public class SubmitSplitOffReviewRules
 
         // Assert
         result.ServiceLinkConflict.Should().BeNull();
-        result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
+        result.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
         result.Episode!.Id.Should().Be(splitOff.Id);
         splitOff.Removed.Should().BeTrue();
         splitOff.Posted.Should().BeTrue();
