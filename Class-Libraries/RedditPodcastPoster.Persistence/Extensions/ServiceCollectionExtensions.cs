@@ -148,6 +148,9 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IFilmSearchPushWatermarkStore>(s =>
                     new FilmSearchPushWatermarkStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))
+                .AddSingleton<ID1SearchReconcileWatermarkStore>(s =>
+                    new D1SearchReconcileWatermarkStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))
                 .AddSingleton<IXOAuth2TokenStore>(s =>
                     new XOAuth2TokenStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),

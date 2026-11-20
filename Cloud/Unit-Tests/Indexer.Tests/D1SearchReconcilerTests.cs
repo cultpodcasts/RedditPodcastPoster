@@ -4,6 +4,8 @@ using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.EntitySearchIndexer.D1Search;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Search;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Xunit;
 
 namespace Indexer.Tests;
@@ -293,6 +295,178 @@ public class D1SearchReconcilerTests
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Delete, 3, 3));
     }
 
+
+    [Fact(DisplayName =
+        "The console accepts --full with a dry run or a write, because a full compare is a safety option, not a write switch.")]
+    public void console_accepts_full()
+    {
+        // Arrange
+        const bool write = false;
+
+        // Act
+        var request = D1SearchReconcileRequest.FromCommandLine(write, false, true, out var error);
+
+        // Assert
+        error.Should().BeNull();
+        request.Should().Be(new D1SearchReconcileRequest(false, Full: true));
+    }
+
+    [Fact(DisplayName =
+        "When a watermark has been saved and --full is not set, the reconcile reads the incremental catalogue and " +
+        "the eligible-id snapshot, because day-to-day runs must not rebuild every search document.")]
+    public async Task incremental_reads_the_window_and_eligible_ids()
+    {
+        // Arrange
+        const long since = 1_700_000_000;
+        var changed = Candidate(modifiedAt: since * 1000);
+        _catalogue = [changed];
+        _inventory = new() { [changed.Id] = since * 1000 };
+        SetupIncremental(since, [changed.Id]);
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None);
+
+        // Assert
+        report.Outcome.Should().Be(D1SearchReconcileOutcome.InSync);
+        _mocker.GetMock<ID1SearchCatalogue>().Verify(
+            c => c.ReadIncremental(since, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<ID1SearchCatalogue>().Verify(
+            c => c.ReadEligibleIds(It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<ID1SearchCatalogue>().Verify(
+            c => c.Read(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>().Verify(
+            s => s.SaveAsync(It.IsAny<D1SearchReconcileWatermark>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "An incremental write upserts from the documents already built in the window and does not stream the " +
+        "catalogue a second time, because the changed set is small and a second full scan is the cost we are dropping.")]
+    public async Task incremental_write_does_not_rescan_the_catalogue()
+    {
+        // Arrange
+        const long since = 1_700_000_000;
+        var missing = Candidate(modifiedAt: (since + 10) * 1000);
+        var orphan = _fixture.CreateGuid().ToString();
+        _catalogue = [missing];
+        _inventory = new() { [orphan] = 1 };
+        SetupIncremental(since, []);
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true, true), CancellationToken.None);
+
+        // Assert
+        report.Should().BeEquivalentTo(new
+            { Outcome = D1SearchReconcileOutcome.Patched, Missing = 1, Orphans = 1, Upserted = 1, Deleted = 1 });
+        _writes.Should().BeEquivalentTo(new[]
+        {
+            (new[] { missing.Id }, Array.Empty<string>()),
+            (Array.Empty<string>(), new[] { orphan })
+        });
+        _mocker.GetMock<ID1SearchCatalogue>().Verify(
+            c => c.Read(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<ID1SearchCatalogue>().Verify(
+            c => c.ReadIncremental(since, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>().Verify(
+            s => s.SaveAsync(It.Is<D1SearchReconcileWatermark>(w => w.HighWaterMark == since + 10),
+                It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A successful write advances the watermark to the highest Cosmos _ts considered, and a dry run, a refused " +
+        "drift, or a failed write leaves it where it was, because a later incremental run must re-read a window that " +
+        "did not finish.")]
+    public async Task watermark_advances_only_after_a_successful_write()
+    {
+        // Arrange
+        const long ts = 1_700_000_000;
+        var candidate = Candidate(modifiedAt: ts * 1000);
+        _catalogue = [candidate];
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None);
+        _inventory = new() { [candidate.Id] = ts * 1000 };
+        await sut.Reconcile(new D1SearchReconcileRequest(true), CancellationToken.None);
+        _inventory = [];
+        _mocker.GetMock<ID1SearchIndexWriter>()
+            .Setup(w => w.Write(It.IsAny<IReadOnlyCollection<D1SearchDocument>>(),
+                It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new D1SearchWriteResult(false, false, 0, 0, 0, 0, "write failed"));
+        await sut.Reconcile(new D1SearchReconcileRequest(true, true), CancellationToken.None);
+
+        // Assert: one successful write (the in-threshold missing upsert) saved once; dry run and failed write did not.
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>().Verify(
+            s => s.SaveAsync(It.Is<D1SearchReconcileWatermark>(w => w.HighWaterMark == ts),
+                It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When --full is set, the reconcile scans the whole catalogue even if a watermark exists, because --full is " +
+        "the safety compare and the weekly timer uses it.")]
+    public async Task full_ignores_the_watermark_and_scans_everything()
+    {
+        // Arrange
+        const long since = 1_700_000_000;
+        _catalogue = [Candidate(modifiedAt: since * 1000)];
+        _inventory = _catalogue.ToDictionary(c => c.Id, c => c.Document!.ModifiedAt);
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>()
+            .Setup(s => s.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new D1SearchReconcileWatermark { HighWaterMark = since });
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true, Full: true), CancellationToken.None);
+
+        // Assert
+        report.Outcome.Should().Be(D1SearchReconcileOutcome.InSync);
+        _mocker.GetMock<ID1SearchCatalogue>().Verify(
+            c => c.Read(0, It.IsAny<CancellationToken>()), Times.Once);
+        _mocker.GetMock<ID1SearchCatalogue>().Verify(
+            c => c.ReadIncremental(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>().Verify(
+            s => s.GetAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>().Verify(
+            s => s.SaveAsync(It.Is<D1SearchReconcileWatermark>(w => w.HighWaterMark == since),
+                It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A full catalogue pass reports a known total when CountPlayables is available, because the catalogue bar " +
+        "must be determinate instead of counting up with no end.")]
+    public async Task full_catalogue_progress_is_determinate_when_the_count_is_known()
+    {
+        // Arrange
+        _catalogue = Enumerable.Range(0, 25).Select(_ => Candidate(modifiedAt: 1)).ToList();
+        _mocker.GetMock<ID1SearchCatalogue>()
+            .Setup(c => c.CountPlayables(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(25);
+        var progress = new CollectingProgress();
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None, progress);
+
+        // Assert
+        progress.Items.Should().Contain(new D1SearchReconcileProgress(
+            D1SearchReconcilePhase.Catalogue, 0, 25, "waiting for first page"));
+        progress.Items.Should().Contain(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 1, 25));
+        progress.Items.Should().Contain(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 25, 25));
+    }
+
+    private void SetupIncremental(long since, IEnumerable<string> eligibleIds)
+    {
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>()
+            .Setup(s => s.GetAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new D1SearchReconcileWatermark { HighWaterMark = since });
+        _mocker.GetMock<ID1SearchCatalogue>()
+            .Setup(c => c.ReadIncremental(since, It.IsAny<CancellationToken>()))
+            .Returns(() => _catalogue.ToAsyncEnumerable());
+        _mocker.GetMock<ID1SearchCatalogue>()
+            .Setup(c => c.ReadEligibleIds(It.IsAny<CancellationToken>()))
+            .Returns(eligibleIds.ToAsyncEnumerable());
+    }
     private sealed class CollectingProgress : IProgress<D1SearchReconcileProgress>
     {
         public List<D1SearchReconcileProgress> Items { get; } = [];

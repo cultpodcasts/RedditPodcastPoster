@@ -101,5 +101,8 @@ public enum ModelType
     XApiRateLimitState = 32,
 
     [JsonPropertyName(nameof(FilmTrailerClaim))]
-    FilmTrailerClaim = 33
+    FilmTrailerClaim = 33,
+
+    [JsonPropertyName(nameof(D1SearchReconcileWatermark))]
+    D1SearchReconcileWatermark = 34
 }

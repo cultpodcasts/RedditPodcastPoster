@@ -39,7 +39,7 @@ public class D1SearchReconcileTriggerRules
         await sut.Reconcile(CancellationToken.None);
 
         // Assert
-        _request.Should().Be(new D1SearchReconcileRequest(write));
+        _request.Should().Be(new D1SearchReconcileRequest(write, Full: true));
     }
 
     [Fact(DisplayName =
