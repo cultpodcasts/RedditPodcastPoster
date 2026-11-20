@@ -753,7 +753,7 @@ public class SubmitUrlServiceTests
     public async Task first_submit_prompts_on_service_link_conflict()
     {
         // Arrange
-        var request = new SubmitUrlRequest { Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}") };
+        var request = CuratorRequest();
         var sut = _mocker.CreateInstance<SubmitUrlService>();
 
         // Act
@@ -780,7 +780,10 @@ public class SubmitUrlServiceTests
         var sut = _mocker.CreateInstance<SubmitUrlService>();
 
         // Act
-        await sut.SubmitAsync(dto.ToModel(), CancellationToken.None);
+        var model = dto.ToModel();
+        model.CanResolveServiceLinkConflict.Should().BeFalse("the curator flag is never mapped from the body");
+        model.CanResolveServiceLinkConflict = true;
+        await sut.SubmitAsync(model, CancellationToken.None);
 
         // Assert
         _capturedOptions!.ServiceLinkConflict.Should().Be(ServiceLinkConflictChoice.Overwrite);
@@ -792,11 +795,8 @@ public class SubmitUrlServiceTests
     public async Task unknown_service_link_conflict_decision_is_bad_request()
     {
         // Arrange
-        var request = new SubmitUrlRequest
-        {
-            Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
-            ServiceLinkConflictDecision = _fixture.CreateTitle()
-        };
+        var request = CuratorRequest();
+        request.ServiceLinkConflictDecision = _fixture.CreateTitle();
         var sut = _mocker.CreateInstance<SubmitUrlService>();
 
         // Act
@@ -823,9 +823,7 @@ public class SubmitUrlServiceTests
         var sut = _mocker.CreateInstance<SubmitUrlService>();
 
         // Act
-        var result = await sut.SubmitAsync(
-            new SubmitUrlRequest { Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}") },
-            CancellationToken.None);
+        var result = await sut.SubmitAsync(CuratorRequest(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(SubmitUrlStatus.ServiceLinkConflictDecisionRequired);
@@ -849,14 +847,10 @@ public class SubmitUrlServiceTests
         var sut = _mocker.CreateInstance<SubmitUrlService>();
 
         // Act
-        var result = await sut.SubmitAsync(
-            new SubmitUrlRequest
-            {
-                Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
-                ServiceLinkConflictDecision = "overwrite",
-                ServiceLinkConflictEpisodeId = episode.Id
-            },
-            CancellationToken.None);
+        var request = CuratorRequest();
+        request.ServiceLinkConflictDecision = "overwrite";
+        request.ServiceLinkConflictEpisodeId = episode.Id;
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(SubmitUrlStatus.Ok);
@@ -869,11 +863,8 @@ public class SubmitUrlServiceTests
     public async Task service_link_conflict_cancel_is_cancelled()
     {
         // Arrange
-        var request = new SubmitUrlRequest
-        {
-            Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
-            ServiceLinkConflictDecision = "cancel"
-        };
+        var request = CuratorRequest();
+        request.ServiceLinkConflictDecision = "cancel";
         var sut = _mocker.CreateInstance<SubmitUrlService>();
 
         // Act
@@ -883,6 +874,57 @@ public class SubmitUrlServiceTests
         result.Status.Should().Be(SubmitUrlStatus.Cancelled);
         _capturedOptions!.ServiceLinkConflict.Should().Be(ServiceLinkConflictChoice.Cancel);
     }
+
+    [Fact(DisplayName =
+        "A caller without the curate scope is never asked about a service-link conflict and cannot overwrite: " +
+        "submit creates a new episode whatever decision the body carries (#1416).")]
+    public async Task non_curator_overwrite_creates_new()
+    {
+        // Arrange
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
+            ServiceLinkConflictDecision = "overwrite",
+            ServiceLinkConflictEpisodeId = _fixture.CreateGuid()
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().NotBe(SubmitUrlStatus.BadRequest);
+        _capturedOptions!.ServiceLinkConflict.Should().Be(ServiceLinkConflictChoice.CreateNew);
+        _capturedOptions.ServiceLinkConflictEpisodeId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A caller without the curate scope may send an unreadable service-link decision without a bad request, " +
+        "because the decision is ignored for them.")]
+    public async Task non_curator_unknown_decision_is_ignored()
+    {
+        // Arrange
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
+            ServiceLinkConflictDecision = _fixture.CreateTitle()
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().NotBe(SubmitUrlStatus.BadRequest);
+        _capturedOptions!.ServiceLinkConflict.Should().Be(ServiceLinkConflictChoice.CreateNew);
+    }
+
+    private SubmitUrlRequest CuratorRequest() =>
+        new()
+        {
+            Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
+            CanResolveServiceLinkConflict = true
+        };
 
     private static string FlipCasing(string value)
     {

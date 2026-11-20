@@ -18,7 +18,10 @@ An `overwrite` answer that names a different episode from the one now in conflic
 never overwrites another episode.
 
 Callers with no curator prompt (the SubmitUrl console, discovery) keep the pre-#1416 behaviour: `SubmitOptions`
-defaults to `ServiceLinkConflictChoice.CreateNew`. Only the curator Submit URL API (`SubmitUrlService`) asks.
+defaults to `ServiceLinkConflictChoice.CreateNew`. Only the Submit URL API (`SubmitUrlService`) asks, and only a
+caller with the `curate` scope: `PostSubmitUrlHandler` sets `SubmitUrlRequest.CanResolveServiceLinkConflict` from
+the token, never from the body. A `submit`-scope caller is never prompted, and any decision it sends is ignored
+(it creates a new episode, as before #1416).
 
 ```mermaid
 flowchart TD

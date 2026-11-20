@@ -97,12 +97,26 @@ public class SubmitUrlService(
             var supported = await SupportedLanguageCodes();
             var choice = CatalogueLanguageChoices.Parse(submitUrlModel.LanguageDecision);
             var identityChoice = CatalogueIdentityChoices.Parse(submitUrlModel.IdentityDecision);
-            if (!ServiceLinkConflictChoices.TryParseAnswer(
-                    submitUrlModel.ServiceLinkConflictDecision,
-                    out var serviceLinkConflictChoice))
+            var serviceLinkConflictChoice = ServiceLinkConflictChoice.CreateNew;
+            Guid? serviceLinkConflictEpisodeId = null;
+            if (submitUrlModel.CanResolveServiceLinkConflict)
             {
-                return new SubmitUrlResult(SubmitUrlStatus.BadRequest,
-                    Message: "serviceLinkConflictDecision must be 'overwrite', 'create-new' or 'cancel'.");
+                if (!ServiceLinkConflictChoices.TryParseAnswer(
+                        submitUrlModel.ServiceLinkConflictDecision,
+                        out serviceLinkConflictChoice))
+                {
+                    return new SubmitUrlResult(SubmitUrlStatus.BadRequest,
+                        Message: "serviceLinkConflictDecision must be 'overwrite', 'create-new' or 'cancel'.");
+                }
+
+                serviceLinkConflictEpisodeId = submitUrlModel.ServiceLinkConflictEpisodeId;
+            }
+            else if (!string.IsNullOrWhiteSpace(submitUrlModel.ServiceLinkConflictDecision) ||
+                     submitUrlModel.ServiceLinkConflictEpisodeId != null)
+            {
+                logger.LogWarning(
+                    "{RunName}: Ignoring serviceLinkConflictDecision '{Decision}' from a caller without the curate scope; a service-link conflict creates a new episode.",
+                    nameof(SubmitAsync), submitUrlModel.ServiceLinkConflictDecision);
             }
 
             var submitOptions = new SubmitOptions(
@@ -116,9 +130,9 @@ public class SubmitUrlService(
                 LanguageChoice: choice,
                 IdentityChoice: identityChoice,
                 SelectedIdentityKey: submitUrlModel.SelectedIdentityKey,
-                // The curator site is asked before a conflicting episode is created or overwritten (#1416).
+                // A curator is asked before a conflicting episode is created or overwritten (#1416).
                 ServiceLinkConflict: serviceLinkConflictChoice,
-                ServiceLinkConflictEpisodeId: submitUrlModel.ServiceLinkConflictEpisodeId);
+                ServiceLinkConflictEpisodeId: serviceLinkConflictEpisodeId);
             var result = await urlSubmitter.Submit(
                 submitUrlModel.Url,
                 new IndexingContext

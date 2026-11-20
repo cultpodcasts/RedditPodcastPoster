@@ -43,6 +43,13 @@ public class SubmitUrlRequest
     public Guid? ServiceLinkConflictEpisodeId { get; set; }
 
     /// <summary>
+    /// Set by <c>PostSubmitUrlHandler</c> from the caller's <c>curate</c> scope; never mapped from the request body.
+    /// Only a curator is asked about, or may answer, a service-link conflict (#1416). Any other caller gets the
+    /// pre-#1416 behaviour (create a new episode) whatever decision the body carries.
+    /// </summary>
+    public bool CanResolveServiceLinkConflict { get; set; }
+
+    /// <summary>
     /// Isolated <c>required Uri</c> only means the JSON property was present.
     /// Submit needs a non-blank absolute http(s) URL.
     /// </summary>

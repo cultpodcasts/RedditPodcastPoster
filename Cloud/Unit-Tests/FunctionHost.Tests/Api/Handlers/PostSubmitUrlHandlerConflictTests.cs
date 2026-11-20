@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Claims;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -10,6 +11,7 @@ using Api.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using Api.Services.SubmitUrl;
+using RedditPodcastPoster.Auth0.Models;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
 using FunctionHost.Tests.Api;
@@ -242,5 +244,43 @@ public class PostSubmitUrlHandlerConflictTests
         using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
         doc.RootElement.GetProperty("contentKind").GetString().Should().Be(SubmitClassification.Episode);
         doc.RootElement.GetProperty("requiresCurator").GetBoolean().Should().BeTrue();
+    }
+
+    [Theory(DisplayName =
+        "The handler lets only a caller with the curate scope resolve a service-link conflict; a submit-scope " +
+        "caller is flagged as unable to, whatever the body says (#1416).")]
+    [InlineData("curate", true)]
+    [InlineData("submit", false)]
+    public async Task only_curate_scope_resolves_service_link_conflicts(string scope, bool expected)
+    {
+        // Arrange
+        SubmitUrlRequest? passed = null;
+        _mocker.GetMock<ISubmitUrlService>()
+            .Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
+            .Callback((SubmitUrlRequest r, CancellationToken _) => passed = r)
+            .ReturnsAsync(new SubmitUrlResult(SubmitUrlStatus.Failed));
+        var handler = _mocker.CreateInstance<PostSubmitUrlHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var principal = new ClientPrincipal
+        {
+            Claims =
+            [
+                new ClientPrincipalClaim { Type = "permissions", Value = scope },
+                new ClientPrincipalClaim { Type = ClaimTypes.NameIdentifier, Value = _fixture.CreateTitle() }
+            ]
+        };
+
+        // Act
+        await handler.Handle(
+            new HandlerContext(req.Object, principal),
+            new SubmitUrlRequest
+            {
+                Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()),
+                ServiceLinkConflictDecision = "overwrite"
+            },
+            CancellationToken.None);
+
+        // Assert
+        passed!.CanResolveServiceLinkConflict.Should().Be(expected);
     }
 }
