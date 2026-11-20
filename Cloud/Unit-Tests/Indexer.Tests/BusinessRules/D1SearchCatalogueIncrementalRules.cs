@@ -61,8 +61,9 @@ public class D1SearchCatalogueIncrementalRules
     }
 
     [Fact(DisplayName =
-        "ReadIncremental emits an older episode when only its podcast's _ts is in the window, because a podcast " +
-        "rename or subject change must re-emit every episode document, and a same-window episode is only emitted once.")]
+        "ReadIncremental emits an older episode when only its podcast's _ts is in the window, keeping the episode's " +
+        "own _ts as modifiedAt, because the podcast may have changed an indexed field; a same-window episode is only " +
+        "emitted once.")]
     public async Task incremental_includes_every_episode_of_a_changed_podcast()
     {
         // Arrange
@@ -100,8 +101,76 @@ public class D1SearchCatalogueIncrementalRules
             recentEpisode.Id.ToString(), oldEpisode.Id.ToString()
         });
         windowOnly.Select(c => c.Id).Should().Equal(recentEpisode.Id.ToString());
-        incremental.Single(c => c.Id == oldEpisode.Id.ToString()).Document!.ModifiedAt.Should().Be(150_000);
+        incremental.Single(c => c.Id == oldEpisode.Id.ToString()).Document!.ModifiedAt.Should().Be(50_000);
+        incremental.Single(c => c.Id == oldEpisode.Id.ToString()).TimestampSeconds.Should().Be(150);
         incremental.Single(c => c.Id == recentEpisode.Id.ToString()).Document!.ModifiedAt.Should().Be(120_000);
+    }
+
+    [Theory(DisplayName =
+        "An episode re-emitted because its podcast changed is marked ParentChanged only when the podcast's name or " +
+        "search terms differ from the episode's projection, because a podcast saved for bookkeeping must not make " +
+        "its episodes stale in D1 (#1475).")]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    public async Task changed_podcast_marks_episodes_only_when_indexed_fields_differ(
+        bool renamed, bool searchTermsChanged, bool expected)
+    {
+        // Arrange
+        const long since = 100;
+        var podcast = _fixture.CreatePodcast();
+        podcast.Timestamp = 150;
+        podcast.SearchTerms = _fixture.CreateTitle();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => e.Timestamp = 50);
+        episode.SetPodcastProperties(podcast);
+        if (renamed)
+        {
+            podcast.Name = _fixture.CreateTitle();
+        }
+
+        if (searchTermsChanged)
+        {
+            podcast.SearchTerms = _fixture.CreateTitle();
+        }
+
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.GetByPodcastId(podcast.Id))
+            .Returns(new[] { episode }.ToAsyncEnumerable());
+        _mocker.GetMock<IPodcastRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
+            .Returns(new[] { podcast }.ToAsyncEnumerable());
+        var sut = _mocker.CreateInstance<D1SearchCatalogue>();
+
+        // Act
+        var candidate = (await sut.ReadIncremental(since, CancellationToken.None).ToListAsync()).Single();
+
+        // Assert
+        candidate.ParentChanged.Should().Be(expected);
+        candidate.Document!.ModifiedAt.Should().Be(50_000);
+    }
+
+    [Fact(DisplayName =
+        "An episode read in its own _ts window is never marked ParentChanged, even when its projection is behind, " +
+        "because only the incremental podcast expansion checks the projection and a full compare stays a pure " +
+        "modifiedAt compare.")]
+    public async Task episode_window_never_marks_parent_changed()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisode(podcast, e => e.Timestamp = 120);
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Episode, bool>>>()))
+            .Returns(new[] { episode }.ToAsyncEnumerable());
+        _mocker.GetMock<IPodcastRepository>()
+            .Setup(r => r.GetPodcast(podcast.Id))
+            .ReturnsAsync(podcast);
+        var sut = _mocker.CreateInstance<D1SearchCatalogue>();
+
+        // Act
+        var candidate = (await sut.Read(0, CancellationToken.None).ToListAsync()).Single();
+
+        // Assert
+        candidate.ParentChanged.Should().BeFalse();
     }
 
     [Fact(DisplayName =

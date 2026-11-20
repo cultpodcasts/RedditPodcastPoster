@@ -59,8 +59,42 @@ public enum D1SearchReconcileOutcome
     Failed
 }
 
+/// <summary>How the catalogue was read for a reconcile.</summary>
+public enum D1SearchReconcileScan
+{
+    /// <summary>The whole catalogue, because <c>--full</c> was asked for (and always on the weekly timer).</summary>
+    Full,
+
+    /// <summary>
+    /// The whole catalogue, because no watermark has been saved yet. The first successful <c>--write</c> (patched or
+    /// already in sync) saves one, and later runs are incremental.
+    /// </summary>
+    FullNoWatermark,
+
+    /// <summary>Only what changed since the saved watermark.</summary>
+    Incremental
+}
+
+public static class D1SearchReconcileScanText
+{
+    /// <summary>A one-line, human description of the scan, for the console and the log.</summary>
+    public static string Describe(D1SearchReconcileScan scan, long sinceTs) => scan switch
+    {
+        D1SearchReconcileScan.Incremental =>
+            $"incremental from _ts {sinceTs} ({DateTimeOffset.FromUnixTimeSeconds(sinceTs).UtcDateTime:yyyy-MM-dd HH:mm:ss} UTC)",
+        D1SearchReconcileScan.FullNoWatermark =>
+            "full scan: no watermark yet (the first successful --write saves one; later runs are incremental)",
+        _ => "full scan (--full)"
+    };
+}
+
 /// <param name="Missing">Eligible in Cosmos, absent from D1.</param>
-/// <param name="Stale">In D1 with an older <c>modifiedAt</c> than the Cosmos <c>_ts</c>.</param>
+/// <param name="Stale">
+/// In D1 with an older <c>modifiedAt</c> than the playable's own Cosmos <c>_ts</c>, or (incremental only) an episode
+/// whose podcast changed an indexed field the episode's projection does not have yet
+/// (<see cref="D1SearchEpisodeParentProjection"/>). A podcast saved without such a change does not make its episodes
+/// stale (#1475).
+/// </param>
 /// <param name="Orphans">In D1 but not eligible in Cosmos (removed, ineligible, hard-deleted, or podcast gone).</param>
 /// <param name="Drift">(Missing + Stale + Orphans) / max(D1 count, eligible count).</param>
 public sealed record D1SearchReconcileReport(
@@ -74,7 +108,9 @@ public sealed record D1SearchReconcileReport(
     double Drift,
     int Upserted = 0,
     int Deleted = 0,
-    string? Error = null)
+    string? Error = null,
+    D1SearchReconcileScan Scan = D1SearchReconcileScan.Full,
+    long SinceTs = 0)
 {
     public bool Succeeded => Outcome is not (D1SearchReconcileOutcome.NotConfigured or D1SearchReconcileOutcome.Failed
         or D1SearchReconcileOutcome.RefusedDrift);
@@ -148,7 +184,7 @@ public sealed class D1SearchReconciler(
             return Log(new D1SearchReconcileReport(D1SearchReconcileOutcome.NotConfigured, 0, 0, 0, 0, 0, 0, 0));
         }
 
-        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1));
+        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 0, 1, "reading watermark"));
 
         D1SearchReconcileWatermark? watermark;
         try
@@ -163,6 +199,14 @@ public sealed class D1SearchReconciler(
 
         var incremental = !request.Full && watermark?.HighWaterMark is > 0;
         var sinceTs = incremental ? watermark!.HighWaterMark!.Value : 0L;
+        var scan = incremental
+            ? D1SearchReconcileScan.Incremental
+            : request.Full ? D1SearchReconcileScan.Full : D1SearchReconcileScan.FullNoWatermark;
+        var scanText = D1SearchReconcileScanText.Describe(scan, sinceTs);
+        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1, scanText));
+        logger.LogInformation("D1 search reconcile: {Scan}.", scanText);
+
+        D1SearchReconcileReport Done(D1SearchReconcileReport r) => Log(r with { Scan = scan, SinceTs = sinceTs });
 
         CatalogueSnapshot snapshot;
         try
@@ -172,7 +216,7 @@ public sealed class D1SearchReconciler(
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             logger.LogError(ex, "D1 search reconcile could not read Cosmos; nothing was written. {Message}", ex.Message);
-            return Log(Failed(ex.Message));
+            return Done(Failed(ex.Message));
         }
 
         IReadOnlyDictionary<string, long> inventory;
@@ -190,7 +234,7 @@ public sealed class D1SearchReconciler(
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             logger.LogError(ex, "D1 search reconcile could not read the D1 inventory; nothing was written. {Message}", ex.Message);
-            return Log(Failed(ex.Message, snapshot.EligibleCount, snapshot.BuildFailed.Count));
+            return Done(Failed(ex.Message, snapshot.EligibleCount, snapshot.BuildFailed.Count));
         }
 
         var planStarted = Stopwatch.StartNew();
@@ -204,17 +248,17 @@ public sealed class D1SearchReconciler(
         {
             var inSync = report with { Outcome = D1SearchReconcileOutcome.InSync };
             await TryAdvanceWatermark(request, inSync, snapshot.MaxTimestampSeconds, cancellationToken);
-            return Log(inSync);
+            return Done(inSync);
         }
 
         if (!request.Write)
         {
-            return Log(report);
+            return Done(report);
         }
 
         if (report.Drift > _options.DriftThreshold && !request.AllowAboveDriftThreshold)
         {
-            return Log(report with { Outcome = D1SearchReconcileOutcome.RefusedDrift });
+            return Done(report with { Outcome = D1SearchReconcileOutcome.RefusedDrift });
         }
 
         var (upserted, deleted, error) = await Apply(plan, snapshot, sinceTs, incremental, cancellationToken, progress);
@@ -226,7 +270,7 @@ public sealed class D1SearchReconciler(
             Error = error
         };
         await TryAdvanceWatermark(request, written, snapshot.MaxTimestampSeconds, cancellationToken);
-        return Log(written);
+        return Done(written);
     }
 
     private async Task<CatalogueSnapshot> ReadCatalogue(
@@ -237,6 +281,7 @@ public sealed class D1SearchReconciler(
     {
         var eligible = new Dictionary<string, long>(StringComparer.Ordinal);
         var buildFailed = new HashSet<string>(StringComparer.Ordinal);
+        var parentChanged = new HashSet<string>(StringComparer.Ordinal);
         Dictionary<string, D1SearchDocument>? held = incremental
             ? new Dictionary<string, D1SearchDocument>(StringComparer.Ordinal)
             : null;
@@ -273,6 +318,10 @@ public sealed class D1SearchReconciler(
                 if (eligible.TryAdd(candidate.Id, document.ModifiedAt))
                 {
                     held?.TryAdd(candidate.Id, document);
+                    if (candidate.ParentChanged)
+                    {
+                        parentChanged.Add(candidate.Id);
+                    }
                 }
             }
 
@@ -305,7 +354,7 @@ public sealed class D1SearchReconciler(
         logger.LogInformation(
             "D1 search reconcile catalogue: {Count} candidate(s) in {Elapsed} ({Mode} from _ts {SinceTs}, max _ts {MaxTs}).",
             seen, started.Elapsed, incremental ? "incremental" : "full", sinceTs, maxTimestampSeconds);
-        return new CatalogueSnapshot(eligible, buildFailed, allEligibleIds, maxTimestampSeconds, held);
+        return new CatalogueSnapshot(eligible, buildFailed, allEligibleIds, maxTimestampSeconds, held, parentChanged);
     }
 
     private static long TimestampSeconds(D1SearchCandidate candidate)
@@ -329,7 +378,7 @@ public sealed class D1SearchReconciler(
                 missing++;
                 upserts.Add(id);
             }
-            else if (stored < modifiedAt)
+            else if (stored < modifiedAt || snapshot.ParentChanged.Contains(id))
             {
                 stale++;
                 upserts.Add(id);
@@ -516,10 +565,11 @@ public sealed class D1SearchReconciler(
             _ => LogLevel.Information
         };
         logger.Log(level,
-            "D1 search reconcile: {Outcome}. D1 {D1Documents}, eligible {Eligible}, missing {Missing}, " +
+            "D1 search reconcile: {Outcome} ({Scan}). D1 {D1Documents}, eligible {Eligible}, missing {Missing}, " +
             "stale {Stale}, orphans {Orphans}, not built {FailedToBuild}, drift {Drift:P2} (threshold {Threshold:P2}); " +
             "upserted {Upserted}, deleted {Deleted}.{Hint}",
-            r.Outcome, r.D1Documents, r.Eligible, r.Missing, r.Stale, r.Orphans, r.FailedToBuild, r.Drift,
+            r.Outcome, D1SearchReconcileScanText.Describe(r.Scan, r.SinceTs), r.D1Documents, r.Eligible, r.Missing,
+            r.Stale, r.Orphans, r.FailedToBuild, r.Drift,
             _options.DriftThreshold, r.Upserted, r.Deleted,
             r.Outcome == D1SearchReconcileOutcome.RefusedDrift
                 ? " Drift is above the threshold: nothing written. Run a full rebuild (SP-2.3), or the D1SearchReconcile " +
@@ -533,7 +583,8 @@ public sealed class D1SearchReconciler(
         IReadOnlySet<string> BuildFailed,
         IReadOnlySet<string>? AllEligibleIds,
         long MaxTimestampSeconds,
-        IReadOnlyDictionary<string, D1SearchDocument>? HeldDocuments)
+        IReadOnlyDictionary<string, D1SearchDocument>? HeldDocuments,
+        IReadOnlySet<string> ParentChanged)
     {
         public int EligibleCount => AllEligibleIds?.Count ?? Eligible.Count;
     }

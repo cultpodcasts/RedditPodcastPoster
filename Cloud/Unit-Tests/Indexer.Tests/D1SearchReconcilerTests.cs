@@ -254,7 +254,9 @@ public class D1SearchReconcilerTests
         catalogue.Add(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 250, 250));
         progress.Items.Should().Equal(
             [
-                new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 0, 1, "reading watermark"),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1,
+                    D1SearchReconcileScanText.Describe(D1SearchReconcileScan.FullNoWatermark, 0)),
                 .. catalogue,
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0),
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0, 0)
@@ -453,6 +455,101 @@ public class D1SearchReconcilerTests
             D1SearchReconcilePhase.Catalogue, 0, 25, "waiting for first page"));
         progress.Items.Should().Contain(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 1, 25));
         progress.Items.Should().Contain(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 25, 25));
+    }
+
+    [Fact(DisplayName =
+        "A document whose stored modifiedAt equals the playable's own _ts is in sync even when its podcast was saved " +
+        "later, because a podcast _ts bump alone is not an indexed change (#1475: 58,187 false stale).")]
+    public async Task podcast_only_bump_is_not_stale()
+    {
+        // Arrange
+        const long episodeTs = 1_700_000_000;
+        const long podcastTs = 1_700_500_000;
+        var candidate = Candidate(modifiedAt: episodeTs * 1000) with { TimestampSeconds = podcastTs };
+        _catalogue = [candidate];
+        _inventory = new() { [candidate.Id] = episodeTs * 1000 };
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None);
+
+        // Assert
+        report.Should().BeEquivalentTo(new { Outcome = D1SearchReconcileOutcome.InSync, Stale = 0, Drift = 0.0 });
+    }
+
+    [Fact(DisplayName =
+        "An incremental episode marked ParentChanged is stale and re-sent even though its modifiedAt equals the " +
+        "stored one, because its podcast changed an indexed field and the Worker applies an equal modifiedAt.")]
+    public async Task parent_changed_episode_is_stale_and_upserted()
+    {
+        // Arrange
+        const long since = 1_700_000_000;
+        _options.Reconcile.DriftThreshold = 1;
+        var changed = Candidate(modifiedAt: (since - 50) * 1000) with
+        {
+            TimestampSeconds = since + 5, ParentChanged = true
+        };
+        var unchanged = Candidate(modifiedAt: (since - 50) * 1000) with { TimestampSeconds = since + 5 };
+        _catalogue = [changed, unchanged];
+        _inventory = new() { [changed.Id] = (since - 50) * 1000, [unchanged.Id] = (since - 50) * 1000 };
+        SetupIncremental(since, [changed.Id, unchanged.Id]);
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true), CancellationToken.None);
+
+        // Assert
+        report.Should().BeEquivalentTo(new
+        {
+            Outcome = D1SearchReconcileOutcome.Patched, Stale = 1, Upserted = 1, Scan = D1SearchReconcileScan.Incremental,
+            SinceTs = since
+        });
+        _writes.Should().BeEquivalentTo(new[] { (new[] { changed.Id }, Array.Empty<string>()) });
+    }
+
+    [Fact(DisplayName =
+        "With no watermark, the run says it is a full scan because there is no watermark yet, and a write that finds " +
+        "nothing to change still saves the watermark, because the first successful --write must make later runs " +
+        "incremental.")]
+    public async Task first_run_is_labelled_and_an_in_sync_write_saves_the_watermark()
+    {
+        // Arrange
+        const long ts = 1_700_000_000;
+        var candidate = Candidate(modifiedAt: ts * 1000) with { TimestampSeconds = ts + 7 };
+        _catalogue = [candidate];
+        _inventory = new() { [candidate.Id] = ts * 1000 };
+        var progress = new CollectingProgress();
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true), CancellationToken.None, progress);
+
+        // Assert
+        report.Should().BeEquivalentTo(new
+        {
+            Outcome = D1SearchReconcileOutcome.InSync, Scan = D1SearchReconcileScan.FullNoWatermark, SinceTs = 0L
+        });
+        progress.Items.Should().Contain(p => p.Phase == D1SearchReconcilePhase.Starting
+                                             && p.Detail != null && p.Detail.Contains("no watermark yet"));
+        _writes.Should().BeEmpty();
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>().Verify(
+            s => s.SaveAsync(It.Is<D1SearchReconcileWatermark>(w => w.HighWaterMark == ts + 7),
+                It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory(DisplayName =
+        "The scan description names the mode, and an incremental one gives the watermark as a UTC time, because the " +
+        "console must say plainly whether the run is a full scan and why.")]
+    [InlineData(D1SearchReconcileScan.Full, 0, "full scan (--full)")]
+    [InlineData(D1SearchReconcileScan.FullNoWatermark, 0, "full scan: no watermark yet")]
+    [InlineData(D1SearchReconcileScan.Incremental, 1_700_000_000, "incremental from _ts 1700000000 (2023-11-14 22:13:20 UTC)")]
+    public void scan_description_names_the_mode(D1SearchReconcileScan scan, long sinceTs, string expected)
+    {
+        // Act
+        var text = D1SearchReconcileScanText.Describe(scan, sinceTs);
+
+        // Assert
+        text.Should().StartWith(expected);
     }
 
     private void SetupIncremental(long since, IEnumerable<string> eligibleIds)

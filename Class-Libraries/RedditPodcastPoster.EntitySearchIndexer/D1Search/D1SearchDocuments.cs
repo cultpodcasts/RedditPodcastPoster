@@ -13,7 +13,12 @@ namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 /// (<see cref="PodcastEpisodeExtensions.ToEpisodeSearchRecord"/>, <see cref="CataloguePlayableSearchDocument"/>), so the
 /// field rules (images, service ids, <c>svc</c>, language, film trailers and AKAs, identity ids) live in one place.
 /// Only three things differ, all decided for D1 (SP-0.3, 16 Nov 2026): the description is the full text, not the
-/// Azure cut; guests are indexed; and <c>modifiedAt</c> is the document's source Cosmos <c>_ts</c> in milliseconds (for a podcast episode, the later of the episode's and the podcast's <c>_ts</c>, because the search document denormalises the live podcast).
+/// Azure cut; guests are indexed; and <c>modifiedAt</c> is the playable's own Cosmos <c>_ts</c> in milliseconds.
+/// For a podcast episode that is the <b>episode's</b> <c>_ts</c>, never the podcast's: every stored D1 document was
+/// written that way, and podcasts are saved for bookkeeping far more often than their indexed fields change, so a
+/// podcast <c>_ts</c> in <c>modifiedAt</c> made ~58k unchanged documents compare stale (#1475). A podcast change that
+/// does alter the episode document is found by <see cref="D1SearchEpisodeParentProjection"/> instead, and the
+/// Worker's guard applies an equal <c>modifiedAt</c>, so re-sending that document still lands.
 /// Whether a playable belongs in the index at all is <see cref="D1SearchEligibility"/>, not decided here.
 /// </summary>
 public static class D1SearchDocuments
@@ -23,7 +28,7 @@ public static class D1SearchDocuments
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(episode);
         var record = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
-        return From(record, episode.Description, episode.Guests, Math.Max(episode.Timestamp, podcast.Timestamp));
+        return From(record, episode.Description, episode.Guests, episode.Timestamp);
     }
 
     public static D1SearchDocument For(TvShowEpisode episode) =>
