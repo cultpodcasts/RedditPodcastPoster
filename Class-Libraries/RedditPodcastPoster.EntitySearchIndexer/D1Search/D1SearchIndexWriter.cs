@@ -32,7 +32,9 @@ public interface ID1SearchInventoryReader
     /// <see cref="D1SearchHttpException"/> when it can't read the whole inventory: a partial inventory would turn live
     /// documents into "orphans", so the caller must not reconcile on one.
     /// </summary>
-    Task<IReadOnlyDictionary<string, long>> ReadInventory(CancellationToken cancellationToken);
+    Task<IReadOnlyDictionary<string, long>> ReadInventory(
+        CancellationToken cancellationToken,
+        IProgress<D1SearchReconcileProgress>? progress = null);
 }
 
 /// <summary>
@@ -88,7 +90,9 @@ public sealed class D1SearchIndexWriter(
         return await Send(upsertList, deleteList, cancellationToken);
     }
 
-    public async Task<IReadOnlyDictionary<string, long>> ReadInventory(CancellationToken cancellationToken)
+    public async Task<IReadOnlyDictionary<string, long>> ReadInventory(
+        CancellationToken cancellationToken,
+        IProgress<D1SearchReconcileProgress>? progress = null)
     {
         if (!IsActive)
         {
@@ -97,6 +101,8 @@ public sealed class D1SearchIndexWriter(
 
         var inventory = new Dictionary<string, long>(StringComparer.Ordinal);
         string? after = null;
+        progress?.Report(new D1SearchReconcileProgress(
+            D1SearchReconcilePhase.Inventory, 0, Detail: "authenticating"));
         do
         {
             var query = $"?limit={InventoryPageSize}" + (after is null ? string.Empty : $"&after={Uri.EscapeDataString(after)}");
@@ -113,8 +119,11 @@ public sealed class D1SearchIndexWriter(
             }
 
             after = page.Next;
+            progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, inventory.Count));
         } while (after is not null);
 
+        progress?.Report(new D1SearchReconcileProgress(
+            D1SearchReconcilePhase.Inventory, inventory.Count, inventory.Count));
         logger.LogInformation("D1 search inventory: {Count} document(s).", inventory.Count);
         return inventory;
     }

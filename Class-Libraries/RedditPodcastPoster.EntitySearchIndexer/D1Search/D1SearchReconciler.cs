@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -104,6 +105,12 @@ public sealed class D1SearchReconciler(
     IOptions<D1SearchOptions> options,
     ILogger<D1SearchReconciler> logger) : ID1SearchReconciler
 {
+    /// <summary>
+    /// After the first candidate, report every this many catalogue items so the bar moves during
+    /// the first Cosmos page and per-podcast lookups, not only every 100 documents.
+    /// </summary>
+    public const int CatalogueProgressInterval = 10;
+
     private readonly D1SearchReconcileOptions _options = options.Value.Reconcile;
 
     public async Task<D1SearchReconcileReport> Reconcile(
@@ -116,6 +123,8 @@ public sealed class D1SearchReconciler(
         {
             return Log(new D1SearchReconcileReport(D1SearchReconcileOutcome.NotConfigured, 0, 0, 0, 0, 0, 0, 0));
         }
+
+        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1));
 
         CatalogueSnapshot snapshot;
         try
@@ -131,9 +140,14 @@ public sealed class D1SearchReconciler(
         IReadOnlyDictionary<string, long> inventory;
         try
         {
-            progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0, 1));
-            inventory = await inventoryReader.ReadInventory(cancellationToken);
-            progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 1, 1));
+            var inventoryStarted = Stopwatch.StartNew();
+            progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0));
+            inventory = await inventoryReader.ReadInventory(cancellationToken, progress);
+            progress?.Report(new D1SearchReconcileProgress(
+                D1SearchReconcilePhase.Inventory, inventory.Count, inventory.Count));
+            logger.LogInformation(
+                "D1 search reconcile inventory: {Count} document(s) in {Elapsed}.",
+                inventory.Count, inventoryStarted.Elapsed);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -141,7 +155,11 @@ public sealed class D1SearchReconciler(
             return Log(Failed(ex.Message, snapshot.Eligible.Count, snapshot.BuildFailed.Count));
         }
 
+        var planStarted = Stopwatch.StartNew();
         var plan = Plan(snapshot, inventory);
+        logger.LogInformation(
+            "D1 search reconcile plan: {Elapsed} (eligible {Eligible}, D1 {D1Documents}).",
+            planStarted.Elapsed, snapshot.Eligible.Count, inventory.Count);
         var report = plan.Report;
         if (plan.Upserts.Count + plan.Orphans.Count == 0)
         {
@@ -175,7 +193,9 @@ public sealed class D1SearchReconciler(
         var eligible = new Dictionary<string, long>(StringComparer.Ordinal);
         var buildFailed = new HashSet<string>(StringComparer.Ordinal);
         var seen = 0;
-        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 0));
+        var started = Stopwatch.StartNew();
+        progress?.Report(new D1SearchReconcileProgress(
+            D1SearchReconcilePhase.Catalogue, 0, Detail: "waiting for first page"));
         await foreach (var candidate in catalogue.Read(0, cancellationToken).WithCancellation(cancellationToken))
         {
             if (candidate.BuildFailed)
@@ -189,13 +209,21 @@ public sealed class D1SearchReconciler(
             }
 
             seen++;
-            if (seen % 100 == 0)
+            if (seen == 1)
+            {
+                logger.LogInformation(
+                    "D1 search reconcile catalogue: first candidate after {Elapsed}.", started.Elapsed);
+            }
+
+            if (seen == 1 || seen % CatalogueProgressInterval == 0)
             {
                 progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, seen));
             }
         }
 
         progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, seen, seen));
+        logger.LogInformation(
+            "D1 search reconcile catalogue: {Count} candidate(s) in {Elapsed}.", seen, started.Elapsed);
         return new CatalogueSnapshot(eligible, buildFailed);
     }
 
@@ -240,9 +268,18 @@ public sealed class D1SearchReconciler(
         {
             if (pending.Count > 0)
             {
-                progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 0, upsertTotal));
+                var scanned = 0;
+                progress?.Report(new D1SearchReconcileProgress(
+                    D1SearchReconcilePhase.Upsert, 0, upsertTotal, "waiting for first page"));
                 await foreach (var candidate in catalogue.Read(0, cancellationToken).WithCancellation(cancellationToken))
                 {
+                    scanned++;
+                    if (scanned == 1 || scanned % CatalogueProgressInterval == 0)
+                    {
+                        progress?.Report(new D1SearchReconcileProgress(
+                            D1SearchReconcilePhase.Upsert, upserted, upsertTotal, $"scanned {scanned:N0}"));
+                    }
+
                     if (candidate.Document is not { } document || !pending.Remove(candidate.Id))
                     {
                         continue;

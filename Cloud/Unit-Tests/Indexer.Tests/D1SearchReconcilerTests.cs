@@ -24,7 +24,7 @@ public class D1SearchReconcilerTests
             .Setup(c => c.Read(0, It.IsAny<CancellationToken>()))
             .Returns(() => _catalogue.ToAsyncEnumerable());
         _mocker.GetMock<ID1SearchInventoryReader>()
-            .Setup(r => r.ReadInventory(It.IsAny<CancellationToken>()))
+            .Setup(r => r.ReadInventory(It.IsAny<CancellationToken>(), It.IsAny<IProgress<D1SearchReconcileProgress>?>()))
             .ReturnsAsync(() => _inventory);
         var writer = _mocker.GetMock<ID1SearchIndexWriter>();
         writer.SetupGet(w => w.IsActive).Returns(true);
@@ -139,7 +139,7 @@ public class D1SearchReconcilerTests
     {
         // Arrange
         _mocker.GetMock<ID1SearchInventoryReader>()
-            .Setup(r => r.ReadInventory(It.IsAny<CancellationToken>()))
+            .Setup(r => r.ReadInventory(It.IsAny<CancellationToken>(), It.IsAny<IProgress<D1SearchReconcileProgress>?>()))
             .ThrowsAsync(new D1SearchWriteException(_fixture.CreateTitle()));
         _catalogue = [Candidate(modifiedAt: 1)];
         var sut = _mocker.CreateInstance<D1SearchReconciler>();
@@ -225,8 +225,9 @@ public class D1SearchReconcilerTests
     }
 
     [Fact(DisplayName =
-        "A dry run reports catalogue and inventory progress, and never upsert or delete, because the bar follows the " +
-        "work actually done and a dry run does not write.")]
+        "A dry run reports starting, the first catalogue item, then every ten, and inventory as a running " +
+        "count, and never upsert or delete, because the bar must move during the first Cosmos page and the " +
+        "inventory token, not only every hundred documents or a dummy 0/1 request.")]
     public async Task dry_run_reports_read_progress_only()
     {
         // Arrange
@@ -238,13 +239,26 @@ public class D1SearchReconcilerTests
         await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None, progress);
 
         // Assert
+        var catalogue = new List<D1SearchReconcileProgress>
+        {
+            new(D1SearchReconcilePhase.Catalogue, 0, Detail: "waiting for first page"),
+            new(D1SearchReconcilePhase.Catalogue, 1)
+        };
+        for (var n = D1SearchReconciler.CatalogueProgressInterval; n <= 250; n += D1SearchReconciler.CatalogueProgressInterval)
+        {
+            catalogue.Add(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, n));
+        }
+
+        catalogue.Add(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 250, 250));
         progress.Items.Should().Equal(
-            new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 0),
-            new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 100),
-            new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 200),
-            new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 250, 250),
-            new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0, 1),
-            new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 1, 1));
+            [
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1),
+                .. catalogue,
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0, 0)
+            ]);
+        progress.Items.Should().NotContain(p =>
+            p.Phase == D1SearchReconcilePhase.Upsert || p.Phase == D1SearchReconcilePhase.Delete);
     }
 
     [Fact(DisplayName =
@@ -264,12 +278,17 @@ public class D1SearchReconcilerTests
 
         // Assert
         report.Should().BeEquivalentTo(new { Outcome = D1SearchReconcileOutcome.Patched, Upserted = 250, Deleted = 3 });
-        progress.Items.Where(p => p.Phase is D1SearchReconcilePhase.Upsert or D1SearchReconcilePhase.Delete)
+        progress.Items.Should().Contain(new D1SearchReconcileProgress(
+            D1SearchReconcilePhase.Upsert, 0, 250, "waiting for first page"));
+        progress.Items.Should().Contain(new D1SearchReconcileProgress(
+            D1SearchReconcilePhase.Upsert, 0, 250, "scanned 1"));
+        progress.Items.Where(p => p.Phase == D1SearchReconcilePhase.Upsert && p.Detail is null)
             .Should().Equal(
-                new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 0, 250),
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 100, 250),
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 200, 250),
-                new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 250, 250),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 250, 250));
+        progress.Items.Where(p => p.Phase == D1SearchReconcilePhase.Delete)
+            .Should().Equal(
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Delete, 0, 3),
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Delete, 3, 3));
     }

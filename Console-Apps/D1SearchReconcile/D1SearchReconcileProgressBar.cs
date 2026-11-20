@@ -6,7 +6,8 @@ namespace D1SearchReconcile;
 
 /// <summary>
 /// The same Spectre.Console progress columns as <c>CosmosDbDownloader</c> and
-/// <c>CultPodcasts.DatabasePublisher</c>, including <see cref="RemainingTimeColumn"/> for the ETA.
+/// <c>CultPodcasts.DatabasePublisher</c>, including <see cref="RemainingTimeColumn"/> for the ETA
+/// and <see cref="ElapsedTimeColumn"/> so a long wait still ticks while a total is unknown.
 /// Kept in the console app so the class library stays free of console UI.
 /// </summary>
 internal static class D1SearchReconcileProgressBar
@@ -19,6 +20,7 @@ internal static class D1SearchReconcileProgressBar
                 new TaskDescriptionColumn(),
                 new ProgressBarColumn(),
                 new PercentageColumn(),
+                new ElapsedTimeColumn(),
                 new RemainingTimeColumn(),
                 new SpinnerColumn());
 
@@ -28,9 +30,10 @@ internal static class D1SearchReconcileProgressBar
     {
         var name = progress.Phase.ToString();
         var completed = progress.Completed.ToString("N0", CultureInfo.InvariantCulture);
-        return progress.Total is { } total
+        var label = progress.Total is { } total
             ? $"{name} ({completed}/{total.ToString("N0", CultureInfo.InvariantCulture)})"
             : $"{name} ({completed})";
+        return string.IsNullOrEmpty(progress.Detail) ? label : $"{label} {progress.Detail}";
     }
 
     private sealed class Renderer(ProgressContext ctx) : IProgress<D1SearchReconcileProgress>
