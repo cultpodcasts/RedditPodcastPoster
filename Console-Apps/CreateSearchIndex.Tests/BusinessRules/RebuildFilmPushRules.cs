@@ -19,9 +19,10 @@ public class RebuildFilmPushRules
 
     public RebuildFilmPushRules()
     {
-        var searchClient = new Mock<SearchClient>();
-        searchClient.SetupGet(x => x.IndexName).Returns(ConfiguredIndex);
-        _mocker.Use(searchClient.Object);
+        // AutoMocker builds Azure SDK clients through constructors that need an endpoint; Mock.Of uses the protected
+        // parameterless one, and the mock is registered with AutoMocker so setups still go through GetMock<T>().
+        _mocker.Use(Mock.Get(Mock.Of<SearchClient>()));
+        _mocker.GetMock<SearchClient>().SetupGet(x => x.IndexName).Returns(ConfiguredIndex);
         _mocker.GetMock<IFilmSearchPusher>()
             .Setup(x => x.Push(It.IsAny<FilmSearchPushRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result(succeeded: true));
