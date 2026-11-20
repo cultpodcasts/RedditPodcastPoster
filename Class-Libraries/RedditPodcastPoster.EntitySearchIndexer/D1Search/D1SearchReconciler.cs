@@ -131,7 +131,7 @@ public sealed class D1SearchReconciler(
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             logger.LogError(ex, "D1 search reconcile could not read the D1 inventory; nothing was written. {Message}", ex.Message);
-            return Log(Failed(ex.Message));
+            return Log(Failed(ex.Message, snapshot.Eligible.Count, snapshot.BuildFailed.Count));
         }
 
         var plan = Plan(snapshot, inventory);
@@ -280,8 +280,8 @@ public sealed class D1SearchReconciler(
         }
     }
 
-    private static D1SearchReconcileReport Failed(string error) =>
-        new(D1SearchReconcileOutcome.Failed, 0, 0, 0, 0, 0, 0, 0, Error: error);
+    private static D1SearchReconcileReport Failed(string error, int eligible = 0, int failedToBuild = 0) =>
+        new(D1SearchReconcileOutcome.Failed, 0, eligible, 0, 0, 0, failedToBuild, 0, Error: error);
 
     private D1SearchReconcileReport Log(D1SearchReconcileReport r)
     {

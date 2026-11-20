@@ -132,8 +132,9 @@ public class D1SearchReconcilerTests
     }
 
     [Fact(DisplayName =
-        "When the inventory can't be read, the reconcile fails and nothing is written, because a partial inventory " +
-        "would make live documents look like orphans.")]
+        "When the inventory can't be read, the reconcile fails, keeps the eligible count already read from Cosmos, " +
+        "and writes nothing, because a partial inventory would make live documents look like orphans and all-zero " +
+        "counts would look like a real empty result.")]
     public async Task an_unreadable_inventory_fails_without_writing()
     {
         // Arrange
@@ -148,6 +149,8 @@ public class D1SearchReconcilerTests
 
         // Assert
         report.Outcome.Should().Be(D1SearchReconcileOutcome.Failed);
+        report.Eligible.Should().Be(1);
+        report.FailedToBuild.Should().Be(0);
         report.Error.Should().NotBeNullOrEmpty();
         _writes.Should().BeEmpty();
     }
