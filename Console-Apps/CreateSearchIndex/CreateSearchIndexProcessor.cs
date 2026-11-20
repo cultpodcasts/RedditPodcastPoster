@@ -27,7 +27,7 @@ public partial class CreateSearchIndexProcessor(
     SearchIndexClient searchIndexClient,
     SearchIndexerClient searchIndexerClient,
     ISearchIndexerService searchIndexerService,
-    RebuildFilmPush rebuildFilmPush,
+    IRebuildFilmPush rebuildFilmPush,
     IOptions<CosmosDbSettings> cosmosDbSettings,
     ILogger<CreateSearchIndexProcessor> logger)
 {

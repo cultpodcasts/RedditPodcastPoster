@@ -30,7 +30,7 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<CreateSearchIndexProcessor>()
-    .AddScoped<RebuildFilmPush>()
+    .AddScoped<IRebuildFilmPush, RebuildFilmPush>()
     .AddRepositories()
     .AddFilmSearchPush()
     .AddSearch()

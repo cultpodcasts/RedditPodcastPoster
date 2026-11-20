@@ -4,6 +4,13 @@ using RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 
 namespace CreateSearchIndex;
 
+/// <summary>#1408: pushes every film into an index that CreateSearchIndex has just rebuilt.</summary>
+public interface IRebuildFilmPush
+{
+    /// <returns>True when every film was pushed into <paramref name="indexName"/>.</returns>
+    Task<bool> PushAfterRebuild(string indexName, CancellationToken cancellationToken);
+}
+
 /// <summary>
 /// #1408: after <c>--teardown-index --run-indexer</c>, pushes every film into the recreated index in the same run, so
 /// a rebuild needs no separate FilmSearchPusher step. Films have no pull indexer (the Free tier's three data sources
@@ -18,9 +25,8 @@ namespace CreateSearchIndex;
 public sealed class RebuildFilmPush(
     IFilmSearchPusher filmSearchPusher,
     SearchClient searchClient,
-    ILogger<RebuildFilmPush> logger)
+    ILogger<RebuildFilmPush> logger) : IRebuildFilmPush
 {
-    /// <returns>True when every film was pushed into <paramref name="indexName"/>.</returns>
     public async Task<bool> PushAfterRebuild(string indexName, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(indexName);
