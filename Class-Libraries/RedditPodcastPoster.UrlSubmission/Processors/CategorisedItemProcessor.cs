@@ -95,6 +95,7 @@ public class CategorisedItemProcessor(
             }
 
             Episode? splitOffEpisode = null;
+            var saveSplitOff = false;
             if (serviceLinkConflictGate != null)
             {
                 var conflict = serviceLinkConflictGate.Evaluate(categorisedItem, submitOptions);
@@ -111,6 +112,7 @@ public class CategorisedItemProcessor(
                     case ServiceLinkConflictOutcomeKind.Overwritten:
                         categorisedItem = categorisedItem with { MatchingEpisode = conflict.Episode };
                         splitOffEpisode = conflict.SplitOff;
+                        saveSplitOff = conflict.SaveSplitOff;
                         break;
                 }
             }
@@ -129,9 +131,10 @@ public class CategorisedItemProcessor(
 
             if (submitOptions.PersistToDatabase)
             {
-                if (splitOffEpisode != null)
+                if (splitOffEpisode != null && saveSplitOff)
                 {
                     // Saved first: if the stored episode's save then fails, its old links exist twice, never zero times.
+                    // A reused split-off that gained no link is not saved again, so curator edits to it are kept (#1482).
                     await episodeRepository.Save(splitOffEpisode);
                 }
 

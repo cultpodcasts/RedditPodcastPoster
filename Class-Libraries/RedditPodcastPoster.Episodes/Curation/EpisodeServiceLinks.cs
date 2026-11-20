@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -63,6 +65,12 @@ public static class EpisodeServiceLinks
     /// The new episode starts as a copy of the source's details (title, description, release, length, language,
     /// subjects and parent fields) for the curator to correct, and is marked as already posted on every channel:
     /// it is a recovery record and is never posted automatically.
+    /// <para>
+    /// #1482: its id is deterministic (<see cref="SplitOffId"/>: a name-based v5 GUID of the source id and its stored
+    /// Spotify and Apple links), so an overwrite retried after a failed save gets the same id. A caller that finds an
+    /// episode with that id already stored must use <see cref="SplitOffOnto"/> instead, so the saved split-off (and
+    /// any curator edits to it) is reused rather than rebuilt.
+    /// </para>
     /// </summary>
     /// <exception cref="InvalidOperationException">The source carries none of <paramref name="serviceKeys"/>.</exception>
     public static EpisodeServiceLinkSplit SplitOff(Episode source, IReadOnlyCollection<string> serviceKeys)
@@ -71,6 +79,7 @@ public static class EpisodeServiceLinks
         ArgumentNullException.ThrowIfNull(serviceKeys);
         var split = new Episode
         {
+            Id = SplitOffId(source),
             PodcastId = source.PodcastId,
             PodcastName = source.PodcastName,
             Title = source.Title,
@@ -99,6 +108,107 @@ public static class EpisodeServiceLinks
         }
 
         return new EpisodeServiceLinkSplit(split, move.Moved);
+    }
+
+    /// <summary>Namespace of <see cref="SplitOffId"/> (#1482).</summary>
+    public static readonly Guid SplitOffIdNamespace = Guid.Parse("6f0d2c4e-91a7-4b3d-8e55-2a7c9b1f4d08");
+
+    /// <summary>The links that name a split-off (<see cref="SplitOffId"/>), whatever subset is being split off.</summary>
+    private static readonly string[] SplitOffIdKeys = [ServiceKeys.Apple, ServiceKeys.Spotify];
+
+    /// <summary>
+    /// The id of the episode split off <paramref name="source"/>: a name-based (RFC 4122 v5, SHA-1) GUID of the
+    /// source id and its stored Spotify and Apple links (id, or url when there is no id), <b>always both</b>, whatever
+    /// keys conflict on a given attempt. A secondary Apple resolve can succeed on one attempt and not the next, and
+    /// the stored links only change once the stored episode's save succeeds, so the id is stable across a retried
+    /// overwrite (#1482). Shared by <see cref="SplitOff"/> and the submit conflict gate, which uses it to recognise
+    /// an already-saved split-off. Ordinary episodes have random (v4) ids, so only a split-off can carry this id.
+    /// </summary>
+    public static Guid SplitOffId(Episode source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var name = new StringBuilder(source.Id.ToString("D"));
+        foreach (var key in SplitOffIdKeys)
+        {
+            var link = Read(source, key);
+            if (!link.IsEmpty)
+            {
+                name.Append('|').Append(key).Append('=').Append(link.Id ?? link.Url!.ToString());
+            }
+        }
+
+        return NameBasedGuid(SplitOffIdNamespace, name.ToString());
+    }
+
+    /// <summary>
+    /// #1482: finishes an interrupted split onto <paramref name="existing"/>, the split-off already saved for
+    /// <paramref name="source"/> (its id is <see cref="SplitOffId"/>). The existing episode's details, including any
+    /// curator edits, are kept. For each Spotify / Apple key that <paramref name="existing"/> already holds with the
+    /// same link, the link is cleared from <paramref name="source"/>, which completes the earlier move even if that
+    /// key does not conflict on this attempt. Each of <paramref name="serviceKeys"/> it does not hold yet is moved
+    /// onto it (<see cref="EpisodeServiceLinkSplit.SplitOffChanged"/> is then true and it must be saved). A key it
+    /// holds with a different link is left on the source.
+    /// </summary>
+    public static EpisodeServiceLinkSplit SplitOffOnto(
+        Episode source,
+        Episode existing,
+        IReadOnlyCollection<string> serviceKeys)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(existing);
+        ArgumentNullException.ThrowIfNull(serviceKeys);
+        if (existing.Id != SplitOffId(source))
+        {
+            throw new ArgumentException(
+                $"Episode '{existing.Id}' is not the split-off of episode '{source.Id}'.", nameof(existing));
+        }
+
+        var moved = new List<string>();
+        var changed = false;
+        foreach (var key in SplitOffIdKeys.Union(serviceKeys, StringComparer.Ordinal))
+        {
+            var link = Read(source, key);
+            if (link.IsEmpty)
+            {
+                continue;
+            }
+
+            var held = Read(existing, key);
+            if (!held.IsEmpty && held.SameAs(link))
+            {
+                Clear(source, key);
+                moved.Add(key);
+            }
+            else if (held.IsEmpty && serviceKeys.Contains(key, StringComparer.Ordinal))
+            {
+                Write(existing, key, link);
+                Clear(source, key);
+                moved.Add(key);
+                changed = true;
+            }
+        }
+
+        if (!serviceKeys.Any(key => moved.Contains(key, StringComparer.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                $"Episode '{source.Id}' carries none of the service links '{string.Join("', '", serviceKeys)}' to split off onto '{existing.Id}'.");
+        }
+
+        return new EpisodeServiceLinkSplit(existing, moved, Reused: true, SplitOffChanged: changed);
+    }
+
+    private static Guid NameBasedGuid(Guid namespaceId, string name)
+    {
+        var namespaceBytes = namespaceId.ToByteArray(bigEndian: true);
+        var nameBytes = Encoding.UTF8.GetBytes(name);
+        var input = new byte[namespaceBytes.Length + nameBytes.Length];
+        namespaceBytes.CopyTo(input, 0);
+        nameBytes.CopyTo(input, namespaceBytes.Length);
+        var hash = SHA1.HashData(input);
+        var bytes = hash.AsSpan(0, 16).ToArray();
+        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x50);
+        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
+        return new Guid(bytes, bigEndian: true);
     }
 
     private static ServiceLinkSnapshot Read(Episode episode, string key) =>
@@ -166,6 +276,13 @@ public static class EpisodeServiceLinks
 public sealed record EpisodeServiceLinkMove(IReadOnlyList<string> Moved, IReadOnlyList<string> Conflicting);
 
 /// <summary>Outcome of <see cref="EpisodeServiceLinks.SplitOff"/>.</summary>
-/// <param name="Episode">The new episode holding the split-off links. Not yet saved.</param>
-/// <param name="Moved">Service keys moved onto <paramref name="Episode"/>.</param>
-public sealed record EpisodeServiceLinkSplit(Episode Episode, IReadOnlyList<string> Moved);
+/// <param name="Episode">The episode holding the split-off links: new and not yet saved, or the reused split-off.</param>
+/// <param name="Moved">Service keys moved onto <paramref name="Episode"/> (or already on it and cleared from the source).</param>
+/// <param name="Reused">The split-off already existed (<see cref="EpisodeServiceLinks.SplitOffOnto"/>, #1482).</param>
+/// <param name="SplitOffChanged">The split-off must be saved: always for a new one; for a reused one only when a link
+/// was added to it, so a curator's edits are never overwritten by a rebuild.</param>
+public sealed record EpisodeServiceLinkSplit(
+    Episode Episode,
+    IReadOnlyList<string> Moved,
+    bool Reused = false,
+    bool SplitOffChanged = true);

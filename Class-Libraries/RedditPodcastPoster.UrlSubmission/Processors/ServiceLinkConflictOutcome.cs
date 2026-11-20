@@ -30,7 +30,8 @@ public sealed record ServiceLinkConflictOutcome(
     ServiceLinkConflictOutcomeKind Kind,
     ServiceLinkConflictHold? Hold = null,
     Episode? Episode = null,
-    Episode? SplitOff = null)
+    Episode? SplitOff = null,
+    bool SaveSplitOff = true)
 {
     public static readonly ServiceLinkConflictOutcome Proceed = new(ServiceLinkConflictOutcomeKind.Proceed);
 
@@ -39,6 +40,8 @@ public sealed record ServiceLinkConflictOutcome(
     public static ServiceLinkConflictOutcome Held(ServiceLinkConflictHold hold) =>
         new(ServiceLinkConflictOutcomeKind.Hold, hold);
 
-    public static ServiceLinkConflictOutcome Overwritten(Episode episode, Episode splitOff) =>
-        new(ServiceLinkConflictOutcomeKind.Overwritten, Episode: episode, SplitOff: splitOff);
+    /// <param name="saveSplitOff">False when <paramref name="splitOff"/> is an existing split-off that gained no link
+    /// (#1482): it is not saved again, so curator edits to it are kept.</param>
+    public static ServiceLinkConflictOutcome Overwritten(Episode episode, Episode splitOff, bool saveSplitOff = true) =>
+        new(ServiceLinkConflictOutcomeKind.Overwritten, Episode: episode, SplitOff: splitOff, SaveSplitOff: saveSplitOff);
 }
