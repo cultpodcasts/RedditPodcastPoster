@@ -564,7 +564,7 @@ public class SubmitServiceLinkConflictRules
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((state, _) =>
                     state.ToString()!.Contains(splitOffId.ToString()) &&
-                    state.ToString()!.Contains("not offered for overwrite")),
+                    state.ToString()!.Contains("split-off of a partly saved overwrite")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             times);
