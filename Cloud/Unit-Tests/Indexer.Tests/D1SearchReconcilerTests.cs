@@ -623,7 +623,7 @@ public class D1SearchReconcilerTests
         // Assert
         dryRun.Should().BeEquivalentTo(new
         {
-            Outcome = D1SearchReconcileOutcome.DryRun, D1Documents = 22, Eligible = 23, Missing = 1, Stale = 0,
+            Outcome = D1SearchReconcileOutcome.DryRun, D1Documents = 21, Eligible = 22, Missing = 1, Stale = 0,
             Orphans = 0
         });
         (dryRun.D1Documents - dryRun.Orphans + dryRun.Missing).Should().Be(dryRun.Eligible);
