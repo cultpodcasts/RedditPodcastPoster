@@ -747,6 +747,143 @@ public class SubmitUrlServiceTests
             Times.Once);
     }
 
+    [Fact(DisplayName =
+        "A curator submit with no service-link conflict answer asks the submitter to prompt on a conflict, so a " +
+        "conflicting episode is never overwritten or duplicated without a choice (#1416).")]
+    public async Task first_submit_prompts_on_service_link_conflict()
+    {
+        // Arrange
+        var request = new SubmitUrlRequest { Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}") };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        _capturedOptions!.ServiceLinkConflict.Should().Be(ServiceLinkConflictChoice.Prompt);
+        _capturedOptions.ServiceLinkConflictEpisodeId.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Submit URL DTO ToModel round-trips serviceLinkConflictDecision overwrite and the held episode id into " +
+        "SubmitOptions, so the curator's answer applies to the episode they were shown (#1416).")]
+    public async Task service_link_conflict_overwrite_round_trips_into_submit_options()
+    {
+        // Arrange
+        var episodeId = _fixture.CreateGuid();
+        var dto = new global::Api.Dtos.SubmitUrlRequest
+        {
+            Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
+            ServiceLinkConflictDecision = "overwrite",
+            ServiceLinkConflictEpisodeId = episodeId
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        await sut.SubmitAsync(dto.ToModel(), CancellationToken.None);
+
+        // Assert
+        _capturedOptions!.ServiceLinkConflict.Should().Be(ServiceLinkConflictChoice.Overwrite);
+        _capturedOptions.ServiceLinkConflictEpisodeId.Should().Be(episodeId);
+    }
+
+    [Fact(DisplayName =
+        "An unknown serviceLinkConflictDecision is a bad request and nothing is submitted.")]
+    public async Task unknown_service_link_conflict_decision_is_bad_request()
+    {
+        // Arrange
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
+            ServiceLinkConflictDecision = _fixture.CreateTitle()
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.BadRequest);
+        _mocker.GetMock<IUrlSubmitter>().Verify(
+            s => s.Submit(It.IsAny<Uri>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the submitter holds on a service-link conflict, the API answers ServiceLinkConflictDecisionRequired " +
+        "and indexes nothing, because nothing was written.")]
+    public async Task service_link_conflict_hold_requires_a_decision()
+    {
+        // Arrange
+        var hold = new ServiceLinkConflictHold(
+            _fixture.CreateGuid(), _fixture.CreateTitle(), DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay()), []);
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(It.IsAny<Uri>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(SubmitResultState.None, SubmitResultState.None, ServiceLinkConflict: hold));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(
+            new SubmitUrlRequest { Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}") },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.ServiceLinkConflictDecisionRequired);
+        result.Result!.ServiceLinkConflict.Should().Be(hold);
+        _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
+            s => s.IndexEpisode(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When an overwrite split the stored links off into a new episode, the API indexes both the overwritten " +
+        "episode and the split-off episode, so search shows each link once.")]
+    public async Task overwrite_indexes_episode_and_split_off()
+    {
+        // Arrange
+        var episode = _fixture.CreateEpisode();
+        var splitOff = _fixture.CreateEpisode();
+        _mocker.GetMock<IUrlSubmitter>()
+            .Setup(s => s.Submit(It.IsAny<Uri>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(new SubmitResult(
+                SubmitResultState.Enriched, SubmitResultState.None, Episode: episode, SplitOffEpisode: splitOff));
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(
+            new SubmitUrlRequest
+            {
+                Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
+                ServiceLinkConflictDecision = "overwrite",
+                ServiceLinkConflictEpisodeId = episode.Id
+            },
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Ok);
+        var indexer = _mocker.GetMock<IEpisodeSearchIndexerService>();
+        indexer.Verify(s => s.IndexEpisode(episode.Id, It.IsAny<CancellationToken>()), Times.Once);
+        indexer.Verify(s => s.IndexEpisode(splitOff.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "When the curator answers cancel to a service-link conflict, the API reports cancelled.")]
+    public async Task service_link_conflict_cancel_is_cancelled()
+    {
+        // Arrange
+        var request = new SubmitUrlRequest
+        {
+            Url = new Uri($"https://open.spotify.com/episode/{_fixture.CreateSpotifyId()}"),
+            ServiceLinkConflictDecision = "cancel"
+        };
+        var sut = _mocker.CreateInstance<SubmitUrlService>();
+
+        // Act
+        var result = await sut.SubmitAsync(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(SubmitUrlStatus.Cancelled);
+        _capturedOptions!.ServiceLinkConflict.Should().Be(ServiceLinkConflictChoice.Cancel);
+    }
+
     private static string FlipCasing(string value)
     {
         var upper = value.ToUpperInvariant();

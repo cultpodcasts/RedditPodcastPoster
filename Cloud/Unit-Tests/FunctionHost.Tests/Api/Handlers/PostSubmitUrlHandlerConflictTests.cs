@@ -29,6 +29,49 @@ public class PostSubmitUrlHandlerConflictTests
             .ReturnsAsync(() => _serviceResult);
     }
 
+    [Fact(DisplayName =
+        "When submit holds on a service-link conflict, the handler returns 200 with serviceLinkConflict naming the " +
+        "stored episode and each stored and submitted link, so the site can ask overwrite or create-new (#1416).")]
+    public async Task service_link_conflict_returns_200_with_prompt()
+    {
+        // Arrange
+        var episodeId = _fixture.CreateGuid();
+        var title = _fixture.CreateTitle();
+        var storedUrl = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
+        var submittedUrl = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
+        var hold = new ServiceLinkConflictHold(
+            episodeId,
+            title,
+            DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay()),
+            [new ServiceLinkConflictLink("spotify", storedUrl, submittedUrl)]);
+        _serviceResult = new SubmitUrlResult(
+            SubmitUrlStatus.ServiceLinkConflictDecisionRequired,
+            new SubmitResult(SubmitResultState.None, SubmitResultState.None, ServiceLinkConflict: hold));
+        var handler = _mocker.CreateInstance<PostSubmitUrlHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new SubmitUrlRequest { Url = submittedUrl },
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        result.Body.Position = 0;
+        using var reader = new StreamReader(result.Body, leaveOpen: true);
+        using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
+        var conflict = doc.RootElement.GetProperty("serviceLinkConflict");
+        conflict.GetProperty("episodeId").GetGuid().Should().Be(episodeId);
+        conflict.GetProperty("episodeTitle").GetString().Should().Be(title);
+        var link = conflict.GetProperty("links").EnumerateArray().Should().ContainSingle().Subject;
+        link.GetProperty("service").GetString().Should().Be("spotify");
+        link.GetProperty("storedUrl").GetString().Should().Be(storedUrl.ToString());
+        link.GetProperty("submittedUrl").GetString().Should().Be(submittedUrl.ToString());
+        (doc.RootElement.TryGetProperty("success", out var success) && success.ValueKind != JsonValueKind.Null)
+            .Should().BeFalse("nothing was written, so this is not a success");
+    }
+
     [Fact(DisplayName = "PostSubmitUrlHandler maps Conflict to 409 with the ambiguous podcast id list.")]
     public async Task conflict_returns_409_uuid_array()
     {

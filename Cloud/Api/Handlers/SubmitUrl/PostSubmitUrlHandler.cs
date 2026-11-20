@@ -25,6 +25,8 @@ public class PostSubmitUrlHandler(
                 await ctx.Ok(SubmitUrlResponse.DecisionRequired(result.Result!.LanguageHold!), c),
             SubmitUrlStatus.IdentityDecisionRequired =>
                 await ctx.Ok(SubmitUrlResponse.IdentityDecisionRequired(result.Result!.IdentityHold!), c),
+            SubmitUrlStatus.ServiceLinkConflictDecisionRequired =>
+                await ctx.Ok(SubmitUrlResponse.ServiceLinkConflictDecisionRequired(result.Result!.ServiceLinkConflict!), c),
             SubmitUrlStatus.Cancelled =>
                 await ctx.Ok(SubmitUrlResponse.CancelledResponse(), c),
             SubmitUrlStatus.PodcastNotFound =>

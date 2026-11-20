@@ -19,7 +19,8 @@ public class CategorisedItemProcessor(
     IHeroEpisodePromoter heroEpisodePromoter,
     ILogger<CategorisedItem> logger,
     ICatalogueLanguageGate? languageGate = null,
-    ICatalogueKindSubmitter? catalogueKindSubmitter = null) : ICategorisedItemProcessor
+    ICatalogueKindSubmitter? catalogueKindSubmitter = null,
+    IServiceLinkConflictGate? serviceLinkConflictGate = null) : ICategorisedItemProcessor
 {
     public async Task<SubmitResult> ProcessCategorisedItem(CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
@@ -93,10 +94,47 @@ public class CategorisedItemProcessor(
                 return Probe(admission);
             }
 
+            Episode? splitOffEpisode = null;
+            if (serviceLinkConflictGate != null)
+            {
+                var conflict = serviceLinkConflictGate.Evaluate(categorisedItem, submitOptions);
+                switch (conflict.Kind)
+                {
+                    case ServiceLinkConflictOutcomeKind.Hold:
+                        return new SubmitResult(
+                            SubmitResultState.None,
+                            SubmitResultState.None,
+                            Podcast: categorisedItem.MatchingPodcast,
+                            ServiceLinkConflict: conflict.Hold);
+                    case ServiceLinkConflictOutcomeKind.Cancelled:
+                        return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
+                    case ServiceLinkConflictOutcomeKind.Overwritten:
+                        categorisedItem = categorisedItem with { MatchingEpisode = conflict.Episode };
+                        splitOffEpisode = conflict.SplitOff;
+                        break;
+                }
+            }
+
             submitResult = await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem);
+            if (splitOffEpisode != null)
+            {
+                // The stored episode has lost its old links to the split-off, so it is saved even if the submitted
+                // links happened to add nothing else.
+                submitResult = submitResult with
+                {
+                    EpisodeResult = SubmitResultState.Enriched,
+                    SplitOffEpisode = splitOffEpisode
+                };
+            }
 
             if (submitOptions.PersistToDatabase)
             {
+                if (splitOffEpisode != null)
+                {
+                    // Saved first: if the stored episode's save then fails, its old links exist twice, never zero times.
+                    await episodeRepository.Save(splitOffEpisode);
+                }
+
                 if (submitResult is { PodcastResult: SubmitResultState.Enriched })
                 {
                     await podcastRepository.Save(categorisedItem.MatchingPodcast);

@@ -281,7 +281,9 @@ public static class RequestModelExtensions
         PrefetchedMeta = request.PrefetchedMeta,
         LanguageDecision = request.LanguageDecision,
         IdentityDecision = request.IdentityDecision,
-        SelectedIdentityKey = request.SelectedIdentityKey
+        SelectedIdentityKey = request.SelectedIdentityKey,
+        ServiceLinkConflictDecision = request.ServiceLinkConflictDecision,
+        ServiceLinkConflictEpisodeId = request.ServiceLinkConflictEpisodeId
     };
 
     public static Models.SubmitUrlPrepareRequest ToModel(this SubmitUrlPrepareRequest request) => new()

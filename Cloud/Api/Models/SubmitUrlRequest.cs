@@ -36,6 +36,12 @@ public class SubmitUrlRequest
     /// <summary>Candidate <c>key</c> when <see cref="IdentityDecision"/> is <c>select</c> (e.g. <c>tmdb:123</c>).</summary>
     public string? SelectedIdentityKey { get; set; }
 
+    /// <summary><c>overwrite</c>, <c>create-new</c>, or <c>cancel</c> after a service-link conflict prompt (#1416).</summary>
+    public string? ServiceLinkConflictDecision { get; set; }
+
+    /// <summary>The held episode an <c>overwrite</c> answer is for.</summary>
+    public Guid? ServiceLinkConflictEpisodeId { get; set; }
+
     /// <summary>
     /// Isolated <c>required Uri</c> only means the JSON property was present.
     /// Submit needs a non-blank absolute http(s) URL.
