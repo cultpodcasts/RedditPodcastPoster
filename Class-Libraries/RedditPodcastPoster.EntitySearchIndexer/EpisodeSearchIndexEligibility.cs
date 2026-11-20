@@ -8,6 +8,7 @@ namespace RedditPodcastPoster.EntitySearchIndexer;
 /// </summary>
 public static class EpisodeSearchIndexEligibility
 {
+    /// <remarks>An episode held for curator approval (#1484) is excluded whatever its removed flag says.</remarks>
     public static bool ShouldExcludeFromSearch(Podcast podcast, Episode episode) =>
-        episode.IsRemoved() || podcast.IsRemoved();
+        episode.IsRemoved() || episode.IsHeldForApproval() || podcast.IsRemoved();
 }

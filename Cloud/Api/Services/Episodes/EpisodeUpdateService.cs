@@ -181,7 +181,7 @@ public class EpisodeUpdateService(
             {
                 // #1484: rejecting a split-off hides it, as removing does.
                 if (episodeChangeRequestWrapper.EpisodeChangeRequest.Removed == true ||
-                    episodeChangeRequestWrapper.EpisodeChangeRequest.SplitOffStatus == SplitOffStatus.Rejected)
+                    episodeChangeRequestWrapper.EpisodeChangeRequest.ApprovalStatus == ApprovalStatus.Rejected)
                 {
                     await searchIndexCleanup.DeleteSearchEntry(
                         podcastEpisodeResolverResponse.Podcast.Name,

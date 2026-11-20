@@ -31,7 +31,7 @@ public class EpisodeChangeRequest
     public bool? Removed { get; set; }
 
     /// <summary>#1484: approve or reject a split-off episode.</summary>
-    public SplitOffStatus? SplitOffStatus { get; set; }
+    public ApprovalStatus? ApprovalStatus { get; set; }
 
     public bool? Explicit { get; set; }
 
@@ -64,7 +64,7 @@ public class EpisodeChangeRequest
         UnBluesky != null ||
         Ignored != null ||
         Removed != null ||
-        SplitOffStatus != null ||
+        ApprovalStatus != null ||
         Explicit != null ||
         Release != null ||
         Duration != null ||
@@ -87,7 +87,7 @@ public class EpisodeChangeRequest
         Posted != null ||
         Ignored != null ||
         Removed != null ||
-        SplitOffStatus != null ||
+        ApprovalStatus != null ||
         Explicit != null ||
         Release != null ||
         Duration != null ||

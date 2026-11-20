@@ -65,13 +65,13 @@ public static class EpisodeServiceLinks
     /// The new episode starts as a copy of the source's details (title, description, release, length, language,
     /// subjects, matches, search terms, hashtag, guests and parent fields) for the curator to correct.
     /// <para>
-    /// #1484: it is <b>pending curator review</b> (<see cref="Episode.SplitOffStatus"/> =
-    /// <see cref="SplitOffStatus.Pending"/>): hidden (<see cref="Models.Catalogue.Playable.Removed"/>, so no public
-    /// page, search, D1, homepage or posting) and blocked from every posting channel (Reddit marked posted,
-    /// <see cref="SplitOffTweetSkipReason"/> for X, the legacy Bluesky flag). A curator approves it
-    /// (<see cref="Approve"/>: public, posting blocks cleared, posted under the usual rules) or rejects it
-    /// (<see cref="Reject"/>: stays hidden, never posted). Until approved it is matched by a submit only by one of its
-    /// own service ids and is never a service-link conflict candidate (<see cref="IsHeldForReview"/>).
+    /// #1484: it <b>awaits curator approval</b> (<see cref="Episode.ApprovalStatus"/> =
+    /// <see cref="ApprovalStatus.AwaitingApproval"/>). While held (<see cref="Episode.IsHeldForApproval"/>) it is kept
+    /// out of public pages, search, D1, the homepage and posting, and a submit matches it only by one of its own service
+    /// ids and never offers it as a service-link conflict candidate. <see cref="Models.Catalogue.Playable.Removed"/> is
+    /// also set so storage-level <c>removed</c> filters (Cosmos SQL, D1, reconcile) agree. Its posting flags are left
+    /// clear: posting keys off the status, so once a curator approves it (<see cref="Approve"/>) it is posted under the
+    /// usual rules; a rejected one (<see cref="Reject"/>) never is.
     /// </para>
     /// <para>
     /// #1482: its id is deterministic (<see cref="SplitOffId"/>: a name-based v5 GUID of the source id and its stored
@@ -107,10 +107,7 @@ public static class EpisodeServiceLinks
             ParentMetadataVersion = source.ParentMetadataVersion,
             ParentRemoved = source.ParentRemoved,
             Removed = true,
-            SplitOffStatus = SplitOffStatus.Pending,
-            Posted = true,
-            TweetSkipReason = SplitOffTweetSkipReason,
-            OldBlueskyPosted = true
+            ApprovalStatus = ApprovalStatus.AwaitingApproval
         };
         split.ReleaseUtc = source.ReleaseUtc;
 
@@ -125,88 +122,52 @@ public static class EpisodeServiceLinks
     }
 
     /// <summary>
-    /// <c>tweetSkipReason</c> set on a new split-off (#1484) so X never posts it while it is pending review.
-    /// <see cref="Approve"/> clears it.
-    /// </summary>
-    public const string SplitOffTweetSkipReason = "split-off";
-
-    /// <summary>True for a split-off a curator has not reviewed yet (#1484).</summary>
-    public static bool IsAwaitingApproval(Episode episode)
-    {
-        ArgumentNullException.ThrowIfNull(episode);
-        return episode.SplitOffStatus == SplitOffStatus.Pending;
-    }
-
-    /// <summary>
-    /// True for a split-off that is pending review or was rejected (#1484): not public. A submit matches it only by
-    /// one of its own service ids (never by title alone), so it is never enriched in place of the stored episode it
-    /// was split from, and it is never a service-link conflict candidate, so an overwrite never lands submitted links
-    /// on a hidden episode. An approved split-off is an ordinary episode.
-    /// </summary>
-    public static bool IsHeldForReview(Episode episode)
-    {
-        ArgumentNullException.ThrowIfNull(episode);
-        return episode.SplitOffStatus is SplitOffStatus.Pending or SplitOffStatus.Rejected;
-    }
-
-    /// <summary>
-    /// #1484: a curator approves a pending (or previously rejected) split-off. It becomes public (Removed cleared)
-    /// and, the first time, the posting blocks <see cref="SplitOff"/> set are cleared (Reddit posted flag, the X skip
-    /// reason, the legacy Bluesky flag), so the normal posting jobs may post it under their usual rules (release
-    /// window, ignored, delayed YouTube publishing). Nothing is posted here. The blocks are only cleared while
-    /// <see cref="SplitOffTweetSkipReason"/> is still set, so approving again after a rejection never re-arms posting
-    /// of an episode that was already posted. Approving an approved split-off changes nothing.
+    /// #1484: a curator approves a split-off awaiting approval (or one rejected earlier). It becomes an ordinary public
+    /// episode (Removed cleared) and the posting jobs may post it under their usual rules (release window, ignored,
+    /// delayed YouTube publishing). Nothing is posted here and no posting flag is touched: a split-off is never posted
+    /// while held, and one approved, posted, then rejected and approved again keeps its posted flags, so it is not
+    /// posted twice. Approving an approved split-off changes nothing.
     /// </summary>
     /// <returns>True when anything changed.</returns>
-    /// <exception cref="InvalidOperationException">The episode is not a split-off.</exception>
+    /// <exception cref="InvalidOperationException">The episode has no approval status (not a split-off).</exception>
     public static bool Approve(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        if (episode.SplitOffStatus is null)
+        if (episode.ApprovalStatus is null)
         {
-            throw new InvalidOperationException($"Episode '{episode.Id}' is not a split-off.");
+            throw new InvalidOperationException($"Episode '{episode.Id}' is not awaiting approval.");
         }
 
-        if (episode.SplitOffStatus == SplitOffStatus.Approved)
+        if (episode.ApprovalStatus == ApprovalStatus.Approved)
         {
             return false;
         }
 
-        episode.SplitOffStatus = SplitOffStatus.Approved;
+        episode.ApprovalStatus = ApprovalStatus.Approved;
         episode.Removed = false;
-        if (string.Equals(episode.TweetSkipReason, SplitOffTweetSkipReason, StringComparison.Ordinal))
-        {
-            episode.TweetSkipReason = null;
-            episode.Posted = false;
-            if (string.IsNullOrWhiteSpace(episode.BlueskyPost))
-            {
-                episode.OldBlueskyPosted = null;
-            }
-        }
-
         return true;
     }
 
     /// <summary>
-    /// #1484: a curator rejects a split-off. It is hidden (Removed) and stays out of public and posting; its posting
-    /// state is left as it is. Rejecting a rejected split-off changes nothing.
+    /// #1484: a curator rejects a split-off. It is held (and Removed) and stays out of public and posting; its posting
+    /// flags are left as they are. Rejecting a rejected split-off changes nothing.
     /// </summary>
     /// <returns>True when anything changed.</returns>
-    /// <exception cref="InvalidOperationException">The episode is not a split-off.</exception>
+    /// <exception cref="InvalidOperationException">The episode has no approval status (not a split-off).</exception>
     public static bool Reject(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
-        if (episode.SplitOffStatus is null)
+        if (episode.ApprovalStatus is null)
         {
-            throw new InvalidOperationException($"Episode '{episode.Id}' is not a split-off.");
+            throw new InvalidOperationException($"Episode '{episode.Id}' is not awaiting approval.");
         }
 
-        if (episode.SplitOffStatus == SplitOffStatus.Rejected && episode.Removed)
+        if (episode.ApprovalStatus == ApprovalStatus.Rejected && episode.Removed)
         {
             return false;
         }
 
-        episode.SplitOffStatus = SplitOffStatus.Rejected;
+        episode.ApprovalStatus = ApprovalStatus.Rejected;
         episode.Removed = true;
         return true;
     }

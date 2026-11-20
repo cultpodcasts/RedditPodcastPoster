@@ -129,7 +129,7 @@ public class SubmitSplitOffReviewRules
         result.ServiceLinkConflict.Should().BeNull();
         result.Episode!.Id.Should().Be(splitOff.Id);
         splitOff.Removed.Should().BeTrue();
-        EpisodeServiceLinks.IsAwaitingApproval(splitOff).Should().BeTrue();
+        splitOff.IsAwaitingApproval().Should().BeTrue();
         _mocker.GetMock<IEpisodeFactory>().Verify(x => x.CreateEpisode(It.IsAny<CategorisedItem>()), Times.Never);
     }
 
@@ -152,7 +152,7 @@ public class SubmitSplitOffReviewRules
         result.Episode!.Id.Should().Be(splitOff.Id);
         splitOff.Removed.Should().BeTrue();
         splitOff.Posted.Should().BeTrue();
-        EpisodeServiceLinks.IsAwaitingApproval(splitOff).Should().BeTrue();
+        splitOff.IsAwaitingApproval().Should().BeTrue();
         _mocker.GetMock<IEpisodeFactory>().Verify(x => x.CreateEpisode(It.IsAny<CategorisedItem>()), Times.Never);
     }
 

@@ -484,7 +484,7 @@ public class SubmitServiceLinkConflictRules
         // Arrange
         var stored = StoredEpisodeWithSpotify(_title);
         var splitOff = EpisodeServiceLinks.SplitOff(stored, [ServiceKeys.Spotify]).Episode;
-        // #1484: a pending split-off is never a candidate; once approved it is an ordinary episode.
+        // #1484: a split-off awaiting approval is never a candidate; once approved it is an ordinary episode.
         EpisodeServiceLinks.Approve(splitOff);
         var newSpotifyId = _fixture.CreateSpotifyId();
         EpisodeServicePresence.SetSpotifyIdentity(stored, newSpotifyId);

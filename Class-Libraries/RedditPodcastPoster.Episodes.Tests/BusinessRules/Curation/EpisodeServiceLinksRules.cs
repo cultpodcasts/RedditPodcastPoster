@@ -178,29 +178,30 @@ public class EpisodeServiceLinksRules
     }
 
     [Fact(DisplayName =
-        "A pending split-off episode is blocked from posting on every channel: Reddit is marked posted, X is " +
-        "skipped with the split-off reason rather than the legacy tweeted flag, and Bluesky is marked posted (#1484).")]
-    public void pending_split_off_episode_is_not_posted()
+        "A split-off awaits approval and is kept from posting by its approval status, not by posting flags: it carries " +
+        "no posted, X skip or Bluesky flag and none of the source's post ids, so once approved it posts under the " +
+        "usual rules (#1484).")]
+    public void split_off_awaiting_approval_is_held_by_status_not_posting_flags()
     {
         // Arrange
         var source = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
-        source.Posted = false;
+        source.Posted = true;
 
         // Act
         var split = EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode;
 
         // Assert
-        split.Posted.Should().BeTrue();
-        split.Tweeted.Should().BeTrue();
-        split.TweetSkipReason.Should().Be(EpisodeServiceLinks.SplitOffTweetSkipReason);
-        split.OldTweeted.Should().BeNull();
-        split.BlueskyPosted.Should().BeTrue();
+        split.IsHeldForApproval().Should().BeTrue();
+        split.Posted.Should().BeFalse();
+        split.Tweeted.Should().BeFalse();
+        split.TweetSkipReason.Should().BeNull();
+        split.BlueskyPosted.Should().BeFalse();
         split.TweetPost.Should().BeNull("the source's post ids must not be shared, or un-posting one would delete the other's post");
         split.BlueskyPost.Should().BeNull();
     }
 
     [Fact(DisplayName =
-        "A split-off episode is pending review and hidden from the public until a curator approves it; approving it " +
+        "A split-off episode awaits approval and is hidden from the public until a curator approves it; approving it " +
         "makes it public (#1484).")]
     public void split_off_episode_is_hidden_until_approved()
     {
@@ -213,21 +214,21 @@ public class EpisodeServiceLinksRules
 
         // Assert
         split.Removed.Should().BeTrue();
-        split.SplitOffStatus.Should().Be(SplitOffStatus.Pending);
-        source.SplitOffStatus.Should().BeNull();
-        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeTrue();
-        EpisodeServiceLinks.IsHeldForReview(split).Should().BeTrue();
-        EpisodeServiceLinks.IsAwaitingApproval(source).Should().BeFalse();
+        split.ApprovalStatus.Should().Be(ApprovalStatus.AwaitingApproval);
+        source.ApprovalStatus.Should().BeNull();
+        split.IsAwaitingApproval().Should().BeTrue();
+        split.IsHeldForApproval().Should().BeTrue();
+        source.IsAwaitingApproval().Should().BeFalse();
         EpisodeServiceLinks.Approve(split).Should().BeTrue();
         split.Removed.Should().BeFalse();
-        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeFalse();
-        EpisodeServiceLinks.IsHeldForReview(split).Should().BeFalse();
+        split.IsAwaitingApproval().Should().BeFalse();
+        split.IsHeldForApproval().Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "Approving a split-off clears the posting blocks it was created with (Reddit posted, the X skip reason, the " +
-        "Bluesky flag), so the normal posting jobs may post it under their usual rules (#1484).")]
-    public void approving_a_split_off_clears_its_posting_blocks()
+        "Approving a split-off only changes its approval status and makes it public; no posting flag is touched, so " +
+        "the normal posting jobs may post it under their usual rules (#1484).")]
+    public void approving_a_split_off_makes_it_public_without_touching_posting_flags()
     {
         // Arrange
         var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
@@ -237,16 +238,17 @@ public class EpisodeServiceLinksRules
 
         // Assert
         changed.Should().BeTrue();
-        split.SplitOffStatus.Should().Be(SplitOffStatus.Approved);
+        split.ApprovalStatus.Should().Be(ApprovalStatus.Approved);
+        split.Removed.Should().BeFalse();
+        split.IsHeldForApproval().Should().BeFalse();
         split.Posted.Should().BeFalse();
-        split.TweetSkipReason.Should().BeNull();
         split.Tweeted.Should().BeFalse();
         split.BlueskyPosted.Should().BeFalse();
     }
 
     [Fact(DisplayName =
-        "Rejecting a split-off keeps it hidden and blocked from posting, and a rejected split-off is still held for " +
-        "review rather than awaiting approval (#1484).")]
+        "Rejecting a split-off keeps it hidden and held from posting by its status; a rejected split-off is held but " +
+        "no longer awaiting approval, and rejecting again changes nothing (#1484).")]
     public void rejecting_a_split_off_keeps_it_hidden_and_unposted()
     {
         // Arrange
@@ -257,18 +259,38 @@ public class EpisodeServiceLinksRules
 
         // Assert
         changed.Should().BeTrue();
-        split.SplitOffStatus.Should().Be(SplitOffStatus.Rejected);
+        split.ApprovalStatus.Should().Be(ApprovalStatus.Rejected);
         split.Removed.Should().BeTrue();
-        split.Posted.Should().BeTrue();
-        split.TweetSkipReason.Should().Be(EpisodeServiceLinks.SplitOffTweetSkipReason);
-        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeFalse();
-        EpisodeServiceLinks.IsHeldForReview(split).Should().BeTrue();
+        split.IsAwaitingApproval().Should().BeFalse();
+        split.IsHeldForApproval().Should().BeTrue();
         EpisodeServiceLinks.Reject(split).Should().BeFalse("rejecting again changes nothing");
     }
 
     [Fact(DisplayName =
+        "The approval status is stored as the enum name (AwaitingApproval / Approved / Rejected), like the other stored " +
+        "enums, so it can be queried, and is omitted on an ordinary episode (#1484).")]
+    public void approval_status_is_stored_as_the_enum_name()
+    {
+        // Arrange
+        var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
+        var ordinary = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
+
+        // Act
+        var splitJson = System.Text.Json.JsonSerializer.Serialize(split);
+        var ordinaryJson = System.Text.Json.JsonSerializer.Serialize(ordinary);
+        var roundTripped = System.Text.Json.JsonSerializer.Deserialize<Episode>(
+            splitJson.Replace("\"AwaitingApproval\"", "\"Rejected\"", StringComparison.Ordinal));
+
+        // Assert
+        splitJson.Should().Contain("\"approvalStatus\":\"AwaitingApproval\"");
+        Episode.CosmosAwaitingApprovalSql.Should().Contain("'AwaitingApproval'");
+        ordinaryJson.Should().NotContain("approvalStatus");
+        roundTripped!.ApprovalStatus.Should().Be(ApprovalStatus.Rejected);
+    }
+
+    [Fact(DisplayName =
         "An approved split-off that is later removed (e.g. unplayable) stays approved: it does not go back to " +
-        "pending review (#1484).")]
+        "awaiting approval (#1484).")]
     public void approved_split_off_later_removed_stays_approved()
     {
         // Arrange
@@ -279,15 +301,15 @@ public class EpisodeServiceLinksRules
         split.Removed = true;
 
         // Assert
-        split.SplitOffStatus.Should().Be(SplitOffStatus.Approved);
-        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeFalse();
-        EpisodeServiceLinks.IsHeldForReview(split).Should().BeFalse();
+        split.ApprovalStatus.Should().Be(ApprovalStatus.Approved);
+        split.IsAwaitingApproval().Should().BeFalse();
+        split.IsHeldForApproval().Should().BeFalse();
         EpisodeServiceLinks.Approve(split).Should().BeFalse("approving an approved split-off changes nothing");
     }
 
     [Fact(DisplayName =
         "Approving a split-off again after it was approved, posted and then rejected makes it public but never " +
-        "re-arms posting: only the first approval clears the split-off's posting blocks (#1484).")]
+        "re-arms posting: approval never touches posting flags, so it keeps its posted state (#1484).")]
     public void re_approving_a_posted_split_off_does_not_re_arm_posting()
     {
         // Arrange
@@ -301,7 +323,7 @@ public class EpisodeServiceLinksRules
         EpisodeServiceLinks.Approve(split);
 
         // Assert
-        split.SplitOffStatus.Should().Be(SplitOffStatus.Approved);
+        split.ApprovalStatus.Should().Be(ApprovalStatus.Approved);
         split.Removed.Should().BeFalse();
         split.Posted.Should().BeTrue();
         split.Tweeted.Should().BeTrue();
@@ -320,7 +342,7 @@ public class EpisodeServiceLinksRules
         // Assert
         approve.Should().Throw<InvalidOperationException>();
         reject.Should().Throw<InvalidOperationException>();
-        episode.SplitOffStatus.Should().BeNull();
+        episode.ApprovalStatus.Should().BeNull();
     }
 
     [Fact(DisplayName =

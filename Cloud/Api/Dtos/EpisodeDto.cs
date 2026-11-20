@@ -100,12 +100,14 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     public bool Removed { get; set; }
 
     /// <summary>
-    /// #1484: <c>pending</c> / <c>approved</c> / <c>rejected</c> on a split-off episode; absent on every other episode.
+    /// #1484: <c>"AwaitingApproval"</c> / <c>"Approved"</c> / <c>"Rejected"</c> on an episode that needs curator
+    /// approval (a split-off); absent on every other episode.
     /// </summary>
-    [JsonPropertyName("splitOffStatus")]
+    [JsonPropertyName("approvalStatus")]
     [JsonPropertyOrder(451)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public SplitOffStatus? SplitOffStatus { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ApprovalStatus? ApprovalStatus { get; set; }
 
     [JsonPropertyName("lang")]
     [JsonPropertyOrder(46)]

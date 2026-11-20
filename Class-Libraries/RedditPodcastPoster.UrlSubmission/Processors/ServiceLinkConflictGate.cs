@@ -58,7 +58,7 @@ public class ServiceLinkConflictGate(
         // Once the stored episode's overwrite is saved its links differ, so its split-off is an ordinary episode.
         var partialSplitOffs = PartialSplitOffs(episodes);
         var live = episodes.Where(episode => !partialSplitOffs.Contains(episode.Id)).ToArray();
-        // #1484: a split-off held for review (pending or rejected) matches only by one of its own service ids.
+        // #1484: a split-off held for approval (AwaitingApproval or Rejected) matches only by one of its own service ids.
         if (live.Any(episode => SplitOffMatching.MayMatch(episode, categorisedItem) &&
                                 episodeHelper.IsMatchingEpisode(episode, categorisedItem)))
         {
@@ -66,10 +66,10 @@ public class ServiceLinkConflictGate(
         }
 
         var conflicts = live
-            // #1484: a split-off held for review is never a conflict candidate, so an overwrite never lands the
+            // #1484: a split-off held for approval is never a conflict candidate, so an overwrite never lands the
             // submitted links on a hidden episode. The #1482 retry below still looks its split-off up in the
-            // unfiltered episodes, so a pending split-off is reused, not rebuilt.
-            .Where(episode => !EpisodeServiceLinks.IsHeldForReview(episode))
+            // unfiltered episodes, so a split-off awaiting approval is reused, not rebuilt.
+            .Where(episode => !episode.IsHeldForApproval())
             .Select(episode => (Episode: episode, Keys: episodeHelper.ConflictingServiceKeys(episode, categorisedItem)))
             .Where(conflict => conflict.Keys.Count > 0)
             .ToArray();

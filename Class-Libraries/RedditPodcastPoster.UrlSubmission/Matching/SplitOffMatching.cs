@@ -6,8 +6,8 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 namespace RedditPodcastPoster.UrlSubmission.Matching;
 
 /// <summary>
-/// #1484: how a submit may match a split-off held for curator review (pending or rejected,
-/// <see cref="EpisodeServiceLinks.IsHeldForReview"/>), and which of several matches holds the submitted id.
+/// #1484: how a submit may match a split-off held for curator approval (AwaitingApproval or Rejected,
+/// <see cref="Episode.IsHeldForApproval"/>), and which of several matches holds the submitted id.
 /// </summary>
 public static class SplitOffMatching
 {
@@ -20,7 +20,7 @@ public static class SplitOffMatching
     {
         ArgumentNullException.ThrowIfNull(episode);
         ArgumentNullException.ThrowIfNull(categorisedItem);
-        return !EpisodeServiceLinks.IsHeldForReview(episode) || HoldsSubmittedServiceId(episode, categorisedItem);
+        return !episode.IsHeldForApproval() || HoldsSubmittedServiceId(episode, categorisedItem);
     }
 
     /// <summary>

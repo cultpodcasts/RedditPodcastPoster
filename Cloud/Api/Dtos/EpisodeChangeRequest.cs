@@ -40,12 +40,13 @@ public class EpisodeChangeRequest
     public bool? Removed { get; set; }
 
     /// <summary>
-    /// #1484: <c>approved</c> or <c>rejected</c>, for a split-off episode only (400 otherwise, and for
-    /// <c>pending</c>). Approving makes it public and lets the posting jobs post it under their usual rules;
-    /// rejecting keeps it hidden.
+    /// #1484: <c>"Approved"</c> or <c>"Rejected"</c>, for an episode awaiting approval (a split-off) only (400
+    /// otherwise, and for <c>"AwaitingApproval"</c>). Approving makes it public and lets the posting jobs post it under
+    /// their usual rules; rejecting keeps it hidden.
     /// </summary>
-    [JsonPropertyName("splitOffStatus")]
-    public SplitOffStatus? SplitOffStatus { get; set; }
+    [JsonPropertyName("approvalStatus")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ApprovalStatus? ApprovalStatus { get; set; }
 
     [JsonPropertyName("explicit")]
     public bool? Explicit { get; set; }

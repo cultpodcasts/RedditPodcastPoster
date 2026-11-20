@@ -51,6 +51,7 @@ public class PodcastEpisodeFilter(
             .Where(x =>
                 x.Episode.ReleaseUtc >= since &&
                 x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
+                !x.Episode.IsHeldForApproval() &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .OrderByDescending(x => x.Episode.ReleaseUtc)
@@ -106,6 +107,7 @@ public class PodcastEpisodeFilter(
             .Where(x =>
                 x.Episode.ReleaseUtc >= since &&
                 x.Episode is { Removed: false, Ignored: false, Tweeted: false } &&
+                !x.Episode.IsHeldForApproval() &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .Where(x => EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
@@ -144,6 +146,7 @@ public class PodcastEpisodeFilter(
                 x.Episode.ReleaseUtc >= since &&
                 !x.Episode.BlueskyPosted &&
                 x.Episode is { Removed: false, Ignored: false } &&
+                !x.Episode.IsHeldForApproval() &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .Where(x => EliminateItemsDueToIndexingErrors(x, youTubeRefreshed, spotifyRefreshed))
@@ -180,6 +183,7 @@ public class PodcastEpisodeFilter(
                 x.Episode.ReleaseUtc >= since &&
                 !x.Episode.BlueskyPosted &&
                 x.Episode is { Removed: false, Ignored: false } &&
+                !x.Episode.IsHeldForApproval() &&
                 HasSocialPostableUrl(x.Podcast, x.Episode) &&
                 !x.Podcast.IsDelayedYouTubePublishing(x.Episode))
             .OrderByDescending(x => x.Episode.ReleaseUtc)
@@ -211,7 +215,8 @@ public class PodcastEpisodeFilter(
 
     private bool IsReadyToPost(Podcast podcast, Episode episode, DateTime since)
     {
-        if (episode.Posted || episode.Ignored || episode.IsRemoved())
+        // #1484: an episode held for curator approval is never posted, whatever its other flags say.
+        if (episode.Posted || episode.Ignored || episode.IsRemoved() || episode.IsHeldForApproval())
         {
             return false;
         }

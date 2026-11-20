@@ -247,7 +247,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             BlueskyPost = episode.BlueskyPost,
             Ignored = episode.Ignored,
             Removed = episode.Removed,
-            SplitOffStatus = episode.SplitOffStatus,
+            ApprovalStatus = episode.ApprovalStatus,
             Subjects = [.. episode.Subjects],
             SearchTerms = episode.SearchTerms,
             PodcastName = episode.PodcastName,
