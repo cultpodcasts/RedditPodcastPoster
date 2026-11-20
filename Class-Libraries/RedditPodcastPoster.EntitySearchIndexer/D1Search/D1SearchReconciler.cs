@@ -98,8 +98,6 @@ public static class D1SearchReconcileScanText
 }
 
 /// <param name="Missing">Eligible in Cosmos, absent from D1.</param>
-/// <param name="Scan">How the catalogue was read; null when the run stopped before that was decided (not configured,
-/// or the watermark could not be read).</param>
 /// <param name="Stale">
 /// In D1 with an older <c>modifiedAt</c> than the playable's own Cosmos <c>_ts</c>, or (incremental only) an episode
 /// whose podcast changed an indexed field the episode's projection does not have yet
@@ -108,6 +106,11 @@ public static class D1SearchReconcileScanText
 /// </param>
 /// <param name="Orphans">In D1 but not eligible in Cosmos (removed, ineligible, hard-deleted, or podcast gone).</param>
 /// <param name="Drift">(Missing + Stale + Orphans) / max(D1 count, eligible count).</param>
+/// <param name="Scan">
+/// How the catalogue was read; null when the run stopped before that was decided (not configured, or the watermark
+/// could not be read).
+/// </param>
+/// <param name="SinceTs">The watermark <c>_ts</c> an incremental scan read from; 0 for a full scan.</param>
 public sealed record D1SearchReconcileReport(
     D1SearchReconcileOutcome Outcome,
     int D1Documents,

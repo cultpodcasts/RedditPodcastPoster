@@ -544,8 +544,11 @@ public class D1SearchReconcilerTests
     [InlineData(D1SearchReconcileScan.Incremental, 1_700_000_000, "incremental from _ts 1700000000 (2023-11-14 22:13:20 UTC)")]
     public void scan_description_names_the_mode(D1SearchReconcileScan scan, long sinceTs, string expected)
     {
+        // Arrange
+        var describe = D1SearchReconcileScanText.Describe;
+
         // Act
-        var text = D1SearchReconcileScanText.Describe(scan, sinceTs);
+        var text = describe(scan, sinceTs);
 
         // Assert
         text.Should().StartWith(expected);
@@ -559,12 +562,15 @@ public class D1SearchReconcilerTests
     [InlineData(D1SearchReconcileScan.Incremental, 1_700_000_000, "incremental since 2023-11-14 22:13 UTC")]
     public void scan_label_is_short(D1SearchReconcileScan scan, long sinceTs, string expected)
     {
+        // Arrange
+        const int maxLabelLength = 40;
+
         // Act
         var label = D1SearchReconcileScanText.Label(scan, sinceTs);
 
         // Assert
         label.Should().Be(expected);
-        label.Length.Should().BeLessThanOrEqualTo(40);
+        label.Length.Should().BeLessThanOrEqualTo(maxLabelLength);
     }
 
     [Fact(DisplayName =
