@@ -104,15 +104,80 @@ public sealed class CatalogueIdentityEnricher(
             return CatalogueIdentityAdmission.Proceed();
         }
 
-        return await FromPreviewAsync(
+        return await TvShowFromPreviewAsync(name, preview, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<CatalogueIdentityAdmission> LookupTvShowAsync(
+        string name,
+        CatalogueIdentityChoice choice,
+        string? selectedKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (choice != CatalogueIdentityChoice.Unset)
+        {
+            return await ResolveTvShowAsync(name, choice, selectedKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        CatalogueAuthorityPreview preview;
+        try
+        {
+            preview = await previewer.PreviewTvShowAsync(name, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Catalogue identity TV show lookup failed. query={Query}",
+                name);
+            return CatalogueIdentityAdmission.Proceed();
+        }
+
+        if (preview.LookupFailed ||
+            preview.Resolution == CatalogueAuthorityResolution.Unique ||
+            preview.Candidates is { Count: > 0 })
+        {
+            return await TvShowFromPreviewAsync(name, preview, cancellationToken).ConfigureAwait(false);
+        }
+
+        // #1387: TMDB TV and TheTVDB offered nothing to pick. The catalogue may hold as a TV show what IMDb lists
+        // as a film or documentary ("3 Days in Dimona"), so offer those instead of a dead-end no-match.
+        CatalogueAuthorityPreview otherKinds;
+        try
+        {
+            otherKinds = await previewer.PreviewTvShowOtherKindsAsync(name, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Catalogue identity TV show film/documentary lookup failed. query={Query}",
+                name);
+            return await TvShowFromPreviewAsync(name, preview, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (otherKinds.Candidates is not { Count: > 0 })
+        {
+            return await TvShowFromPreviewAsync(name, preview, cancellationToken).ConfigureAwait(false);
+        }
+
+        logger.LogInformation(
+            "Catalogue identity TV show has no TV match; offering film/documentary candidates. query={Query} candidates={Count}",
+            name,
+            otherKinds.Candidates.Count);
+        return await TvShowFromPreviewAsync(name, otherKinds, cancellationToken).ConfigureAwait(false);
+    }
+
+    private Task<CatalogueIdentityAdmission> TvShowFromPreviewAsync(
+        string name,
+        CatalogueAuthorityPreview preview,
+        CancellationToken cancellationToken) =>
+        FromPreviewAsync(
                 CatalogueAuthorityCandidate.TvShowKind,
                 name,
                 year: null,
                 preview,
                 CollectTvShowFromCandidate,
-                cancellationToken)
-            .ConfigureAwait(false);
-    }
+                cancellationToken);
 
     public async Task<CatalogueIdentityAdmission> ResolveTvShowEpisodeAsync(
         TvShow show,
@@ -379,6 +444,17 @@ public sealed class CatalogueIdentityEnricher(
         string? selectedKey,
         CancellationToken cancellationToken)
     {
+        // #1387: a film/documentary (or a series TMDB does not know) offered for a TV show carries only its IMDb id.
+        if (CatalogueAuthorityCandidate.TryParseImdbKey(selectedKey, out var imdbId))
+        {
+            logger.LogInformation(
+                "Catalogue identity TV show selected from IMDb only. query={Query} key={Key} imdbId={ImdbId}",
+                name,
+                selectedKey,
+                imdbId);
+            return CatalogueIdentityAdmission.Proceed(new CatalogueAuthorityIds(imdbId, null, null));
+        }
+
         if (!CatalogueAuthorityCandidate.TryParseKey(selectedKey, out var tmdbId, out var tvdbId))
         {
             logger.LogWarning(
