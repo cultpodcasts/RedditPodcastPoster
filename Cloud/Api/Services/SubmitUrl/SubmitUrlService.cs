@@ -190,7 +190,14 @@ public class SubmitUrlService(
                 return new SubmitUrlResult(SubmitUrlStatus.Ok, result);
             }
 
-            if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
+            if (result.SplitOffEpisode is { } splitOff)
+            {
+                // #1484: the overwritten episode and its split-off in one indexing call. The split-off is hidden
+                // (removed) until a curator approves it, so indexing it keeps it out of search.
+                await IndexEpisodes(
+                    episodeId.HasValue ? [episodeId.Value, splitOff.Id] : [splitOff.Id], cancellationToken);
+            }
+            else if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {
                 if (episodeId.HasValue)
                 {
@@ -203,11 +210,6 @@ public class SubmitUrlService(
                         result.EpisodeResult,
                         submitUrlModel.Url);
                 }
-            }
-
-            if (result.SplitOffEpisode is { } splitOff)
-            {
-                await IndexEpisode(splitOff.Id, cancellationToken);
             }
 
             return new SubmitUrlResult(SubmitUrlStatus.Ok, result);
@@ -294,6 +296,19 @@ public class SubmitUrlService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to index episode after submission. EpisodeId: '{EpisodeId}'.", episodeId);
+        }
+    }
+
+    private async Task IndexEpisodes(Guid[] episodeIds, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await episodeSearchIndexerService.IndexEpisodes(episodeIds, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to index episodes after submission. EpisodeIds: '{EpisodeIds}'.",
+                string.Join(", ", episodeIds));
         }
     }
 
