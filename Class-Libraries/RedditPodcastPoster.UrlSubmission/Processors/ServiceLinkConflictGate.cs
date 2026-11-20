@@ -50,12 +50,20 @@ public class ServiceLinkConflictGate(
         }
 
         var episodes = categorisedItem.MatchingPodcastEpisodes?.ToArray() ?? [];
-        if (episodes.Any(episode => episodeHelper.IsMatchingEpisode(episode, categorisedItem)))
+        // #1482: after an overwrite whose stored-episode save failed, the split-off (saved first) holds links and
+        // details the stored episode still carries, so it can look like the submitted episode (by title when it lacks
+        // a link this attempt resolved) or conflict with it. It is never the episode a retry matches or overwrites:
+        // drop any episode whose id is the deterministic split-off id of another listed episode (one still carrying
+        // the links it was split from), so the retry overwrites the stored episode again and reuses that split-off.
+        // Once the stored episode's overwrite is saved its links differ, so its split-off is an ordinary episode.
+        var partialSplitOffs = PartialSplitOffs(episodes);
+        var live = episodes.Where(episode => !partialSplitOffs.Contains(episode.Id)).ToArray();
+        if (live.Any(episode => episodeHelper.IsMatchingEpisode(episode, categorisedItem)))
         {
             return ServiceLinkConflictOutcome.Proceed;
         }
 
-        var conflicts = episodes
+        var conflicts = live
             .Select(episode => (Episode: episode, Keys: episodeHelper.ConflictingServiceKeys(episode, categorisedItem)))
             .Where(conflict => conflict.Keys.Count > 0)
             .ToArray();
@@ -68,11 +76,18 @@ public class ServiceLinkConflictGate(
         switch (submitOptions.ServiceLinkConflict)
         {
             case ServiceLinkConflictChoice.Overwrite when submitOptions.ServiceLinkConflictEpisodeId == episode.Id:
-                var split = EpisodeServiceLinks.SplitOff(episode, keys);
+                // #1482: a split-off already saved by an earlier, partly failed overwrite is reused (keeping any
+                // curator edits) instead of being rebuilt and saved over.
+                var splitOffId = EpisodeServiceLinks.SplitOffId(episode);
+                var existing = episodes.FirstOrDefault(candidate => candidate.Id == splitOffId);
+                var split = existing is null
+                    ? EpisodeServiceLinks.SplitOff(episode, keys)
+                    : EpisodeServiceLinks.SplitOffOnto(episode, existing, keys);
                 logger.LogWarning(
-                    "Service-link conflict with episode '{EpisodeId}': curator chose overwrite. Split {Services} off into new episode '{SplitOffEpisodeId}'.",
-                    episode.Id, string.Join(", ", split.Moved), split.Episode.Id);
-                return ServiceLinkConflictOutcome.Overwritten(episode, split.Episode);
+                    "Service-link conflict with episode '{EpisodeId}': curator chose overwrite. Split {Services} off into {SplitOffKind} episode '{SplitOffEpisodeId}'.",
+                    episode.Id, string.Join(", ", split.Moved), split.Reused ? "the existing split-off" : "new",
+                    split.Episode.Id);
+                return ServiceLinkConflictOutcome.Overwritten(episode, split.Episode, split.SplitOffChanged);
             case ServiceLinkConflictChoice.Overwrite:
                 logger.LogWarning(
                     "Service-link conflict is with episode '{EpisodeId}', but the overwrite answer named '{AnsweredEpisodeId}'; asking again.",
@@ -84,6 +99,34 @@ public class ServiceLinkConflictGate(
                     episode.Id, string.Join(", ", keys));
                 return ServiceLinkConflictOutcome.Held(ToHold(episode, keys, categorisedItem));
         }
+    }
+
+    /// <summary>
+    /// Ids of listed episodes that are the split-off (<see cref="EpisodeServiceLinks.SplitOffId"/>) of another listed
+    /// episode, i.e. of an overwrite whose stored-episode save has not happened yet (#1482). Split-off ids are v5;
+    /// ordinary episodes have v4 ids, so most podcasts skip the hashing entirely.
+    /// </summary>
+    private HashSet<Guid> PartialSplitOffs(Episode[] episodes)
+    {
+        var splitOffIds = episodes.Where(episode => episode.Id.Version == 5).Select(episode => episode.Id).ToHashSet();
+        var partial = new HashSet<Guid>();
+        if (splitOffIds.Count == 0)
+        {
+            return partial;
+        }
+
+        foreach (var source in episodes)
+        {
+            var splitOffId = EpisodeServiceLinks.SplitOffId(source);
+            if (splitOffId != source.Id && splitOffIds.Contains(splitOffId) && partial.Add(splitOffId))
+            {
+                logger.LogInformation(
+                    "Service-link conflict: episode '{SplitOffEpisodeId}' is the split-off of a partly saved overwrite of episode '{EpisodeId}' (still carrying the same links), so it is not matched or offered for overwrite.",
+                    splitOffId, source.Id);
+            }
+        }
+
+        return partial;
     }
 
     /// <summary>
