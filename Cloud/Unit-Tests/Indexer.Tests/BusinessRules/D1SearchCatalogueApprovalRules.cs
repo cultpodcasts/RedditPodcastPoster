@@ -48,7 +48,11 @@ public class D1SearchCatalogueApprovalRules
     private D1SearchCatalogue Catalogue()
     {
         // TV, news and film repositories are auto-mocked and return empty streams.
-        var mocker = new AutoMocker(MockBehavior.Loose, DefaultValue.Empty, new EmptyAsyncEnumerables(), false);
+        var mocker = new AutoMocker();
+        var empty = new EmptyAsyncEnumerables();
+        mocker.GetMock<ITvShowEpisodeRepository>().DefaultValueProvider = empty;
+        mocker.GetMock<INewsReportRepository>().DefaultValueProvider = empty;
+        mocker.GetMock<IFilmRepository>().DefaultValueProvider = empty;
         mocker.Use<IEpisodeRepository>(_episodes);
         mocker.Use<IPodcastRepository>(_podcasts);
         mocker.Use<Microsoft.Extensions.Logging.ILogger<D1SearchCatalogue>>(NullLogger<D1SearchCatalogue>.Instance);
