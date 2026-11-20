@@ -77,6 +77,15 @@ public enum D1SearchReconcileScan
 
 public static class D1SearchReconcileScanText
 {
+    /// <summary>A short label for the console's Starting task, short enough not to wrap the progress bar.</summary>
+    public static string Label(D1SearchReconcileScan scan, long sinceTs) => scan switch
+    {
+        D1SearchReconcileScan.Incremental =>
+            $"incremental since {DateTimeOffset.FromUnixTimeSeconds(sinceTs).UtcDateTime:yyyy-MM-dd HH:mm} UTC",
+        D1SearchReconcileScan.FullNoWatermark => "full: no watermark yet",
+        _ => "full (--full)"
+    };
+
     /// <summary>A one-line, human description of the scan, for the console and the log.</summary>
     public static string Describe(D1SearchReconcileScan scan, long sinceTs) => scan switch
     {
@@ -89,6 +98,8 @@ public static class D1SearchReconcileScanText
 }
 
 /// <param name="Missing">Eligible in Cosmos, absent from D1.</param>
+/// <param name="Scan">How the catalogue was read; null when the run stopped before that was decided (not configured,
+/// or the watermark could not be read).</param>
 /// <param name="Stale">
 /// In D1 with an older <c>modifiedAt</c> than the playable's own Cosmos <c>_ts</c>, or (incremental only) an episode
 /// whose podcast changed an indexed field the episode's projection does not have yet
@@ -109,7 +120,7 @@ public sealed record D1SearchReconcileReport(
     int Upserted = 0,
     int Deleted = 0,
     string? Error = null,
-    D1SearchReconcileScan Scan = D1SearchReconcileScan.Full,
+    D1SearchReconcileScan? Scan = null,
     long SinceTs = 0)
 {
     public bool Succeeded => Outcome is not (D1SearchReconcileOutcome.NotConfigured or D1SearchReconcileOutcome.Failed
@@ -202,9 +213,9 @@ public sealed class D1SearchReconciler(
         var scan = incremental
             ? D1SearchReconcileScan.Incremental
             : request.Full ? D1SearchReconcileScan.Full : D1SearchReconcileScan.FullNoWatermark;
-        var scanText = D1SearchReconcileScanText.Describe(scan, sinceTs);
-        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1, scanText));
-        logger.LogInformation("D1 search reconcile: {Scan}.", scanText);
+        progress?.Report(new D1SearchReconcileProgress(
+            D1SearchReconcilePhase.Starting, 1, 1, D1SearchReconcileScanText.Label(scan, sinceTs)));
+        logger.LogInformation("D1 search reconcile: {Scan}.", D1SearchReconcileScanText.Describe(scan, sinceTs));
 
         D1SearchReconcileReport Done(D1SearchReconcileReport r) => Log(r with { Scan = scan, SinceTs = sinceTs });
 
@@ -568,7 +579,8 @@ public sealed class D1SearchReconciler(
             "D1 search reconcile: {Outcome} ({Scan}). D1 {D1Documents}, eligible {Eligible}, missing {Missing}, " +
             "stale {Stale}, orphans {Orphans}, not built {FailedToBuild}, drift {Drift:P2} (threshold {Threshold:P2}); " +
             "upserted {Upserted}, deleted {Deleted}.{Hint}",
-            r.Outcome, D1SearchReconcileScanText.Describe(r.Scan, r.SinceTs), r.D1Documents, r.Eligible, r.Missing,
+            r.Outcome, r.Scan is { } scan ? D1SearchReconcileScanText.Describe(scan, r.SinceTs) : "before the scan",
+            r.D1Documents, r.Eligible, r.Missing,
             r.Stale, r.Orphans, r.FailedToBuild, r.Drift,
             _options.DriftThreshold, r.Upserted, r.Deleted,
             r.Outcome == D1SearchReconcileOutcome.RefusedDrift

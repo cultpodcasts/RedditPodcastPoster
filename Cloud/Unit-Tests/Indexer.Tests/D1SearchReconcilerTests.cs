@@ -255,8 +255,7 @@ public class D1SearchReconcilerTests
         progress.Items.Should().Equal(
             [
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 0, 1, "reading watermark"),
-                new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1,
-                    D1SearchReconcileScanText.Describe(D1SearchReconcileScan.FullNoWatermark, 0)),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1, "full: no watermark yet"),
                 .. catalogue,
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0),
                 new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0, 0)
@@ -529,8 +528,8 @@ public class D1SearchReconcilerTests
         {
             Outcome = D1SearchReconcileOutcome.InSync, Scan = D1SearchReconcileScan.FullNoWatermark, SinceTs = 0L
         });
-        progress.Items.Should().Contain(p => p.Phase == D1SearchReconcilePhase.Starting
-                                             && p.Detail != null && p.Detail.Contains("no watermark yet"));
+        progress.Items.Should().Contain(
+            new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1, "full: no watermark yet"));
         _writes.Should().BeEmpty();
         _mocker.GetMock<ID1SearchReconcileWatermarkStore>().Verify(
             s => s.SaveAsync(It.Is<D1SearchReconcileWatermark>(w => w.HighWaterMark == ts + 7),
@@ -550,6 +549,42 @@ public class D1SearchReconcilerTests
 
         // Assert
         text.Should().StartWith(expected);
+    }
+
+    [Theory(DisplayName =
+        "The bar's scan label is short, because the Starting task's description must not wrap the progress bar on a " +
+        "normal-width terminal.")]
+    [InlineData(D1SearchReconcileScan.Full, 0, "full (--full)")]
+    [InlineData(D1SearchReconcileScan.FullNoWatermark, 0, "full: no watermark yet")]
+    [InlineData(D1SearchReconcileScan.Incremental, 1_700_000_000, "incremental since 2023-11-14 22:13 UTC")]
+    public void scan_label_is_short(D1SearchReconcileScan scan, long sinceTs, string expected)
+    {
+        // Act
+        var label = D1SearchReconcileScanText.Label(scan, sinceTs);
+
+        // Assert
+        label.Should().Be(expected);
+        label.Length.Should().BeLessThanOrEqualTo(40);
+    }
+
+    [Fact(DisplayName =
+        "When the watermark can't be read, the run fails with no scan reported, because the console must not claim a " +
+        "full or incremental scan that never ran.")]
+    public async Task watermark_read_failure_reports_no_scan()
+    {
+        // Arrange
+        _mocker.GetMock<ID1SearchReconcileWatermarkStore>()
+            .Setup(s => s.GetAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException(_fixture.CreateTitle()));
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true), CancellationToken.None);
+
+        // Assert
+        report.Outcome.Should().Be(D1SearchReconcileOutcome.Failed);
+        report.Scan.Should().BeNull();
+        _writes.Should().BeEmpty();
     }
 
     private void SetupIncremental(long since, IEnumerable<string> eligibleIds)

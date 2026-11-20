@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 
 namespace D1SearchReconcile;
@@ -9,10 +8,14 @@ namespace D1SearchReconcile;
 /// refresh and comes out garbled. Disposing the hold writes the queued lines, in order, to standard error after the
 /// display has finished. Outside a hold, lines are written straight away. Level filtering is the usual
 /// <c>Logging</c> configuration (appsettings.json), which applies to every provider.
+/// <para>
+/// One lock (<c>_gate</c>) guards the hold count, the queue and the writes, so "held, then flushed in order, then
+/// live" is a single critical section: a line logged while the last hold is released is written after the held ones.
+/// </para>
 /// </summary>
 public sealed class DeferredConsoleLoggerProvider(TextWriter? output = null) : ILoggerProvider
 {
-    private readonly ConcurrentQueue<string> _held = new();
+    private readonly Queue<string> _held = new();
     private readonly object _gate = new();
     private int _holds;
 
@@ -21,19 +24,29 @@ public sealed class DeferredConsoleLoggerProvider(TextWriter? output = null) : I
     /// <summary>Queues log lines until the returned handle is disposed, then writes them.</summary>
     public IDisposable Hold()
     {
-        Interlocked.Increment(ref _holds);
+        lock (_gate)
+        {
+            _holds++;
+        }
+
         return new Release(this);
     }
 
     public ILogger CreateLogger(string categoryName) => new Logger(this, categoryName);
 
-    public void Dispose() => Flush();
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            FlushHeld();
+        }
+    }
 
     private void Write(string line)
     {
         lock (_gate)
         {
-            if (Volatile.Read(ref _holds) > 0)
+            if (_holds > 0)
             {
                 _held.Enqueue(line);
                 return;
@@ -43,17 +56,26 @@ public sealed class DeferredConsoleLoggerProvider(TextWriter? output = null) : I
         }
     }
 
-    private void Flush()
+    private void Unhold()
     {
         lock (_gate)
         {
-            while (_held.TryDequeue(out var line))
+            if (--_holds == 0)
             {
-                Output.WriteLine(line);
+                FlushHeld();
             }
-
-            Output.Flush();
         }
+    }
+
+    /// <summary>Writes the queued lines in order. Callers hold <c>_gate</c>.</summary>
+    private void FlushHeld()
+    {
+        while (_held.TryDequeue(out var line))
+        {
+            Output.WriteLine(line);
+        }
+
+        Output.Flush();
     }
 
     internal static string Format(LogLevel level, string category, EventId eventId, string message, Exception? exception)
@@ -84,10 +106,7 @@ public sealed class DeferredConsoleLoggerProvider(TextWriter? output = null) : I
                 return;
             }
 
-            if (Interlocked.Decrement(ref owner._holds) == 0)
-            {
-                owner.Flush();
-            }
+            owner.Unhold();
         }
     }
 

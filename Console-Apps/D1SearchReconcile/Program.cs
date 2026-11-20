@@ -71,9 +71,9 @@ async Task<int> Run(D1SearchReconcileRequestOptions options)
         });
     }
 
-    if (r.Outcome != D1SearchReconcileOutcome.NotConfigured)
+    if (r.Scan is { } scan)
     {
-        Console.WriteLine($"Scan: {D1SearchReconcileScanText.Describe(r.Scan, r.SinceTs)}.");
+        Console.WriteLine($"Scan: {D1SearchReconcileScanText.Describe(scan, r.SinceTs)}.");
     }
 
     Console.WriteLine(

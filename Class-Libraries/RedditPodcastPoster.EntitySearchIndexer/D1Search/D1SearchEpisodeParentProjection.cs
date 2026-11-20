@@ -15,6 +15,12 @@ namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 /// <c>podcastAppleId</c> is not projected onto episodes, so a change to only that field is not detected here. It is
 /// picked up the next time each episode is saved.
 /// </para>
+/// <para>
+/// This compares Cosmos with Cosmos, not with D1. An episode whose projection lags its podcast (for example a rename
+/// whose hydration missed it) is re-sent on every incremental run in which the podcast's <c>_ts</c> moves, even after
+/// D1 already has the right document. That is bounded (28 episodes on 20 Nov 2026) and clears once the projection is
+/// hydrated (#1477).
+/// </para>
 /// </summary>
 public static class D1SearchEpisodeParentProjection
 {
