@@ -6,10 +6,6 @@ using Azure;
 using CommandLine;
 using CreateSearchIndex;
 using RedditPodcastPoster.Configuration.Extensions;
-using RedditPodcastPoster.EntitySearchIndexer.Extensions;
-using RedditPodcastPoster.Persistence.Extensions;
-using RedditPodcastPoster.Persistence.Configuration;
-using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Configuration;
 
 if (VersionInfo.TryHandleVersionRequest(args))
@@ -27,14 +23,7 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
-builder.Services
-    .AddLogging()
-    .AddScoped<CreateSearchIndexProcessor>()
-    .AddScoped<IRebuildFilmPush, RebuildFilmPush>()
-    .AddRepositories()
-    .AddFilmSearchPush()
-    .AddSearch()
-    .BindConfiguration<CosmosDbSettings>("cosmosdb");
+builder.Services.AddCreateSearchIndexConsoleServices();
 
 using var host = builder.Build();
 return await Parser.Default.ParseArguments<CreateSearchIndexRequest>(args)
@@ -44,6 +33,13 @@ return await Parser.Default.ParseArguments<CreateSearchIndexRequest>(args)
 async Task<int> Run(CreateSearchIndexRequest request)
 {
     var processor = host.Services.GetService<CreateSearchIndexProcessor>()!;
-    await processor.Process(request);
-    return 0;
+    // Non-zero when the film push after a teardown + run-indexer did not complete, so it is not missed in a long run.
+    if (await processor.Process(request))
+    {
+        return 0;
+    }
+
+    Console.Error.WriteLine(
+        "CreateSearchIndex: the index was rebuilt but the film push did not complete; run 'FilmSearchPusher --full'.");
+    return 2;
 }

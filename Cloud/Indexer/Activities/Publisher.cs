@@ -59,16 +59,16 @@ public class Publisher(
         catch (Exception ex)
         {
             // D1 must not depend on Azure: the drip still runs when the Azure indexer or the homepage fails,
-            // and the activity still fails as before. Films are pushed too: their push does not depend on the
-            // episode indexer or the homepage.
-            await PushFilms();
+            // and the activity still fails as before. Films are pushed too (after D1, which never waits on the Azure
+            // film push): their push does not depend on the episode indexer or the homepage.
             await DripIntoD1();
+            await PushFilms();
             memoryProbe.End(false, ex.GetType().Name);
             throw;
         }
 
-        await PushFilms();
         await DripIntoD1();
+        await PushFilms();
         memoryProbe.End();
 
         logger.LogInformation("{nameofRunAsync} Completed", nameof(RunAsync));
@@ -78,9 +78,11 @@ public class Publisher(
     /// <summary>
     /// #1408: films have no pull indexer (the Free tier's three data sources are used by episodes, TV show episodes
     /// and news reports), so the scheduled refresh pushes them: an incremental push by Cosmos <c>_ts</c> from the
-    /// saved watermark. After an index teardown the pusher finds no film documents and makes it a full push, so films
-    /// come back within the hour. The pusher keeps the watermark when anything fails, so the next run retries. A
-    /// failure is logged and never fails the activity, the episode indexer run or the homepage publish.
+    /// saved watermark. After an index teardown the pusher finds fewer film documents than Cosmos has searchable films
+    /// and makes it a full push, so films come back within the hour. The pusher keeps the watermark when anything
+    /// fails, so the next run retries. A failure is logged and never fails the activity, the episode indexer run or
+    /// the homepage publish. It runs after <see cref="DripIntoD1"/> so a slow or full Azure push never delays D1;
+    /// D1 gets films from its own change feed (the Films container), not from this push, so the two do not overlap.
     /// </summary>
     private async Task PushFilms()
     {

@@ -61,9 +61,10 @@ public class PublisherFilmPushRules
             new IndexerContext(PublisherOperationId: _fixture.CreateGuid()));
 
     [Fact(DisplayName =
-        "When the publisher activity runs, then films get an incremental push after the homepage and before the D1 " +
-        "drip, because films have no pull indexer and the scheduled refresh is what keeps them current.")]
-    public async Task films_are_pushed_incrementally_after_the_homepage()
+        "When the publisher activity runs, then films get an incremental push after the homepage and after the D1 " +
+        "drip, because films have no pull indexer and the scheduled refresh keeps them current, while a slow Azure " +
+        "film push must never delay D1.")]
+    public async Task films_are_pushed_incrementally_after_the_homepage_and_d1()
     {
         // Arrange
 
@@ -72,7 +73,7 @@ public class PublisherFilmPushRules
 
         // Assert
         result.Success.Should().BeTrue();
-        _calls.Should().Equal("homepage", "films", "d1");
+        _calls.Should().Equal("homepage", "d1", "films");
         _mocker.GetMock<IFilmSearchPusher>().Verify(
             x => x.Push(It.Is<FilmSearchPushRequest>(r => !r.Full && !r.DryRun && r.FilmId == null),
                 It.IsAny<CancellationToken>()),
@@ -116,8 +117,8 @@ public class PublisherFilmPushRules
     }
 
     [Fact(DisplayName =
-        "When the episode indexer run throws, then films are still pushed and the activity still fails, because the " +
-        "film push does not depend on the episode indexer or the homepage.")]
+        "When the episode indexer run throws, then the D1 drip and then the film push still run and the activity still " +
+        "fails, because neither depends on the episode indexer or the homepage.")]
     public async Task films_are_pushed_when_the_episode_indexer_fails()
     {
         // Arrange
@@ -130,6 +131,6 @@ public class PublisherFilmPushRules
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>();
-        _calls.Should().Equal("films", "d1");
+        _calls.Should().Equal("d1", "films");
     }
 }

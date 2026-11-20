@@ -373,4 +373,71 @@ public class CreateSearchIndexProcessorSiblingRules
             .Verify(x => x.DeleteIndexAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _createdOrUpdatedIndexers.Should().BeEmpty();
     }
+
+    private void GivenFilmPushOutcome(bool pushed) =>
+        _mocker.GetMock<IRebuildFilmPush>()
+            .Setup(x => x.PushAfterRebuild(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(pushed);
+
+    [Theory(DisplayName =
+        "When a teardown + run-indexer reaches its last step, then every film is pushed to the rebuilt index once and the run reports the push outcome, so a failed or skipped film push makes CreateSearchIndex exit non-zero instead of only logging it.")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task teardown_with_run_indexer_pushes_films_and_reports_the_outcome(bool pushed)
+    {
+        // Arrange
+        GivenFilmPushOutcome(pushed);
+        var plan = SearchIndexRebuildPlan.For(
+            new CreateSearchIndexRequest { IndexName = IndexName, TearDownIndex = true, RunIndexer = true });
+        var sut = _mocker.CreateInstance<CreateSearchIndexProcessor>();
+
+        // Act
+        var result = await sut.PushFilmsIfPlanned(plan, IndexName);
+
+        // Assert
+        result.Should().Be(pushed);
+        _mocker.GetMock<IRebuildFilmPush>().Verify(
+            x => x.PushAfterRebuild(IndexName, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory(DisplayName =
+        "When a run is not a teardown + run-indexer, then no film push is made and the run succeeds, because only a rebuilt and re-indexed index has lost its films.")]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, true, true)]
+    public async Task no_film_push_without_teardown_and_run_indexer(bool tearDown, bool runIndexer, bool allPlayables)
+    {
+        // Arrange
+        var plan = SearchIndexRebuildPlan.For(new CreateSearchIndexRequest
+        {
+            IndexName = IndexName, TearDownIndex = tearDown, RunIndexer = runIndexer, AllPlayables = allPlayables
+        });
+        var sut = _mocker.CreateInstance<CreateSearchIndexProcessor>();
+
+        // Act
+        var result = await sut.PushFilmsIfPlanned(plan, IndexName);
+
+        // Assert
+        result.Should().BeTrue();
+        _mocker.GetMock<IRebuildFilmPush>().Verify(
+            x => x.PushAfterRebuild(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the index is torn down without --run-indexer, then the whole run pushes no films and succeeds, because the scheduled refresh restores films once the index is used again.")]
+    public async Task teardown_without_run_indexer_never_pushes_films()
+    {
+        // Arrange
+        GivenFilmPushOutcome(false);
+        var request = new CreateSearchIndexRequest { IndexName = IndexName, TearDownIndex = true };
+        var sut = _mocker.CreateInstance<CreateSearchIndexProcessor>();
+
+        // Act
+        var result = await sut.Process(request);
+
+        // Assert
+        result.Should().BeTrue();
+        _mocker.GetMock<IRebuildFilmPush>().Verify(
+            x => x.PushAfterRebuild(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }
