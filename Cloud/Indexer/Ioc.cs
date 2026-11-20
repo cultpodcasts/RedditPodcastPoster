@@ -16,6 +16,7 @@ using RedditPodcastPoster.Configuration.Options;
 using RedditPodcastPoster.ContentPublisher.Extensions;
 using RedditPodcastPoster.EdgeApi.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.D1Search;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.Episodes.Extensions;
 using RedditPodcastPoster.People.Extensions;
 using RedditPodcastPoster.Persistence.Abstractions.Factories;
@@ -67,6 +68,7 @@ public static class Ioc
             .AddScoped<IIndexingStrategy, IndexingStrategy>()
             .AddSearch()
             .AddD1SearchSync()
+            .AddFilmSearchPush()
             .AddHttpClient()
             .BindConfiguration<IndexerOptions>("indexer")
             .BindConfiguration<PosterOptions>("poster")

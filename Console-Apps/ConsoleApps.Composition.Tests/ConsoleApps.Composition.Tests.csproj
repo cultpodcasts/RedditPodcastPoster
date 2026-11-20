@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AddAudioPodcast\AddAudioPodcast.csproj" />
+    <ProjectReference Include="..\CreateSearchIndex\CreateSearchIndex.csproj" />
     <ProjectReference Include="..\EnrichExistingEpisodesFromPodcastServices\EnrichExistingEpisodesFromPodcastServices.csproj" />
     <ProjectReference Include="..\D1SearchReconcile\D1SearchReconcile.csproj" />
     <ProjectReference Include="..\Index\Index.csproj" />

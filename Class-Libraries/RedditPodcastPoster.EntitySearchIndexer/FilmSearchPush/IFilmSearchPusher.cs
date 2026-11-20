@@ -3,7 +3,8 @@ namespace RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 /// <summary>
 /// Pushes film search documents from the Cosmos films container into the shared search index by Cosmos <c>_ts</c>,
 /// in place of a Film pull indexer (the Free tier allows only three data sources: episodes, TV and news).
-/// Host-agnostic, so a scheduled host could call it later; today only the FilmSearchPusher console does.
+/// Host-agnostic. Called by the Indexer's scheduled refresh (the <c>Publisher</c> activity, incremental), by
+/// CreateSearchIndex after <c>--teardown-index --run-indexer</c> (full) and by the FilmSearchPusher console (#1408).
 /// </summary>
 /// <remarks>
 /// DO NOT REMOVE: with the FilmSearchPusher console and the <c>FilmSearchPushWatermark</c> store, this is the only bulk
