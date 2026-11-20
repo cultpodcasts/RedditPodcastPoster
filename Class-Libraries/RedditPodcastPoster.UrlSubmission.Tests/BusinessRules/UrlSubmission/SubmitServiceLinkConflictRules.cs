@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -292,6 +293,81 @@ public class SubmitServiceLinkConflictRules
         EpisodeServicePresence.SpotifyEpisodeId(splitOff).Should().Be(oldSpotifyId);
         EpisodeServicePresence.TryGetUrl(splitOff, ServiceKeys.Spotify).Should().Be(oldSpotifyUrl);
         episodes.SavedEpisodes.Select(x => x.Id).Should().Equal(splitOff.Id, stored.Id);
+    }
+
+    [Theory(DisplayName =
+        "When an overwrite's stored-episode save throws after the split-off was saved, and the curator retries the " +
+        "overwrite, the stored episode is overwritten and the same split-off is saved again, so there is one " +
+        "split-off holding the old links, never a second copy or a split of the split-off (#1482).")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task overwrite_retried_after_stored_save_failure_is_idempotent(bool splitOffListedFirst)
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title);
+        var oldSpotifyId = EpisodeServicePresence.SpotifyEpisodeId(stored);
+        var item = SpotifySubmit(_title, [stored]);
+        var episodes = new InMemoryEpisodeRepository();
+        episodes.Seed(stored);
+        var saves = 0;
+        episodes.OnSaving = () =>
+        {
+            if (++saves == 2)
+            {
+                throw new InvalidOperationException(_fixture.CreateTitle());
+            }
+        };
+        _mocker.Use<IEpisodeRepository>(episodes);
+        _mocker.Use<IPodcastRepository>(new InMemoryPodcastRepository());
+        UseRealPodcastPipeline();
+        var options = Options(ServiceLinkConflictChoice.Overwrite, stored.Id);
+        var failed = () => _mocker.CreateInstance<CategorisedItemProcessor>().ProcessCategorisedItem(item, options);
+        await failed.Should().ThrowAsync<InvalidOperationException>();
+        var firstSplitOff = episodes.SavedEpisodes.Should().ContainSingle().Subject;
+        episodes.OnSaving = null;
+        var reloadedStored = (await episodes.GetEpisode(_podcast.Id, stored.Id))!;
+        var reloadedSplitOff = (await episodes.GetEpisode(_podcast.Id, firstSplitOff.Id))!;
+        Episode[] reloaded = splitOffListedFirst ? [reloadedSplitOff, reloadedStored] : [reloadedStored, reloadedSplitOff];
+        var retry = item with { MatchingPodcastEpisodes = reloaded };
+
+        // Act
+        var result = await _mocker.CreateInstance<CategorisedItemProcessor>().ProcessCategorisedItem(retry, options);
+
+        // Assert
+        result.SplitOffEpisode!.Id.Should().Be(firstSplitOff.Id);
+        var podcastEpisodes = await episodes.GetByPodcastId(_podcast.Id).ToListAsync();
+        podcastEpisodes.Should().HaveCount(2);
+        var saved = podcastEpisodes.Single(x => x.Id == stored.Id);
+        EpisodeServicePresence.SpotifyEpisodeId(saved).Should().Be(item.ResolvedSpotifyItem!.EpisodeId);
+        var splitOff = podcastEpisodes.Single(x => x.Id == firstSplitOff.Id);
+        EpisodeServicePresence.SpotifyEpisodeId(splitOff).Should().Be(oldSpotifyId);
+    }
+
+    [Theory(DisplayName =
+        "When a curator re-submits after an overwrite whose stored-episode save failed, the prompt holds the stored " +
+        "episode, never the split-off that holds the same links, whatever the list order (#1482).")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void prompt_after_partial_overwrite_holds_the_stored_episode(bool splitOffListedFirst)
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title);
+        var item = SpotifySubmit(_title, [stored]);
+        var storedCopy = StoredEpisodeWithSpotify(_title);
+        storedCopy.Id = stored.Id;
+        EpisodeServicePresence.SetSpotifyIdentity(storedCopy, EpisodeServicePresence.SpotifyEpisodeId(stored));
+        EpisodeServicePresence.Upsert(storedCopy, ServiceKeys.Spotify,
+            EpisodeServicePresence.TryGetUrl(stored, ServiceKeys.Spotify), null);
+        var splitOff = EpisodeServiceLinks.SplitOff(storedCopy, [ServiceKeys.Spotify]).Episode;
+        Episode[] reloaded = splitOffListedFirst ? [splitOff, stored] : [stored, splitOff];
+
+        // Act
+        var outcome = Gate.Evaluate(item with { MatchingPodcastEpisodes = reloaded },
+            Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        outcome.Kind.Should().Be(ServiceLinkConflictOutcomeKind.Hold);
+        outcome.Hold!.EpisodeId.Should().Be(stored.Id);
     }
 
     [Fact(DisplayName =

@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -63,6 +65,11 @@ public static class EpisodeServiceLinks
     /// The new episode starts as a copy of the source's details (title, description, release, length, language,
     /// subjects and parent fields) for the curator to correct, and is marked as already posted on every channel:
     /// it is a recovery record and is never posted automatically.
+    /// <para>
+    /// #1482: its id is deterministic (<see cref="SplitOffId"/>: a name-based v5 GUID of the source id and the links
+    /// being split off), so an overwrite retried after a failed save rebuilds the same split-off and saving it again
+    /// replaces the copy already saved instead of adding a second one.
+    /// </para>
     /// </summary>
     /// <exception cref="InvalidOperationException">The source carries none of <paramref name="serviceKeys"/>.</exception>
     public static EpisodeServiceLinkSplit SplitOff(Episode source, IReadOnlyCollection<string> serviceKeys)
@@ -71,6 +78,7 @@ public static class EpisodeServiceLinks
         ArgumentNullException.ThrowIfNull(serviceKeys);
         var split = new Episode
         {
+            Id = SplitOffId(source, serviceKeys),
             PodcastId = source.PodcastId,
             PodcastName = source.PodcastName,
             Title = source.Title,
@@ -99,6 +107,47 @@ public static class EpisodeServiceLinks
         }
 
         return new EpisodeServiceLinkSplit(split, move.Moved);
+    }
+
+    /// <summary>Namespace of <see cref="SplitOffId"/> (#1482).</summary>
+    public static readonly Guid SplitOffIdNamespace = Guid.Parse("6f0d2c4e-91a7-4b3d-8e55-2a7c9b1f4d08");
+
+    /// <summary>
+    /// The id <see cref="SplitOff"/> gives the episode split off <paramref name="source"/> for
+    /// <paramref name="serviceKeys"/>: a name-based (RFC 4122 v5, SHA-1) GUID of the source id and, per key in
+    /// ordinal order, the link's id (or url when it has no id). The same stored episode and the same links always
+    /// give the same id, so a retried overwrite is idempotent (#1482). An episode already holding those links as
+    /// the split-off of <paramref name="source"/> is recognised by comparing its id with this.
+    /// </summary>
+    public static Guid SplitOffId(Episode source, IReadOnlyCollection<string> serviceKeys)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(serviceKeys);
+        var name = new StringBuilder(source.Id.ToString("D"));
+        foreach (var key in serviceKeys.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        {
+            var link = Read(source, key);
+            if (!link.IsEmpty)
+            {
+                name.Append('|').Append(key).Append('=').Append(link.Id ?? link.Url!.ToString());
+            }
+        }
+
+        return NameBasedGuid(SplitOffIdNamespace, name.ToString());
+    }
+
+    private static Guid NameBasedGuid(Guid namespaceId, string name)
+    {
+        var namespaceBytes = namespaceId.ToByteArray(bigEndian: true);
+        var nameBytes = Encoding.UTF8.GetBytes(name);
+        var input = new byte[namespaceBytes.Length + nameBytes.Length];
+        namespaceBytes.CopyTo(input, 0);
+        nameBytes.CopyTo(input, namespaceBytes.Length);
+        var hash = SHA1.HashData(input);
+        var bytes = hash.AsSpan(0, 16).ToArray();
+        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x50);
+        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
+        return new Guid(bytes, bigEndian: true);
     }
 
     private static ServiceLinkSnapshot Read(Episode episode, string key) =>

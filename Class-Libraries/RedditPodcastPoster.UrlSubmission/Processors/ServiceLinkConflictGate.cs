@@ -54,10 +54,18 @@ public class ServiceLinkConflictGate(
             return ServiceLinkConflictOutcome.Proceed;
         }
 
-        var conflicts = episodes
+        var candidates = episodes
             .Select(episode => (Episode: episode, Keys: episodeHelper.ConflictingServiceKeys(episode, categorisedItem)))
             .Where(conflict => conflict.Keys.Count > 0)
             .ToArray();
+        // #1482: after an overwrite whose stored-episode save failed, the split-off (saved first) holds the same
+        // links and details as the stored episode, so it conflicts too. It is never the episode to overwrite: drop
+        // any candidate whose id is the deterministic split-off id of another candidate, so the retry holds and
+        // overwrites the stored episode again and rebuilds the same split-off.
+        var splitOffIds = candidates
+            .Select(conflict => EpisodeServiceLinks.SplitOffId(conflict.Episode, conflict.Keys))
+            .ToHashSet();
+        var conflicts = candidates.Where(conflict => !splitOffIds.Contains(conflict.Episode.Id)).ToArray();
         if (conflicts.Length == 0)
         {
             return ServiceLinkConflictOutcome.Proceed;

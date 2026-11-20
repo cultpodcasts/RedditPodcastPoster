@@ -208,4 +208,53 @@ public class EpisodeServiceLinksRules
         // Assert
         act.Should().Throw<InvalidOperationException>();
     }
+
+    [Fact(DisplayName =
+        "Splitting the same links off the same stored episode twice gives the same split-off id (a name-based v5 " +
+        "GUID), so an overwrite retried after a failed save replaces the saved split-off instead of adding another (#1482).")]
+    public void split_off_id_is_deterministic()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var episodeId = _fixture.CreateGuid();
+        Episode Source() => _fixture.BuildEpisode()
+            .WithId(episodeId)
+            .WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .Create();
+
+        // Act
+        var first = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify]).Episode;
+        var second = EpisodeServiceLinks.SplitOff(Source(), [ServiceKeys.Spotify]).Episode;
+
+        // Assert
+        first.Id.Should().Be(second.Id);
+        first.Id.Version.Should().Be(5);
+        first.Id.Should().NotBe(episodeId);
+    }
+
+    [Fact(DisplayName =
+        "A different stored episode, or different links on it, gives a different split-off id, so the deterministic " +
+        "id never reuses another episode's split-off (#1482).")]
+    public void split_off_id_depends_on_episode_and_links()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var otherSpotifyId = _fixture.CreateSpotifyId();
+        var episodeId = _fixture.CreateGuid();
+        var source = _fixture.BuildEpisode().WithId(episodeId).WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId)).Create();
+        var otherLinks = _fixture.BuildEpisode().WithId(episodeId).WithPodcast(_podcast)
+            .WithSpotify(otherSpotifyId, _fixture.DefaultSpotifyUrl(otherSpotifyId)).Create();
+        var otherEpisode = _fixture.BuildEpisode().WithPodcast(_podcast)
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId)).Create();
+
+        // Act
+        var id = EpisodeServiceLinks.SplitOffId(source, [ServiceKeys.Spotify]);
+
+        // Assert
+        id.Should().NotBe(EpisodeServiceLinks.SplitOffId(otherLinks, [ServiceKeys.Spotify]));
+        id.Should().NotBe(EpisodeServiceLinks.SplitOffId(otherEpisode, [ServiceKeys.Spotify]));
+        EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode.Id.Should().Be(id);
+    }
 }
