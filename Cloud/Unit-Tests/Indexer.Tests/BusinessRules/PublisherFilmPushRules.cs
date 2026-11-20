@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Configuration.Options;
+using RedditPodcastPoster.ContentPublisher.Models;
 using RedditPodcastPoster.ContentPublisher.Publishers;
 using RedditPodcastPoster.EntitySearchIndexer.D1Search;
 using RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
@@ -39,7 +40,7 @@ public class PublisherFilmPushRules
         _mocker.GetMock<IHomepagePublisher>()
             .Setup(x => x.PublishHomepage())
             .Callback(() => _calls.Add("homepage"))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(new PublishHomepageResult(true));
         _mocker.GetMock<ID1SearchChangeFeed>()
             .Setup(x => x.Drip(It.IsAny<CancellationToken>()))
             .Callback(() => _calls.Add("d1"))
