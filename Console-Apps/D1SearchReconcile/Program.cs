@@ -1,7 +1,8 @@
 // SP-2.2 (#1322): reconcile the D1 search index with Cosmos, and the initial backfill.
 // Dry run unless --write is given. Writer credentials come from d1Search:ClientId / ClientSecret in local
 // user secrets (see Console-Apps/README.md); the host, Auth0 domain and audience are the existing api:Endpoint
-// and auth0client settings. Non-secret defaults live in this console's appsettings.json. The deployed Functions
+// and auth0client settings. Non-secret defaults live in this console's appsettings.json (and, when published
+// into artifacts/tools, D1SearchReconcile.appsettings.json next to the exe). The deployed Functions
 // only ever know the production index, and they read Key Vault through bicep, which this console never does.
 using System.Reflection;
 using CommandLine;
@@ -20,10 +21,12 @@ if (VersionInfo.TryHandleVersionRequest(args))
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Environment.ContentRootPath = Directory.GetCurrentDirectory();
+var appDirectory = AppContext.BaseDirectory;
+builder.Environment.ContentRootPath = appDirectory;
 
 builder.Configuration
-    .AddJsonFile("appsettings.json", true)
+    .AddJsonFile(Path.Combine(appDirectory, "appsettings.json"), true)
+    .AddJsonFile(Path.Combine(appDirectory, "D1SearchReconcile.appsettings.json"), true)
     .AddEnvironmentVariables("RedditPodcastPoster_")
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());

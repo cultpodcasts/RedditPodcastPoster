@@ -47,6 +47,24 @@ public class D1SearchReconcileConfigRules
         appsettings.Element("CopyToOutputDirectory")!.Value.Should().Be("Always");
     }
 
+    [Fact(DisplayName =
+        "The D1SearchReconcile console loads appsettings.json and D1SearchReconcile.appsettings.json from the exe " +
+        "directory, because publish-console-apps.ps1 copies the file as D1SearchReconcile.appsettings.json into " +
+        "artifacts/tools.")]
+    public void console_loads_published_appsettings_from_the_exe_directory()
+    {
+        // Arrange
+        var path = Path.Combine(FindRepoRoot(), "Console-Apps", "D1SearchReconcile", "Program.cs");
+
+        // Act
+        var text = File.ReadAllText(path);
+
+        // Assert
+        text.Should().Contain("AppContext.BaseDirectory");
+        text.Should().Contain("D1SearchReconcile.appsettings.json");
+        text.Should().Contain("appsettings.json");
+    }
+
     private static IEnumerable<string> FlattenNames(JsonElement element)
     {
         switch (element.ValueKind)
