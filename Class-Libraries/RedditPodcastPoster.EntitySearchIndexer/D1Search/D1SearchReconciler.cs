@@ -56,7 +56,14 @@ public enum D1SearchReconcileOutcome
     RefusedDrift,
 
     /// <summary>The inventory, the Cosmos read, or a write failed; see the log.</summary>
-    Failed
+    Failed,
+
+    /// <summary>
+    /// #1479: an incremental run found more eligible ids missing from D1 outside its window than it will read by id
+    /// (<see cref="D1SearchReconcileOptions.MaxMissingOutsideWindow"/> or the drift budget). Nothing was read by id or
+    /// written and the watermark is unchanged; run with <c>--full</c>.
+    /// </summary>
+    NeedsFullScan
 }
 
 /// <summary>How the catalogue was read for a reconcile.</summary>
@@ -127,7 +134,7 @@ public sealed record D1SearchReconcileReport(
     long SinceTs = 0)
 {
     public bool Succeeded => Outcome is not (D1SearchReconcileOutcome.NotConfigured or D1SearchReconcileOutcome.Failed
-        or D1SearchReconcileOutcome.RefusedDrift);
+        or D1SearchReconcileOutcome.RefusedDrift or D1SearchReconcileOutcome.NeedsFullScan);
 }
 
 public interface ID1SearchReconciler
@@ -268,9 +275,31 @@ public sealed class D1SearchReconciler(
 
         if (incremental)
         {
+            var outside = MissingOutsideWindow(snapshot, inventory);
+            var limit = OutsideWindowLimit(snapshot, inventory);
+            if (outside.Count > limit)
+            {
+                var gap = Plan(snapshot, inventory).Report;
+                var missing = gap.Missing + outside.Count;
+                var eligibleCount = gap.Eligible;
+                var message =
+                    $"{outside.Count} eligible id(s) are missing from D1 outside the incremental window, more than the " +
+                    $"{limit} an incremental run reads by id. Nothing was read by id or written and the watermark is " +
+                    "unchanged: run the D1SearchReconcile console with --full.";
+                logger.LogWarning("D1 search reconcile: {Message}", message);
+                return Done(gap with
+                {
+                    Outcome = D1SearchReconcileOutcome.NeedsFullScan,
+                    Missing = missing,
+                    Drift = (double)(missing + gap.Stale + gap.Orphans) /
+                            Math.Max(1, Math.Max(inventory.Count, eligibleCount)),
+                    Error = message
+                });
+            }
+
             try
             {
-                snapshot = await AddMissingOutsideWindow(snapshot, inventory, cancellationToken);
+                snapshot = await AddMissingOutsideWindow(snapshot, outside, cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
@@ -410,20 +439,38 @@ public sealed class D1SearchReconciler(
     /// missing (and is sent on a write); one that is now excluded or gone leaves the eligible set, because the full
     /// rules are the ones the index follows; a failed build is kept, as in a full scan.
     /// </summary>
-    private async Task<CatalogueSnapshot> AddMissingOutsideWindow(
+    private static HashSet<string> MissingOutsideWindow(
         CatalogueSnapshot snapshot,
-        IReadOnlyDictionary<string, long> inventory,
-        CancellationToken cancellationToken)
-    {
-        var outside = snapshot.AllEligibleIds!
+        IReadOnlyDictionary<string, long> inventory) =>
+        snapshot.AllEligibleIds!
             .Where(id => !snapshot.Eligible.ContainsKey(id)
                          && !snapshot.BuildFailed.Contains(id)
                          && !inventory.ContainsKey(id))
             .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The most outside-window gaps an incremental run reads by id: the drift budget (a bigger gap could only end in
+    /// <see cref="D1SearchReconcileOutcome.RefusedDrift"/>), capped by
+    /// <see cref="D1SearchReconcileOptions.MaxMissingOutsideWindow"/>, and never under one by-id chunk.
+    /// </summary>
+    private int OutsideWindowLimit(CatalogueSnapshot snapshot, IReadOnlyDictionary<string, long> inventory)
+    {
+        var budget = (int)Math.Ceiling(
+            _options.DriftThreshold * Math.Max(inventory.Count, snapshot.EligibleCount));
+        return Math.Max(D1SearchCatalogue.ReadByIdsChunkSize, Math.Min(_options.MaxMissingOutsideWindow, budget));
+    }
+
+    private async Task<CatalogueSnapshot> AddMissingOutsideWindow(
+        CatalogueSnapshot snapshot,
+        IReadOnlySet<string> outside,
+        CancellationToken cancellationToken)
+    {
         if (outside.Count == 0)
         {
             return snapshot;
         }
+
+        var started = Stopwatch.StartNew();
 
         var eligible = new Dictionary<string, long>(snapshot.Eligible, StringComparer.Ordinal);
         var held = new Dictionary<string, D1SearchDocument>(snapshot.HeldDocuments!, StringComparer.Ordinal);
@@ -456,8 +503,8 @@ public sealed class D1SearchReconciler(
         allEligibleIds.ExceptWith(notEligible);
         logger.LogInformation(
             "D1 search reconcile: {Outside} eligible id(s) missing from D1 outside the window; {Found} read by id " +
-            "({Excluded} now excluded or gone).",
-            outside.Count, found.Count, notEligible.Count);
+            "({Excluded} now excluded or gone) in {Elapsed}.",
+            outside.Count, found.Count, notEligible.Count, started.Elapsed);
         if (notEligible.Count > 0)
         {
             logger.LogWarning(
@@ -683,7 +730,8 @@ public sealed class D1SearchReconciler(
     {
         var level = r.Outcome switch
         {
-            D1SearchReconcileOutcome.RefusedDrift or D1SearchReconcileOutcome.Failed => LogLevel.Warning,
+            D1SearchReconcileOutcome.RefusedDrift or D1SearchReconcileOutcome.Failed
+                or D1SearchReconcileOutcome.NeedsFullScan => LogLevel.Warning,
             _ => LogLevel.Information
         };
         logger.Log(level,
@@ -697,7 +745,10 @@ public sealed class D1SearchReconciler(
             r.Outcome == D1SearchReconcileOutcome.RefusedDrift
                 ? " Drift is above the threshold: nothing written. Run a full rebuild (SP-2.3), or the D1SearchReconcile " +
                   "console with --write --allow-drift for a deliberate backfill."
-                : string.Empty);
+                : r.Outcome == D1SearchReconcileOutcome.NeedsFullScan
+                    ? " Too many ids are missing outside the incremental window to read by id: nothing written. " +
+                      "Run the D1SearchReconcile console with --full."
+                    : string.Empty);
         return r;
     }
 

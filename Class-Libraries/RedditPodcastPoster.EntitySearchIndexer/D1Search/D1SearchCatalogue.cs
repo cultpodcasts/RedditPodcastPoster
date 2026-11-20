@@ -194,35 +194,55 @@ public sealed class D1SearchCatalogue(
         var yielded = new HashSet<string>(StringComparer.Ordinal);
         foreach (var chunk in guids.Chunk(ReadByIdsChunkSize))
         {
+            // Each container is asked only for the ids the containers before it did not return: almost every gap is
+            // an episode, so the TV, news and film queries are usually skipped (#1479 review).
             var wanted = chunk.ToList();
+            var found = new HashSet<Guid>();
             await foreach (var episode in episodeRepository.GetAllBy(e => wanted.Contains(e.Id))
                                .WithCancellation(cancellationToken))
             {
+                found.Add(episode.Id);
                 yield return await CandidateForEpisode(episode, podcasts, yielded, cancellationToken);
             }
 
-            await foreach (var episode in tvShowEpisodeRepository.GetAllBy(e => wanted.Contains(e.Id))
-                               .WithCancellation(cancellationToken))
+            wanted.RemoveAll(found.Contains);
+            if (wanted.Count > 0)
             {
-                yield return D1SearchEligibility.ShouldExclude(episode)
-                    ? new D1SearchCandidate(episode.Id.ToString(), null, TimestampSeconds: episode.Timestamp)
-                    : Build(episode.Id, () => D1SearchDocuments.For(episode), episode.Timestamp);
+                await foreach (var episode in tvShowEpisodeRepository.GetAllBy(e => wanted.Contains(e.Id))
+                                   .WithCancellation(cancellationToken))
+                {
+                    found.Add(episode.Id);
+                    yield return D1SearchEligibility.ShouldExclude(episode)
+                        ? new D1SearchCandidate(episode.Id.ToString(), null, TimestampSeconds: episode.Timestamp)
+                        : Build(episode.Id, () => D1SearchDocuments.For(episode), episode.Timestamp);
+                }
+
+                wanted.RemoveAll(found.Contains);
             }
 
-            await foreach (var report in newsReportRepository.GetAllBy(r => wanted.Contains(r.Id))
-                               .WithCancellation(cancellationToken))
+            if (wanted.Count > 0)
             {
-                yield return D1SearchEligibility.ShouldExclude(report)
-                    ? new D1SearchCandidate(report.Id.ToString(), null, TimestampSeconds: report.Timestamp)
-                    : Build(report.Id, () => D1SearchDocuments.For(report), report.Timestamp);
+                await foreach (var report in newsReportRepository.GetAllBy(r => wanted.Contains(r.Id))
+                                   .WithCancellation(cancellationToken))
+                {
+                    found.Add(report.Id);
+                    yield return D1SearchEligibility.ShouldExclude(report)
+                        ? new D1SearchCandidate(report.Id.ToString(), null, TimestampSeconds: report.Timestamp)
+                        : Build(report.Id, () => D1SearchDocuments.For(report), report.Timestamp);
+                }
+
+                wanted.RemoveAll(found.Contains);
             }
 
-            await foreach (var film in filmRepository.GetAllBy(f => wanted.Contains(f.Id))
-                               .WithCancellation(cancellationToken))
+            if (wanted.Count > 0)
             {
-                yield return D1SearchEligibility.ShouldExclude(film)
-                    ? new D1SearchCandidate(film.Id.ToString(), null, TimestampSeconds: film.Timestamp)
-                    : Build(film.Id, () => D1SearchDocuments.For(film), film.Timestamp);
+                await foreach (var film in filmRepository.GetAllBy(f => wanted.Contains(f.Id))
+                                   .WithCancellation(cancellationToken))
+                {
+                    yield return D1SearchEligibility.ShouldExclude(film)
+                        ? new D1SearchCandidate(film.Id.ToString(), null, TimestampSeconds: film.Timestamp)
+                        : Build(film.Id, () => D1SearchDocuments.For(film), film.Timestamp);
+                }
             }
         }
     }

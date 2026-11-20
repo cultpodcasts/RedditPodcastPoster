@@ -51,4 +51,12 @@ public sealed class D1SearchReconcileOptions
     /// For the console this lives in <c>appsettings.json</c>, not user secrets.
     /// </summary>
     public double DriftThreshold { get; set; } = 0.05;
+
+    /// <summary>
+    /// #1479: the most eligible ids missing from D1 outside the <c>_ts</c> window an incremental run will read from
+    /// Cosmos by id. Above this (or above the drift budget, <see cref="DriftThreshold"/> of the index) the run stops
+    /// with <c>NeedsFullScan</c> and asks for <c>--full</c>, which streams the catalogue instead of holding thousands
+    /// of documents read one chunk at a time. A gap of one chunk (100 ids) is always read.
+    /// </summary>
+    public int MaxMissingOutsideWindow { get; set; } = 1000;
 }
