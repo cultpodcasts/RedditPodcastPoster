@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Models.Search;
+using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 
 namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 
@@ -9,16 +11,27 @@ namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 /// Patch even when the drift is above the threshold: the initial backfill (D1 empty, 100% drift) or a deliberate
 /// repair. Only the console sets it, and only when asked to.
 /// </param>
-public sealed record D1SearchReconcileRequest(bool Write, bool AllowAboveDriftThreshold = false)
+/// <param name="Full">
+/// Compare the whole catalogue with D1, ignoring the last-reconciled watermark. The weekly Functions timer always
+/// does this. The console default is incremental once a watermark has been saved.
+/// </param>
+public sealed record D1SearchReconcileRequest(
+    bool Write,
+    bool AllowAboveDriftThreshold = false,
+    bool Full = false)
 {
     /// <summary>
     /// The <c>D1SearchReconcile</c> console's command line as a request. Returns null with <paramref name="error"/>
     /// set for an invalid combination.
     /// </summary>
-    public static D1SearchReconcileRequest? FromCommandLine(bool write, bool allowDrift, out string? error)
+    public static D1SearchReconcileRequest? FromCommandLine(bool write, bool allowDrift, out string? error) =>
+        FromCommandLine(write, allowDrift, false, out error);
+
+    public static D1SearchReconcileRequest? FromCommandLine(
+        bool write, bool allowDrift, bool full, out string? error)
     {
         error = !write && allowDrift ? "--allow-drift only applies with --write." : null;
-        return error is not null ? null : new D1SearchReconcileRequest(write, allowDrift);
+        return error is not null ? null : new D1SearchReconcileRequest(write, allowDrift, full);
     }
 
     /// <summary>0 when the index is in sync, patched or reported; 1 when it was not configured, failed or was refused.</summary>
@@ -87,21 +100,32 @@ public interface ID1SearchReconciler
 /// documents (no <c>_ts</c> to see), writes lost in a long outage, and drift of any kind. It's also the initial
 /// backfill (an empty D1 is 100% "missing").
 /// <list type="number">
-/// <item>Pass 1 streams the catalogue from <c>_ts</c> 0 and keeps <c>id → modifiedAt</c> of the eligible playables
-/// (about 90k longs) and the ids whose document failed to build (neither written nor deleted).</item>
+/// <item>A full compare (<c>--full</c>, the weekly timer, or the first run with no watermark) streams the catalogue
+/// from <c>_ts</c> 0, after a cheap <c>Count()</c> so the catalogue bar has a total, and keeps
+/// <c>id → modifiedAt</c> of the eligible playables (about 90k longs) and the ids whose document failed to build
+/// (neither written nor deleted).</item>
+/// <item>An incremental compare reads the last successful write's LookUps watermark and streams playables with
+/// <c>_ts &gt;=</c> that value, plus every episode of a podcast whose <c>_ts</c> is in the same window (a podcast
+/// rename or subject change must re-emit its episodes). The boundary second is re-read, because a document saved
+/// later in that same second would otherwise be missed. Orphans are found with a cheap eligible-id projection
+/// against the D1 inventory, not a second document build of the whole catalogue.</item>
 /// <item>The whole D1 inventory (<c>{ id, modifiedAt }</c>) is diffed against that: missing, stale, orphans. If the
 /// inventory can't be read the reconcile fails; a partial inventory would turn live documents into orphans.</item>
-/// <item>A dry run, an in-sync index or drift above the threshold stops there.</item>
-/// <item>Pass 2 streams the catalogue again and sends the planned documents, 100 per request; then the orphans are
-/// deleted, 1000 per request. A failed write stops the run. Documents are never all held in memory. A playable that
-/// changed in between is still right: the Worker's <c>modifiedAt</c> guard keeps the newest, and the drip covers the
-/// rest.</item>
+/// <item>A dry run, an in-sync index or drift above the threshold stops there, and does not advance the watermark.</item>
+/// <item>On a full write, the catalogue is streamed again and the planned documents are sent, 100 per request; then
+/// the orphans are deleted, 1000 per request. An incremental write sends the documents already built in pass 1
+/// (the window is small). A failed write stops the run and leaves the watermark where it was. Documents are never
+/// all held in memory on a full pass. A playable that changed in between is still right: the Worker's
+/// <c>modifiedAt</c> guard keeps the newest, and the drip covers the rest.</item>
+/// <item>The watermark advances to the highest Cosmos <c>_ts</c> considered only after a successful
+/// <c>--write</c> run (patched or already in sync).</item>
 /// </list>
 /// </summary>
 public sealed class D1SearchReconciler(
     ID1SearchCatalogue catalogue,
     ID1SearchInventoryReader inventoryReader,
     ID1SearchIndexWriter writer,
+    ID1SearchReconcileWatermarkStore watermarkStore,
     IOptions<D1SearchOptions> options,
     ILogger<D1SearchReconciler> logger) : ID1SearchReconciler
 {
@@ -126,10 +150,24 @@ public sealed class D1SearchReconciler(
 
         progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 1, 1));
 
+        D1SearchReconcileWatermark? watermark;
+        try
+        {
+            watermark = request.Full ? null : await watermarkStore.GetAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "D1 search reconcile could not read the watermark; nothing was written. {Message}", ex.Message);
+            return Log(Failed(ex.Message));
+        }
+
+        var incremental = !request.Full && watermark?.HighWaterMark is > 0;
+        var sinceTs = incremental ? watermark!.HighWaterMark!.Value : 0L;
+
         CatalogueSnapshot snapshot;
         try
         {
-            snapshot = await ReadCatalogue(cancellationToken, progress);
+            snapshot = await ReadCatalogue(sinceTs, incremental, cancellationToken, progress);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -152,18 +190,21 @@ public sealed class D1SearchReconciler(
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             logger.LogError(ex, "D1 search reconcile could not read the D1 inventory; nothing was written. {Message}", ex.Message);
-            return Log(Failed(ex.Message, snapshot.Eligible.Count, snapshot.BuildFailed.Count));
+            return Log(Failed(ex.Message, snapshot.EligibleCount, snapshot.BuildFailed.Count));
         }
 
         var planStarted = Stopwatch.StartNew();
         var plan = Plan(snapshot, inventory);
         logger.LogInformation(
-            "D1 search reconcile plan: {Elapsed} (eligible {Eligible}, D1 {D1Documents}).",
-            planStarted.Elapsed, snapshot.Eligible.Count, inventory.Count);
+            "D1 search reconcile plan: {Elapsed} (eligible {Eligible}, D1 {D1Documents}, {Mode} from _ts {SinceTs}).",
+            planStarted.Elapsed, snapshot.EligibleCount, inventory.Count,
+            incremental ? "incremental" : "full", sinceTs);
         var report = plan.Report;
         if (plan.Upserts.Count + plan.Orphans.Count == 0)
         {
-            return Log(report with { Outcome = D1SearchReconcileOutcome.InSync });
+            var inSync = report with { Outcome = D1SearchReconcileOutcome.InSync };
+            await TryAdvanceWatermark(request, inSync, snapshot.MaxTimestampSeconds, cancellationToken);
+            return Log(inSync);
         }
 
         if (!request.Write)
@@ -176,28 +217,52 @@ public sealed class D1SearchReconciler(
             return Log(report with { Outcome = D1SearchReconcileOutcome.RefusedDrift });
         }
 
-        var (upserted, deleted, error) = await Apply(plan, cancellationToken, progress);
-        return Log(report with
+        var (upserted, deleted, error) = await Apply(plan, snapshot, sinceTs, incremental, cancellationToken, progress);
+        var written = report with
         {
             Outcome = error is null ? D1SearchReconcileOutcome.Patched : D1SearchReconcileOutcome.Failed,
             Upserted = upserted,
             Deleted = deleted,
             Error = error
-        });
+        };
+        await TryAdvanceWatermark(request, written, snapshot.MaxTimestampSeconds, cancellationToken);
+        return Log(written);
     }
 
     private async Task<CatalogueSnapshot> ReadCatalogue(
+        long sinceTs,
+        bool incremental,
         CancellationToken cancellationToken,
         IProgress<D1SearchReconcileProgress>? progress)
     {
         var eligible = new Dictionary<string, long>(StringComparer.Ordinal);
         var buildFailed = new HashSet<string>(StringComparer.Ordinal);
+        Dictionary<string, D1SearchDocument>? held = incremental
+            ? new Dictionary<string, D1SearchDocument>(StringComparer.Ordinal)
+            : null;
         var seen = 0;
+        var maxTimestampSeconds = 0L;
         var started = Stopwatch.StartNew();
-        progress?.Report(new D1SearchReconcileProgress(
-            D1SearchReconcilePhase.Catalogue, 0, Detail: "waiting for first page"));
-        await foreach (var candidate in catalogue.Read(0, cancellationToken).WithCancellation(cancellationToken))
+
+        int? total = null;
+        if (progress is not null && !incremental)
         {
+            var count = await catalogue.CountPlayables(cancellationToken);
+            if (count > 0)
+            {
+                total = count;
+            }
+        }
+
+        progress?.Report(new D1SearchReconcileProgress(
+            D1SearchReconcilePhase.Catalogue, 0, total, "waiting for first page"));
+
+        var stream = incremental
+            ? catalogue.ReadIncremental(sinceTs, cancellationToken)
+            : catalogue.Read(sinceTs, cancellationToken);
+        await foreach (var candidate in stream.WithCancellation(cancellationToken))
+        {
+            maxTimestampSeconds = Math.Max(maxTimestampSeconds, TimestampSeconds(candidate));
             if (candidate.BuildFailed)
             {
                 buildFailed.Add(candidate.Id);
@@ -205,7 +270,10 @@ public sealed class D1SearchReconciler(
             else if (candidate.Document is { } document)
             {
                 // A kind change can bring an id twice; the first document wins, as pass 2 sends the first too.
-                eligible.TryAdd(candidate.Id, document.ModifiedAt);
+                if (eligible.TryAdd(candidate.Id, document.ModifiedAt))
+                {
+                    held?.TryAdd(candidate.Id, document);
+                }
             }
 
             seen++;
@@ -217,14 +285,37 @@ public sealed class D1SearchReconciler(
 
             if (seen == 1 || seen % CatalogueProgressInterval == 0)
             {
-                progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, seen));
+                progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, seen, total));
             }
         }
 
-        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, seen, seen));
+        IReadOnlySet<string>? allEligibleIds = null;
+        if (incremental)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            await foreach (var id in catalogue.ReadEligibleIds(cancellationToken).WithCancellation(cancellationToken))
+            {
+                ids.Add(id);
+            }
+
+            allEligibleIds = ids;
+        }
+
+        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, seen, total ?? seen));
         logger.LogInformation(
-            "D1 search reconcile catalogue: {Count} candidate(s) in {Elapsed}.", seen, started.Elapsed);
-        return new CatalogueSnapshot(eligible, buildFailed);
+            "D1 search reconcile catalogue: {Count} candidate(s) in {Elapsed} ({Mode} from _ts {SinceTs}, max _ts {MaxTs}).",
+            seen, started.Elapsed, incremental ? "incremental" : "full", sinceTs, maxTimestampSeconds);
+        return new CatalogueSnapshot(eligible, buildFailed, allEligibleIds, maxTimestampSeconds, held);
+    }
+
+    private static long TimestampSeconds(D1SearchCandidate candidate)
+    {
+        if (candidate.TimestampSeconds > 0)
+        {
+            return candidate.TimestampSeconds;
+        }
+
+        return candidate.Document is { ModifiedAt: > 0 } document ? document.ModifiedAt / 1000 : 0;
     }
 
     private static ReconcilePlan Plan(CatalogueSnapshot snapshot, IReadOnlyDictionary<string, long> inventory)
@@ -245,18 +336,23 @@ public sealed class D1SearchReconciler(
             }
         }
 
+        var eligibleIds = snapshot.AllEligibleIds ?? snapshot.Eligible.Keys.ToHashSet(StringComparer.Ordinal);
         var orphans = inventory.Keys
-            .Where(id => !snapshot.Eligible.ContainsKey(id) && !snapshot.BuildFailed.Contains(id))
+            .Where(id => !eligibleIds.Contains(id) && !snapshot.BuildFailed.Contains(id))
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
-        var drift = (double)(missing + stale + orphans.Length) / Math.Max(1, Math.Max(inventory.Count, snapshot.Eligible.Count));
+        var eligibleCount = snapshot.AllEligibleIds?.Count ?? snapshot.Eligible.Count;
+        var drift = (double)(missing + stale + orphans.Length) / Math.Max(1, Math.Max(inventory.Count, eligibleCount));
         var report = new D1SearchReconcileReport(D1SearchReconcileOutcome.DryRun, inventory.Count,
-            snapshot.Eligible.Count, missing, stale, orphans.Length, snapshot.BuildFailed.Count, drift);
+            eligibleCount, missing, stale, orphans.Length, snapshot.BuildFailed.Count, drift);
         return new ReconcilePlan(report, upserts, orphans);
     }
 
     private async Task<(int Upserted, int Deleted, string? Error)> Apply(
         ReconcilePlan plan,
+        CatalogueSnapshot snapshot,
+        long sinceTs,
+        bool incremental,
         CancellationToken cancellationToken,
         IProgress<D1SearchReconcileProgress>? progress)
     {
@@ -266,12 +362,41 @@ public sealed class D1SearchReconciler(
         var batch = new List<D1SearchDocument>(D1SearchIndexWriter.MaxUpsertsPerRequest);
         try
         {
-            if (pending.Count > 0)
+            if (pending.Count > 0 && incremental && snapshot.HeldDocuments is not null)
+            {
+                progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 0, upsertTotal));
+                foreach (var id in pending.ToArray())
+                {
+                    if (!snapshot.HeldDocuments.TryGetValue(id, out var document))
+                    {
+                        continue;
+                    }
+
+                    pending.Remove(id);
+                    batch.Add(document);
+                    if (batch.Count >= D1SearchIndexWriter.MaxUpsertsPerRequest)
+                    {
+                        var error = await Flush();
+                        if (error is not null)
+                        {
+                            return (upserted, deleted, error);
+                        }
+                    }
+                }
+
+                var heldFlush = await Flush();
+                if (heldFlush is not null)
+                {
+                    return (upserted, deleted, heldFlush);
+                }
+            }
+            else if (pending.Count > 0)
             {
                 var scanned = 0;
                 progress?.Report(new D1SearchReconcileProgress(
                     D1SearchReconcilePhase.Upsert, 0, upsertTotal, "waiting for first page"));
-                await foreach (var candidate in catalogue.Read(0, cancellationToken).WithCancellation(cancellationToken))
+                await foreach (var candidate in catalogue.Read(sinceTs, cancellationToken)
+                                   .WithCancellation(cancellationToken))
                 {
                     scanned++;
                     if (scanned == 1 || scanned % CatalogueProgressInterval == 0)
@@ -347,6 +472,39 @@ public sealed class D1SearchReconciler(
         }
     }
 
+    private async Task TryAdvanceWatermark(
+        D1SearchReconcileRequest request,
+        D1SearchReconcileReport report,
+        long maxTimestampSeconds,
+        CancellationToken cancellationToken)
+    {
+        if (!request.Write
+            || report.Outcome is not (D1SearchReconcileOutcome.Patched or D1SearchReconcileOutcome.InSync)
+            || maxTimestampSeconds <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var watermark = new D1SearchReconcileWatermark
+            {
+                HighWaterMark = maxTimestampSeconds,
+                UpdatedUtc = DateTime.UtcNow
+            };
+            await watermarkStore.SaveAsync(watermark, cancellationToken);
+            logger.LogInformation(
+                "D1 search reconcile watermark advanced to _ts {HighWaterMark}.", maxTimestampSeconds);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex,
+                "D1 search reconcile wrote the index but could not save the watermark at _ts {HighWaterMark}. " +
+                "The next incremental run will re-read this window. {Message}",
+                maxTimestampSeconds, ex.Message);
+        }
+    }
+
     private static D1SearchReconcileReport Failed(string error, int eligible = 0, int failedToBuild = 0) =>
         new(D1SearchReconcileOutcome.Failed, 0, eligible, 0, 0, 0, failedToBuild, 0, Error: error);
 
@@ -370,7 +528,15 @@ public sealed class D1SearchReconciler(
         return r;
     }
 
-    private sealed record CatalogueSnapshot(IReadOnlyDictionary<string, long> Eligible, IReadOnlySet<string> BuildFailed);
+    private sealed record CatalogueSnapshot(
+        IReadOnlyDictionary<string, long> Eligible,
+        IReadOnlySet<string> BuildFailed,
+        IReadOnlySet<string>? AllEligibleIds,
+        long MaxTimestampSeconds,
+        IReadOnlyDictionary<string, D1SearchDocument>? HeldDocuments)
+    {
+        public int EligibleCount => AllEligibleIds?.Count ?? Eligible.Count;
+    }
 
     private sealed record ReconcilePlan(D1SearchReconcileReport Report, HashSet<string> Upserts, IReadOnlyList<string> Orphans);
 }

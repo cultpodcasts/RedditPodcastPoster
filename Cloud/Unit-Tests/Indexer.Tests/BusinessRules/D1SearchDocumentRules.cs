@@ -74,6 +74,7 @@ public class D1SearchDocumentRules
         // Arrange
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateEpisode();
+        podcast.Timestamp = 0;
         episode.Timestamp = 1_763_400_000;
 
         // Act
@@ -81,6 +82,24 @@ public class D1SearchDocumentRules
 
         // Assert
         document.ModifiedAt.Should().Be(1_763_400_000_000);
+    }
+
+    [Fact(DisplayName =
+        "An episode document's modifiedAt is the later of the episode's and the podcast's Cosmos _ts, because the " +
+        "search document denormalises the live podcast and a rename must look stale in D1.")]
+    public void episode_modified_at_is_the_later_of_episode_and_podcast_ts()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateEpisode();
+        podcast.Timestamp = 1_763_500_000;
+        episode.Timestamp = 1_763_400_000;
+
+        // Act
+        var document = D1SearchDocuments.For(podcast, episode);
+
+        // Assert
+        document.ModifiedAt.Should().Be(1_763_500_000_000);
     }
 
     [Fact(DisplayName =

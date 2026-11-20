@@ -41,7 +41,7 @@ return await Parser.Default.ParseArguments<D1SearchReconcileRequestOptions>(args
 
 async Task<int> Run(D1SearchReconcileRequestOptions options)
 {
-    var request = D1SearchReconcileRequest.FromCommandLine(options.Write, options.AllowDrift, out var error);
+    var request = D1SearchReconcileRequest.FromCommandLine(options.Write, options.AllowDrift, options.Full, out var error);
     if (request is null)
     {
         Console.Error.WriteLine(error);
@@ -50,7 +50,7 @@ async Task<int> Run(D1SearchReconcileRequestOptions options)
 
     using var scope = host.Services.CreateScope();
     var endpoint = scope.ServiceProvider.GetRequiredService<D1SearchConnection>().Endpoint;
-    Console.WriteLine($"D1 search index: {endpoint?.Host ?? "(not configured)"}; {(request.Write ? "WRITE" : "dry run")}.");
+    Console.WriteLine($"D1 search index: {endpoint?.Host ?? "(not configured)"}; {(request.Write ? "WRITE" : "dry run")}; {(request.Full ? "full" : "incremental")}.");
     var r = await D1SearchReconcileProgressBar.Create().StartAsync(async ctx =>
     {
         var progress = D1SearchReconcileProgressBar.Bind(ctx);

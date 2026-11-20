@@ -11,4 +11,8 @@ public class D1SearchReconcileRequestOptions
     [Option("allow-drift", Required = false, Default = false,
         HelpText = "With --write: patch even above the drift threshold in this console's appsettings.json (d1Search:Reconcile:DriftThreshold, default 5%). For the initial backfill (D1 empty) or a deliberate repair.")]
     public bool AllowDrift { get; set; }
+
+    [Option("full", Required = false, Default = false,
+        HelpText = "Compare the whole catalogue against D1 instead of only items (and episodes of podcasts) with _ts at or after the last successful write watermark. Use for a weekly safety check or a deliberate rebuild. Incremental is the default once a watermark has been saved.")]
+    public bool Full { get; set; }
 }

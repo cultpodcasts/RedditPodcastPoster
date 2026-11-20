@@ -13,7 +13,7 @@ namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 /// (<see cref="PodcastEpisodeExtensions.ToEpisodeSearchRecord"/>, <see cref="CataloguePlayableSearchDocument"/>), so the
 /// field rules (images, service ids, <c>svc</c>, language, film trailers and AKAs, identity ids) live in one place.
 /// Only three things differ, all decided for D1 (SP-0.3, 16 Nov 2026): the description is the full text, not the
-/// Azure cut; guests are indexed; and <c>modifiedAt</c> is the playable's Cosmos <c>_ts</c> in milliseconds.
+/// Azure cut; guests are indexed; and <c>modifiedAt</c> is the document's source Cosmos <c>_ts</c> in milliseconds (for a podcast episode, the later of the episode's and the podcast's <c>_ts</c>, because the search document denormalises the live podcast).
 /// Whether a playable belongs in the index at all is <see cref="D1SearchEligibility"/>, not decided here.
 /// </summary>
 public static class D1SearchDocuments
@@ -23,7 +23,7 @@ public static class D1SearchDocuments
         ArgumentNullException.ThrowIfNull(podcast);
         ArgumentNullException.ThrowIfNull(episode);
         var record = new PodcastEpisode(podcast, episode).ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
-        return From(record, episode.Description, episode.Guests, episode.Timestamp);
+        return From(record, episode.Description, episode.Guests, Math.Max(episode.Timestamp, podcast.Timestamp));
     }
 
     public static D1SearchDocument For(TvShowEpisode episode) =>

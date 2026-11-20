@@ -11,7 +11,7 @@ namespace Indexer.Triggers;
 /// true (false by default), and never above the drift threshold. The initial backfill is too long for this function's
 /// 5-minute limit and needs <c>--allow-drift</c>, so it runs from the <c>D1SearchReconcile</c> console. When the sync
 /// is off (<c>d1Search:Enabled</c>), this does nothing.
-/// Never throws: a D1 problem must not page anyone through a failed Indexer run; the outcome is in the log.
+/// The weekly timer always uses a full catalogue compare (the safety net); day-to-day incremental reconcile is the console default after a watermark is saved. Never throws: a D1 problem must not page anyone through a failed Indexer run; the outcome is in the log.
 /// </summary>
 public class D1SearchReconcileTrigger(
     ID1SearchReconciler reconciler,
@@ -47,7 +47,7 @@ public class D1SearchReconcileTrigger(
         budget.CancelAfter(Budget);
         try
         {
-            var request = new D1SearchReconcileRequest(options.Value.Reconcile.Write);
+            var request = new D1SearchReconcileRequest(options.Value.Reconcile.Write, Full: true);
             var report = await reconciler.Reconcile(request, budget.Token);
             logger.LogInformation("D1SearchReconcile completed: {Outcome}.", report.Outcome);
         }
