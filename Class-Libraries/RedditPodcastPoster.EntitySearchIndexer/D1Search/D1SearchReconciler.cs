@@ -72,8 +72,12 @@ public interface ID1SearchReconciler
     /// Compares the D1 search index's inventory with the Cosmos catalogue and, when asked to write and within the drift
     /// threshold, upserts missing or stale documents and deletes orphans. Never throws for a D1, Cosmos or network
     /// failure; the report says <see cref="D1SearchReconcileOutcome.Failed"/>.
+    /// <paramref name="progress"/> is optional and for the console only; the Functions timer omits it.
     /// </summary>
-    Task<D1SearchReconcileReport> Reconcile(D1SearchReconcileRequest request, CancellationToken cancellationToken);
+    Task<D1SearchReconcileReport> Reconcile(
+        D1SearchReconcileRequest request,
+        CancellationToken cancellationToken,
+        IProgress<D1SearchReconcileProgress>? progress = null);
 }
 
 /// <summary>
@@ -104,7 +108,8 @@ public sealed class D1SearchReconciler(
 
     public async Task<D1SearchReconcileReport> Reconcile(
         D1SearchReconcileRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<D1SearchReconcileProgress>? progress = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (!writer.IsActive)
@@ -115,7 +120,7 @@ public sealed class D1SearchReconciler(
         CatalogueSnapshot snapshot;
         try
         {
-            snapshot = await ReadCatalogue(cancellationToken);
+            snapshot = await ReadCatalogue(cancellationToken, progress);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -126,7 +131,9 @@ public sealed class D1SearchReconciler(
         IReadOnlyDictionary<string, long> inventory;
         try
         {
+            progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0, 1));
             inventory = await inventoryReader.ReadInventory(cancellationToken);
+            progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 1, 1));
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -151,7 +158,7 @@ public sealed class D1SearchReconciler(
             return Log(report with { Outcome = D1SearchReconcileOutcome.RefusedDrift });
         }
 
-        var (upserted, deleted, error) = await Apply(plan, cancellationToken);
+        var (upserted, deleted, error) = await Apply(plan, cancellationToken, progress);
         return Log(report with
         {
             Outcome = error is null ? D1SearchReconcileOutcome.Patched : D1SearchReconcileOutcome.Failed,
@@ -161,10 +168,14 @@ public sealed class D1SearchReconciler(
         });
     }
 
-    private async Task<CatalogueSnapshot> ReadCatalogue(CancellationToken cancellationToken)
+    private async Task<CatalogueSnapshot> ReadCatalogue(
+        CancellationToken cancellationToken,
+        IProgress<D1SearchReconcileProgress>? progress)
     {
         var eligible = new Dictionary<string, long>(StringComparer.Ordinal);
         var buildFailed = new HashSet<string>(StringComparer.Ordinal);
+        var seen = 0;
+        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 0));
         await foreach (var candidate in catalogue.Read(0, cancellationToken).WithCancellation(cancellationToken))
         {
             if (candidate.BuildFailed)
@@ -176,8 +187,15 @@ public sealed class D1SearchReconciler(
                 // A kind change can bring an id twice; the first document wins, as pass 2 sends the first too.
                 eligible.TryAdd(candidate.Id, document.ModifiedAt);
             }
+
+            seen++;
+            if (seen % 100 == 0)
+            {
+                progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, seen));
+            }
         }
 
+        progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, seen, seen));
         return new CatalogueSnapshot(eligible, buildFailed);
     }
 
@@ -209,15 +227,20 @@ public sealed class D1SearchReconciler(
         return new ReconcilePlan(report, upserts, orphans);
     }
 
-    private async Task<(int Upserted, int Deleted, string? Error)> Apply(ReconcilePlan plan, CancellationToken cancellationToken)
+    private async Task<(int Upserted, int Deleted, string? Error)> Apply(
+        ReconcilePlan plan,
+        CancellationToken cancellationToken,
+        IProgress<D1SearchReconcileProgress>? progress)
     {
         int upserted = 0, deleted = 0;
         var pending = plan.Upserts;
+        var upsertTotal = pending.Count;
         var batch = new List<D1SearchDocument>(D1SearchIndexWriter.MaxUpsertsPerRequest);
         try
         {
             if (pending.Count > 0)
             {
+                progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 0, upsertTotal));
                 await foreach (var candidate in catalogue.Read(0, cancellationToken).WithCancellation(cancellationToken))
                 {
                     if (candidate.Document is not { } document || !pending.Remove(candidate.Id))
@@ -254,10 +277,16 @@ public sealed class D1SearchReconciler(
             return (upserted, deleted, ex.Message);
         }
 
+        if (plan.Orphans.Count > 0)
+        {
+            progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Delete, 0, plan.Orphans.Count));
+        }
+
         foreach (var chunk in plan.Orphans.Chunk(D1SearchIndexWriter.MaxDeletesPerRequest))
         {
             var result = await writer.Write([], chunk, cancellationToken);
             deleted += result.Deleted;
+            progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Delete, deleted, plan.Orphans.Count));
             if (!result.Succeeded)
             {
                 return (upserted, deleted, result.Error ?? "the delete failed");
@@ -276,6 +305,7 @@ public sealed class D1SearchReconciler(
             var result = await writer.Write(batch.ToArray(), [], cancellationToken);
             batch.Clear();
             upserted += result.Upserted;
+            progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, upserted, upsertTotal));
             return result.Succeeded ? null : result.Error ?? "the write failed";
         }
     }

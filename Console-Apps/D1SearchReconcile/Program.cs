@@ -49,7 +49,11 @@ async Task<int> Run(D1SearchReconcileRequestOptions options)
     var endpoint = scope.ServiceProvider.GetRequiredService<D1SearchConnection>().Endpoint;
     Console.WriteLine($"D1 search index: {endpoint?.Host ?? "(not configured)"}; {(request.Write ? "WRITE" : "dry run")}.");
     var reconciler = scope.ServiceProvider.GetRequiredService<ID1SearchReconciler>();
-    var r = await reconciler.Reconcile(request, CancellationToken.None);
+    D1SearchReconcileReport r = null!;
+    await D1SearchReconcileProgressBar.Create().StartAsync(async ctx =>
+    {
+        r = await reconciler.Reconcile(request, CancellationToken.None, D1SearchReconcileProgressBar.Bind(ctx));
+    });
     Console.WriteLine(
         $"{r.Outcome}. D1 {r.D1Documents}, eligible {r.Eligible}, missing {r.Missing}, stale {r.Stale}, " +
         $"orphans {r.Orphans}, not built {r.FailedToBuild}, drift {r.Drift:P2}; upserted {r.Upserted}, deleted {r.Deleted}." +

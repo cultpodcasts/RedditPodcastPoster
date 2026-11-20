@@ -19,8 +19,8 @@ public class D1SearchReconcileTriggerRules
         _mocker.Use<IOptions<D1SearchOptions>>(Options.Create(_options));
         _mocker.GetMock<ID1SearchIndexWriter>().SetupGet(w => w.IsActive).Returns(true);
         _mocker.GetMock<ID1SearchReconciler>()
-            .Setup(r => r.Reconcile(It.IsAny<D1SearchReconcileRequest>(), It.IsAny<CancellationToken>()))
-            .Callback<D1SearchReconcileRequest, CancellationToken>((r, _) => _request = r)
+            .Setup(r => r.Reconcile(It.IsAny<D1SearchReconcileRequest>(), It.IsAny<CancellationToken>(), It.IsAny<IProgress<D1SearchReconcileProgress>>()))
+            .Callback<D1SearchReconcileRequest, CancellationToken, IProgress<D1SearchReconcileProgress>?>((r, _, _) => _request = r)
             .ReturnsAsync(new D1SearchReconcileReport(D1SearchReconcileOutcome.InSync, 0, 0, 0, 0, 0, 0, 0));
     }
 
@@ -63,7 +63,7 @@ public class D1SearchReconcileTriggerRules
     {
         // Arrange
         _mocker.GetMock<ID1SearchReconciler>()
-            .Setup(r => r.Reconcile(It.IsAny<D1SearchReconcileRequest>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.Reconcile(It.IsAny<D1SearchReconcileRequest>(), It.IsAny<CancellationToken>(), It.IsAny<IProgress<D1SearchReconcileProgress>>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var sut = _mocker.CreateInstance<D1SearchReconcileTrigger>();
 

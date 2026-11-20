@@ -221,6 +221,62 @@ public class D1SearchReconcilerTests
         request.Should().Be(new D1SearchReconcileRequest(false));
     }
 
+    [Fact(DisplayName =
+        "A dry run reports catalogue and inventory progress, and never upsert or delete, because the bar follows the " +
+        "work actually done and a dry run does not write.")]
+    public async Task dry_run_reports_read_progress_only()
+    {
+        // Arrange
+        _catalogue = Enumerable.Range(0, 250).Select(_ => Candidate(modifiedAt: 1)).ToList();
+        var progress = new CollectingProgress();
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        await sut.Reconcile(new D1SearchReconcileRequest(false), CancellationToken.None, progress);
+
+        // Assert
+        progress.Items.Should().Equal(
+            new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 0),
+            new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 100),
+            new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 200),
+            new D1SearchReconcileProgress(D1SearchReconcilePhase.Catalogue, 250, 250),
+            new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 0, 1),
+            new D1SearchReconcileProgress(D1SearchReconcilePhase.Inventory, 1, 1));
+    }
+
+    [Fact(DisplayName =
+        "A write reports upsert progress after each flush and delete progress after each chunk, against the planned " +
+        "totals, because the backfill needs a running count and an ETA.")]
+    public async Task write_reports_upsert_and_delete_progress()
+    {
+        // Arrange
+        _catalogue = Enumerable.Range(0, 250).Select(_ => Candidate(modifiedAt: 1)).ToList();
+        var orphans = Enumerable.Range(0, 3).Select(_ => _fixture.CreateGuid().ToString()).ToList();
+        _inventory = orphans.ToDictionary(id => id, _ => 1L);
+        var progress = new CollectingProgress();
+        var sut = _mocker.CreateInstance<D1SearchReconciler>();
+
+        // Act
+        var report = await sut.Reconcile(new D1SearchReconcileRequest(true, true), CancellationToken.None, progress);
+
+        // Assert
+        report.Should().BeEquivalentTo(new { Outcome = D1SearchReconcileOutcome.Patched, Upserted = 250, Deleted = 3 });
+        progress.Items.Where(p => p.Phase is D1SearchReconcilePhase.Upsert or D1SearchReconcilePhase.Delete)
+            .Should().Equal(
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 0, 250),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 100, 250),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 200, 250),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Upsert, 250, 250),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Delete, 0, 3),
+                new D1SearchReconcileProgress(D1SearchReconcilePhase.Delete, 3, 3));
+    }
+
+    private sealed class CollectingProgress : IProgress<D1SearchReconcileProgress>
+    {
+        public List<D1SearchReconcileProgress> Items { get; } = [];
+        public void Report(D1SearchReconcileProgress value) => Items.Add(value);
+    }
+
     private int Reads() => _mocker.GetMock<ID1SearchCatalogue>().Invocations.Count(i => i.Method.Name == nameof(ID1SearchCatalogue.Read));
 
     private D1SearchCandidate Candidate(long modifiedAt)
