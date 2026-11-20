@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Claims;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -10,6 +11,7 @@ using Api.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using Api.Services.SubmitUrl;
+using RedditPodcastPoster.Auth0.Models;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
 using FunctionHost.Tests.Api;
@@ -27,6 +29,49 @@ public class PostSubmitUrlHandlerConflictTests
         _mocker.GetMock<ISubmitUrlService>()
             .Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _serviceResult);
+    }
+
+    [Fact(DisplayName =
+        "When submit holds on a service-link conflict, the handler returns 200 with serviceLinkConflict naming the " +
+        "stored episode and each stored and submitted link, so the site can ask overwrite or create-new (#1416).")]
+    public async Task service_link_conflict_returns_200_with_prompt()
+    {
+        // Arrange
+        var episodeId = _fixture.CreateGuid();
+        var title = _fixture.CreateTitle();
+        var storedUrl = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
+        var submittedUrl = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId());
+        var hold = new ServiceLinkConflictHold(
+            episodeId,
+            title,
+            DomainTestFixture.UtcAtTime(-1, _fixture.CreateNonMidnightTimeOfDay()),
+            [new ServiceLinkConflictLink("spotify", storedUrl, submittedUrl)]);
+        _serviceResult = new SubmitUrlResult(
+            SubmitUrlStatus.ServiceLinkConflictDecisionRequired,
+            new SubmitResult(SubmitResultState.None, SubmitResultState.None, ServiceLinkConflict: hold));
+        var handler = _mocker.CreateInstance<PostSubmitUrlHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+
+        // Act
+        var result = await handler.Handle(
+            new HandlerContext(req.Object, null),
+            new SubmitUrlRequest { Url = submittedUrl },
+            CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        result.Body.Position = 0;
+        using var reader = new StreamReader(result.Body, leaveOpen: true);
+        using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
+        var conflict = doc.RootElement.GetProperty("serviceLinkConflict");
+        conflict.GetProperty("episodeId").GetGuid().Should().Be(episodeId);
+        conflict.GetProperty("episodeTitle").GetString().Should().Be(title);
+        var link = conflict.GetProperty("links").EnumerateArray().Should().ContainSingle().Subject;
+        link.GetProperty("service").GetString().Should().Be("spotify");
+        link.GetProperty("storedUrl").GetString().Should().Be(storedUrl.ToString());
+        link.GetProperty("submittedUrl").GetString().Should().Be(submittedUrl.ToString());
+        (doc.RootElement.TryGetProperty("success", out var success) && success.ValueKind != JsonValueKind.Null)
+            .Should().BeFalse("nothing was written, so this is not a success");
     }
 
     [Fact(DisplayName = "PostSubmitUrlHandler maps Conflict to 409 with the ambiguous podcast id list.")]
@@ -199,5 +244,43 @@ public class PostSubmitUrlHandlerConflictTests
         using var doc = JsonDocument.Parse(await reader.ReadToEndAsync());
         doc.RootElement.GetProperty("contentKind").GetString().Should().Be(SubmitClassification.Episode);
         doc.RootElement.GetProperty("requiresCurator").GetBoolean().Should().BeTrue();
+    }
+
+    [Theory(DisplayName =
+        "The handler lets only a caller with the curate scope resolve a service-link conflict; a submit-scope " +
+        "caller is flagged as unable to, whatever the body says (#1416).")]
+    [InlineData("curate", true)]
+    [InlineData("submit", false)]
+    public async Task only_curate_scope_resolves_service_link_conflicts(string scope, bool expected)
+    {
+        // Arrange
+        SubmitUrlRequest? passed = null;
+        _mocker.GetMock<ISubmitUrlService>()
+            .Setup(s => s.SubmitAsync(It.IsAny<SubmitUrlRequest>(), It.IsAny<CancellationToken>()))
+            .Callback((SubmitUrlRequest r, CancellationToken _) => passed = r)
+            .ReturnsAsync(new SubmitUrlResult(SubmitUrlStatus.Failed));
+        var handler = _mocker.CreateInstance<PostSubmitUrlHandler>();
+        var (req, _) = HttpTestHelpers.CreateRequestResponse("POST");
+        var principal = new ClientPrincipal
+        {
+            Claims =
+            [
+                new ClientPrincipalClaim { Type = "permissions", Value = scope },
+                new ClientPrincipalClaim { Type = ClaimTypes.NameIdentifier, Value = _fixture.CreateTitle() }
+            ]
+        };
+
+        // Act
+        await handler.Handle(
+            new HandlerContext(req.Object, principal),
+            new SubmitUrlRequest
+            {
+                Url = _fixture.DefaultSpotifyUrl(_fixture.CreateSpotifyId()),
+                ServiceLinkConflictDecision = "overwrite"
+            },
+            CancellationToken.None);
+
+        // Assert
+        passed!.CanResolveServiceLinkConflict.Should().Be(expected);
     }
 }

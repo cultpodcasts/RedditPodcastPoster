@@ -3,6 +3,7 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using Api.Dtos;
 using Api.Models;
+using Api.Services.Discovery;
 using Api.Services.SubmitUrl;
 
 namespace Api.Handlers.SubmitUrl;
@@ -16,6 +17,8 @@ public class PostSubmitUrlHandler(
         Api.Models.SubmitUrlRequest submitUrlModel,
         CancellationToken c)
     {
+        // #1416: only a curator resolves a service-link conflict; the flag never comes from the body.
+        submitUrlModel.CanResolveServiceLinkConflict = ctx.HasScope(DiscoveryPermissions.Curate);
         var result = await submitUrlService.SubmitAsync(submitUrlModel, c);
         return result.Status switch
         {
@@ -25,6 +28,8 @@ public class PostSubmitUrlHandler(
                 await ctx.Ok(SubmitUrlResponse.DecisionRequired(result.Result!.LanguageHold!), c),
             SubmitUrlStatus.IdentityDecisionRequired =>
                 await ctx.Ok(SubmitUrlResponse.IdentityDecisionRequired(result.Result!.IdentityHold!), c),
+            SubmitUrlStatus.ServiceLinkConflictDecisionRequired =>
+                await ctx.Ok(SubmitUrlResponse.ServiceLinkConflictDecisionRequired(result.Result!.ServiceLinkConflict!), c),
             SubmitUrlStatus.Cancelled =>
                 await ctx.Ok(SubmitUrlResponse.CancelledResponse(), c),
             SubmitUrlStatus.PodcastNotFound =>

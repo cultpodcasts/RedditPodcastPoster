@@ -141,6 +141,79 @@ public class EpisodeHelper : IEpisodeHelper
         return IsCrossPlatformMatch(episode, authority, categorisedItem.MatchingPodcast);
     }
 
+    public IReadOnlyList<string> ConflictingServiceKeys(Episode episode, CategorisedItem categorisedItem)
+    {
+        var authorityKey = categorisedItem.Authority switch
+        {
+            Service.Spotify => ServiceKeys.Spotify,
+            Service.Apple => ServiceKeys.Apple,
+            _ => null
+        };
+        if (authorityKey is null)
+        {
+            return [];
+        }
+
+        var conflicting = new List<string>();
+        if (categorisedItem.ResolvedSpotifyItem is { } spotify &&
+            EpisodeServicePresence.SpotifyEpisodeId(episode) is { } storedSpotifyId &&
+            storedSpotifyId != spotify.EpisodeId)
+        {
+            conflicting.Add(ServiceKeys.Spotify);
+        }
+
+        if (categorisedItem.ResolvedAppleItem is { } apple &&
+            EpisodeServicePresence.AppleEpisodeId(episode) is { } storedAppleId &&
+            storedAppleId != apple.EpisodeId)
+        {
+            conflicting.Add(ServiceKeys.Apple);
+        }
+
+        if (!conflicting.Contains(authorityKey))
+        {
+            return [];
+        }
+
+        // The conflict is "would match but for the stored links": the same title, release and duration rules as
+        // a normal submit decide, so a conflict prompt never fires for an episode a submit would not attach to.
+        return IsMatchingEpisode(WithoutServiceLinks(episode, conflicting), categorisedItem) ? conflicting : [];
+    }
+
+    /// <summary>
+    /// Detached copy of the fields <see cref="IsMatchingEpisode"/> reads, minus <paramref name="serviceKeys"/>'s
+    /// ids and links. The stored episode is not changed.
+    /// </summary>
+    private static Episode WithoutServiceLinks(Episode episode, IReadOnlyCollection<string> serviceKeys)
+    {
+        var copy = new Episode
+        {
+            Id = episode.Id,
+            PodcastId = episode.PodcastId,
+            Title = episode.Title,
+            Length = episode.Length,
+            Ids = episode.Ids is { } ids
+                ? new EpisodeIds { Spotify = ids.Spotify, Apple = ids.Apple, YouTube = ids.YouTube }
+                : null,
+            Services = episode.Services is { } services
+                ? services
+                    .Where(link => !serviceKeys.Contains(link.Key))
+                    .ToDictionary(link => link.Key, link => link.Value, StringComparer.Ordinal)
+                : null
+        };
+        copy.ReleaseUtc = episode.ReleaseUtc;
+        if (serviceKeys.Contains(ServiceKeys.Spotify))
+        {
+            EpisodeServicePresence.SetSpotifyIdentity(copy, null);
+        }
+
+        if (serviceKeys.Contains(ServiceKeys.Apple))
+        {
+            EpisodeServicePresence.SetAppleIdentity(copy, null);
+        }
+
+        return copy;
+    }
+
     /// <summary>
     /// YouTube↔audio pair (#1445): the stored episode carries the other platform's identity and is
     /// missing the submitted one, releases share a calendar day (or sit within the same-release

@@ -22,7 +22,13 @@ public enum SubmitUrlStatus
     IdentityDecisionRequired,
 
     /// <summary>The caller chose cancel; nothing was created.</summary>
-    Cancelled
+    Cancelled,
+
+    /// <summary>
+    /// The URL matches a stored episode that has a different link for that service (#1416); nothing was written.
+    /// 200 with <c>serviceLinkConflict</c>.
+    /// </summary>
+    ServiceLinkConflictDecisionRequired
 }
 
 public record SubmitUrlResult(

@@ -116,6 +116,9 @@ public class DiscoveryKindClassificationRules
     private void UseRealPipeline()
     {
         _mocker.Use<ICatalogueKindSubmitter>(_mocker.CreateInstance<CatalogueKindSubmitter>());
+        _mocker.GetMock<IServiceLinkConflictGate>()
+            .Setup(x => x.Evaluate(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()))
+            .Returns(ServiceLinkConflictOutcome.Proceed);
         _mocker.Use<ICategorisedItemProcessor>(_mocker.CreateInstance<CategorisedItemProcessor>());
         _mocker.Use<IDiscoveryResultProcessor>(_mocker.CreateInstance<DiscoveryResultProcessor>());
     }

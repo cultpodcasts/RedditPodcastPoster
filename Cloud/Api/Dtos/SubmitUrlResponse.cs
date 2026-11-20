@@ -24,6 +24,14 @@ public class SubmitUrlResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IdentityDecisionBody? IdentityDecision { get; private set; }
 
+    /// <summary>
+    /// Set when nothing was written because the URL matches a stored episode that already has a different link for
+    /// that service (#1416). Re-POST with <c>serviceLinkConflictDecision</c> and <c>serviceLinkConflictEpisodeId</c>.
+    /// </summary>
+    [JsonPropertyName("serviceLinkConflict")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ServiceLinkConflictBody? ServiceLinkConflict { get; private set; }
+
     /// <summary>The caller chose cancel; nothing was created.</summary>
     [JsonPropertyName("cancelled")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -50,6 +58,23 @@ public class SubmitUrlResponse
 
     public static SubmitUrlResponse IdentityDecisionRequired(CatalogueIdentityHold hold) =>
         new() { IdentityDecision = ToIdentityDecision(hold) };
+
+    public static SubmitUrlResponse ServiceLinkConflictDecisionRequired(ServiceLinkConflictHold hold) =>
+        new()
+        {
+            ServiceLinkConflict = new ServiceLinkConflictBody
+            {
+                EpisodeId = hold.EpisodeId,
+                EpisodeTitle = hold.EpisodeTitle,
+                EpisodeRelease = hold.EpisodeReleaseUtc,
+                Links = hold.Links.Select(link => new ServiceLinkConflictLinkBody
+                {
+                    Service = link.Service,
+                    StoredUrl = link.StoredUrl?.ToString(),
+                    SubmittedUrl = link.SubmittedUrl?.ToString()
+                }).ToArray()
+            }
+        };
 
     public static SubmitUrlResponse CancelledResponse() => new() { Cancelled = true };
 
@@ -210,6 +235,38 @@ public class SubmitUrlResponse
 
         [JsonPropertyName("candidates")]
         public required IdentityCandidateBody[] Candidates { get; set; }
+    }
+
+    public class ServiceLinkConflictBody
+    {
+        /// <summary>The stored episode; send it back as <c>serviceLinkConflictEpisodeId</c> with <c>overwrite</c>.</summary>
+        [JsonPropertyName("episodeId")]
+        public required Guid EpisodeId { get; set; }
+
+        [JsonPropertyName("episodeTitle")]
+        public required string EpisodeTitle { get; set; }
+
+        [JsonPropertyName("episodeRelease")]
+        public required DateTime EpisodeRelease { get; set; }
+
+        [JsonPropertyName("links")]
+        public required ServiceLinkConflictLinkBody[] Links { get; set; }
+    }
+
+    public class ServiceLinkConflictLinkBody
+    {
+        /// <summary><c>spotify</c> or <c>apple</c>.</summary>
+        [JsonPropertyName("service")]
+        public required string Service { get; set; }
+
+        /// <summary>The stored episode's link now; on <c>overwrite</c> it moves to a new episode of its own.</summary>
+        [JsonPropertyName("storedUrl")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? StoredUrl { get; set; }
+
+        [JsonPropertyName("submittedUrl")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? SubmittedUrl { get; set; }
     }
 
     public class IdentityCandidateBody

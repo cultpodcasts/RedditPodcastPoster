@@ -88,6 +88,9 @@ public class UrlSubmissionRefreshMetaWiringRules
                 Episode: episode,
                 Podcast: podcast));
 
+        _mocker.GetMock<IServiceLinkConflictGate>()
+            .Setup(x => x.Evaluate(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()))
+            .Returns(ServiceLinkConflictOutcome.Proceed);
         var processor = _mocker.CreateInstance<CategorisedItemProcessor>();
 
         // Act

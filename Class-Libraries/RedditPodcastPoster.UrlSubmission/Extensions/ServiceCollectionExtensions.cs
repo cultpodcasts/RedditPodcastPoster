@@ -75,6 +75,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ICatalogueParentLookup, CatalogueParentLookup>()
             .AddScoped<IEpisodeUrlRouter, EpisodeUrlRouter>()
             .AddScoped<ICatalogueParentSubmitter, CatalogueParentSubmitter>()
+            .AddSingleton<IServiceLinkConflictGate, ServiceLinkConflictGate>()
             .AddScoped<ICategorisedItemProcessor, CategorisedItemProcessor>()
             .AddScoped<ICatalogueOwnershipGuard, CatalogueOwnershipGuard>()
             .AddScoped<DiscoveryUrlSubmitter>()

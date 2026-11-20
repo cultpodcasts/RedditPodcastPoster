@@ -42,4 +42,13 @@ public class SubmitUrlRequest
 
     /// <summary>Candidate <c>key</c> when <see cref="IdentityDecision"/> is <c>select</c> (e.g. <c>tmdb:123</c>).</summary>
     public string? SelectedIdentityKey { get; set; }
+
+    /// <summary>
+    /// Answer to a service-link conflict prompt (#1416): <c>overwrite</c>, <c>create-new</c>, or <c>cancel</c>.
+    /// Absent on the first submit, which holds for the curator instead of writing.
+    /// </summary>
+    public string? ServiceLinkConflictDecision { get; set; }
+
+    /// <summary>With <c>overwrite</c>: the <c>serviceLinkConflict.episodeId</c> the curator answered for.</summary>
+    public Guid? ServiceLinkConflictEpisodeId { get; set; }
 }
