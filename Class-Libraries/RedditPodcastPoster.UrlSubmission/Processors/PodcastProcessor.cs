@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.People;
@@ -30,6 +31,9 @@ public class PodcastProcessor(
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
             ? [categorisedItem.MatchingEpisode]
             : categorisedItem.MatchingPodcastEpisodes!.Where(episode =>
+                // #1484: a split-off awaiting curator approval is never the episode a submit enriches (after a
+                // partly saved overwrite it can title-match the submit in place of the stored episode).
+                !EpisodeServiceLinks.IsAwaitingApproval(episode) &&
                 episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
 
         Episode? matchingEpisode;

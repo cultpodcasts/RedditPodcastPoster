@@ -61,8 +61,15 @@ public static class EpisodeServiceLinks
     /// Splits <paramref name="serviceKeys"/> off <paramref name="source"/> into a new episode of the same podcast, so
     /// the links are kept when the source is about to take other links for those services (#1416 overwrite).
     /// The new episode starts as a copy of the source's details (title, description, release, length, language,
-    /// subjects and parent fields) for the curator to correct, and is marked as already posted on every channel:
-    /// it is a recovery record and is never posted automatically.
+    /// subjects, matches, search terms, hashtag, guests and parent fields) for the curator to correct.
+    /// <para>
+    /// #1484: it is <b>hidden until a curator reviews and approves it</b> (<see cref="IsAwaitingApproval"/>): it is
+    /// stored <see cref="Models.Catalogue.Playable.Removed"/>, the existing "not public" state (no public page,
+    /// search, homepage or posting), and marked with <see cref="SplitOffTweetSkipReason"/>, which also keeps it off X
+    /// for good. A curator approves it by clearing Removed in the episode editor. It is a recovery record and is
+    /// never posted automatically (Reddit is marked posted; Bluesky has no skip reason, so its legacy manual-mark flag
+    /// is set).
+    /// </para>
     /// </summary>
     /// <exception cref="InvalidOperationException">The source carries none of <paramref name="serviceKeys"/>.</exception>
     public static EpisodeServiceLinkSplit SplitOff(Episode source, IReadOnlyCollection<string> serviceKeys)
@@ -81,12 +88,17 @@ public static class EpisodeServiceLinks
             Ignored = source.Ignored,
             Subjects = [..source.Subjects],
             RemovedSubjects = [..source.RemovedSubjects],
+            Matches = source.Matches.Select(match => match.Clone()).ToList(),
+            SearchTerms = source.SearchTerms,
+            HashTag = source.HashTag,
+            Guests = source.Guests is null ? null : [..source.Guests],
             PublisherSearchTerms = source.PublisherSearchTerms,
             PublisherLanguage = source.PublisherLanguage,
             ParentMetadataVersion = source.ParentMetadataVersion,
             ParentRemoved = source.ParentRemoved,
+            Removed = true,
             Posted = true,
-            OldTweeted = true,
+            TweetSkipReason = SplitOffTweetSkipReason,
             OldBlueskyPosted = true
         };
         split.ReleaseUtc = source.ReleaseUtc;
@@ -99,6 +111,25 @@ public static class EpisodeServiceLinks
         }
 
         return new EpisodeServiceLinkSplit(split, move.Moved);
+    }
+
+    /// <summary>
+    /// <c>tweetSkipReason</c> code on an episode created by <see cref="SplitOff"/> (#1484). It never goes to X, and
+    /// while it is also <see cref="Models.Catalogue.Playable.Removed"/> it is awaiting curator approval.
+    /// </summary>
+    public const string SplitOffTweetSkipReason = "split-off";
+
+    /// <summary>
+    /// True for a split-off that a curator has not approved yet (#1484): still hidden
+    /// (<see cref="Models.Catalogue.Playable.Removed"/>) and marked <see cref="SplitOffTweetSkipReason"/>. Such an
+    /// episode is not public and is never matched by an ordinary submit, so a submit cannot enrich it instead of the
+    /// stored episode it was split from.
+    /// </summary>
+    public static bool IsAwaitingApproval(Episode episode)
+    {
+        ArgumentNullException.ThrowIfNull(episode);
+        return episode.Removed &&
+               string.Equals(episode.TweetSkipReason, SplitOffTweetSkipReason, StringComparison.Ordinal);
     }
 
     private static ServiceLinkSnapshot Read(Episode episode, string key) =>

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 
@@ -176,8 +177,8 @@ public class EpisodeServiceLinksRules
     }
 
     [Fact(DisplayName =
-        "A split-off episode is marked as already posted to Reddit, X and Bluesky, because it is a recovery record " +
-        "and must never be posted automatically.")]
+        "A split-off episode is never posted automatically: Reddit is marked posted, X is skipped with the " +
+        "split-off reason rather than the legacy tweeted flag, and Bluesky is marked posted (#1484).")]
     public void split_off_episode_is_never_posted()
     {
         // Arrange
@@ -190,9 +191,55 @@ public class EpisodeServiceLinksRules
         // Assert
         split.Posted.Should().BeTrue();
         split.Tweeted.Should().BeTrue();
+        split.TweetSkipReason.Should().Be(EpisodeServiceLinks.SplitOffTweetSkipReason);
+        split.OldTweeted.Should().BeNull();
         split.BlueskyPosted.Should().BeTrue();
         split.TweetPost.Should().BeNull("the source's post ids must not be shared, or un-posting one would delete the other's post");
         split.BlueskyPost.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A split-off episode is hidden from the public until a curator approves it: it is stored removed and " +
+        "awaiting approval, and clearing removed approves it (#1484).")]
+    public void split_off_episode_is_hidden_until_approved()
+    {
+        // Arrange
+        var source = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
+        source.Removed = false;
+
+        // Act
+        var split = EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode;
+
+        // Assert
+        split.Removed.Should().BeTrue();
+        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeTrue();
+        EpisodeServiceLinks.IsAwaitingApproval(source).Should().BeFalse();
+        split.Removed = false;
+        EpisodeServiceLinks.IsAwaitingApproval(split).Should().BeFalse("a curator cleared removed: it is approved");
+    }
+
+    [Fact(DisplayName =
+        "A split-off episode copies the source's search terms, guests, hashtag and subject matches, so the curator " +
+        "starts from the same details (#1484).")]
+    public void split_off_copies_search_terms_guests_hashtag_and_matches()
+    {
+        // Arrange
+        var source = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
+        source.SearchTerms = _fixture.CreateTitle();
+        source.HashTag = "#" + _fixture.CreateTitle(1).Replace(" ", string.Empty);
+        source.Guests = [_fixture.CreateTitle(2), _fixture.CreateTitle(2)];
+        source.Matches = [new PlayableSubjectMatch { Subject = _fixture.CreateTitle(1), Term = _fixture.CreateTitle(1) }];
+
+        // Act
+        var split = EpisodeServiceLinks.SplitOff(source, [ServiceKeys.Spotify]).Episode;
+
+        // Assert
+        split.SearchTerms.Should().Be(source.SearchTerms);
+        split.HashTag.Should().Be(source.HashTag);
+        split.Guests.Should().Equal(source.Guests);
+        split.Guests.Should().NotBeSameAs(source.Guests);
+        split.Matches.Should().BeEquivalentTo(source.Matches);
+        split.Matches[0].Should().NotBeSameAs(source.Matches[0]);
     }
 
     [Fact(DisplayName =
