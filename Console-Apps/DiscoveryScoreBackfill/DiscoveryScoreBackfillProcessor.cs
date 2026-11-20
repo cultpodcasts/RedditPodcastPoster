@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Discovery.ML.Configuration;
+using RedditPodcastPoster.Discovery.ML.Models;
 using RedditPodcastPoster.Discovery.ML.Services;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -63,11 +64,15 @@ public sealed class DiscoveryScoreBackfillProcessor(
 
         var settings = scorerSettings.Value;
         var manifestPath = ResolveManifestPath(settings);
+        var manifest = manifestPath != null && File.Exists(manifestPath)
+            ? System.Text.Json.JsonSerializer.Deserialize<DiscoveryAcceptManifest>(
+                await File.ReadAllTextAsync(manifestPath, cancellationToken))
+            : null;
         var report = DiscoveryScoreBackfillAnalyzer.BuildEvidenceReport(
             documents,
             scoredRows,
             request.DryRun,
-            settings.AutoHideThreshold,
+            DiscoveryResultScorer.AutoHideThreshold(manifest, settings),
             manifestPath);
 
         var evidenceDirectory = Path.GetDirectoryName(evidencePath);
