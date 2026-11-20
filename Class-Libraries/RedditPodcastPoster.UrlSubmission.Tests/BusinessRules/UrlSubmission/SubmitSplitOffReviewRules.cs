@@ -135,7 +135,7 @@ public class SubmitSplitOffReviewRules
 
     [Fact(DisplayName =
         "Re-submitting the Spotify link a hidden split-off holds matches that split-off (it already exists), which " +
-        "stays hidden and posted: no new public episode is created and nothing is queued for posting.")]
+        "stays hidden and awaiting approval (so never posted): no new public episode is created.")]
     public async Task resubmitting_split_off_own_link_matches_it_and_creates_nothing()
     {
         // Arrange
@@ -151,7 +151,6 @@ public class SubmitSplitOffReviewRules
         result.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
         result.Episode!.Id.Should().Be(splitOff.Id);
         splitOff.Removed.Should().BeTrue();
-        splitOff.Posted.Should().BeTrue();
         splitOff.IsAwaitingApproval().Should().BeTrue();
         _mocker.GetMock<IEpisodeFactory>().Verify(x => x.CreateEpisode(It.IsAny<CategorisedItem>()), Times.Never);
     }

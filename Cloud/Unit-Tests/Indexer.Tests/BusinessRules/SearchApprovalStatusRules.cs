@@ -3,6 +3,7 @@ using RedditPodcastPoster.EntitySearchIndexer;
 using RedditPodcastPoster.EntitySearchIndexer.D1Search;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
+using Xunit;
 
 namespace Indexer.Tests.BusinessRules;
 
