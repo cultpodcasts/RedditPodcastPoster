@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Matching;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -8,7 +9,7 @@ using RedditPodcastPoster.UrlSubmission.Categorisation;
 
 namespace RedditPodcastPoster.UrlSubmission.Matching;
 
-public class EpisodeHelper : IEpisodeHelper
+public class EpisodeHelper(ILogger<EpisodeHelper> logger) : IEpisodeHelper
 {
     /// <summary>Title-only bar: no release or duration evidence, so the title has to carry the match.</summary>
     private const int MinFuzzyTitleMatch = 95;
@@ -176,7 +177,29 @@ public class EpisodeHelper : IEpisodeHelper
 
         // The conflict is "would match but for the stored links": the same title, release and duration rules as
         // a normal submit decide, so a conflict prompt never fires for an episode a submit would not attach to.
-        return IsMatchingEpisode(WithoutServiceLinks(episode, conflicting), categorisedItem) ? conflicting : [];
+        if (!TryResolvedAuthority(categorisedItem, out var authority) ||
+            !IsMatchingEpisode(WithoutServiceLinks(episode, conflicting), categorisedItem))
+        {
+            return [];
+        }
+
+        // #1481: a title match alone is not enough. The stored episode already carries a different Spotify / Apple
+        // identity, and an overwrite moves those links off it, so its release and length must also agree with the
+        // submit (ConflictReleaseAndDurationAgree). A recurring title ("Bonus", "Trailer", "Part 1") on another
+        // day, or a submit without a known length, is never a conflict.
+        var check = ConflictReleaseAndDurationAgree(episode, authority!, categorisedItem.MatchingPodcast);
+        if (!check.Agree)
+        {
+            logger.LogInformation(
+                "Service-link conflict candidate '{EpisodeId}' matches the submitted title but is rejected: {Reason}. " +
+                "Stored release {StoredRelease:O}, submitted release {SubmittedRelease:O}; stored length {StoredLength}, " +
+                "submitted length {SubmittedLength}, length band {LengthBand} ({BandKind}).",
+                episode.Id, check.Reason, episode.ReleaseUtc, authority!.Release, episode.Length, authority.Duration,
+                check.LengthBand, check.StoredCarriesYouTube ? "YouTube-bearing: greater of 5 min or 12%" : "audio-only: greater of 2 min or 3%");
+            return [];
+        }
+
+        return conflicting;
     }
 
     /// <summary>
@@ -251,6 +274,55 @@ public class EpisodeHelper : IEpisodeHelper
                authority.Title.Contains(episodeTitle) ||
                episodeTitle.Contains(authority.Title) ||
                FuzzyMatcher.Score(authority.Title, episodeTitle) >= MinCrossPlatformFuzzyTitleMatch;
+    }
+
+    private readonly record struct ConflictEvidence(
+        bool Agree, string Reason, TimeSpan LengthBand, bool StoredCarriesYouTube);
+
+    /// <summary>
+    /// #1481 release and length gate for a service-link conflict. The rule follows what the stored episode carries:
+    /// <list type="bullet">
+    /// <item>Stored episode carries YouTube: its release and length may be the YouTube ones, so the #1445 / #1472
+    /// YouTube↔audio rules apply. Release in the same-release window, on the same calendar day, or aligned with the
+    /// podcast's YouTube publishing delay; length within the title-supported band
+    /// (<see cref="EpisodeDurationTolerance.TitleSupportedYouTubeAudio"/>: greater of 5 min or 12%, for an
+    /// ad-stripped YouTube cut). The title has already matched.</item>
+    /// <item>Audio-only stored episode (audio vs audio): release in the same-release window or on the same calendar
+    /// day (Spotify releases are date-only), never by delay alignment; length within
+    /// <see cref="CrossPlatformDurationTolerance"/> (greater of 2 min or 3%).</item>
+    /// </list>
+    /// </summary>
+    private static ConflictEvidence ConflictReleaseAndDurationAgree(Episode episode, ResolvedAuthority authority,
+        Podcast? podcast)
+    {
+        var storedCarriesYouTube = !string.IsNullOrWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(episode)) ||
+                                   EpisodeServicePresence.HasUrl(episode, ServiceKeys.YouTube);
+        var band = storedCarriesYouTube
+            ? EpisodeDurationTolerance.TitleSupportedYouTubeAudio(authority.Duration, episode.Length)
+            : CrossPlatformDurationTolerance(authority.Duration, episode.Length);
+        if (authority.Duration <= TimeSpan.Zero || episode.Length <= TimeSpan.Zero)
+        {
+            return new ConflictEvidence(false, "a length is unknown", band, storedCarriesYouTube);
+        }
+
+        if ((authority.Duration - episode.Length).Duration() > band)
+        {
+            return new ConflictEvidence(false, "the lengths differ by more than the band", band, storedCarriesYouTube);
+        }
+
+        var releaseAgrees =
+            (authority.Release - episode.ReleaseUtc).Duration() < EpisodeReleaseTolerance.SameReleaseThreshold ||
+            DateOnly.FromDateTime(authority.Release) == DateOnly.FromDateTime(episode.ReleaseUtc) ||
+            (storedCarriesYouTube && podcast != null &&
+             EpisodeReleaseTolerance.IsYouTubePublishDelayAligned(
+                 authority.Release, episode.ReleaseUtc, podcast.YouTubePublishingDelay()));
+        return releaseAgrees
+            ? new ConflictEvidence(true, string.Empty, band, storedCarriesYouTube)
+            : new ConflictEvidence(false,
+                storedCarriesYouTube
+                    ? "the release is not in the same-release window, on the same day or aligned with the YouTube publishing delay"
+                    : "the release is not in the same-release window or on the same day (audio-only: no delay alignment)",
+                band, storedCarriesYouTube);
     }
 
     private static bool ReleaseAndDurationAgree(Episode episode, ResolvedAuthority authority, Podcast? podcast)
