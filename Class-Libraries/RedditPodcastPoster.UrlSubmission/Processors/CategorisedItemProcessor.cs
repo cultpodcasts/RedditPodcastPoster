@@ -29,6 +29,16 @@ public class CategorisedItemProcessor(
             return LanguageHold(new CatalogueLanguageHold(string.Empty, string.Empty, []));
         }
 
+        if (submitOptions.ServiceLinkConflict == ServiceLinkConflictChoice.Cancel)
+        {
+            // #1483: the curator cancelled a service-link conflict prompt, so nothing is written on any path (new
+            // podcast, catalogue kind or existing podcast), even if the conflict has gone since the prompt.
+            logger.LogInformation(
+                "Service-link conflict answered cancel for podcast '{PodcastId}': nothing written.",
+                categorisedItem.MatchingPodcast?.Id);
+            return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
+        }
+
         if (languageGate == null && (submitOptions.EnforceLanguageGate || submitOptions.LanguageProbe))
         {
             throw new InvalidOperationException("Language gate is not configured.");
