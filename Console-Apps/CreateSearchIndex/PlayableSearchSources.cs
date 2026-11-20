@@ -11,7 +11,8 @@ namespace CreateSearchIndex;
 /// <para>
 /// The standard service layout is exactly three data sources and three indexers (the Free-tier limit):
 /// episodes (<c>--datasource</c> / <c>--indexer</c>), TV show episodes and news reports. Films have no pull indexer;
-/// the FilmSearchPusher console pushes them by Cosmos <c>_ts</c>. <see cref="RetiredFilm"/> names the old Film pair
+/// they are pushed by Cosmos <c>_ts</c> (the Indexer's scheduled refresh, a teardown with <c>--run-indexer</c>, and the
+/// FilmSearchPusher console; #1408). <see cref="RetiredFilm"/> names the old Film pair
 /// so a run can delete it if an earlier version left it behind.
 /// </para>
 /// </summary>

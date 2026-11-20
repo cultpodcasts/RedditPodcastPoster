@@ -6,6 +6,8 @@ using Azure;
 using CommandLine;
 using CreateSearchIndex;
 using RedditPodcastPoster.Configuration.Extensions;
+using RedditPodcastPoster.EntitySearchIndexer.Extensions;
+using RedditPodcastPoster.Persistence.Extensions;
 using RedditPodcastPoster.Persistence.Configuration;
 using RedditPodcastPoster.Search.Extensions;
 using RedditPodcastPoster.Configuration;
@@ -28,6 +30,9 @@ builder.Configuration
 builder.Services
     .AddLogging()
     .AddScoped<CreateSearchIndexProcessor>()
+    .AddScoped<RebuildFilmPush>()
+    .AddRepositories()
+    .AddFilmSearchPush()
     .AddSearch()
     .BindConfiguration<CosmosDbSettings>("cosmosdb");
 

@@ -27,6 +27,7 @@ public partial class CreateSearchIndexProcessor(
     SearchIndexClient searchIndexClient,
     SearchIndexerClient searchIndexerClient,
     ISearchIndexerService searchIndexerService,
+    RebuildFilmPush rebuildFilmPush,
     IOptions<CosmosDbSettings> cosmosDbSettings,
     ILogger<CreateSearchIndexProcessor> logger)
 {
@@ -116,10 +117,10 @@ public partial class CreateSearchIndexProcessor(
             await EnsureSiblingPlayableIndexers(request);
         }
 
-        if (plan.TearDownSiblings)
+        if (plan.TearDownSiblings && !plan.PushFilms)
         {
             logger.LogWarning(
-                "The recreated index has no film documents. Run 'FilmSearchPusher' (it detects the empty index and pushes every film) or 'FilmSearchPusher --full'.");
+                "The recreated index has no film documents. The scheduled refresh pushes every film back within the hour (it detects the empty index); to restore them now, re-run with --run-indexer or run 'FilmSearchPusher --full'.");
         }
 
         if (plan.ResetSiblings)
@@ -151,6 +152,11 @@ public partial class CreateSearchIndexProcessor(
                 {
                     await RunIndexerWithRetries(request, source.IndexerName);
                 }
+            }
+
+            if (plan.PushFilms)
+            {
+                await rebuildFilmPush.PushAfterRebuild(request.IndexName!, CancellationToken.None);
             }
         }
     }
