@@ -49,12 +49,16 @@ public class ServiceLinkConflictGate(
         }
 
         var episodes = categorisedItem.MatchingPodcastEpisodes?.ToArray() ?? [];
-        if (episodes.Any(episode => episodeHelper.IsMatchingEpisode(episode, categorisedItem)))
+        if (episodes.Any(episode => PendingSplitOffMatching.MayMatch(episode, categorisedItem) &&
+                                    episodeHelper.IsMatchingEpisode(episode, categorisedItem)))
         {
             return ServiceLinkConflictOutcome.Proceed;
         }
 
         var conflicts = episodes
+            // #1484: a split-off awaiting approval is never a conflict candidate, so an overwrite never lands the
+            // submitted links on a hidden episode.
+            .Where(episode => !EpisodeServiceLinks.IsAwaitingApproval(episode))
             .Select(episode => (Episode: episode, Keys: episodeHelper.ConflictingServiceKeys(episode, categorisedItem)))
             .Where(conflict => conflict.Keys.Count > 0)
             .ToArray();

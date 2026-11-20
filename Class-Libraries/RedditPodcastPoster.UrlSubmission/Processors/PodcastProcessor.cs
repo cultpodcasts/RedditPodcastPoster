@@ -31,9 +31,10 @@ public class PodcastProcessor(
         var matchingEpisodes = categorisedItem.MatchingEpisode != null
             ? [categorisedItem.MatchingEpisode]
             : categorisedItem.MatchingPodcastEpisodes!.Where(episode =>
-                // #1484: a split-off awaiting curator approval is never the episode a submit enriches (after a
-                // partly saved overwrite it can title-match the submit in place of the stored episode).
-                !EpisodeServiceLinks.IsAwaitingApproval(episode) &&
+                // #1484: a split-off awaiting curator approval is matched only by its own service id. By title alone
+                // (after a partly saved overwrite) it would be enriched in place of the stored episode; by id it is
+                // that episode, and enriching it (still hidden) avoids a duplicate public episode.
+                PendingSplitOffMatching.MayMatch(episode, categorisedItem) &&
                 episodeHelper.IsMatchingEpisode(episode, categorisedItem)).ToArray();
 
         Episode? matchingEpisode;

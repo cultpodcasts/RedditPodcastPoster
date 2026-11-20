@@ -81,6 +81,77 @@ public class SubmitSplitOffReviewRules
         result.Episode!.Id.Should().Be(splitOff.Id);
     }
 
+    [Fact(DisplayName =
+        "Re-submitting the Spotify link a hidden split-off holds enriches that split-off, which stays hidden and " +
+        "posted: no new public episode is created and nothing is queued for posting.")]
+    public async Task resubmitting_split_off_own_link_enriches_it_and_creates_nothing()
+    {
+        // Arrange
+        var (stored, splitOff) = StoredWithCompletedSplitOff();
+        var item = SpotifyOnlySubmit([splitOff, stored], EpisodeServicePresence.SpotifyEpisodeId(splitOff)!);
+        var sut = ArrangeProcessor();
+
+        // Act
+        var result = await sut.ProcessCategorisedItem(item, Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        result.ServiceLinkConflict.Should().BeNull();
+        result.EpisodeResult.Should().Be(SubmitResultState.Enriched);
+        result.Episode!.Id.Should().Be(splitOff.Id);
+        splitOff.Removed.Should().BeTrue();
+        splitOff.Posted.Should().BeTrue();
+        EpisodeServiceLinks.IsAwaitingApproval(splitOff).Should().BeTrue();
+        _mocker.GetMock<IEpisodeFactory>().Verify(x => x.CreateEpisode(It.IsAny<CategorisedItem>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A submit whose Spotify link conflicts with both the stored episode and its hidden split-off holds against " +
+        "the stored episode only: a hidden split-off is never a service-link conflict candidate.")]
+    public async Task hidden_split_off_is_not_a_conflict_candidate()
+    {
+        // Arrange
+        var (stored, splitOff) = StoredWithCompletedSplitOff();
+        var item = SpotifyOnlySubmit([splitOff, stored], _fixture.CreateSpotifyId());
+        var sut = ArrangeProcessor();
+
+        // Act
+        var result = await sut.ProcessCategorisedItem(item, Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        result.ServiceLinkConflict.Should().NotBeNull();
+        result.ServiceLinkConflict!.EpisodeId.Should().Be(stored.Id);
+        _mocker.GetMock<IEpisodeFactory>().Verify(x => x.CreateEpisode(It.IsAny<CategorisedItem>()), Times.Never);
+    }
+
+    /// <summary>
+    /// A completed overwrite: the stored episode now carries a new Spotify link, and the hidden split-off holds the
+    /// old one.
+    /// </summary>
+    private (Episode Stored, Episode SplitOff) StoredWithCompletedSplitOff()
+    {
+        var oldSpotifyId = _fixture.CreateSpotifyId();
+        var stored = _fixture.BuildEpisode()
+            .WithPodcast(_podcast)
+            .WithTitle(_title)
+            .WithRelease(_release)
+            .WithLength(_length)
+            .WithSpotify(oldSpotifyId, _fixture.DefaultSpotifyUrl(oldSpotifyId))
+            .Create();
+        var splitOff = EpisodeServiceLinks.SplitOff(stored, [ServiceKeys.Spotify]).Episode;
+        var newSpotifyId = _fixture.CreateSpotifyId();
+        EpisodeServicePresence.SetSpotifyIdentity(stored, newSpotifyId);
+        EpisodeServicePresence.Upsert(stored, ServiceKeys.Spotify, _fixture.DefaultSpotifyUrl(newSpotifyId), null);
+        return (stored, splitOff);
+    }
+
+    private CategorisedItem SpotifyOnlySubmit(IEnumerable<Episode> stored, string spotifyId)
+    {
+        var spotify = new CategorisedSpotifyItem(
+            _fixture.CreateSpotifyId(), spotifyId, _podcast.Name, string.Empty, string.Empty, _title,
+            string.Empty, _release, _length, _fixture.DefaultSpotifyUrl(spotifyId), false, null);
+        return new CategorisedItem(_podcast, stored.ToArray(), null, spotify, null, null, null, Service.Spotify);
+    }
+
     /// <summary>
     /// The stored episode still carries its Spotify and Apple links (its save failed); the split-off saved first
     /// holds the same Spotify link, no Apple link, and is hidden awaiting approval.

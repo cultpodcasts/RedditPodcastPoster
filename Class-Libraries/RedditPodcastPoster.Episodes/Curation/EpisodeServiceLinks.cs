@@ -70,6 +70,17 @@ public static class EpisodeServiceLinks
     /// never posted automatically (Reddit is marked posted; Bluesky has no skip reason, so its legacy manual-mark flag
     /// is set).
     /// </para>
+    /// <para>
+    /// Reusing Removed (rather than a separate approval status, which is not decided yet) has known limits:
+    /// <list type="bullet">
+    /// <item>Pending and rejected look the same: a split-off the curator decides is junk and leaves Removed stays
+    /// "awaiting approval" until it is deleted, and an approved split-off that is later removed (e.g. unplayable)
+    /// reads as awaiting again.</item>
+    /// <item>Approving never posts it: clearing Removed leaves Posted, the X skip reason and the Bluesky flag set. That
+    /// is right when the old links were the same, already-posted episode. If they turn out to be a different,
+    /// never-posted episode, the curator also has to untick Posted / Tweeted / Bluesky by hand.</item>
+    /// </list>
+    /// </para>
     /// </summary>
     /// <exception cref="InvalidOperationException">The source carries none of <paramref name="serviceKeys"/>.</exception>
     public static EpisodeServiceLinkSplit SplitOff(Episode source, IReadOnlyCollection<string> serviceKeys)
@@ -122,8 +133,9 @@ public static class EpisodeServiceLinks
     /// <summary>
     /// True for a split-off that a curator has not approved yet (#1484): still hidden
     /// (<see cref="Models.Catalogue.Playable.Removed"/>) and marked <see cref="SplitOffTweetSkipReason"/>. Such an
-    /// episode is not public and is never matched by an ordinary submit, so a submit cannot enrich it instead of the
-    /// stored episode it was split from.
+    /// episode is not public. A submit matches it only by one of its own service ids (never by title alone), so it
+    /// cannot be enriched in place of the stored episode it was split from, and is not a service-link conflict
+    /// candidate. A rejected split-off (left Removed) also reads as awaiting; see <see cref="SplitOff"/>.
     /// </summary>
     public static bool IsAwaitingApproval(Episode episode)
     {
