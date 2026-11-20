@@ -48,9 +48,10 @@ public class Episode : Playable
     /// <summary>
     /// Set only on an episode that needs curator approval before it is public (#1484; today a split-off made by a
     /// submit overwrite): <see cref="RedditPodcastPoster.Models.Episodes.ApprovalStatus.AwaitingApproval"/> until a curator
-    /// approves or rejects it. Null on every other episode. While it is held (<see cref="IsHeldForApproval"/>) the
-    /// episode is never public or posted. An approved episode later removed (e.g. unplayable) stays approved.
-    /// Stored as the enum name, like the other stored enums.
+    /// approves it (clears this to null) or rejects it (<see cref="RedditPodcastPoster.Models.Episodes.ApprovalStatus.Rejected"/>).
+    /// <b>Null means approved</b>, so every existing episode is approved with no data change. While it is held
+    /// (<see cref="IsHeldForApproval"/>) the episode is never public or posted. An approved episode later removed (e.g.
+    /// unplayable) stays approved (null). Stored as the enum name, like the other stored enums.
     /// </summary>
     [JsonPropertyName("approvalStatus")]
     [JsonPropertyOrder(91)]

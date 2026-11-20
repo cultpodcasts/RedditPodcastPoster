@@ -40,13 +40,14 @@ public class EpisodeChangeRequest
     public bool? Removed { get; set; }
 
     /// <summary>
-    /// #1484: <c>"Approved"</c> or <c>"Rejected"</c>, for an episode awaiting approval (a split-off) only (400
-    /// otherwise, and for <c>"AwaitingApproval"</c>). Approving makes it public and lets the posting jobs post it under
-    /// their usual rules; rejecting keeps it hidden.
+    /// #1484: <c>"Approve"</c> or <c>"Reject"</c> an episode awaiting approval (a split-off). Approving clears its
+    /// stored <c>approvalStatus</c> (null means approved): it becomes public and the posting jobs may post it under
+    /// their usual rules. Rejecting sets <c>"Rejected"</c>: it stays hidden and is never posted. 400 when rejecting an
+    /// episode that is not held, or when it contradicts <c>removed</c>.
     /// </summary>
-    [JsonPropertyName("approvalStatus")]
+    [JsonPropertyName("approvalDecision")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ApprovalStatus? ApprovalStatus { get; set; }
+    public Api.Models.ApprovalDecision? ApprovalDecision { get; set; }
 
     [JsonPropertyName("explicit")]
     public bool? Explicit { get; set; }

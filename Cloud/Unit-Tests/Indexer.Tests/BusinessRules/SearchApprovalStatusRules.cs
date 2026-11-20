@@ -8,7 +8,7 @@ namespace Indexer.Tests.BusinessRules;
 
 /// <summary>
 /// #1484: Azure search and D1 key off an episode's approval status: an episode awaiting approval or rejected is kept
-/// out whatever its removed flag says; an approved one (or one with no status) is indexed as usual.
+/// out whatever its removed flag says; an approved one (no status) is indexed as usual.
 /// </summary>
 public class SearchApprovalStatusRules
 {
@@ -16,10 +16,9 @@ public class SearchApprovalStatusRules
 
     [Theory(DisplayName =
         "An episode awaiting approval or rejected is excluded from Azure search and D1 even with removed cleared; an " +
-        "approved one or an ordinary one is included (#1484).")]
+        "approved one (no status, like an ordinary episode) is included (#1484).")]
     [InlineData(ApprovalStatus.AwaitingApproval, true)]
     [InlineData(ApprovalStatus.Rejected, true)]
-    [InlineData(ApprovalStatus.Approved, false)]
     [InlineData(null, false)]
     public void search_eligibility_keys_off_approval_status(ApprovalStatus? status, bool excluded)
     {

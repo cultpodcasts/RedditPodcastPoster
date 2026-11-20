@@ -122,38 +122,33 @@ public static class EpisodeServiceLinks
     }
 
     /// <summary>
-    /// #1484: a curator approves a split-off awaiting approval (or one rejected earlier). It becomes an ordinary public
-    /// episode (Removed cleared) and the posting jobs may post it under their usual rules (release window, ignored,
-    /// delayed YouTube publishing). Nothing is posted here and no posting flag is touched: a split-off is never posted
-    /// while held, and one approved, posted, then rejected and approved again keeps its posted flags, so it is not
-    /// posted twice. Approving an approved split-off changes nothing.
+    /// #1484: a curator approves a split-off awaiting approval (or one rejected earlier) by clearing its
+    /// <see cref="Episode.ApprovalStatus"/> to null (null means approved). It becomes an ordinary public episode
+    /// (Removed cleared) and the posting jobs may post it under their usual rules (release window, ignored, delayed
+    /// YouTube publishing). Nothing is posted here and no posting flag is touched: a split-off is created with none set
+    /// and is never posted while held. Approving an episode that is already approved (null) changes nothing.
     /// </summary>
     /// <returns>True when anything changed.</returns>
-    /// <exception cref="InvalidOperationException">The episode has no approval status (not a split-off).</exception>
     public static bool Approve(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
         if (episode.ApprovalStatus is null)
         {
-            throw new InvalidOperationException($"Episode '{episode.Id}' is not awaiting approval.");
-        }
-
-        if (episode.ApprovalStatus == ApprovalStatus.Approved)
-        {
             return false;
         }
 
-        episode.ApprovalStatus = ApprovalStatus.Approved;
+        episode.ApprovalStatus = null;
         episode.Removed = false;
         return true;
     }
 
     /// <summary>
-    /// #1484: a curator rejects a split-off. It is held (and Removed) and stays out of public and posting; its posting
-    /// flags are left as they are. Rejecting a rejected split-off changes nothing.
+    /// #1484: a curator rejects a split-off awaiting approval. It becomes <see cref="ApprovalStatus.Rejected"/>, stays
+    /// hidden (Removed) and is never posted. Rejecting a rejected split-off changes nothing. An approved episode (null)
+    /// cannot be rejected: it is indistinguishable from any ordinary episode, which is hidden with Removed instead.
     /// </summary>
     /// <returns>True when anything changed.</returns>
-    /// <exception cref="InvalidOperationException">The episode has no approval status (not a split-off).</exception>
+    /// <exception cref="InvalidOperationException">The episode is approved (null status), not awaiting approval.</exception>
     public static bool Reject(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);

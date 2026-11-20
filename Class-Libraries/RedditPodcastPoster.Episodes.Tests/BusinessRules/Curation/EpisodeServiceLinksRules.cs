@@ -238,7 +238,7 @@ public class EpisodeServiceLinksRules
 
         // Assert
         changed.Should().BeTrue();
-        split.ApprovalStatus.Should().Be(ApprovalStatus.Approved);
+        split.ApprovalStatus.Should().BeNull("null means approved");
         split.Removed.Should().BeFalse();
         split.IsHeldForApproval().Should().BeFalse();
         split.Posted.Should().BeFalse();
@@ -267,8 +267,9 @@ public class EpisodeServiceLinksRules
     }
 
     [Fact(DisplayName =
-        "The approval status is stored as the enum name (AwaitingApproval / Approved / Rejected), like the other stored " +
-        "enums, so it can be queried, and is omitted on an ordinary episode (#1484).")]
+        "The approval status is stored as the enum name (AwaitingApproval / Rejected), like the other stored enums, so " +
+        "it can be queried, and is omitted (null, meaning approved) on an ordinary episode, so existing documents need " +
+        "no migration (#1484).")]
     public void approval_status_is_stored_as_the_enum_name()
     {
         // Arrange
@@ -301,48 +302,50 @@ public class EpisodeServiceLinksRules
         split.Removed = true;
 
         // Assert
-        split.ApprovalStatus.Should().Be(ApprovalStatus.Approved);
+        split.ApprovalStatus.Should().BeNull("null means approved");
         split.IsAwaitingApproval().Should().BeFalse();
         split.IsHeldForApproval().Should().BeFalse();
         EpisodeServiceLinks.Approve(split).Should().BeFalse("approving an approved split-off changes nothing");
     }
 
     [Fact(DisplayName =
-        "Approving a split-off again after it was approved, posted and then rejected makes it public but never " +
-        "re-arms posting: approval never touches posting flags, so it keeps its posted state (#1484).")]
-    public void re_approving_a_posted_split_off_does_not_re_arm_posting()
+        "A rejected split-off can still be approved: its status is cleared (approved) and it becomes public, with no " +
+        "posting flag touched, so it posts under the usual rules (#1484).")]
+    public void approving_a_rejected_split_off_makes_it_public()
     {
         // Arrange
         var split = EpisodeServiceLinks.SplitOff(_fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast), [ServiceKeys.Spotify]).Episode;
-        EpisodeServiceLinks.Approve(split);
-        split.Posted = true;
-        split.TweetPost = _fixture.CreateTitle(1);
         EpisodeServiceLinks.Reject(split);
 
         // Act
-        EpisodeServiceLinks.Approve(split);
+        var changed = EpisodeServiceLinks.Approve(split);
 
         // Assert
-        split.ApprovalStatus.Should().Be(ApprovalStatus.Approved);
+        changed.Should().BeTrue();
+        split.ApprovalStatus.Should().BeNull("null means approved");
         split.Removed.Should().BeFalse();
-        split.Posted.Should().BeTrue();
-        split.Tweeted.Should().BeTrue();
+        split.Posted.Should().BeFalse();
+        split.Tweeted.Should().BeFalse();
     }
 
-    [Fact(DisplayName = "Only a split-off episode can be approved or rejected (#1484).")]
-    public void approving_or_rejecting_an_ordinary_episode_throws()
+    [Fact(DisplayName =
+        "An ordinary episode (no status) is already approved: approving it changes nothing, and it cannot be rejected, " +
+        "because only an episode awaiting approval can be (#1484).")]
+    public void ordinary_episode_is_approved_and_cannot_be_rejected()
     {
         // Arrange
         var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(_podcast);
+        episode.Removed = false;
 
         // Act
-        var approve = () => EpisodeServiceLinks.Approve(episode);
+        var approved = EpisodeServiceLinks.Approve(episode);
         var reject = () => EpisodeServiceLinks.Reject(episode);
 
         // Assert
-        approve.Should().Throw<InvalidOperationException>();
+        approved.Should().BeFalse();
         reject.Should().Throw<InvalidOperationException>();
         episode.ApprovalStatus.Should().BeNull();
+        episode.Removed.Should().BeFalse();
     }
 
     [Fact(DisplayName =

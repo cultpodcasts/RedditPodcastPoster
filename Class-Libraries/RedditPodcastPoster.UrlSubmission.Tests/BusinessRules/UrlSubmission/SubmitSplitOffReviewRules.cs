@@ -37,7 +37,7 @@ public class SubmitSplitOffReviewRules
         _title = _fixture.CreateLongTitle();
         _release = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
         _length = _fixture.CreateDuration();
-        _mocker.Use<IEpisodeHelper>(new EpisodeHelper());
+        _mocker.Use<IEpisodeHelper>(_mocker.CreateInstance<EpisodeHelper>());
     }
 
     [Fact(DisplayName =

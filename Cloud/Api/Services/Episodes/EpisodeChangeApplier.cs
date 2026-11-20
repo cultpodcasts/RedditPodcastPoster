@@ -65,12 +65,12 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         // #1484: before the posting flags below, so a curator's explicit flag in the same change still wins.
-        switch (episodeChangeRequest.ApprovalStatus)
+        switch (episodeChangeRequest.ApprovalDecision)
         {
-            case ApprovalStatus.Approved:
+            case ApprovalDecision.Approve:
                 EpisodeServiceLinks.Approve(episode);
                 break;
-            case ApprovalStatus.Rejected:
+            case ApprovalDecision.Reject:
                 EpisodeServiceLinks.Reject(episode);
                 break;
         }
@@ -344,26 +344,25 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
     }
 
     /// <summary>
-    /// #1484: why a change cannot be applied to <paramref name="episode"/>'s approval status, or null. Only an episode
-    /// with an approval status (a split-off) can be approved or rejected, never set back to awaiting approval; approve
-    /// and reject cannot be combined with the opposite <c>removed</c>; and an episode held for approval (awaiting or
-    /// rejected) is made public only by approving it, never by clearing <c>removed</c>.
+    /// #1484: why a change cannot be applied to <paramref name="episode"/>'s approval status, or null. An episode held
+    /// for approval (awaiting or rejected) is made public only by approving it, never by clearing <c>removed</c>; only
+    /// a held episode can be rejected (null means approved, like any ordinary episode, which is hidden with
+    /// <c>removed</c>); and a decision cannot be combined with the opposite <c>removed</c>. Approving an episode that is
+    /// already approved is accepted and changes nothing.
     /// </summary>
     internal static string? SplitOffReviewError(Episode episode, EpisodeChangeRequest request)
     {
-        switch (request.ApprovalStatus)
+        switch (request.ApprovalDecision)
         {
             case null:
                 return request.Removed == false && episode.IsHeldForApproval()
                     ? "This split-off is awaiting approval or rejected: approve it to make it public."
                     : null;
-            case ApprovalStatus.AwaitingApproval:
-                return "A split-off can only be Approved or Rejected, not set back to AwaitingApproval.";
-            case not null when episode.ApprovalStatus is null:
-                return "Only a split-off episode can be approved or rejected.";
-            case ApprovalStatus.Approved when request.Removed == true:
+            case ApprovalDecision.Reject when !episode.IsHeldForApproval():
+                return "Only an episode awaiting approval can be rejected.";
+            case ApprovalDecision.Approve when request.Removed == true:
                 return "An approved split-off cannot also be removed in the same change.";
-            case ApprovalStatus.Rejected when request.Removed == false:
+            case ApprovalDecision.Reject when request.Removed == false:
                 return "A rejected split-off stays removed.";
             default:
                 return null;

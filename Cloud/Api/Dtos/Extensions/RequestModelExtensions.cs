@@ -23,7 +23,7 @@ public static class RequestModelExtensions
         UnBluesky = request.UnBluesky,
         Ignored = request.Ignored,
         Removed = request.Removed,
-        ApprovalStatus = request.ApprovalStatus,
+        ApprovalDecision = request.ApprovalDecision,
         Explicit = request.Explicit,
         Release = request.Release,
         Duration = request.Duration,
