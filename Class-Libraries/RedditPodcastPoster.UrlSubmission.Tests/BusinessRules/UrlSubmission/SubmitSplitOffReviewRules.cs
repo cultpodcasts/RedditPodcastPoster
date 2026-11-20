@@ -11,6 +11,7 @@ using RedditPodcastPoster.Subjects.Factories;
 using RedditPodcastPoster.Subjects.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Enrichers;
+using RedditPodcastPoster.UrlSubmission.Factories;
 using RedditPodcastPoster.UrlSubmission.Matching;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Processors;
@@ -124,6 +125,9 @@ public class SubmitSplitOffReviewRules
         _mocker.GetMock<IEpisodeGuestEnricher>()
             .Setup(x => x.EnrichGuests(It.IsAny<Episode>(), It.IsAny<GuestEnrichmentOptions?>()))
             .ReturnsAsync(new EnrichGuestsResult([], []));
+        _mocker.GetMock<IEpisodeFactory>()
+            .Setup(x => x.CreateEpisode(It.IsAny<CategorisedItem>()))
+            .Returns(() => _fixture.BuildEpisode().WithPodcast(_podcast).WithTitle(_title).Create());
         _mocker.Use<IPodcastProcessor>(_mocker.CreateInstance<PodcastProcessor>());
         _mocker.Use<IServiceLinkConflictGate>(_mocker.CreateInstance<ServiceLinkConflictGate>());
         return _mocker.CreateInstance<CategorisedItemProcessor>();
