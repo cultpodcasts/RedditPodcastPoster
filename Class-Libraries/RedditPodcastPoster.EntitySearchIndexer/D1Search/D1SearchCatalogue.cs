@@ -11,13 +11,18 @@ namespace RedditPodcastPoster.EntitySearchIndexer.D1Search;
 /// (removed, ineligible, or an episode without its podcast). When <see cref="BuildFailed"/> is set, the document
 /// couldn't be built (logged with the id). Its eligibility is unknown, so callers neither write nor delete it.
 /// <see cref="TimestampSeconds"/> is the source Cosmos <c>_ts</c> used for the reconcile watermark (for a podcast
-/// episode, the later of the episode's and the podcast's <c>_ts</c>).
+/// episode, the later of the episode's and the podcast's <c>_ts</c>). It is <b>not</b> the document's
+/// <c>modifiedAt</c>, which stays the episode's own <c>_ts</c> (#1475).
+/// <see cref="ParentChanged"/> is set only for an episode re-emitted because its podcast changed, when the podcast's
+/// indexed fields no longer match the episode's projection (<see cref="D1SearchEpisodeParentProjection"/>). Its
+/// document must be re-sent even though its <c>modifiedAt</c> equals the stored one.
 /// </summary>
 public sealed record D1SearchCandidate(
     string Id,
     D1SearchDocument? Document,
     bool BuildFailed = false,
-    long TimestampSeconds = 0)
+    long TimestampSeconds = 0,
+    bool ParentChanged = false)
 {
     public bool Excluded => Document is null && !BuildFailed;
 }
@@ -33,8 +38,10 @@ public interface ID1SearchCatalogue
 
     /// <summary>
     /// <see cref="Read"/> plus every episode of a podcast whose <c>_ts</c> is at or after <paramref name="sinceTs"/>,
-    /// even when the episode itself is older. A podcast rename or subject change must re-emit its episodes, because
-    /// the episode search document denormalises the live podcast. When <paramref name="sinceTs"/> is 0 this is the
+    /// even when the episode itself is older, because the episode search document denormalises the live podcast. Such
+    /// an episode is marked <see cref="D1SearchCandidate.ParentChanged"/> only when the podcast's indexed fields differ
+    /// from the episode's projection; a podcast saved for bookkeeping leaves its episodes unchanged (#1475).
+    /// When <paramref name="sinceTs"/> is 0 this is the
     /// same as <see cref="Read"/> (every podcast would otherwise match and every episode would be read twice).
     /// Ids already emitted by the playable <c>_ts</c> window are not yielded again.
     /// </summary>
@@ -185,7 +192,8 @@ public sealed class D1SearchCatalogue(
                         continue;
                     }
 
-                    yield return await CandidateForEpisode(episode, podcasts, yielded, cancellationToken);
+                    yield return await CandidateForEpisode(
+                        episode, podcasts, yielded, cancellationToken, viaChangedPodcast: true);
                 }
             }
         }
@@ -225,7 +233,8 @@ public sealed class D1SearchCatalogue(
         Episode episode,
         Dictionary<Guid, Podcast?> podcasts,
         HashSet<string> yielded,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool viaChangedPodcast = false)
     {
         var id = episode.Id.ToString();
         yielded.Add(id);
@@ -238,16 +247,22 @@ public sealed class D1SearchCatalogue(
 
         var timestamp = Math.Max(episode.Timestamp, podcast?.Timestamp ?? 0);
         // An episode without its podcast cannot be indexed (Azure's push path refuses it too).
-        return podcast is null || D1SearchEligibility.ShouldExclude(podcast, episode)
-            ? new D1SearchCandidate(id, null, TimestampSeconds: timestamp)
-            : Build(episode.Id, () => D1SearchDocuments.For(podcast, episode), timestamp);
+        if (podcast is null || D1SearchEligibility.ShouldExclude(podcast, episode))
+        {
+            return new D1SearchCandidate(id, null, TimestampSeconds: timestamp);
+        }
+
+        var parentChanged = viaChangedPodcast && D1SearchEpisodeParentProjection.IsBehind(podcast, episode);
+        return Build(episode.Id, () => D1SearchDocuments.For(podcast, episode), timestamp, parentChanged);
     }
 
-    private D1SearchCandidate Build(Guid id, Func<D1SearchDocument> build, long timestampSeconds)
+    private D1SearchCandidate Build(
+        Guid id, Func<D1SearchDocument> build, long timestampSeconds, bool parentChanged = false)
     {
         try
         {
-            return new D1SearchCandidate(id.ToString(), build(), TimestampSeconds: timestampSeconds);
+            return new D1SearchCandidate(
+                id.ToString(), build(), TimestampSeconds: timestampSeconds, ParentChanged: parentChanged);
         }
         catch (Exception ex)
         {

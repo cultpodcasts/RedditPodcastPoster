@@ -85,9 +85,10 @@ public class D1SearchDocumentRules
     }
 
     [Fact(DisplayName =
-        "An episode document's modifiedAt is the later of the episode's and the podcast's Cosmos _ts, because the " +
-        "search document denormalises the live podcast and a rename must look stale in D1.")]
-    public void episode_modified_at_is_the_later_of_episode_and_podcast_ts()
+        "An episode document's modifiedAt is the episode's own Cosmos _ts even when the podcast was saved later, " +
+        "because every stored D1 document carries the episode's _ts and a podcast _ts there made ~58k unchanged " +
+        "documents compare stale (#1475).")]
+    public void episode_modified_at_is_the_episode_ts_not_the_podcast_ts()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
@@ -99,7 +100,7 @@ public class D1SearchDocumentRules
         var document = D1SearchDocuments.For(podcast, episode);
 
         // Assert
-        document.ModifiedAt.Should().Be(1_763_500_000_000);
+        document.ModifiedAt.Should().Be(1_763_400_000_000);
     }
 
     [Fact(DisplayName =

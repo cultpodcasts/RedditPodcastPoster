@@ -10,6 +10,7 @@ using D1SearchReconcile;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Configuration;
 using RedditPodcastPoster.Configuration.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.D1Search;
@@ -31,6 +32,11 @@ builder.Configuration
     .AddCommandLine(args)
     .AddSecrets(Assembly.GetExecutingAssembly());
 
+// One logger, held while the progress display is live so log lines never draw over the bar (#1475).
+var log = new DeferredConsoleLoggerProvider();
+builder.Logging.ClearProviders();
+builder.Logging.AddProvider(log);
+
 builder.Services.AddD1SearchReconcileConsoleServices();
 
 using var host = builder.Build();
@@ -50,14 +56,26 @@ async Task<int> Run(D1SearchReconcileRequestOptions options)
 
     using var scope = host.Services.CreateScope();
     var endpoint = scope.ServiceProvider.GetRequiredService<D1SearchConnection>().Endpoint;
-    Console.WriteLine($"D1 search index: {endpoint?.Host ?? "(not configured)"}; {(request.Write ? "WRITE" : "dry run")}; {(request.Full ? "full" : "incremental")}.");
-    var r = await D1SearchReconcileProgressBar.Create().StartAsync(async ctx =>
+    Console.WriteLine(
+        $"D1 search index: {endpoint?.Host ?? "(not configured)"}; {(request.Write ? "WRITE" : "dry run")}; " +
+        $"{(request.Full ? "full (--full)" : "incremental (a full scan when no watermark has been saved yet)")}.");
+    D1SearchReconcileReport r;
+    using (log.Hold())
     {
-        var progress = D1SearchReconcileProgressBar.Bind(ctx);
-        progress.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 0));
-        var reconciler = scope.ServiceProvider.GetRequiredService<ID1SearchReconciler>();
-        return await reconciler.Reconcile(request, CancellationToken.None, progress);
-    });
+        r = await D1SearchReconcileProgressBar.Create().StartAsync(async ctx =>
+        {
+            var progress = D1SearchReconcileProgressBar.Bind(ctx);
+            progress.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Starting, 0));
+            var reconciler = scope.ServiceProvider.GetRequiredService<ID1SearchReconciler>();
+            return await reconciler.Reconcile(request, CancellationToken.None, progress);
+        });
+    }
+
+    if (r.Scan is { } scan)
+    {
+        Console.WriteLine($"Scan: {D1SearchReconcileScanText.Describe(scan, r.SinceTs)}.");
+    }
+
     Console.WriteLine(
         $"{r.Outcome}. D1 {r.D1Documents}, eligible {r.Eligible}, missing {r.Missing}, stale {r.Stale}, " +
         $"orphans {r.Orphans}, not built {r.FailedToBuild}, drift {r.Drift:P2}; upserted {r.Upserted}, deleted {r.Deleted}." +
