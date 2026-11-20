@@ -859,7 +859,9 @@ public class SubmitUrlServiceTests
         indexer.Verify(s => s.IndexEpisode(splitOff.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact(DisplayName = "When the curator answers cancel to a service-link conflict, the API reports cancelled.")]
+    [Fact(DisplayName =
+        "When the curator answers cancel to a service-link conflict, the API reports cancelled without submitting " +
+        "or indexing anything, so no submit path can write (#1483).")]
     public async Task service_link_conflict_cancel_is_cancelled()
     {
         // Arrange
@@ -872,7 +874,13 @@ public class SubmitUrlServiceTests
 
         // Assert
         result.Status.Should().Be(SubmitUrlStatus.Cancelled);
-        _capturedOptions!.ServiceLinkConflict.Should().Be(ServiceLinkConflictChoice.Cancel);
+        _mocker.GetMock<IUrlSubmitter>().Verify(
+            s => s.Submit(It.IsAny<Uri>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()), Times.Never);
+        _mocker.GetMock<IEpisodeSearchIndexerService>().Verify(
+            s => s.IndexEpisode(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<IPlayableSearchDocumentSwap>().Verify(
+            s => s.UploadAsync(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =

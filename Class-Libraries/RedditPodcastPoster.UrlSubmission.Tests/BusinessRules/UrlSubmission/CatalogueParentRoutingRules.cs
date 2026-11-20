@@ -935,6 +935,37 @@ public class CatalogueParentRoutingRules
         _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
     }
 
+    [Theory(DisplayName =
+        "When a curator cancels a service-link conflict for a URL filed under a news organisation or TV show, the " +
+        "parent submitter categorises, processes and saves nothing (#1483).")]
+    [InlineData(CatalogueParentKind.NewsOrganisation)]
+    [InlineData(CatalogueParentKind.TvShow)]
+    public async Task parent_submitter_cancel_saves_nothing(CatalogueParentKind kind)
+    {
+        // Arrange
+        var parent = kind == CatalogueParentKind.NewsOrganisation
+            ? CatalogueParentMatch.For(AddOrganisation())
+            : CatalogueParentMatch.For(AddShow());
+        var (sut, _, url) = ArrangeSubmitter();
+
+        // Act
+        var result = await sut.Submit(parent, url, new IndexingContext(),
+            new SubmitOptions(null, true, ServiceLinkConflict: ServiceLinkConflictChoice.Cancel));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.None);
+        result.PlayableId.Should().BeNull();
+        result.CatalogueSearchSource.Should().BeNull();
+        _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
+                It.IsAny<Podcast?>(), It.IsAny<IReadOnlyList<Episode>>(), It.IsAny<Uri>(), It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
+            Times.Never);
+        _mocker.GetMock<IPodcastProcessor>().Verify(
+            p => p.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()), Times.Never);
+        _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
+        _mocker.GetMock<ITvShowEpisodeRepository>().Verify(r => r.Save(It.IsAny<TvShowEpisode>()), Times.Never);
+    }
+
     [Fact(DisplayName =
         "With enrich-only set, a URL the processor matches to a stored report still enriches and saves that report and returns its id, because enrich-only blocks only creation, not adding links to the discovered item.")]
     public async Task parent_submitter_enrich_only_still_enriches_matched_report()

@@ -63,6 +63,34 @@ public class SubmitServiceLinkConflictCancelRules
             x => x.TrySubmit(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()), Times.Never);
     }
 
+    [Fact(DisplayName =
+        "When a curator cancels a service-link conflict on a submit for an existing podcast, the processor returns " +
+        "before the conflict gate or the podcast processor runs, and nothing is saved.")]
+    public async Task cancel_never_reaches_the_gate_for_an_existing_podcast()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var item = SpotifySubmitWithoutPodcast() with
+        {
+            MatchingPodcast = podcast,
+            MatchingPodcastEpisodes = [_fixture.CreateEpisode()]
+        };
+        var sut = _mocker.CreateInstance<CategorisedItemProcessor>();
+
+        // Act
+        var result = await sut.ProcessCategorisedItem(item, CancelOptions() with { PodcastId = podcast.Id });
+
+        // Assert
+        result.PodcastResult.Should().Be(SubmitResultState.None);
+        result.EpisodeResult.Should().Be(SubmitResultState.None);
+        _mocker.GetMock<IServiceLinkConflictGate>().Verify(
+            x => x.Evaluate(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()), Times.Never);
+        _mocker.GetMock<IPodcastProcessor>().Verify(
+            x => x.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()), Times.Never);
+        _mocker.GetMock<IPodcastRepository>().Verify(x => x.Save(It.IsAny<Podcast>()), Times.Never);
+        _mocker.GetMock<IEpisodeRepository>().Verify(x => x.Save(It.IsAny<Episode>()), Times.Never);
+    }
+
     private static SubmitOptions CancelOptions() =>
         new(null, MatchOtherServices: true, CreatePodcast: true, ServiceLinkConflict: ServiceLinkConflictChoice.Cancel);
 
