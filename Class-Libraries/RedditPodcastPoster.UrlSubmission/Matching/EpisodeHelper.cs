@@ -174,6 +174,17 @@ public class EpisodeHelper : IEpisodeHelper
             return [];
         }
 
+        // #1481: a title match alone is not enough. The stored episode already carries a different Spotify / Apple
+        // identity, and an overwrite moves those links off it, so the release and duration must also agree under
+        // the #1445 cross-platform rules (same release window, same calendar day or the podcast's YouTube delay,
+        // and the cross-platform duration band). A recurring title ("Bonus", "Trailer", "Part 1") months or years
+        // apart, or a submit without a known duration, is never a conflict.
+        if (!TryResolvedAuthority(categorisedItem, out var authority) ||
+            !ReleaseAndDurationAgree(episode, authority!, categorisedItem.MatchingPodcast))
+        {
+            return [];
+        }
+
         // The conflict is "would match but for the stored links": the same title, release and duration rules as
         // a normal submit decide, so a conflict prompt never fires for an episode a submit would not attach to.
         return IsMatchingEpisode(WithoutServiceLinks(episode, conflicting), categorisedItem) ? conflicting : [];

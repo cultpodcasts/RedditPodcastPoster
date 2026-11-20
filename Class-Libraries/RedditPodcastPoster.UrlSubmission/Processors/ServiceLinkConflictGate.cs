@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Models.Episodes;
@@ -85,16 +86,28 @@ public class ServiceLinkConflictGate(
         }
     }
 
-    /// <summary>Several conflicting episodes: the closest title wins, as when several episodes match.</summary>
-    private static (Episode Episode, IReadOnlyList<string> Keys) Closest(
+    /// <summary>
+    /// Several conflicting episodes: the closest title wins; on a title tie (#1481: identical titles), the nearest
+    /// release, then the nearest duration, then the episode id, so the pick never depends on list order.
+    /// </summary>
+    internal static (Episode Episode, IReadOnlyList<string> Keys) Closest(
         (Episode Episode, IReadOnlyList<string> Keys)[] conflicts,
         CategorisedItem categorisedItem)
     {
-        var title = categorisedItem.ResolvedSpotifyItem?.EpisodeTitle ?? categorisedItem.ResolvedAppleItem?.EpisodeTitle;
-        var closest = string.IsNullOrWhiteSpace(title)
-            ? null
-            : FuzzyMatcher.Match(title, conflicts.Select(x => x.Episode), x => x.Title);
-        return closest == null ? conflicts[0] : conflicts.First(x => x.Episode.Id == closest.Id);
+        var (title, release, duration) = categorisedItem.Authority == Service.Apple
+            ? (categorisedItem.ResolvedAppleItem?.EpisodeTitle, categorisedItem.ResolvedAppleItem?.Release,
+                categorisedItem.ResolvedAppleItem?.Duration)
+            : (categorisedItem.ResolvedSpotifyItem?.EpisodeTitle, categorisedItem.ResolvedSpotifyItem?.Release,
+                categorisedItem.ResolvedSpotifyItem?.Duration);
+        var normalisedTitle = string.IsNullOrWhiteSpace(title) ? null : WebUtility.HtmlDecode(title.Trim());
+        return conflicts
+            .OrderByDescending(conflict => normalisedTitle == null
+                ? 0
+                : FuzzyMatcher.Score(normalisedTitle, WebUtility.HtmlDecode(conflict.Episode.Title.Trim())))
+            .ThenBy(conflict => release is { } r ? (conflict.Episode.ReleaseUtc - r).Duration() : TimeSpan.Zero)
+            .ThenBy(conflict => duration is { } d ? (conflict.Episode.Length - d).Duration() : TimeSpan.Zero)
+            .ThenBy(conflict => conflict.Episode.Id)
+            .First();
     }
 
     private static ServiceLinkConflictHold ToHold(

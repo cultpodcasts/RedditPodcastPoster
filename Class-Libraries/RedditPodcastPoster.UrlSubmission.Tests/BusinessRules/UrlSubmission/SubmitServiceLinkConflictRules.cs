@@ -378,27 +378,155 @@ public class SubmitServiceLinkConflictRules
         _mocker.Use<IServiceLinkConflictGate>(Gate);
     }
 
+    [Fact(DisplayName =
+        "When a stored episode has the same title but was released months before the submitted Spotify episode, it " +
+        "is not a service-link conflict and the curator is not asked, because a recurring title (Bonus, Trailer, " +
+        "Part 1) is a different episode and an overwrite would move its links onto the wrong one (#1481).")]
+    public void same_title_months_apart_is_not_a_conflict()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title, release: _release.AddMonths(-4));
+        var item = SpotifySubmit(_title, [stored]);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+        var outcome = Gate.Evaluate(item, Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        keys.Should().BeEmpty();
+        outcome.Should().Be(ServiceLinkConflictOutcome.Proceed);
+    }
+
+    [Fact(DisplayName =
+        "When a stored episode has the same title and release day but a very different length, it is not a " +
+        "service-link conflict, because the #1445 cross-platform duration band must also agree (#1481).")]
+    public void same_title_and_day_with_a_different_length_is_not_a_conflict()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title, length: _length + TimeSpan.FromMinutes(30));
+        var item = SpotifySubmit(_title, [stored]);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        keys.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When the submitted Spotify episode has no known length, a same-title stored episode is not a service-link " +
+        "conflict, because without duration evidence the title alone cannot justify moving links (#1481).")]
+    public void submit_without_a_length_is_not_a_conflict()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title);
+        var item = SpotifySubmit(_title, [stored], length: TimeSpan.Zero);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        keys.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When the stored episode was released two days apart from the submit (another calendar day, outside the " +
+        "same-release window), it is not a service-link conflict even with the same title and length (#1481).")]
+    public void same_title_on_another_day_is_not_a_conflict()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title, release: _release.AddDays(-2));
+        var item = SpotifySubmit(_title, [stored]);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        keys.Should().BeEmpty();
+    }
+
+    [Theory(DisplayName =
+        "When two stored episodes with identical titles both conflict, the hold names the one released nearer the " +
+        "submit, whatever order the episodes are listed in, so list order never picks the episode to overwrite (#1481).")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void identical_title_tie_picks_the_nearest_release(bool nearerListedFirst)
+    {
+        // Arrange
+        var nearer = StoredEpisodeWithSpotify(_title, release: _release.AddMinutes(5));
+        var further = StoredEpisodeWithSpotify(_title, release: _release.AddHours(-2));
+        Episode[] stored = nearerListedFirst ? [nearer, further] : [further, nearer];
+        var item = SpotifySubmit(_title, stored);
+
+        // Act
+        var outcome = Gate.Evaluate(item, Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        Helper.ConflictingServiceKeys(further, item).Should().Equal(ServiceKeys.Spotify);
+        outcome.Kind.Should().Be(ServiceLinkConflictOutcomeKind.Hold);
+        outcome.Hold!.EpisodeId.Should().Be(nearer.Id);
+    }
+
+    [Theory(DisplayName =
+        "When two stored episodes with identical titles and releases both conflict, the hold names the one nearer the " +
+        "submitted length, whatever the list order (#1481).")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void identical_title_and_release_tie_picks_the_nearest_length(bool nearerListedFirst)
+    {
+        // Arrange
+        var nearer = StoredEpisodeWithSpotify(_title, length: _length + TimeSpan.FromSeconds(1));
+        var further = StoredEpisodeWithSpotify(_title, length: _length + TimeSpan.FromSeconds(90));
+        Episode[] stored = nearerListedFirst ? [nearer, further] : [further, nearer];
+        var item = SpotifySubmit(_title, stored);
+
+        // Act
+        var outcome = Gate.Evaluate(item, Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        outcome.Hold!.EpisodeId.Should().Be(nearer.Id);
+    }
+
+    [Fact(DisplayName =
+        "When two conflicting stored episodes are identical in title, release and length, the hold names the same " +
+        "episode in either list order (the lower id), so a re-prompt after a reload holds the same episode (#1481).")]
+    public void full_tie_is_stable_across_list_order()
+    {
+        // Arrange
+        var first = StoredEpisodeWithSpotify(_title);
+        var second = StoredEpisodeWithSpotify(_title);
+        var expected = first.Id.CompareTo(second.Id) < 0 ? first.Id : second.Id;
+
+        // Act
+        var forward = Gate.Evaluate(SpotifySubmit(_title, [first, second]), Options(ServiceLinkConflictChoice.Prompt));
+        var reversed = Gate.Evaluate(SpotifySubmit(_title, [second, first]), Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        forward.Hold!.EpisodeId.Should().Be(expected);
+        reversed.Hold!.EpisodeId.Should().Be(expected);
+    }
+
     private SubmitOptions Options(ServiceLinkConflictChoice choice, Guid? episodeId = null) =>
         new(_podcast.Id, MatchOtherServices: true, ServiceLinkConflict: choice, ServiceLinkConflictEpisodeId: episodeId);
 
-    private Episode StoredEpisodeWithSpotify(string title)
+    private Episode StoredEpisodeWithSpotify(string title, DateTime? release = null, TimeSpan? length = null)
     {
         var spotifyId = _fixture.CreateSpotifyId();
         return _fixture.BuildEpisode()
             .WithPodcast(_podcast)
             .WithTitle(title)
-            .WithRelease(_release)
-            .WithLength(_length)
+            .WithRelease(release ?? _release)
+            .WithLength(length ?? _length)
             .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
             .Create();
     }
 
-    private CategorisedItem SpotifySubmit(string title, IEnumerable<Episode> stored)
+    private CategorisedItem SpotifySubmit(string title, IEnumerable<Episode> stored, TimeSpan? length = null)
     {
         var spotifyId = _fixture.CreateSpotifyId();
         var spotify = new CategorisedSpotifyItem(
             _fixture.CreateSpotifyId(), spotifyId, _podcast.Name, string.Empty, string.Empty, title,
-            string.Empty, _release, _length, _fixture.DefaultSpotifyUrl(spotifyId), false, null);
+            string.Empty, _release, length ?? _length, _fixture.DefaultSpotifyUrl(spotifyId), false, null);
         return new CategorisedItem(_podcast, stored.ToArray(), null, spotify, null, null, null, Service.Spotify);
     }
 
