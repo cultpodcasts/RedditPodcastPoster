@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.AutoMock;
@@ -38,7 +39,7 @@ public class SubmitServiceLinkConflictRules
         _title = _fixture.CreateLongTitle();
         _release = DomainTestFixture.UtcAtTime(-2, _fixture.CreateNonMidnightTimeOfDay());
         _length = _fixture.CreateDuration();
-        _mocker.Use<IEpisodeHelper>(new EpisodeHelper());
+        _mocker.Use<IEpisodeHelper>(_mocker.CreateInstance<EpisodeHelper>());
     }
 
     private IEpisodeHelper Helper => _mocker.Get<IEpisodeHelper>();
@@ -506,6 +507,172 @@ public class SubmitServiceLinkConflictRules
         reversed.Hold!.EpisodeId.Should().Be(expected);
     }
 
+    /// <summary>The Front's YouTube publishing delay (-1:07:00:00): YouTube goes out 31 hours before the audio.</summary>
+    private static readonly TimeSpan TheFrontDelay = -(TimeSpan.FromDays(1) + TimeSpan.FromHours(7));
+
+    private static readonly TimeSpan AudioLength = TimeSpan.FromMinutes(60);
+
+    [Fact(DisplayName =
+        "When an audio-only stored episode with the same title was released one YouTube publishing delay before the " +
+        "submit, it is not a service-link conflict, because delay alignment only applies when the stored release can " +
+        "be a YouTube release; for audio vs audio it would pick the previous day's recurring episode (#1481).")]
+    public void audio_only_stored_episode_a_delay_apart_is_not_a_conflict()
+    {
+        // Arrange
+        GivenYouTubePublishingDelay(TheFrontDelay);
+        var submitRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(12));
+        var stored = StoredEpisodeWithSpotify(_title, release: submitRelease + TheFrontDelay, length: AudioLength);
+        var item = SpotifySubmit(_title, [stored], AudioLength, submitRelease);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        keys.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a stored episode carrying YouTube with the same title was published one YouTube publishing delay before " +
+        "the submitted audio, it is a service-link conflict, because its release is the YouTube release (#1445 rules).")]
+    public void youtube_bearing_stored_episode_a_delay_apart_is_a_conflict()
+    {
+        // Arrange
+        GivenYouTubePublishingDelay(TheFrontDelay);
+        var submitRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(12));
+        var stored = StoredYouTubeEpisodeWithSpotify(_title, submitRelease + TheFrontDelay, AudioLength);
+        var item = SpotifySubmit(_title, [stored], AudioLength, submitRelease);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        keys.Should().Equal(ServiceKeys.Spotify);
+    }
+
+    [Fact(DisplayName =
+        "The Front regression (#1416): a YouTube-first stored episode holding the wrong Spotify id, its YouTube cut " +
+        "10% shorter than the audio and published a negative publishing delay earlier, is a service-link conflict and " +
+        "a curator submit is held for it, instead of silently creating a duplicate.")]
+    public void the_front_youtube_first_episode_with_wrong_spotify_is_held()
+    {
+        // Arrange
+        GivenYouTubePublishingDelay(TheFrontDelay);
+        var submitRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(11));
+        var youTubeRelease = submitRelease + TheFrontDelay + TimeSpan.FromMinutes(12);
+        var stored = StoredYouTubeEpisodeWithSpotify(_title, youTubeRelease, AudioLength * 0.9);
+        var item = SpotifySubmit(_title, [stored], AudioLength, submitRelease);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+        var outcome = Gate.Evaluate(item, Options(ServiceLinkConflictChoice.Prompt));
+
+        // Assert
+        keys.Should().Equal(ServiceKeys.Spotify);
+        outcome.Kind.Should().Be(ServiceLinkConflictOutcomeKind.Hold);
+        outcome.Hold!.EpisodeId.Should().Be(stored.Id);
+    }
+
+    [Theory(DisplayName =
+        "When a same-title stored episode was released on the same calendar day as the submit but more than three " +
+        "hours apart, it is a service-link conflict whether it carries YouTube or is audio-only, because Spotify " +
+        "releases are date-only and YouTube and audio often go out hours apart on the same day.")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void same_calendar_day_hours_apart_is_a_conflict(bool storedCarriesYouTube)
+    {
+        // Arrange
+        var submitRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(20));
+        var storedRelease = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(1));
+        var stored = storedCarriesYouTube
+            ? StoredYouTubeEpisodeWithSpotify(_title, storedRelease, AudioLength)
+            : StoredEpisodeWithSpotify(_title, release: storedRelease, length: AudioLength);
+        var item = SpotifySubmit(_title, [stored], AudioLength, submitRelease);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        keys.Should().Equal(ServiceKeys.Spotify);
+    }
+
+    [Fact(DisplayName =
+        "When an audio-only stored episode is 10% shorter than the submitted audio, it is not a service-link conflict, " +
+        "because audio vs audio is the same file and keeps the strict band (greater of 2 min or 3%).")]
+    public void audio_only_stored_episode_10_percent_shorter_is_not_a_conflict()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title, length: AudioLength * 0.9);
+        var item = SpotifySubmit(_title, [stored], AudioLength);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        keys.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a stored episode carrying YouTube is 20% shorter than the submitted audio, it is not a service-link " +
+        "conflict, because that is outside the title-supported YouTube↔audio band (greater of 5 min or 12%).")]
+    public void youtube_bearing_stored_episode_20_percent_shorter_is_not_a_conflict()
+    {
+        // Arrange
+        var stored = StoredYouTubeEpisodeWithSpotify(_title, _release, AudioLength * 0.8);
+        var item = SpotifySubmit(_title, [stored], AudioLength);
+
+        // Act
+        var keys = Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        keys.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When a title-matching candidate is rejected on release or length, an Information log names the episode, so " +
+        "a duplicate created instead of a conflict prompt can be explained from the logs.")]
+    public void rejected_title_match_is_logged()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_title, release: _release.AddMonths(-4));
+        var item = SpotifySubmit(_title, [stored]);
+
+        // Act
+        Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        _mocker.GetMock<ILogger<EpisodeHelper>>().Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains(stored.Id.ToString())),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When the stored episode's title does not match the submit, nothing is logged, because only a title-matching " +
+        "candidate rejected on release or length needs explaining.")]
+    public void unrelated_title_is_not_logged()
+    {
+        // Arrange
+        var stored = StoredEpisodeWithSpotify(_fixture.CreateTitleNotContainedIn(_title));
+        var item = SpotifySubmit(_title, [stored]);
+
+        // Act
+        Helper.ConflictingServiceKeys(stored, item);
+
+        // Assert
+        _mocker.GetMock<ILogger<EpisodeHelper>>().Verify(
+            x => x.Log(
+                It.IsAny<LogLevel>(),
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
+    }
+
     private SubmitOptions Options(ServiceLinkConflictChoice choice, Guid? episodeId = null) =>
         new(_podcast.Id, MatchOtherServices: true, ServiceLinkConflict: choice, ServiceLinkConflictEpisodeId: episodeId);
 
@@ -521,12 +688,30 @@ public class SubmitServiceLinkConflictRules
             .Create();
     }
 
-    private CategorisedItem SpotifySubmit(string title, IEnumerable<Episode> stored, TimeSpan? length = null)
+    /// <summary>A YouTube-first stored episode that also carries a (wrong) Spotify id: release and length are YouTube's.</summary>
+    private Episode StoredYouTubeEpisodeWithSpotify(string title, DateTime release, TimeSpan length)
+    {
+        var spotifyId = _fixture.CreateSpotifyId();
+        var youTubeId = _fixture.CreateYouTubeId();
+        return _fixture.BuildEpisode()
+            .WithPodcast(_podcast)
+            .WithTitle(title)
+            .WithRelease(release)
+            .WithLength(length)
+            .WithYouTube(youTubeId, _fixture.DefaultYouTubeUrl(youTubeId))
+            .WithSpotify(spotifyId, _fixture.DefaultSpotifyUrl(spotifyId))
+            .Create();
+    }
+
+    private void GivenYouTubePublishingDelay(TimeSpan delay) => _podcast.YouTubePublicationOffset = delay.Ticks;
+
+    private CategorisedItem SpotifySubmit(string title, IEnumerable<Episode> stored, TimeSpan? length = null,
+        DateTime? release = null)
     {
         var spotifyId = _fixture.CreateSpotifyId();
         var spotify = new CategorisedSpotifyItem(
             _fixture.CreateSpotifyId(), spotifyId, _podcast.Name, string.Empty, string.Empty, title,
-            string.Empty, _release, length ?? _length, _fixture.DefaultSpotifyUrl(spotifyId), false, null);
+            string.Empty, release ?? _release, length ?? _length, _fixture.DefaultSpotifyUrl(spotifyId), false, null);
         return new CategorisedItem(_podcast, stored.ToArray(), null, spotify, null, null, null, Service.Spotify);
     }
 
