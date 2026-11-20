@@ -17,9 +17,16 @@ public sealed record ImdbSuggestion(
 {
     public const string MovieType = "movie";
     public const string TvMovieType = "tvMovie";
+    public const string TvSeriesType = "tvSeries";
+    public const string TvMiniSeriesType = "tvMiniSeries";
 
     /// <summary>A feature or TV film. Shorts, series, episodes, and games are not films.</summary>
     public bool IsFilm =>
         string.Equals(Type, MovieType, StringComparison.Ordinal) ||
         string.Equals(Type, TvMovieType, StringComparison.Ordinal);
+
+    /// <summary>A TV series or mini-series.</summary>
+    public bool IsSeries =>
+        string.Equals(Type, TvSeriesType, StringComparison.Ordinal) ||
+        string.Equals(Type, TvMiniSeriesType, StringComparison.Ordinal);
 }

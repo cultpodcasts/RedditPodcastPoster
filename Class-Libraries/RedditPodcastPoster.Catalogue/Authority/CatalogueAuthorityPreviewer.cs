@@ -263,6 +263,124 @@ public sealed class CatalogueAuthorityPreviewer(
         return ambiguousShortening ?? Unresolved(original, 0, []);
     }
 
+    public async Task<CatalogueAuthorityPreview> PreviewTvShowOtherKindsAsync(
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        var original = name?.Trim() ?? string.Empty;
+        if (original.Length == 0)
+        {
+            return Unresolved(original, 0, []);
+        }
+
+        // The full title first, then the same shorter clauses as the TV search ("3 Days in Dimona: African Hebrew
+        // Israelites" is the film "3 Days in Dimona"). The first query with any agreeing hit is the answer.
+        foreach (var query in QueryAttempts(original))
+        {
+            var candidates = await OtherKindCandidatesAsync(query, cancellationToken).ConfigureAwait(false);
+            if (candidates.Count == 0)
+            {
+                continue;
+            }
+
+            return new CatalogueAuthorityPreview(
+                original,
+                candidates.Count,
+                null,
+                null,
+                null,
+                candidates.Select(Label).ToList(),
+                Resolution: CatalogueAuthorityResolution.DifferentTitle,
+                Candidates: candidates);
+        }
+
+        return Unresolved(original, 0, []);
+    }
+
+    /// <summary>
+    /// IMDb films and series whose title <b>equals</b> <paramref name="query"/> word for word (case and punctuation
+    /// ignored). Containment is not enough: on the full title "3 Days in Dimona: African Hebrew Israelites" a film
+    /// called "Dimona" must not be offered. The shorter clauses come from <see cref="QueryAttempts"/>, so the
+    /// before-colon attempt "3 Days in Dimona" still finds the film. A series that TMDB knows is offered as
+    /// its TMDB TV record, so a pick collects every TV id. Only when IMDb has nothing are TMDB movies asked, and each is
+    /// offered by its IMDb id; one without an IMDb id is dropped, as it has no id a TV show can store.
+    /// </summary>
+    private async Task<List<CatalogueAuthorityCandidate>> OtherKindCandidatesAsync(
+        string query,
+        CancellationToken cancellationToken)
+    {
+        var candidates = new List<CatalogueAuthorityCandidate>();
+        var suggestions = await imdb.SuggestAsync(query, cancellationToken).ConfigureAwait(false) ?? [];
+        foreach (var suggestion in suggestions
+                     .Where(s => (s.IsFilm || s.IsSeries) && TitlesEqual(query, s.Title))
+                     .DistinctBy(s => s.ImdbId, StringComparer.OrdinalIgnoreCase)
+                     .Take(SampleLimit))
+        {
+            if (!suggestion.IsSeries)
+            {
+                candidates.Add(ImdbCandidate(suggestion, CatalogueAuthorityCandidate.FilmKind));
+                continue;
+            }
+
+            TmdbSearchHit? series = null;
+            try
+            {
+                series = await tmdb.FindTvSeriesByImdbIdAsync(suggestion.ImdbId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException ||
+                                              !cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning(
+                    exception,
+                    "TMDB find TV by IMDb id failed; keeping the IMDb series as a candidate. query={Query} imdbId={ImdbId}",
+                    query,
+                    suggestion.ImdbId);
+            }
+
+            var candidate = series is null
+                ? ImdbCandidate(suggestion, CatalogueAuthorityCandidate.TvShowKind)
+                : TvShowTmdbCandidates([series])[0];
+            if (candidates.All(c => c.Key != candidate.Key))
+            {
+                candidates.Add(candidate);
+            }
+        }
+
+        if (candidates.Count > 0)
+        {
+            return candidates;
+        }
+
+        var movies = await tmdb.SearchMoviesAsync(query, cancellationToken).ConfigureAwait(false);
+        foreach (var hit in movies.Where(hit => TitlesEqual(query, hit)).Take(SampleLimit))
+        {
+            var ids = await lookup.CollectFilmAsync(hit.Id, cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(ids.ImdbId) ||
+                candidates.Any(c => c.Key == CatalogueAuthorityCandidate.ImdbKey(ids.ImdbId)))
+            {
+                continue;
+            }
+
+            candidates.Add(new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.ImdbKey(ids.ImdbId),
+                DisplayName(hit),
+                hit.Year,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                TmdbId: null,
+                TvdbId: null,
+                CatalogueCanonicalId.TmdbMoviePage(hit.Id),
+                CatalogueCanonicalId.TmdbPosterThumbnail(hit.PosterPath),
+                hit.Overview));
+        }
+
+        return candidates;
+    }
+
+    private static CatalogueAuthorityCandidate ImdbCandidate(ImdbSuggestion suggestion, string kind) =>
+        ImdbFilmCandidate(suggestion) with { Kind = kind };
+
     private async Task<IReadOnlyList<TheTvdbSearchHit>> SearchSeriesAsync(
         string query,
         CancellationToken cancellationToken)

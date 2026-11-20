@@ -45,7 +45,8 @@ public class CatalogueIdentityLookupService(
                     choice,
                     request.SelectedIdentityKey,
                     cancellationToken).ConfigureAwait(false),
-                "tvshow" => await enricher.ResolveTvShowAsync(
+                // #1387: edit-time lookup also offers film/documentary hits when the TV authorities have none.
+                "tvshow" => await enricher.LookupTvShowAsync(
                     title,
                     choice,
                     request.SelectedIdentityKey,

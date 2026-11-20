@@ -35,6 +35,13 @@ public class CatalogueIdentityLookupRules
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _admission);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.LookupTvShowAsync(
+                It.IsAny<string>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _admission);
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.ResolveTvShowEpisodeAsync(
                 It.IsAny<RedditPodcastPoster.Models.TvShows.TvShow>(),
                 It.IsAny<string>(),
@@ -257,6 +264,35 @@ public class CatalogueIdentityLookupRules
         result.Response.Ids.Should().BeNull();
         result.Response.Message.Should().NotBeNullOrWhiteSpace();
         result.Response.IdentityDecision.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Edit-time identity lookup for a TV show uses the edit-time TV lookup, which can offer film/documentary " +
+        "candidates, not the create-time resolve (#1387).")]
+    public async Task tv_show_lookup_uses_edit_time_lookup()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var sut = _mocker.CreateInstance<CatalogueIdentityLookupService>();
+
+        // Act
+        await sut.LookupAsync(new CatalogueIdentityLookupRequest
+        {
+            Kind = "TvShow",
+            Title = title
+        });
+
+        // Assert
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            x => x.LookupTvShowAsync(title, CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            x => x.ResolveTvShowAsync(
+                It.IsAny<string>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =
