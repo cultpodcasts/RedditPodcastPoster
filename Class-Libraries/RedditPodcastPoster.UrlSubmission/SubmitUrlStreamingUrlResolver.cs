@@ -22,7 +22,7 @@ public static class SubmitUrlStreamingUrlResolver
 
         foreach (var key in StreamingServiceWire.SubmitEligibleKeys)
         {
-            if (episode.Services.TryGetValue(key, out var link) && link.Url is not null)
+            if (episode.Services.TryGetValue(key, out var link) && link?.Url is not null)
             {
                 url = link.Url;
                 return true;

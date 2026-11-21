@@ -29,7 +29,7 @@ public static class EpisodeServicePresence
     public static readonly string[] SocialPostUrlOrder = ServiceCatalog.IndexIdImageOrder;
 
     /// <summary>
-    /// Drop the retired <c>other</c> catalog key, rename legacy unknown-host
+    /// Drop the retired <c>other</c> catalog key and any null-valued entry, rename legacy unknown-host
     /// <c>iviewabcnetau</c> → <c>abcIview</c>, and keep nested ids aligned.
     /// Does not copy leftover Cosmos JSON onto the catalog (typed <see cref="Episode"/>
     /// has no leftover members).
@@ -41,6 +41,12 @@ public static class EpisodeServicePresence
         {
             var map = new Dictionary<string, ServiceLink>(episode.Services, StringComparer.Ordinal);
             map.Remove("other");
+            // A stored "key": null entry is not a link; dropping it here lets any normal save heal the document (#1508).
+            foreach (var nullKey in map.Where(pair => pair.Value is null).Select(pair => pair.Key).ToList())
+            {
+                map.Remove(nullKey);
+            }
+
             MigrateLegacyAbcIviewKey(map);
             episode.Services = map.Count == 0 ? null : map;
         }

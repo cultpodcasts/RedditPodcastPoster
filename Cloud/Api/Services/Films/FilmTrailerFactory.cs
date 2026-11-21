@@ -61,16 +61,16 @@ public static class FilmTrailerFactory
             return null;
         }
 
-        if (services.TryGetValue(ServiceKeys.YouTube, out var youTube) && youTube.Url is not null)
+        if (services.TryGetValue(ServiceKeys.YouTube, out var youTube) && youTube?.Url is not null)
         {
             return youTube.Url;
         }
 
         return services
-            .Where(x => x.Value.Url is not null)
+            .Where(x => x.Value?.Url is not null)
             .OrderBy(x => AudioOnlyKeys.Contains(x.Key))
             .ThenBy(x => x.Key, StringComparer.Ordinal)
-            .Select(x => x.Value.Url)
+            .Select(x => x.Value!.Url)
             .FirstOrDefault();
     }
 

@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.Podcasts;
 using System.Linq.Expressions;
 using FluentAssertions;
 using Moq;
@@ -180,5 +182,30 @@ public class CataloguePlayableResolverRules
 
         // Assert
         resolution.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a film's stored services hold a null entry, then it still resolves and the projection leaves that key out while keeping the real links, so the public and curator GETs for the film do not fail (#1508).")]
+    public async Task resolves_film_with_null_services_entry()
+    {
+        // Arrange
+        var youTubeUrl = _fixture.Create<Uri>();
+        _film = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.Spotify] = null!,
+                [ServiceKeys.YouTube] = new() { Url = youTubeUrl }
+            }
+        };
+
+        // Act
+        var resolution = await Resolve(_film.Id);
+
+        // Assert
+        var services = resolution!.Projection.Episode.Services;
+        services.Should().NotContainKey(ServiceKeys.Spotify);
+        services![ServiceKeys.YouTube].Url.Should().Be(youTubeUrl);
     }
 }

@@ -272,9 +272,7 @@ public class CatalogueParentSubmitter(
         target.Length = merged.Length;
         target.Explicit = merged.Explicit;
         target.SetRelease(merged.Release);
-        target.Services = merged.Services?.ToDictionary(
-            pair => pair.Key,
-            pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language });
+        target.Services = ServiceLinkMap.CloneWithoutNulls(merged.Services);
         if (target is ICatalogueYouTubeItem catalogueYouTube)
         {
             // Keep the compact id the search pull reads (c.youTubeId) in step with services.youtube.url.
@@ -349,7 +347,7 @@ public class CatalogueParentSubmitter(
             categorisedItem.ResolvedAppleItem?.Image);
         item.Services = services;
         if (string.IsNullOrWhiteSpace(item.YouTubeId) &&
-            item.Services.TryGetValue(ServiceKeys.YouTube, out var youtube) && youtube.Url != null)
+            item.Services.TryGetValue(ServiceKeys.YouTube, out var youtube) && youtube?.Url != null)
         {
             item.YouTubeId = YouTubeIdResolver.Extract(youtube.Url);
         }
@@ -366,7 +364,7 @@ public class CatalogueParentSubmitter(
             return;
         }
 
-        if (!services.TryGetValue(key, out var link))
+        if (!services.TryGetValue(key, out var link) || link is null)
         {
             link = new ServiceLink();
             services[key] = link;
@@ -418,7 +416,7 @@ public class CatalogueParentSubmitter(
         {
             if (episode.Services is { Count: > 0 } services && playable.Services is { } existingServices &&
                 services.Any(pair => pair.Value?.Url is { } u &&
-                                     existingServices.TryGetValue(pair.Key, out var link) && link.Url == u))
+                                     existingServices.TryGetValue(pair.Key, out var link) && link?.Url == u))
             {
                 return playable.Id;
             }

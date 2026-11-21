@@ -309,20 +309,6 @@ public static class CatalogueParentKindMapper
 
     private static PlayableSubjectMatch CloneMatch(PlayableSubjectMatch match) => match.Clone();
 
-    private static Dictionary<string, ServiceLink>? CloneServices(Dictionary<string, ServiceLink>? services)
-    {
-        if (services is null)
-        {
-            return null;
-        }
-
-        return services.ToDictionary(
-            pair => pair.Key,
-            pair => new ServiceLink
-            {
-                Url = pair.Value.Url,
-                Image = pair.Value.Image,
-                Language = pair.Value.Language
-            });
-    }
+    private static Dictionary<string, ServiceLink>? CloneServices(Dictionary<string, ServiceLink>? services) =>
+        ServiceLinkMap.CloneWithoutNulls(services);
 }
