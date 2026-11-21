@@ -15,4 +15,8 @@ public class D1SearchReconcileRequestOptions
     [Option("full", Required = false, Default = false,
         HelpText = "Compare the whole catalogue against D1 instead of only items (and episodes of podcasts) with _ts at or after the last successful write watermark. Use for a weekly safety check or a deliberate rebuild. Incremental is the default once a watermark has been saved.")]
     public bool Full { get; set; }
+
+    [Option("rebuild", Required = false, Default = false,
+        HelpText = "With --write: rebuild the whole index from Cosmos into new tables, swap them in, check them (integrity, sample searches, a full reconcile) and drop the old index; any failed check swaps the old index back (SP-2.3, #226). For drift or corruption only. Rerun it to resume or clean up after an interrupted run.")]
+    public bool Rebuild { get; set; }
 }

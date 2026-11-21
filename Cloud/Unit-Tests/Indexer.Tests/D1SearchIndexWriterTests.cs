@@ -61,6 +61,45 @@ public class D1SearchIndexWriterTests
         _handler.Paths.Should().OnlyContain(p => p == "/search/admin/docs");
     }
 
+    [Fact(DisplayName =
+        "A rebuild load posts the rebuild id and the documents to the Worker's rebuild docs route, because the shadow " +
+        "tables only accept documents for the rebuild that created them.")]
+    public async Task rebuild_load_posts_to_the_rebuild_route()
+    {
+        // Arrange
+        var rebuildId = _fixture.CreateGuid().ToString();
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+
+        // Act
+        var outcome = await sut.Load(rebuildId, [Document(), Document()], CancellationToken.None);
+
+        // Assert
+        outcome.Upserted.Should().Be(2);
+        _handler.Paths.Should().Equal("/search/admin/rebuild/docs");
+        _handler.Bodies.Single().GetProperty("rebuildId").GetString().Should().Be(rebuildId);
+        _handler.Bodies.Single().GetProperty("upserts").GetArrayLength().Should().Be(2);
+    }
+
+    [Fact(DisplayName =
+        "A swap the Worker answers with 409 throws a conflict and is sent once, because a swap changes the index and " +
+        "the rebuilder decides what to do from the rebuild state, not a blind retry.")]
+    public async Task rebuild_swap_conflict_is_not_retried()
+    {
+        // Arrange
+        _handler.Statuses.Enqueue(HttpStatusCode.Conflict);
+        var sut = _mocker.CreateInstance<D1SearchIndexWriter>();
+        var expected = new D1SearchRebuildExpectation(10, new Dictionary<string, int> { ["Episode"] = 10 }, 0, 0.05);
+
+        // Act
+        var act = () => sut.Swap(_fixture.CreateGuid().ToString(), expected, CancellationToken.None);
+
+        // Assert
+        var thrown = await act.Should().ThrowAsync<D1SearchHttpException>();
+        D1SearchIndexWriter.IsRebuildConflict(thrown.Which).Should().BeTrue();
+        _handler.Paths.Should().Equal("/search/admin/rebuild/swap");
+        _handler.Bodies.Single().GetProperty("expectedKinds").GetProperty("Episode").GetInt32().Should().Be(10);
+    }
+
     [Theory(DisplayName =
         "A sync that is switched off, or switched on without credentials, never calls the search Worker, because the " +
         "D1 sync must stay inert until SP-2.5 has delivered the writer's credentials and Jon has enabled it.")]

@@ -6,7 +6,22 @@ public enum D1SearchReconcilePhase
     Catalogue,
     Inventory,
     Upsert,
-    Delete
+    Delete,
+
+    /// <summary>Rebuild (SP-2.3 #226): reading the rebuild state and creating the shadow tables.</summary>
+    Prepare,
+
+    /// <summary>Rebuild: documents built from Cosmos and loaded into the shadow tables.</summary>
+    Load,
+
+    /// <summary>Rebuild: verifying the new index and swapping it in.</summary>
+    Swap,
+
+    /// <summary>Rebuild: integrity check and sample searches on the new live index.</summary>
+    Check,
+
+    /// <summary>Rebuild: dropping the old index, or swapping it back.</summary>
+    Settle
 }
 
 /// <summary>

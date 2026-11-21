@@ -26,9 +26,11 @@ public static class D1SearchServiceCollectionExtensions
         services.TryAddSingleton<D1SearchIndexWriter>();
         services.TryAddSingleton<ID1SearchIndexWriter>(s => s.GetRequiredService<D1SearchIndexWriter>());
         services.TryAddSingleton<ID1SearchInventoryReader>(s => s.GetRequiredService<D1SearchIndexWriter>());
+        services.TryAddSingleton<ID1SearchRebuildClient>(s => s.GetRequiredService<D1SearchIndexWriter>());
         services.TryAddScoped<ID1SearchCatalogue, D1SearchCatalogue>();
         services.TryAddScoped<ID1SearchChangeFeed, D1SearchChangeFeed>();
         services.TryAddScoped<ID1SearchReconciler, D1SearchReconciler>();
+        services.TryAddScoped<ID1SearchRebuilder, D1SearchRebuilder>();
         services.BindConfiguration<ApiOptions>("api");
         services.BindConfiguration<Auth0Options>("auth0client");
         services.BindConfiguration<D1SearchOptions>("d1Search");
