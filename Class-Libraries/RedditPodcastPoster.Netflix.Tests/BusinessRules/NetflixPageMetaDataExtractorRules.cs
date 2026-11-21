@@ -301,6 +301,63 @@ public class NetflixPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "A single-title Netflix documentary whose details panel says 'This series is…' sets MadeAsFilm and leaves ShowName unset, " +
+        "because only the primary page type decides film versus series, not the page copy (#1517, 81774139 Primetime Preacher$).")]
+    public async Task one_off_documentary_with_series_wording_is_a_film()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var url = new Uri($"https://www.netflix.com/us/title/{_fixture.CreateAppleId()}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {title} | Netflix Official Site\" />" +
+            "<script type=\"application/ld+json\">" +
+            $"{{\"@context\":\"https://schema.org\",\"@type\":\"Movie\",\"name\":\"{title}\",\"genre\":\"Documentary\"}}" +
+            "</script></head>" +
+            $"<body><h1>{title}</h1>" +
+            "<script>{\"type\":\"Movie\",\"genres\":[\"Documentary\"]}</script>" +
+            "<div class=\"more-details\">This series is: Investigative, Provocative</div>" +
+            "</body></html>");
+        var sut = _mocker.CreateInstance<NetflixPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.MadeAsFilm.Should().BeTrue();
+        meta.ShowName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A multi-episode Netflix docuseries title page keeps ShowName and does not set MadeAsFilm, " +
+        "so submit still rejects the series hub instead of storing it as a Film (#1517, CLS-002).")]
+    public async Task docuseries_title_page_is_a_series()
+    {
+        // Arrange
+        var seriesName = _fixture.CreateTitle();
+        var url = new Uri($"https://www.netflix.com/gb/title/{_fixture.CreateAppleId()}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {seriesName} | Netflix Official Site\" />" +
+            "<script type=\"application/ld+json\">" +
+            $"{{\"@context\":\"https://schema.org\",\"@type\":\"TVSeries\",\"name\":\"{seriesName}\",\"genre\":\"Documentary\",\"numberOfSeasons\":1}}" +
+            "</script></head>" +
+            $"<body><h1>{seriesName}</h1>" +
+            "<script>{\"type\":\"Show\",\"genres\":[\"Documentary\"]}</script>" +
+            "<ol class=\"episodes\"><li>Episode 1</li><li>Episode 2</li></ol>" +
+            "<div class=\"more-details\">This series is: Investigative</div>" +
+            "</body></html>");
+        var sut = _mocker.CreateInstance<NetflixPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.MadeAsFilm.Should().BeFalse();
+        meta.ShowName.Should().Be(seriesName);
+    }
+
+    [Fact(DisplayName =
         "AddNetflixServices registers a catalog-keyed adapter for Netflix URLs, so Open Graph parsing stays in the shared OpenGraph assembly.")]
     public void add_netflix_services_registers_adapter()
     {

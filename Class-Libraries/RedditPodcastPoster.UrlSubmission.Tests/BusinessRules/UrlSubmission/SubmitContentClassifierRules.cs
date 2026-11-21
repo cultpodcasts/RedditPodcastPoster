@@ -3,6 +3,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Models;
 using Xunit;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
@@ -25,6 +26,98 @@ public class SubmitContentClassifierRules
         // Assert
         result.Reject.Should().BeTrue();
         result.RequiresCurator.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A Netflix /title/ URL whose page is a Movie is a Film with no parent and is not rejected, " +
+        "because a film's title page is the film itself, not a series catalogue hub (#1517).")]
+    public void netflix_title_film_is_a_film()
+    {
+        // Arrange
+        var signals = Signals(NetflixTitleUrl(), madeAsFilm: true, series: false);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        result.Reject.Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.HasParent.Should().BeFalse();
+        result.RequiresCurator.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "A Netflix /title/ URL with a country segment whose page is a Movie is a Film, " +
+        "because the us, gb and country-less forms are the same title page (#1517).")]
+    [InlineData("https://www.netflix.com/us/title/81774139")]
+    [InlineData("https://www.netflix.com/gb/title/81774139")]
+    [InlineData("https://www.netflix.com/title/81774139")]
+    public void netflix_title_film_with_country_is_a_film(string url)
+    {
+        // Arrange
+        var signals = Signals(new Uri(url), madeAsFilm: true, series: false);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        result.Reject.Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+    }
+
+    [Fact(DisplayName =
+        "A Netflix /title/ URL for a series is still rejected, " +
+        "because a series catalogue hub must not become a TvShow stub (CLS-002).")]
+    public void netflix_title_series_hub_is_still_rejected()
+    {
+        // Arrange
+        var signals = Signals(NetflixTitleUrl(), series: true);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        result.Reject.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A Netflix /title/ documentary scraped as a Movie (no show name) is classified as a Film from the submission, " +
+        "even though its page says 'This series is…' (#1517).")]
+    public void netflix_title_documentary_submission_is_a_film()
+    {
+        // Arrange
+        var url = new Uri("https://www.netflix.com/us/title/81774139");
+        var item = new CategorisedItem(null, null, null, null, null, null,
+            new ResolvedNonPodcastServiceItem(StreamingService.Netflix, Url: url, Title: _fixture.CreateTitle(),
+                Description: "This series is: Investigative", MadeAsFilm: true),
+            Service.Other);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(SubmitContentClassifier.FromSubmission(url, item));
+
+        // Assert
+        result.Reject.Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+    }
+
+    [Fact(DisplayName =
+        "A Netflix /title/ docuseries scraped with a show name is still rejected from the submission, " +
+        "because a series hub must not become a TvShow stub (CLS-002).")]
+    public void netflix_title_docuseries_submission_is_rejected()
+    {
+        // Arrange
+        var url = new Uri("https://www.netflix.com/gb/title/81774139");
+        var show = _fixture.CreateTitle();
+        var item = new CategorisedItem(null, null, null, null, null, null,
+            new ResolvedNonPodcastServiceItem(StreamingService.Netflix, Url: url, Title: show,
+                Description: "This series is: Investigative", ShowName: show),
+            Service.Other);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(SubmitContentClassifier.FromSubmission(url, item));
+
+        // Assert
+        result.Reject.Should().BeTrue();
     }
 
     [Fact(DisplayName =
