@@ -96,6 +96,11 @@ public class DiscoverySubmissionSummaryDto
     [JsonPropertyName("inProgressSince")]
     [JsonPropertyOrder(180)]
     public DateTime? InProgressSince { get; set; }
+
+    /// <summary>The apply created or matched episodes still waiting for the supervisor's review (#1415).</summary>
+    [JsonPropertyName("outputsReviewPending")]
+    [JsonPropertyOrder(190)]
+    public bool OutputsReviewPending { get; set; }
 }
 
 /// <summary>GET DiscoverySubmissions/{id} — the submission plus its held reports' full results.</summary>
@@ -188,6 +193,19 @@ public class DiscoverySubmissionDetailResponse
     [JsonPropertyName("inProgressSince")]
     [JsonPropertyOrder(169)]
     public DateTime? InProgressSince { get; set; }
+
+    /// <summary>The apply created or matched episodes still waiting for the supervisor's review (#1415).</summary>
+    [JsonPropertyName("outputsReviewPending")]
+    [JsonPropertyOrder(169)]
+    public bool OutputsReviewPending { get; set; }
+
+    [JsonPropertyName("outputsReviewedAt")]
+    [JsonPropertyOrder(169)]
+    public DateTime? OutputsReviewedAt { get; set; }
+
+    [JsonPropertyName("outputsReviewedBy")]
+    [JsonPropertyOrder(169)]
+    public string? OutputsReviewedBy { get; set; }
 
     [JsonPropertyName("reports")]
     [JsonPropertyOrder(170)]
@@ -298,6 +316,13 @@ public class DiscoverySubmissionReleaseRequestDto
 
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }
+}
+
+/// <summary>POST DiscoverySubmissions/{id}/outputs-reviewed: the supervisor has checked the created episodes.</summary>
+public class DiscoverySubmissionOutputsReviewedRequestDto
+{
+    [JsonPropertyName("etag")]
+    public string ETag { get; set; } = "";
 }
 
 /// <summary>POST DiscoverySubmissions/{id}/state (admin): manual status override.</summary>

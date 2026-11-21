@@ -4,6 +4,9 @@ using Moq;
 using Moq.AutoMock;
 using Api.Models;
 using Api.Services.Discovery;
+using RedditPodcastPoster.Models.Discovery;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
+using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Submitters;
 using Xunit;
 
@@ -36,7 +39,7 @@ public class DiscoveryCurationSubmitServiceApplyHeldTests
     }
 
     [Fact(DisplayName =
-        "INVARIANT: A supervisor apply may read results for a non-persisting language probe before the claim, then claims the held reports before the persisting ingest, and never uses the curator claim.")]
+        "INVARIANT: A supervisor apply claims the held reports before the persisting ingest, never repeats the preflight probe (the apply request already ran it, #1415), and never uses the curator claim.")]
     public async Task apply_held_claims_before_ingest()
     {
         // Arrange
@@ -48,7 +51,9 @@ public class DiscoveryCurationSubmitServiceApplyHeldTests
 
         // Assert
         result.Status.Should().Be(DiscoveryCurationSubmitStatus.Ok);
-        _calls.Should().Equal("ingest", "claimHeld", "ingest");
+        _calls.Should().Equal("claimHeld", "ingest");
+        _mocker.GetMock<IDiscoveryUrlSubmitter>().Verify(s => s.Submit(It.IsAny<DiscoveryResult>(),
+            It.IsAny<IndexingContext>(), It.Is<SubmitOptions>(o => o.LanguageProbe)), Times.Never);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.TryClaimForProcessing(
             It.IsAny<Guid[]>(), It.IsAny<CancellationToken>()), Times.Never);
         _mocker.GetMock<IDiscoveryResultsService>().Verify(s => s.MarkAsProcessed(
@@ -98,7 +103,7 @@ public class DiscoveryCurationSubmitServiceApplyHeldTests
         // Assert
         result.Status.Should().Be(DiscoveryCurationSubmitStatus.Conflict);
         result.UnavailableDocumentIds.Should().Equal(request.DiscoveryResultsDocumentIds[0]);
-        _calls.Should().Equal("ingest", "claimHeld");
+        _calls.Should().Equal("claimHeld");
         _mocker.GetMock<IDiscoveryUrlSubmitter>().VerifyNoOtherCalls();
     }
 

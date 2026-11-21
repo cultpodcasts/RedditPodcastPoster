@@ -233,6 +233,10 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IDiscoveryChannelBanService, DiscoveryChannelBanService>()
             .AddScoped<IPostDiscoveryChannelBanHandler, PostDiscoveryChannelBanHandler>()
             .AddScoped<IDiscoverySubmissionReviewService, DiscoverySubmissionReviewService>()
+            // Own QueueClient: the container's QueueClient singleton is the kind-transfer queue (#1415).
+            .AddSingleton<IDiscoverySubmissionApplyQueue>(sp => new DiscoverySubmissionApplyQueue(
+                PodcastKindTransferQueueClientFactory.Create(DiscoverySubmissionApplyQueueMessage.QueueName),
+                sp.GetRequiredService<ILogger<DiscoverySubmissionApplyQueue>>()))
             .AddScoped<IDiscoverySubmissionIngestedEpisodes, DiscoverySubmissionIngestedEpisodes>()
             .AddScoped<IGetDiscoverySubmissionsHandler, GetDiscoverySubmissionsHandler>()
             .AddScoped<IGetDiscoverySubmissionHandler, GetDiscoverySubmissionHandler>()
@@ -241,6 +245,7 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostDiscoverySubmissionRetryHandler, PostDiscoverySubmissionRetryHandler>()
             .AddScoped<IPostDiscoverySubmissionReleaseHandler, PostDiscoverySubmissionReleaseHandler>()
             .AddScoped<IPostDiscoveryReportReleaseHandler, PostDiscoveryReportReleaseHandler>()
+            .AddScoped<IPostDiscoverySubmissionOutputsReviewedHandler, PostDiscoverySubmissionOutputsReviewedHandler>()
             .AddScoped<IPostDiscoverySubmissionStateHandler, PostDiscoverySubmissionStateHandler>();
 
     public static IServiceCollection AddApiDiscoverySchedule(this IServiceCollection services) =>

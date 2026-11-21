@@ -11,6 +11,7 @@ public class DiscoverySubmissionReviewService(
     IDiscoveryResultsRepository discoveryResultsRepository,
     IDiscoveryCurationSubmitService discoveryCurationSubmitService,
     IDiscoverySubmissionIngestedEpisodes ingestedEpisodes,
+    IDiscoverySubmissionApplyQueue applyQueue,
     TimeProvider timeProvider,
     ILogger<DiscoverySubmissionReviewService> logger) : IDiscoverySubmissionReviewService
 {
@@ -25,6 +26,18 @@ public class DiscoverySubmissionReviewService(
     public const string ReleaseStartedAction = "ReleaseStarted";
     public const string ReleasedAction = "Released";
     public const string StateChangedAction = "StateChanged";
+    public const string ApplyQueueFailedAction = "ApplyQueueFailed";
+    public const string ApplyInterruptedAction = "ApplyInterrupted";
+    public const string OutputsReviewedAction = "OutputsReviewed";
+
+    public const string QueuedMessage =
+        "Queued: the results are being created in the background. Reload or keep this page open to see the outcome.";
+
+    public const string QueueFailedMessage =
+        "The apply could not be queued; nothing was created. Try again.";
+
+    public const string NotHeldByMessage =
+        "The submission is no longer held by this queued operation (it finished, or an admin changed its state).";
     public const int MaxCommentLength = 4000;
 
     public async Task<DiscoverySubmissionQueryResult<DiscoverySubmissionList>> List(SupervisionCaller caller,
@@ -42,6 +55,9 @@ public class DiscoverySubmissionReviewService(
                         .GetByStatus(DiscoverySubmissionStatus.PartiallyApplied, c).ToListAsync(c))
                     .Concat(await discoverySubmissionsRepository
                         .GetByStatus(DiscoverySubmissionStatus.Applying, c).ToListAsync(c))
+                    // Applied, but its episodes still wait for the supervisor's review (#1415). A targeted
+                    // query: the list never reads the whole Applied history.
+                    .Concat(await discoverySubmissionsRepository.GetOutputsReviewPending(c).ToListAsync(c))
                     .Where(x => DiscoverySubmissionRules.CanReview(caller, x))
                     .OrderBy(x => x.SubmittedAt)
                     .ToArray();
@@ -214,10 +230,10 @@ public class DiscoverySubmissionReviewService(
         }
 
         var historyAtClaim = submission.History.Length;
-        // Claimed: from here the client cannot cancel the ingest or the terminal write (submission 4a7d8838).
+        // Claimed: from here the client cannot cancel the preflight answer, the enqueue or the terminal write
+        // (submission 4a7d8838).
         var terminal = AfterClaim;
-
-        var result = await discoveryCurationSubmitService.ApplyHeldAsync(new DiscoverySubmitRequest
+        var submitRequest = new DiscoverySubmitRequest
         {
             DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
             ResultIds = finalSet,
@@ -226,8 +242,29 @@ public class DiscoverySubmissionReviewService(
             SelectedIdentityKeys = request.SelectedIdentityKeys,
             KindDecisions = request.KindDecisions,
             SelectedKindKeys = request.SelectedKindKeys
-        }, terminal);
+        };
 
+        // Language / kind / identity prompts stay on the request: they are short and interactive. Anything they
+        // decide (a hold, every item cancelled, a failed probe) is answered now; otherwise the ingest is queued.
+        var preflight = await discoveryCurationSubmitService.PreflightAsync(submitRequest, terminal);
+        if (preflight != null)
+        {
+            return await CompleteApply(submission, claimedETag, historyAtClaim, finalSet, previousStatus, caller,
+                preflight, terminal);
+        }
+
+        return await Enqueue(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Apply,
+            previousStatus, caller, submitRequest, terminal);
+    }
+
+    /// <summary>
+    /// Records an apply's result: a decision hold or a report conflict restores <paramref name="previousStatus"/>;
+    /// otherwise the item outcomes and Applied / PartiallyApplied / ApplyFailed.
+    /// </summary>
+    private async Task<DiscoverySubmissionCommandResult> CompleteApply(DiscoverySubmission submission,
+        string claimedETag, int historyAtClaim, Guid[] finalSet, DiscoverySubmissionStatus previousStatus,
+        SupervisionCaller caller, DiscoveryCurationSubmitResult result, CancellationToken terminal)
+    {
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (result.Status == DiscoveryCurationSubmitStatus.LanguageDecisionRequired)
         {
@@ -291,6 +328,7 @@ public class DiscoverySubmissionReviewService(
             MergeOutcomes(submission, finalSet, result.Outcome, now,
                 aborted: result.Status != DiscoveryCurationSubmitStatus.Ok);
             submission.AppliedAt = now;
+            FlagOutputsForReview(submission, finalSet);
             submission.Status = DiscoverySubmissionRules.DeriveStatus(submission.ItemOutcomes!);
             submission.ApplyError = submission.Status == DiscoverySubmissionStatus.Applied
                 ? null
@@ -378,8 +416,7 @@ public class DiscoverySubmissionReviewService(
 
         var historyAtClaim = submission.History.Length;
         var terminal = AfterClaim;
-
-        var result = await discoveryCurationSubmitService.RetryItemsAsync(new DiscoverySubmitRequest
+        var submitRequest = new DiscoverySubmitRequest
         {
             DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
             ResultIds = toRetry,
@@ -388,8 +425,27 @@ public class DiscoverySubmissionReviewService(
             SelectedIdentityKeys = request.SelectedIdentityKeys,
             KindDecisions = request.KindDecisions,
             SelectedKindKeys = request.SelectedKindKeys
-        }, terminal);
+        };
 
+        var preflight = await discoveryCurationSubmitService.PreflightAsync(submitRequest, terminal);
+        if (preflight != null)
+        {
+            return await CompleteRetry(submission, claimedETag, historyAtClaim, toRetry, caller, preflight, terminal);
+        }
+
+        return await Enqueue(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry,
+            submission.StatusBeforeInProgress ?? submission.Status, caller, submitRequest, terminal);
+    }
+
+    /// <summary>
+    /// Records a retry's result: a decision hold restores the status before the claim; otherwise the retried items'
+    /// outcomes (a refusal marks them with the reason) and the derived status.
+    /// </summary>
+    private async Task<DiscoverySubmissionCommandResult> CompleteRetry(DiscoverySubmission submission,
+        string claimedETag, int historyAtClaim, Guid[] toRetry, SupervisionCaller caller,
+        DiscoveryCurationSubmitResult result, CancellationToken terminal)
+    {
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         if (result.Status == DiscoveryCurationSubmitStatus.LanguageDecisionRequired)
         {
             submission.Status = submission.StatusBeforeInProgress ?? submission.Status;
@@ -442,6 +498,7 @@ public class DiscoverySubmissionReviewService(
         {
             MergeOutcomes(submission, toRetry, result.Outcome, now,
                 aborted: result.Status != DiscoveryCurationSubmitStatus.Ok);
+            FlagOutputsForReview(submission, toRetry);
         }
         else
         {
@@ -459,6 +516,264 @@ public class DiscoverySubmissionReviewService(
         return await Finish(submission, claimedETag, historyAtClaim, DiscoverySubmissionOperation.Retry, caller,
             result.Outcome, terminal);
     }
+
+    /// <summary>
+    /// Queues the ingest of a claimed, preflighted apply / retry and answers 202. If the message cannot be sent,
+    /// nothing has been claimed beyond the submission itself, so the status before the claim is restored.
+    /// </summary>
+    private async Task<DiscoverySubmissionCommandResult> Enqueue(DiscoverySubmission submission, string claimedETag,
+        int historyAtClaim, DiscoverySubmissionOperation operation, DiscoverySubmissionStatus previousStatus,
+        SupervisionCaller caller, DiscoverySubmitRequest submitRequest, CancellationToken terminal)
+    {
+        var message = new DiscoverySubmissionApplyQueueMessage
+        {
+            SubmissionId = submission.Id,
+            Operation = operation,
+            InProgressSince = submission.InProgressSince!.Value,
+            EnqueuedUtc = timeProvider.GetUtcNow().UtcDateTime,
+            LanguageDecisions = submitRequest.LanguageDecisions,
+            IdentityDecisions = submitRequest.IdentityDecisions,
+            SelectedIdentityKeys = submitRequest.SelectedIdentityKeys,
+            KindDecisions = submitRequest.KindDecisions,
+            SelectedKindKeys = submitRequest.SelectedKindKeys
+        };
+        try
+        {
+            await applyQueue.EnqueueAsync(message, terminal);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Submission '{SubmissionId}': {Operation} could not be queued; restoring {Status}.",
+                submission.Id, operation, previousStatus);
+            submission.Status = previousStatus;
+            EndInProgress(submission);
+            submission.ApplyError = QueueFailedMessage;
+            AppendHistory(submission, caller.Subject, ApplyQueueFailedAction);
+            RefreshCounts(submission);
+            var etag = await Persist(submission, claimedETag, historyAtClaim, operation, terminal);
+            return new(DiscoverySubmissionCommandStatus.ApplyFailed, etag == null ? OutcomeNotRecorded : QueueFailedMessage,
+                etag, etag == null ? null : submission.Status, CurrentDiff(submission),
+                ItemOutcomes: submission.ItemOutcomes);
+        }
+
+        logger.LogInformation("Supervisor '{Supervisor}' queued {Operation} of submission '{SubmissionId}' ({Count} results).",
+            caller.Subject, operation, submission.Id, submitRequest.ResultIds.Length);
+        return new(DiscoverySubmissionCommandStatus.Accepted, QueuedMessage, claimedETag,
+            DiscoverySubmissionStatus.Applying, CurrentDiff(submission), ItemOutcomes: submission.ItemOutcomes);
+    }
+
+    public async Task<DiscoverySubmissionCommandResult> ProcessQueued(DiscoverySubmissionApplyQueueMessage message,
+        CancellationToken c)
+    {
+        var submission = await discoverySubmissionsRepository.GetById(message.SubmissionId, c);
+        if (!IsHeldBy(submission, message))
+        {
+            // Already finished (a redelivered message after the terminal write), or an admin set its state.
+            logger.LogWarning("Queued {Operation} of submission '{SubmissionId}' skipped: {Reason}",
+                message.Operation, message.SubmissionId, NotHeldByMessage);
+            return new(DiscoverySubmissionCommandStatus.Conflict, NotHeldByMessage);
+        }
+
+        var caller = WorkerCaller(submission!);
+        if (submission!.InProgressWorkerStartedAt != null)
+        {
+            // Redelivered after an earlier run started. Only an apply whose reports were never claimed is known to have
+            // created nothing, so only that runs again; otherwise stop with every unfinished item Failed (retryable).
+            if (message.Operation != DiscoverySubmissionOperation.Apply || !await ReportsStillHeld(submission))
+            {
+                return await Interrupt(submission, message.Operation, caller,
+                    $"The queued {Describe(message.Operation)} stopped part-way through and was not run again.");
+            }
+
+            logger.LogWarning(
+                "Queued apply of submission '{SubmissionId}' was redelivered before its reports were claimed; running it again.",
+                submission.Id);
+        }
+
+        submission.InProgressWorkerStartedAt = timeProvider.GetUtcNow().UtcDateTime;
+        var etag = await discoverySubmissionsRepository.TryReplace(submission, submission.ETag!, c);
+        if (etag == null)
+        {
+            logger.LogWarning("Queued {Operation} of submission '{SubmissionId}' skipped: the submission changed before it started.",
+                message.Operation, submission.Id);
+            return new(DiscoverySubmissionCommandStatus.Conflict, NotHeldByMessage);
+        }
+
+        var historyAtClaim = submission.History.Length;
+        var resultIds = submission.InProgressResultIds ?? [];
+        var terminal = AfterClaim;
+        var request = new DiscoverySubmitRequest
+        {
+            DiscoveryResultsDocumentIds = submission.DiscoveryResultsDocumentIds,
+            ResultIds = resultIds,
+            LanguageDecisions = message.LanguageDecisions,
+            IdentityDecisions = message.IdentityDecisions,
+            SelectedIdentityKeys = message.SelectedIdentityKeys,
+            KindDecisions = message.KindDecisions,
+            SelectedKindKeys = message.SelectedKindKeys
+        };
+
+        if (message.Operation == DiscoverySubmissionOperation.Apply)
+        {
+            var previousStatus = submission.StatusBeforeInProgress ?? DiscoverySubmissionStatus.Pending;
+            var applied = await discoveryCurationSubmitService.ApplyHeldAsync(request, terminal);
+            return await CompleteApply(submission, etag, historyAtClaim, resultIds, previousStatus, caller, applied,
+                terminal);
+        }
+
+        var retried = await discoveryCurationSubmitService.RetryItemsAsync(request, terminal);
+        return await CompleteRetry(submission, etag, historyAtClaim, resultIds, caller, retried, terminal);
+    }
+
+    public async Task<DiscoverySubmissionCommandResult> AbandonPoisoned(DiscoverySubmissionApplyQueueMessage message,
+        CancellationToken c)
+    {
+        var submission = await discoverySubmissionsRepository.GetById(message.SubmissionId, c);
+        if (!IsHeldBy(submission, message))
+        {
+            logger.LogWarning("Poisoned {Operation} of submission '{SubmissionId}' ignored: {Reason}",
+                message.Operation, message.SubmissionId, NotHeldByMessage);
+            return new(DiscoverySubmissionCommandStatus.Conflict, NotHeldByMessage);
+        }
+
+        logger.LogError("Queued {Operation} of submission '{SubmissionId}' failed repeatedly; ending the claim.",
+            message.Operation, message.SubmissionId);
+        return await Interrupt(submission!, message.Operation, WorkerCaller(submission!),
+            $"The queued {Describe(message.Operation)} failed repeatedly and was stopped.");
+    }
+
+    /// <summary>
+    /// Ends a queued claim that cannot finish normally, so the submission is never stranded Applying. An apply whose
+    /// reports are still held created nothing: ApplyFailed with no item outcomes, so it can be applied again.
+    /// Otherwise every unfinished item is Failed with <paramref name="reason"/>, so the supervisor can Retry it.
+    /// </summary>
+    private async Task<DiscoverySubmissionCommandResult> Interrupt(DiscoverySubmission submission,
+        DiscoverySubmissionOperation operation, SupervisionCaller caller, string reason)
+    {
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var historyAt = submission.History.Length;
+        if (operation == DiscoverySubmissionOperation.Apply && submission.ItemOutcomes == null &&
+            await ReportsStillHeld(submission))
+        {
+            submission.Status = DiscoverySubmissionStatus.ApplyFailed;
+            submission.ApplyError = $"{reason} Nothing was created; apply again.";
+            AppendHistory(submission, caller.Subject, ApplyInterruptedAction);
+        }
+        else
+        {
+            var byId = (submission.ItemOutcomes ?? []).ToDictionary(x => x.ResultId);
+            foreach (var id in submission.InProgressResultIds ?? [])
+            {
+                if (!byId.TryGetValue(id, out var item))
+                {
+                    item = new DiscoverySubmissionItemOutcome { ResultId = id };
+                    byId[id] = item;
+                }
+
+                if (item.State == DiscoverySubmissionItemState.Succeeded)
+                {
+                    continue;
+                }
+
+                item.State = DiscoverySubmissionItemState.Failed;
+                item.Error = $"{reason} Retry submits it again; anything already created is reported as existing.";
+                item.LastAttemptAt = now;
+            }
+
+            submission.ItemOutcomes = byId.Values.ToArray();
+            if (operation == DiscoverySubmissionOperation.Apply)
+            {
+                submission.AppliedAt ??= now;
+            }
+
+            AppendHistory(submission, caller.Subject, ApplyInterruptedAction);
+            CloseOut(submission, caller.Subject);
+        }
+
+        EndInProgress(submission);
+        return await Finish(submission, submission.ETag!, historyAt, operation, caller, null, AfterClaim);
+    }
+
+    /// <summary>
+    /// Publish as normal, but leave a durable to-do on the submission while any succeeded item has an episode / item
+    /// to check, so a supervisor who navigates away still finds it in the queue (#1415). Only this run's items count:
+    /// a retry that creates nothing new does not re-open a review that was already marked done.
+    /// </summary>
+    private static void FlagOutputsForReview(DiscoverySubmission submission, IReadOnlyCollection<Guid> runResultIds)
+    {
+        if (submission.ItemOutcomes?.Any(x => runResultIds.Contains(x.ResultId) &&
+                x.State == DiscoverySubmissionItemState.Succeeded && x.EpisodeId != null) != true)
+        {
+            return;
+        }
+
+        submission.OutputsReviewPending = true;
+        submission.OutputsReviewedAt = null;
+        submission.OutputsReviewedBy = null;
+    }
+
+    public async Task<DiscoverySubmissionCommandResult> MarkOutputsReviewed(Guid submissionId,
+        DiscoverySubmissionOutputsReviewedRequest request, SupervisionCaller caller, CancellationToken c)
+    {
+        var submission = await discoverySubmissionsRepository.GetById(submissionId, c);
+        if (submission == null)
+        {
+            return new(DiscoverySubmissionCommandStatus.NotFound);
+        }
+
+        if (!DiscoverySubmissionRules.CanReview(caller, submission))
+        {
+            return new(DiscoverySubmissionCommandStatus.Forbidden);
+        }
+
+        if (submission.OutputsReviewPending != true)
+        {
+            return new(DiscoverySubmissionCommandStatus.Ok, "Nothing is waiting for review.", submission.ETag,
+                submission.Status, CurrentDiff(submission), ItemOutcomes: submission.ItemOutcomes);
+        }
+
+        if (submission.Status == DiscoverySubmissionStatus.Applying)
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict, "Wait for the running apply to finish.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ETag) || request.ETag != submission.ETag)
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict, "Submission changed; reload and retry.");
+        }
+
+        submission.OutputsReviewPending = false;
+        submission.OutputsReviewedAt = timeProvider.GetUtcNow().UtcDateTime;
+        submission.OutputsReviewedBy = caller.Subject;
+        AppendHistory(submission, caller.Subject, OutputsReviewedAction);
+        var etag = await discoverySubmissionsRepository.TryReplace(submission, request.ETag, c);
+        if (etag == null)
+        {
+            return new(DiscoverySubmissionCommandStatus.Conflict, "Submission changed; reload and retry.");
+        }
+
+        return new(DiscoverySubmissionCommandStatus.Ok, ETag: etag, SubmissionStatus: submission.Status,
+            Diff: CurrentDiff(submission), ItemOutcomes: submission.ItemOutcomes);
+    }
+
+    private static bool IsHeldBy(DiscoverySubmission? submission, DiscoverySubmissionApplyQueueMessage message) =>
+        submission is { Status: DiscoverySubmissionStatus.Applying, InProgressSince: { } since } &&
+        submission.InProgressOperation == message.Operation &&
+        Math.Abs((since - message.InProgressSince).TotalMilliseconds) < 1;
+
+    private async Task<bool> ReportsStillHeld(DiscoverySubmission submission)
+    {
+        var reports = await discoveryResultsService.GetDocuments(submission.DiscoveryResultsDocumentIds);
+        return submission.DiscoveryResultsDocumentIds.All(id =>
+            reports.Any(r => r.Id == id && r.State == DiscoveryResultsDocumentState.PendingSupervisor));
+    }
+
+    /// <summary>The supervisor who claimed the submission; the worker acts (and writes history) on their behalf.</summary>
+    private static SupervisionCaller WorkerCaller(DiscoverySubmission submission) =>
+        new(submission.InProgressBy ?? submission.SupervisorSubject ?? "discovery-apply-queue", false, true);
+
+    private static string Describe(DiscoverySubmissionOperation operation) =>
+        operation == DiscoverySubmissionOperation.Retry ? "retry" : "apply";
 
     public async Task<DiscoverySubmissionCommandResult> Release(Guid submissionId,
         DiscoverySubmissionReleaseRequest request, SupervisionCaller caller, CancellationToken c)
@@ -754,6 +1069,7 @@ public class DiscoverySubmissionReviewService(
         submission.InProgressSince = null;
         submission.InProgressBy = null;
         submission.InProgressResultIds = null;
+        submission.InProgressWorkerStartedAt = null;
         submission.StatusBeforeInProgress = null;
     }
 

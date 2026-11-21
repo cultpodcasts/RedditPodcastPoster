@@ -30,16 +30,48 @@ public class DiscoveryCurationSubmitService(
     IDiscoveryKindSuggester discoveryKindSuggester,
     ILogger<DiscoveryCurationSubmitService> logger) : IDiscoveryCurationSubmitService
 {
-    public Task<DiscoveryCurationSubmitResult> SubmitAsync(
+    public async Task<DiscoveryCurationSubmitResult> SubmitAsync(
         DiscoverySubmitRequest request,
         CancellationToken cancellationToken) =>
-        IngestAsync(request, held: false, cancellationToken);
+        await PreflightAsync(request, cancellationToken) ??
+        await IngestAsync(request, held: false, cancellationToken);
+
+    public async Task<DiscoveryCurationSubmitResult?> PreflightAsync(
+        DiscoverySubmitRequest request,
+        CancellationToken cancellationToken)
+    {
+        var hadResultIds = request.ResultIds.Length > 0;
+        request = WithoutCancelled(request);
+        if (hadResultIds && request.ResultIds.Length == 0)
+        {
+            return AllCancelled();
+        }
+
+        try
+        {
+            return await PreflightLanguages(request, await SupportedLanguageCodes());
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Language probe failed before discovery reports were claimed.");
+            return Failed([]);
+        }
+    }
 
     public Task<DiscoveryCurationSubmitResult> ApplyHeldAsync(
         DiscoverySubmitRequest request,
         CancellationToken cancellationToken) =>
         IngestAsync(request, held: true, cancellationToken);
 
+    private static DiscoveryCurationSubmitResult AllCancelled() =>
+        new(DiscoveryCurationSubmitStatus.Ok,
+            new DiscoverySubmitOutcome("Success", false, [],
+                new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse()));
+
+    /// <summary>
+    /// Claims the reports and ingests. Never probes: the caller ran <see cref="PreflightAsync"/> first (on the apply
+    /// request), so the queued ingest does not repeat the language / kind / identity lookups (#1415).
+    /// </summary>
     private async Task<DiscoveryCurationSubmitResult> IngestAsync(
         DiscoverySubmitRequest request,
         bool held,
@@ -49,27 +81,10 @@ public class DiscoveryCurationSubmitService(
         request = WithoutCancelled(request);
         if (hadResultIds && request.ResultIds.Length == 0)
         {
-            return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok,
-                new DiscoverySubmitOutcome("Success", false, [], new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse()));
+            return AllCancelled();
         }
 
         var supported = await SupportedLanguageCodes();
-        DiscoveryCurationSubmitResult? preflight;
-        try
-        {
-            preflight = await PreflightLanguages(request, supported);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Language probe failed before discovery reports were claimed.");
-            return Failed([]);
-        }
-
-        if (preflight != null)
-        {
-            return preflight;
-        }
-
         var claimed = false;
         var submitResults = new List<DiscoverySubmitItemOutcome>();
         try
@@ -152,17 +167,11 @@ public class DiscoveryCurationSubmitService(
             request = WithoutCancelled(request);
             if (hadResultIds && request.ResultIds.Length == 0)
             {
-                return new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.Ok,
-                    new DiscoverySubmitOutcome("Success", false, [],
-                        new RedditPodcastPoster.EntitySearchIndexer.Models.EntitySearchIndexerResponse()));
+                return AllCancelled();
             }
 
+            // No probe here: the retry request already ran PreflightAsync before it was queued (#1415).
             var supported = await SupportedLanguageCodes();
-            var preflight = await PreflightLanguages(request, supported);
-            if (preflight != null)
-            {
-                return preflight;
-            }
 
             // Ingest has started: the client can no longer cancel it or the bookkeeping that follows.
             var terminal = CancellationToken.None;
@@ -286,6 +295,9 @@ public class DiscoveryCurationSubmitService(
         var pendingResults = discoveryResultsService.GetDiscoveryResult(request);
         var discoveryResults = pendingResults is null ? [] : await pendingResults ?? [];
         var holds = new List<CatalogueLanguageHold>();
+        // One probe per item: it reports the language hold and the identity hold together (the probe continues past
+        // the language gate), so the identity pass below reuses it instead of repeating the catalogue lookups (#1415).
+        var probes = new Dictionary<Guid, DiscoverySubmitResult?>();
         // Language / identity probe only — skip expensive Spotify/YouTube walks so preflight does not
         // double the wall-clock of the real ingest (and blow edge timeouts before the 200 is sent).
         var indexingContext = new IndexingContext
@@ -307,6 +319,7 @@ public class DiscoveryCurationSubmitService(
                     discoveryResult,
                     indexingContext,
                     CreateOptions(request, discoveryResult, supportedLanguageCodes, probe: true));
+                probes[discoveryResult.Id] = probed;
                 if (probed?.LanguageHold is { Code: { Length: > 0 } } hold)
                 {
                     holds.Add(hold with { DiscoveryItemId = discoveryResult.Id });
@@ -314,6 +327,7 @@ public class DiscoveryCurationSubmitService(
             }
             catch (Exception ex)
             {
+                probes[discoveryResult.Id] = null;
                 logger.LogWarning(ex,
                     "Language probe failed for discovery-result '{DiscoveryResultId}'; the create call records the error.",
                     discoveryResult.Id);
@@ -410,27 +424,11 @@ public class DiscoveryCurationSubmitService(
         var identityHolds = new List<CatalogueIdentityHold>();
         foreach (var discoveryResult in discoveryResults)
         {
-            if (await IsStoredAgainstRemovedPodcast(discoveryResult))
+            // The language pass already probed this item with the same options; a failed probe is not repeated
+            // (the create call records the error), and an item stored against a removed podcast was never probed.
+            if (probes.GetValueOrDefault(discoveryResult.Id)?.IdentityHold is { Candidates.Count: > 0 } identityHold)
             {
-                continue;
-            }
-
-            try
-            {
-                var probed = await discoveryUrlSubmitter.Submit(
-                    discoveryResult,
-                    indexingContext,
-                    CreateOptions(request, discoveryResult, supportedLanguageCodes, probe: true));
-                if (probed?.IdentityHold is { Candidates.Count: > 0 } identityHold)
-                {
-                    identityHolds.Add(identityHold with { DiscoveryItemId = discoveryResult.Id });
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex,
-                    "Identity probe failed for discovery-result '{DiscoveryResultId}'; the create call records the error.",
-                    discoveryResult.Id);
+                identityHolds.Add(identityHold with { DiscoveryItemId = discoveryResult.Id });
             }
         }
 

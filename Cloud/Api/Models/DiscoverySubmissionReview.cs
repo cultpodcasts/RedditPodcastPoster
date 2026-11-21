@@ -63,6 +63,12 @@ public sealed class DiscoverySubmissionReleaseRequest
     public string? Reason { get; init; }
 }
 
+/// <summary>Marks the outputs of an applied submission as reviewed (clears the review to-do, #1415).</summary>
+public sealed class DiscoverySubmissionOutputsReviewedRequest
+{
+    public required string ETag { get; init; }
+}
+
 public sealed class DiscoverySubmissionSetStateRequest
 {
     public required string Status { get; init; }
@@ -80,6 +86,12 @@ public sealed record DiscoverySubmissionReviewRoute<T>(Guid SubmissionId, T Requ
 public enum DiscoverySubmissionCommandStatus
 {
     Ok,
+
+    /// <summary>
+    /// Apply / retry passed its preflight and the ingest is queued (HTTP 202). The submission stays Applying until the
+    /// worker records the outcome; poll <c>GET discovery-submissions/{id}</c> (#1415).
+    /// </summary>
+    Accepted,
     NotFound,
     Forbidden,
 

@@ -30,6 +30,10 @@ public class DiscoverySubmissionTerminalWriteRules
     public DiscoverySubmissionTerminalWriteRules()
     {
         _mocker.Use(TimeProvider.System);
+        _mocker.GetMock<IDiscoverySubmissionApplyQueue>()
+            .Setup(q => q.EnqueueAsync(It.IsAny<DiscoverySubmissionApplyQueueMessage>(), It.IsAny<CancellationToken>()))
+            .Callback((DiscoverySubmissionApplyQueueMessage m, CancellationToken _) => _queued.Add(m))
+            .Returns(Task.CompletedTask);
         _mocker.GetMock<IDiscoverySubmissionsRepository>()
             .Setup(r => r.GetById(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _submission);
@@ -72,7 +76,7 @@ public class DiscoverySubmissionTerminalWriteRules
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id,
+        var result = await ApplyAndRun(sut, _submission!.Id,
             new DiscoverySubmissionApplyRequest { ETag = _submission.ETag!, AcceptedResultIds = resultIds },
             Supervisor(), _client.Token);
 
@@ -96,7 +100,7 @@ public class DiscoverySubmissionTerminalWriteRules
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        await sut.Apply(_submission!.Id,
+        await ApplyAndRun(sut, _submission!.Id,
             new DiscoverySubmissionApplyRequest { ETag = _submission.ETag!, AcceptedResultIds = resultIds },
             Supervisor(), _client.Token);
 
@@ -113,7 +117,7 @@ public class DiscoverySubmissionTerminalWriteRules
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission!.Id,
+        var result = await RetryAndRun(sut, _submission!.Id,
             new DiscoverySubmissionRetryRequest { ETag = _submission.ETag! }, Supervisor(), _client.Token);
 
         // Assert
@@ -155,7 +159,7 @@ public class DiscoverySubmissionTerminalWriteRules
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var act = () => sut.Apply(_submission!.Id,
+        var act = () => ApplyAndRun(sut, _submission!.Id,
             new DiscoverySubmissionApplyRequest { ETag = _submission.ETag!, AcceptedResultIds = resultIds },
             Supervisor(), _client.Token);
 
@@ -227,4 +231,24 @@ public class DiscoverySubmissionTerminalWriteRules
 
     private static DiscoverySubmission Snapshot(DiscoverySubmission s) =>
         System.Text.Json.JsonSerializer.Deserialize<DiscoverySubmission>(System.Text.Json.JsonSerializer.Serialize(s))!;
+
+    private readonly List<DiscoverySubmissionApplyQueueMessage> _queued = [];
+
+    /// <summary>
+    /// The request (claim + preflight + enqueue) followed by the queue worker, as production runs them (#1415).
+    /// Returns the worker's result when the request queued the ingest, otherwise the request's own answer.
+    /// </summary>
+    private async Task<DiscoverySubmissionCommandResult> ApplyAndRun(DiscoverySubmissionReviewService sut,
+        Guid submissionId, DiscoverySubmissionApplyRequest request, SupervisionCaller caller, CancellationToken c) =>
+        await RunQueued(sut, await sut.Apply(submissionId, request, caller, c));
+
+    private async Task<DiscoverySubmissionCommandResult> RetryAndRun(DiscoverySubmissionReviewService sut,
+        Guid submissionId, DiscoverySubmissionRetryRequest request, SupervisionCaller caller, CancellationToken c) =>
+        await RunQueued(sut, await sut.Retry(submissionId, request, caller, c));
+
+    private async Task<DiscoverySubmissionCommandResult> RunQueued(DiscoverySubmissionReviewService sut,
+        DiscoverySubmissionCommandResult requestResult) =>
+        requestResult.Status == DiscoverySubmissionCommandStatus.Accepted
+            ? await sut.ProcessQueued(_queued.Last(), CancellationToken.None)
+            : requestResult;
 }
