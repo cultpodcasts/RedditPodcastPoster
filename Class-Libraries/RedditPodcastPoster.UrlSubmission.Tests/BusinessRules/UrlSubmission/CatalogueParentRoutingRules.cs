@@ -956,8 +956,9 @@ public class CatalogueParentRoutingRules
         result.EpisodeResult.Should().Be(SubmitResultState.None);
         result.PlayableId.Should().BeNull();
         result.CatalogueSearchSource.Should().BeNull();
+        // It.IsAny<Podcast>() matches a null podcast too, so this still proves Categorise is never called.
         _mocker.GetMock<IUrlCategoriser>().Verify(c => c.Categorise(
-                It.IsAny<Podcast?>(), It.IsAny<IReadOnlyList<Episode>>(), It.IsAny<Uri>(), It.IsAny<IndexingContext>(),
+                It.IsAny<Podcast>(), It.IsAny<IReadOnlyList<Episode>>(), It.IsAny<Uri>(), It.IsAny<IndexingContext>(),
                 It.IsAny<bool>(), It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()),
             Times.Never);
         _mocker.GetMock<IPodcastProcessor>().Verify(

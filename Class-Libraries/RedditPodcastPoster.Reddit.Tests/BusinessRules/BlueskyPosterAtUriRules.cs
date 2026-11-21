@@ -181,4 +181,42 @@ public class BlueskyPosterAtUriRules
         _seenUrl.Should().Be(shortUrl);
         _seenPlatformUrl.Should().Be(episode.Urls.YouTube);
     }
+
+    [Fact(DisplayName =
+        "When a curator removed the episode's image, the post asks the feed client for a card without an image, because the removed YouTube art must not be posted (#1500).")]
+    public async Task image_removed_post_asks_for_a_card_without_an_image()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var pair = new PodcastEpisode(podcast, episode);
+        _card = new BlueskyEmbedCardPost(episode.Title, episode.Urls.YouTube!, Service.YouTube, WithoutCardImage: true);
+        bool? seenWithoutCardImage = null;
+        _mocker.GetMock<IBlueskyFeedClient>()
+            .Setup(client => client.PostOpenGraphCard(
+                It.IsAny<string>(),
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<Uri?>(),
+                It.IsAny<bool>()))
+            .Callback<string, Uri, string, Uri?, bool>((_, _, _, _, withoutCardImage) =>
+                seenWithoutCardImage = withoutCardImage)
+            .ReturnsAsync(CreatedAtUri);
+        var sut = _mocker.CreateInstance<BlueskyPoster>();
+
+        // Act
+        var status = await sut.Post(pair, shortUrl: null);
+
+        // Assert
+        status.Should().Be(BlueskySendStatus.Success);
+        seenWithoutCardImage.Should().BeTrue();
+        _mocker.GetMock<IBlueskyFeedClient>()
+            .Verify(
+                client => client.PostOpenGraphCard(
+                    It.IsAny<string>(),
+                    It.IsAny<Uri>(),
+                    It.IsAny<string>(),
+                    It.IsAny<Uri?>()),
+                Times.Never);
+    }
 }

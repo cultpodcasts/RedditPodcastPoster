@@ -1,7 +1,7 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.SocialPosting.Factories;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
@@ -100,6 +100,45 @@ public class TweetBuilderShortUrlOnlyTests
         QuotedTitleLength(shortOnly).Should().BeGreaterThan(QuotedTitleLength(dualUrl));
     }
 
+    [Fact(DisplayName =
+        "When a curator removed the episode's image, the tweet uses only the short URL even without a share image, because X would build the card from the YouTube link and show the removed art (#1500).")]
+    public async Task Image_removed_tweet_is_short_url_only()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.ImageRemoved = true;
+        var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
+        var platformHost = episode.Urls.YouTube!.Host;
+        var sut = CreateSut(withEpisodeUrl: true, shortUrlOnlyWhenShareImage: false);
+
+        // Act
+        var tweet = await sut.BuildTweet(podcastEpisode, shortUrl, hasShareImage: false);
+
+        // Assert
+        tweet.Should().Contain(shortUrl.ToString());
+        tweet.Should().NotContain(platformHost);
+    }
+
+    [Fact(DisplayName =
+        "When a curator removed the episode's image but there is no short URL, the tweet still links the platform URL, because a tweet needs a link (#1500).")]
+    public async Task Image_removed_without_short_url_keeps_platform_url()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.ImageRemoved = true;
+        var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var sut = CreateSut(withEpisodeUrl: true, shortUrlOnlyWhenShareImage: false);
+
+        // Act
+        var tweet = await sut.BuildTweet(podcastEpisode, shortUrl: null, hasShareImage: false);
+
+        // Assert
+        tweet.Should().Contain(episode.Urls.YouTube!.ToString());
+    }
+
     private static int QuotedTitleLength(string post)
     {
         var start = post.IndexOf('"') + 1;
@@ -109,26 +148,23 @@ public class TweetBuilderShortUrlOnlyTests
 
     private TweetBuilder CreateSut(bool withEpisodeUrl, bool shortUrlOnlyWhenShareImage)
     {
-        var textSanitiser = new Mock<ITextSanitiser>();
-        textSanitiser
+        var mocker = new AutoMocker();
+        mocker.GetMock<ITextSanitiser>()
             .Setup(x => x.SanitiseTitle(It.IsAny<PostModel>()))
             .ReturnsAsync((PostModel pm) => pm.EpisodeTitle);
-        textSanitiser
+        mocker.GetMock<ITextSanitiser>()
             .Setup(x => x.SanitisePodcastName(It.IsAny<PostModel>()))
             .Returns((PostModel pm) => pm.PodcastName);
 
-        var hashTagEnricher = new Mock<IHashTagEnricher>();
-        hashTagEnricher
+        mocker.GetMock<IHashTagEnricher>()
             .Setup(x => x.AddHashTag(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
             .Returns((string input, string _, string? _) => (input, false));
 
-        var hashTagProvider = new Mock<IHashTagProvider>();
-        hashTagProvider
+        mocker.GetMock<IHashTagProvider>()
             .Setup(x => x.GetHashTags(It.IsAny<List<string>>()))
             .ReturnsAsync(new List<HashTag>());
 
-        var postModelFactory = new Mock<IPostModelFactory>();
-        postModelFactory
+        mocker.GetMock<IPostModelFactory>()
             .Setup(x => x.ToPostModel(It.IsAny<(Podcast, IEnumerable<Episode>)>(), It.IsAny<bool>()))
             .Returns((
                 (Podcast Podcast, IEnumerable<Episode> Episodes) pe,
@@ -153,12 +189,11 @@ public class TweetBuilderShortUrlOnlyTests
                 [],
                 []));
 
-        var personGuestHandleResolver = new Mock<IPersonGuestHandleResolver>();
-        personGuestHandleResolver
+        mocker.GetMock<IPersonGuestHandleResolver>()
             .Setup(x => x.Resolve(It.IsAny<Episode>()))
             .ReturnsAsync((Array.Empty<string>(), Array.Empty<string>()));
 
-        var options = Options.Create(new TwitterOptions
+        mocker.Use(Options.Create(new TwitterOptions
         {
             ConsumerKey = "k",
             ConsumerSecret = "s",
@@ -166,15 +201,8 @@ public class TweetBuilderShortUrlOnlyTests
             AccessTokenSecret = "ts",
             WithEpisodeUrl = withEpisodeUrl,
             ShortUrlOnlyWhenShareImage = shortUrlOnlyWhenShareImage
-        });
+        }));
 
-        return new TweetBuilder(
-            textSanitiser.Object,
-            hashTagEnricher.Object,
-            hashTagProvider.Object,
-            postModelFactory.Object,
-            personGuestHandleResolver.Object,
-            options,
-            Mock.Of<ILogger<TweetBuilder>>());
+        return mocker.CreateInstance<TweetBuilder>();
     }
 }

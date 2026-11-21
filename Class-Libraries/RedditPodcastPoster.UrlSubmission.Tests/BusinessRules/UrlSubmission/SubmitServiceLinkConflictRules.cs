@@ -565,8 +565,8 @@ public class SubmitServiceLinkConflictRules
                 LogLevel.Information,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((state, _) =>
-                    state.ToString()!.Contains(splitOffId.ToString()) &&
-                    state.ToString()!.Contains("split-off of a partly saved overwrite")),
+                    $"{state}".Contains(splitOffId.ToString()) &&
+                    $"{state}".Contains("split-off of a partly saved overwrite")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             times);
@@ -863,7 +863,7 @@ public class SubmitServiceLinkConflictRules
             x => x.Log(
                 LogLevel.Information,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((state, _) => state.ToString()!.Contains(stored.Id.ToString())),
+                It.Is<It.IsAnyType>((state, _) => $"{state}".Contains(stored.Id.ToString())),
                 null,
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

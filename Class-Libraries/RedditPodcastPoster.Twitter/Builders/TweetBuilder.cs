@@ -153,7 +153,10 @@ public class TweetBuilder(
         // CharacterBudgetBeforePrimaryUrl already budgets one t.co URL. SecondUrlReserve only when a
         // second (short) URL will also be appended. Share-image short-URL-only posts need no second-URL
         // reserve (gated by ShortUrlOnlyWhenShareImage).
-        var shortUrlOnly = hasShareImage && _twitterOptions.ShortUrlOnlyWhenShareImage;
+        // #1500: a curator removed the episode's image, so link only the site short URL. X builds its card from the
+        // linked page, and a YouTube / Spotify link would bring the removed art back.
+        var shortUrlOnly = (hasShareImage && _twitterOptions.ShortUrlOnlyWhenShareImage) ||
+                           (podcastEpisode.Episode.IsImageRemoved() && shortUrl != null);
         var reserveSecondUrl = !shortUrlOnly
             && _twitterOptions.WithEpisodeUrl
             && (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||

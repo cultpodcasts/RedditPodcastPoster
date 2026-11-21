@@ -111,6 +111,7 @@ public class HomepagePublisher(
                     Length = episode.Length,
                     Subjects = episode.Subjects.Count > 0 ? episode.Subjects.ToArray() : null,
                     Images = episode.Images,
+                    ImageRemoved = episode.ImageRemoved,
                     KnownTerms = podcast?.KnownTerms,
                     Language = episode.Language
                 };
@@ -208,6 +209,7 @@ public class HomepagePublisher(
                 Length = episode.Length,
                 Subjects = episode.Subjects,
                 Images = EpisodeServicePresence.ToEpisodeImages(episode),
+                ImageRemoved = episode.IsImageRemoved(),
                 Language = episode.Language
             });
         }
@@ -298,7 +300,12 @@ public class HomepagePublisher(
             Services = x.Services,
             Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
             Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
-            Image = EpisodeServicePresence.CoalescedImage(x.Services, StreamingServiceCatalog.ImageCoalesceOrder),
+            // #1500: a curator-removed image publishes no image plus imageRemoved, so the site shows no art
+            // instead of synthesizing the YouTube thumbnail.
+            Image = x.ImageRemoved
+                ? null
+                : EpisodeServicePresence.CoalescedImage(x.Services, StreamingServiceCatalog.ImageCoalesceOrder),
+            ImageRemoved = x.ImageRemoved ? true : null,
             Language = NormaliseHomepageLanguage(x.Language)
         };
     }
@@ -413,6 +420,7 @@ public class HomepagePublisher(
         public TimeSpan Length { get; init; }
         public List<string> Subjects { get; init; } = [];
         public EpisodeImages? Images { get; init; }
+        public bool ImageRemoved { get; init; }
         public string? Language { get; init; }
     }
 }

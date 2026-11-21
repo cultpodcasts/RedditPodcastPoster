@@ -80,6 +80,15 @@ public class PublicEpisodeDto : IPlayableKindDto
     [JsonPropertyOrder(250)]
     public Uri? Image { get; set; }
 
+    /// <summary>
+    /// RPP #1500: true when a curator removed this episode's image (<see cref="Image"/> is then null); clients show no
+    /// art instead of the YouTube thumbnail. Omitted otherwise.
+    /// </summary>
+    [JsonPropertyName("imageRemoved")]
+    [JsonPropertyOrder(252)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ImageRemoved { get; set; }
+
     /// <summary>Other titles a film is known by (RPP #1431). Omitted for other kinds.</summary>
     [JsonPropertyName("alternativeTitles")]
     [JsonPropertyOrder(251)]

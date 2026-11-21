@@ -251,11 +251,17 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             }
         }
 
+        // #1500: track explicit curator image clears / sets so a deliberate removal is recorded on the episode.
+        var imageBefore = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder);
+        var clearedImageKeys = new List<string>();
+        var imageSet = false;
+
         if (episodeChangeRequest.Images?.Spotify != null)
         {
             var image = episodeChangeRequest.Images.Spotify.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.Spotify;
+            TrackImageEdit(ServiceKeys.Spotify, image, clearedImageKeys, ref imageSet);
             EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Spotify, image);
         }
 
@@ -264,6 +270,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             var image = episodeChangeRequest.Images.Apple.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.Apple;
+            TrackImageEdit(ServiceKeys.Apple, image, clearedImageKeys, ref imageSet);
             EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Apple, image);
         }
 
@@ -272,6 +279,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             var image = episodeChangeRequest.Images.YouTube.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.YouTube;
+            TrackImageEdit(ServiceKeys.YouTube, image, clearedImageKeys, ref imageSet);
             EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.YouTube, image);
         }
 
@@ -309,7 +317,21 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                     key = StreamingServiceCatalog.TryResolveKey(url) ?? pair.Key;
                 }
 
+                if (pair.Value?.Image is not null)
+                {
+                    // #1500: an explicit "" image on a link that stays is a curator clearing that service's art.
+                    // Deleting the whole link ("" url and image) is handled above and is not an image removal.
+                    TrackImageEdit(key, image, clearedImageKeys, ref imageSet);
+                }
+
                 EpisodeServicePresence.Upsert(episode, key, url, image);
+                if (pair.Value?.Image is not null && image is null)
+                {
+                    // #1500: an explicit "" image on a kept link clears that service's art. Upsert keeps an image it
+                    // is not given, so clear it here.
+                    EpisodeServicePresence.SetCatalogImage(episode, key, null);
+                }
+
                 ApplyKnownServiceId(episode, key, url, changeState);
             }
         }
@@ -319,6 +341,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         EpisodeServicePresence.SyncIds(episode);
+        ApplyImageRemoved(episode, imageBefore, clearedImageKeys, imageSet);
 
         if (episodeChangeRequest.Language != null)
         {
@@ -341,6 +364,53 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         return changeState;
+    }
+
+    private static void TrackImageEdit(string key, Uri? image, List<string> clearedImageKeys, ref bool imageSet)
+    {
+        if (image is null)
+        {
+            clearedImageKeys.Add(key);
+        }
+        else
+        {
+            imageSet = true;
+        }
+    }
+
+    /// <summary>
+    /// #1500: a curator setting any image clears <see cref="Episode.ImageRemoved"/>. A curator clearing the image of a
+    /// link that stays on the episode, when that leaves the episode with no image at all (it had one before), records
+    /// the removal, so search, D1, the homepage, share cards and social posts show no art rather than falling back to
+    /// the YouTube thumbnail. Clearing one image while another remains, deleting a whole link, or clearing an image
+    /// that was already empty changes nothing. Edits that touch no image leave the flag as it is.
+    /// </summary>
+    internal static void ApplyImageRemoved(
+        Episode episode,
+        Uri? imageBefore,
+        IReadOnlyCollection<string> clearedImageKeys,
+        bool imageSet)
+    {
+        if (imageSet)
+        {
+            episode.ImageRemoved = null;
+            return;
+        }
+
+        if (imageBefore is null || clearedImageKeys.Count == 0)
+        {
+            return;
+        }
+
+        if (EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder) is not null)
+        {
+            return;
+        }
+
+        if (clearedImageKeys.Any(key => EpisodeServicePresence.TryGetUrl(episode, key) is not null))
+        {
+            episode.ImageRemoved = true;
+        }
     }
 
     /// <summary>

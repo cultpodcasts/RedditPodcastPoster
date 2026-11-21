@@ -50,6 +50,15 @@ public class RecentEpisode
     public Uri? Image { get; set; } = null;
 
     /// <summary>
+    /// #1500: true when a curator removed this episode's image (<see cref="Image"/> is then null). The site shows no
+    /// art rather than the YouTube thumbnail it otherwise synthesizes from the YouTube id. Omitted otherwise, so other
+    /// rows are unchanged.
+    /// </summary>
+    [JsonPropertyName("imageRemoved")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ImageRemoved { get; set; }
+
+    /// <summary>
     /// IETF language tag when non-English. Null/absent means English (or unknown treated as English).
     /// </summary>
     [JsonPropertyName("language")]
