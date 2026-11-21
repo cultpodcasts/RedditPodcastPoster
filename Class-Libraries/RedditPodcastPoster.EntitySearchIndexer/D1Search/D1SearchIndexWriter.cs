@@ -44,12 +44,12 @@ public interface ID1SearchInventoryReader
 /// simply repeated by the next drip. Failures are logged at Error with the status and the Worker's
 /// message (never the token).
 /// </summary>
-public sealed class D1SearchIndexWriter(
+public sealed partial class D1SearchIndexWriter(
     IHttpClientFactory httpClientFactory,
     ID1SearchTokenSource tokenSource,
     D1SearchConnection connection,
     TimeProvider timeProvider,
-    ILogger<D1SearchIndexWriter> logger) : ID1SearchIndexWriter, ID1SearchInventoryReader
+    ILogger<D1SearchIndexWriter> logger) : ID1SearchIndexWriter, ID1SearchInventoryReader, ID1SearchRebuildClient
 {
     public const string HttpClientName = "d1-search";
     public const int MaxUpsertsPerRequest = 100;

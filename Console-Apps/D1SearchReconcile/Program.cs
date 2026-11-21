@@ -47,6 +47,11 @@ return await Parser.Default.ParseArguments<D1SearchReconcileRequestOptions>(args
 
 async Task<int> Run(D1SearchReconcileRequestOptions options)
 {
+    if (options.Rebuild)
+    {
+        return await Rebuild(options);
+    }
+
     var request = D1SearchReconcileRequest.FromCommandLine(options.Write, options.AllowDrift, options.Full, out var error);
     if (request is null)
     {
@@ -88,4 +93,66 @@ async Task<int> Run(D1SearchReconcileRequestOptions options)
     }
 
     return D1SearchReconcileRequest.ExitCode(r);
+}
+
+// SP-2.3 (#226): rebuild the index into new tables and swap it in; checks right after the swap decide whether the old
+// index is dropped or swapped back. Jon runs this on demand (drift or corruption), never on a schedule.
+async Task<int> Rebuild(D1SearchReconcileRequestOptions options)
+{
+    var invalid = D1SearchRebuildCommandLine.Error(options.Write, options.AllowDrift, options.Full);
+    if (invalid is not null)
+    {
+        Console.Error.WriteLine(invalid);
+        return -1;
+    }
+
+    using var scope = host.Services.CreateScope();
+    var endpoint = scope.ServiceProvider.GetRequiredService<D1SearchConnection>().Endpoint;
+    Console.WriteLine($"D1 search index: {endpoint?.Host ?? "(not configured)"}; REBUILD (load, swap, check, then drop or swap back).");
+    D1SearchRebuildReport r;
+    using (log.Hold())
+    {
+        r = await D1SearchReconcileProgressBar.Create().StartAsync(async ctx =>
+        {
+            var progress = D1SearchReconcileProgressBar.Bind(ctx);
+            var rebuilder = scope.ServiceProvider.GetRequiredService<ID1SearchRebuilder>();
+            return await rebuilder.Rebuild(CancellationToken.None, progress);
+        });
+    }
+
+    Console.WriteLine(
+        $"{r.Outcome}{(r.Resumed ? " (resumed an earlier run's swap)" : string.Empty)}. Rebuild {r.RebuildId ?? "-"}; " +
+        $"loaded {r.Loaded} ({string.Join(", ", r.Kinds.OrderBy(k => k.Key).Select(k => $"{k.Key} {k.Value}"))}), " +
+        $"not built {r.FailedToBuild}.");
+    if (r.Check is { } check)
+    {
+        Console.WriteLine(
+            $"Check: integrity {(check.Integrity?.Ok == true ? "ok" : "FAILED")}; samples " +
+            string.Join(", ", (check.Samples ?? []).Select(s => $"\"{s.Query}\" {s.Hits}")) + ".");
+    }
+
+    if (r.Reconcile is { } rc)
+    {
+        Console.WriteLine(
+            $"Reconcile: {rc.Outcome}, D1 {rc.D1Documents}, eligible {rc.Eligible}, missing {rc.Missing}, stale {rc.Stale}, " +
+            $"orphans {rc.Orphans}, drift {rc.Drift:P2}; upserted {rc.Upserted}, deleted {rc.Deleted}.");
+    }
+
+    foreach (var problem in r.Problems)
+    {
+        Console.Error.WriteLine($"Problem: {problem}");
+    }
+
+    if (r.Error is not null)
+    {
+        Console.Error.WriteLine($"Error: {r.Error}");
+    }
+
+    if (r.Outcome == D1SearchRebuildOutcome.NotConfigured)
+    {
+        Console.Error.WriteLine(
+            "The D1 search sync is not configured: set d1Search:ClientId and d1Search:ClientSecret in user secrets.");
+    }
+
+    return D1SearchRebuildReport.ExitCode(r);
 }

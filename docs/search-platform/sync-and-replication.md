@@ -127,26 +127,35 @@ flowchart LR
 | **Memory** | The eligible map and the inventory (about 90k ids each) and id sets only. Documents are streamed, never all held. |
 | **Failure** | An unreadable inventory fails the run (a partial one would make live documents orphans). A failed write stops the run and reports `Failed`. With the sync off the outcome is `NotConfigured` and nothing is read. The timer never throws. |
 
-### Weekly reset / blue-green (“drip failed, rebuild”)
+### Rebuild (SP-2.3, #226): shadow tables and a rename swap
 
-**Preferred: in-place shadow rebuild**
+On demand, not scheduled: for drift above the reconcile threshold, corruption or a tokenizer change, a few times a
+year (Jon, 20 Nov 2026). Jon runs it from the console: `D1SearchReconcile --rebuild --write`. The Api side is
+`/search/admin/rebuild` (Api #290; see `workers/search/README.md`).
 
-1. Bulk-load Cosmos → `search_docs_new` + shadow FTS + triggers (live tables keep serving).
-2. Verify (doc count + sample family counts).
-3. Swap with `ALTER TABLE … RENAME` inside **one** `db.batch()` (transactional — readers
-   see wholly old or wholly new).
-4. Drop old tables.
+```mermaid
+flowchart TD
+  S["status: abort a leftover loading / swappedBack rebuild,<br/>resume a leftover swapped one"] --> ST["start: empty search_docs_new,<br/>search_doc_subjects_new, search_fts_new + triggers"]
+  ST --> L["load: whole catalogue from Cosmos, 100 per request,<br/>each id once, counted per kind<br/>(push, drip and reconcile write to both meanwhile)"]
+  L -->|"any eligible playable failed to build"| AB["abort: drop shadow<br/>(live untouched)"]
+  L --> SW["swap: Worker verifies counts ± tolerance, FTS rows,<br/>no shrink beyond the drift threshold, FTS structure;<br/>then one db.batch() renames live → _old, _new → live"]
+  SW -->|"409 VerificationFailed"| AB
+  SW --> CK["check: FTS integrity against the new table,<br/>sample searches must hit,<br/>full reconcile --write within the drift threshold"]
+  CK -->|"all pass"| FIN["finish: drop _old"]
+  CK -->|"any fail"| BACK["swap-back: _old → live, then abort (drop the new tables)"]
+```
 
-Full-corpus load measured ~10 s on the demo DB; end-to-end including Cosmos export is
-minutes.
+| | |
+|---|---|
+| **Same database** | Shadow tables live next to the live ones; the swap is `ALTER TABLE … RENAME` in one `db.batch()`, so readers see wholly old or wholly new. Triggers and secondary indexes are dropped and recreated from the live SQL, because a rename does not rewrite the FTS `content=` option or the FTS special column inside triggers. |
+| **Writes during the load** | While a rebuild is `loading`, `POST /search/admin/docs` writes to the live and the shadow tables. A delete that races the console's Cosmos read can bring a document back into the shadow; the post-swap reconcile removes it. A drip batch sent during the swap's transaction gets a 503 and is retried. |
+| **Checks straight after the swap** | Jon: "can we run checks and drop sooner?" The console runs the checks itself and drops the old tables as soon as they pass, so there is no hour of parked tables. Any failure swaps the old index straight back and drops the new one. |
+| **Config** | `d1Search:Rebuild:Tolerance` (default 50: documents the drip and push may add or remove during the load) and `d1Search:Rebuild:SampleQueries` (at most 10; default `cult`, `scientology`, `podcast`) in the console's `appsettings.json`. The shrink limit is `d1Search:Reconcile:DriftThreshold`. |
+| **Interrupted runs** | Run `--rebuild --write` again. A rebuild left `loading` or `swappedBack` is aborted (the live index was never changed) and a new one starts. One left `swapped` (new index live, not yet checked) is checked and settled without loading again. |
+| **Exit code** | 0 only for `Rebuilt`. `Refused` (nothing swapped), `SwappedBack`, `Failed` and `NotConfigured` exit 1, with the problems on standard error. |
 
-**Alternative: dual database** (`SEARCH_DB_A` / `SEARCH_DB_B` + KV active pointer). Instant
-rollback; KV ~60 s propagation is fine because both sides are valid mid-flip. Adopt only
-if rebuild-while-serving interferes with live reads.
-
-Orchestration: cron Worker or Cloudflare Workflows for export → load → verify → swap.
-
-Gate the swap on verification so a bad build never goes live.
+**Not adopted: dual database** (`SEARCH_DB_A` / `SEARCH_DB_B` + KV active pointer). Revisit only if
+rebuild-while-serving interferes with live reads.
 
 ## Durable Objects?
 
