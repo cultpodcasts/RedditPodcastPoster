@@ -31,6 +31,45 @@ public sealed class D1SearchOptions
 
     /// <summary>The weekly reconcile (SP-2.2 #1322), section <c>d1Search:Reconcile</c>.</summary>
     public D1SearchReconcileOptions Reconcile { get; set; } = new();
+
+    /// <summary>The on-demand rebuild (SP-2.3 #226), section <c>d1Search:Rebuild</c>.</summary>
+    public D1SearchRebuildOptions Rebuild { get; set; } = new();
+}
+
+/// <summary>
+/// The <c>D1SearchReconcile --rebuild</c> console mode (SP-2.3 #226): a rare, on-demand rebuild of the D1 search index
+/// from Cosmos into shadow tables, swapped in with one transaction (Jon, 20 Nov 2026: for drift or corruption, a few
+/// times a year, never scheduled). For the console these live in <c>appsettings.json</c>.
+/// </summary>
+public sealed class D1SearchRebuildOptions
+{
+    /// <summary>
+    /// How far each of the new index's counts may differ from what the console loaded. The hourly drip and the push
+    /// path keep writing to both indexes during the load, so a few extra or removed documents are expected.
+    /// </summary>
+    public int Tolerance { get; set; } = 50;
+
+    /// <summary>
+    /// The swap's <c>maxShrink</c>: the Worker refuses a new index smaller than the live one by more than this share.
+    /// Deliberately not <see cref="D1SearchReconcileOptions.DriftThreshold"/>: a rebuild is the fix when the live index
+    /// has drifted (often bloated with orphans), so the new index may rightly be much smaller. The real size gate is
+    /// the Cosmos counts (<see cref="Tolerance"/>); this only stops a catastrophically short load. The drift
+    /// threshold still gates the post-swap reconcile, so a bad new index is swapped back.
+    /// </summary>
+    public double MaxShrink { get; set; } = 0.5;
+
+    /// <summary>
+    /// Searches run against the new index straight after the swap; each must find something or the console swaps the
+    /// old index back. Empty means <see cref="DefaultSampleQueries"/>. At most 10.
+    /// </summary>
+    public string[] SampleQueries { get; set; } = [];
+
+    public static IReadOnlyList<string> DefaultSampleQueries { get; } = ["cult", "scientology", "podcast"];
+
+    public IReadOnlyList<string> EffectiveSampleQueries =>
+        SampleQueries.Where(q => !string.IsNullOrWhiteSpace(q)).Take(10).ToArray() is { Length: > 0 } configured
+            ? configured
+            : DefaultSampleQueries;
 }
 
 /// <summary>
