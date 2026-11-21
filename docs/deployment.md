@@ -43,6 +43,10 @@ PRs into other branches still run **Build** directly. **Provision and Deploy** i
 
 Branch protection for `main` (set by Jon, after the gate has one green PR run): require status checks → `gate`, and require branches to be up to date before merging.
 
+### Review gate (`review-gate` status, #1507)
+
+**Review gate** (`.github/workflows/review-gate.yml`) is not part of PR gate. It publishes a commit status `review-gate` on the PR head SHA, and that status is green only when the PR has the label `review-acceptable` **and** the reviewer's summary carries `<!-- review-gate: acceptable sha=<head sha> -->` for the current head. A new push removes the label and turns it red. The reviewer's steps are in `AGENTS.md` § Review gate. Once it is merged, branch protection on `main` should require both `gate` and `review-gate` (that change needs Jon's OK).
+
 ### Provision latch (`PROVISION_LATCH`) — HARD for agents
 
 **Why:** If a `run_provision` attempt fails (e.g. #1295 budget before Cosmos/settings), later merges with **no** `Infrastructure/**` change still used to ship packages from `main` (including the dependent code) while bicep never applied — host crash / missing containers. The latch stops that.

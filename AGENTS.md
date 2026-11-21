@@ -101,6 +101,26 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - Azure Functions Flex Consumption `instanceMemoryMB` is 512, 2048, or 4096.
 - Memory probing goes through `IMemoryProbeOrchestrator`: `Start(nameof(Class))` and `End()`. `MemoryProbeOptions` decides whether a session is created.
 
+## Review gate (HARD, cultpodcasts/RedditPodcastPoster#1507)
+
+`.github/workflows/review-gate.yml` publishes the commit status **`review-gate`** on every PR head SHA. It is red until the review-implement-pr reviewer says the **current head commit** is acceptable, so a PR cannot be merged mid-review. It is separate from CI, which must be green as well.
+
+The reviewer's **final step** when its verdict is acceptable:
+
+1. Post the summary comment (an issue comment or review body) ending with the marker for the **full 40-character head SHA** it reviewed:
+   `<!-- review-gate: acceptable sha=<head sha> -->`
+   Get the SHA with `gh pr view <n> --json headRefOid --jq .headRefOid`. To withdraw a verdict, post `<!-- review-gate: changes-requested sha=<head sha> -->`.
+2. Add the label: `gh pr edit <n> --add-label review-acceptable`.
+3. Check the status is green (`gh pr checks <n>` lists `review-gate`), then move the card to Ready For Review.
+
+Rules:
+
+- Only the reviewer adds the marker and label. The implementor never does.
+- Any new push removes `review-acceptable` and turns the status red. The reviewer must re-review and re-mark the new SHA.
+- Only markers from OWNER, MEMBER or COLLABORATOR accounts count. A marker for any other SHA is ignored.
+- The gate code always runs from `main` (`pull_request_target`; `pull_request_review` checks out the default branch), so editing it in a PR does not change that PR's result.
+- Follow-on after merge (needs Jon's OK): require `review-gate` on `main` in branch protection.
+
 ## Linking PRs to tickets (HARD)
 
 - Every PR for a ticket links it with a **closing keyword** so it shows under the issue's **Development** panel: same repo `Closes #N`; another repo `Closes cultpodcasts/<repo>#N` (e.g. Api / website companions of an RPP ticket: `Closes cultpodcasts/RedditPodcastPoster#N`). Do **not** use `Refs` for the ticket a PR delivers — `Refs` PRs are invisible under Development.
