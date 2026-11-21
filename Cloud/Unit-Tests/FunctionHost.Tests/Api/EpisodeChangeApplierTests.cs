@@ -869,6 +869,66 @@ public class EpisodeChangeApplierTests
     }
 
     [Fact(DisplayName =
+        "Apply keeps the stored services image and leaves the image-removed flag alone when a services edit omits the image, because only an explicit empty image clears it (#1500).")]
+    public void Apply_keeps_services_image_when_the_edit_omits_it()
+    {
+        // Arrange
+        var vimeoKey = StreamingServiceWire.ToKey(StreamingService.Vimeo);
+        var vimeoImage = new Uri("https://i.vimeocdn.com/video/1.jpg");
+        var episode = CreateEpisode(e =>
+            EpisodeServicePresence.Upsert(e, vimeoKey, new Uri("https://vimeo.com/123456789"), vimeoImage));
+        var editedUrl = new Uri("https://vimeo.com/987654321");
+        var sut = CreateSut();
+
+        // Act
+        sut.Apply(episode, new EpisodeChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [vimeoKey] = new() { Url = editedUrl, Image = null }
+            }
+        });
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, vimeoKey).Should().Be(editedUrl);
+        EpisodeServicePresence.TryGetImage(episode, vimeoKey).Should().Be(vimeoImage);
+        episode.ImageRemoved.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Apply clearing a Vimeo image leaves the YouTube and Spotify images untouched and does not mark the image removed, because those images still show (#1500).")]
+    public void Apply_clearing_a_vimeo_image_leaves_youtube_and_spotify_images()
+    {
+        // Arrange
+        var vimeoKey = StreamingServiceWire.ToKey(StreamingService.Vimeo);
+        var vimeoUrl = new Uri("https://vimeo.com/123456789");
+        var spotifyImage = new Uri("https://i.scdn.co/image/ab6765cover");
+        var episode = CreateYouTubeEpisodeWithImage(YouTubeThumb);
+        EpisodeServicePresence.Upsert(
+            episode,
+            ServiceKeys.Spotify,
+            new Uri("https://open.spotify.com/episode/4rOoJ6Egrf8K2IrywzwOMk"),
+            spotifyImage);
+        EpisodeServicePresence.Upsert(episode, vimeoKey, vimeoUrl, new Uri("https://i.vimeocdn.com/video/1.jpg"));
+        var sut = CreateSut();
+
+        // Act
+        sut.Apply(episode, new EpisodeChangeRequest
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [vimeoKey] = new() { Url = vimeoUrl, Image = new Uri("", UriKind.Relative) }
+            }
+        });
+
+        // Assert
+        EpisodeServicePresence.TryGetImage(episode, vimeoKey).Should().BeNull();
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.YouTube).Should().Be(YouTubeThumb);
+        EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Spotify).Should().Be(spotifyImage);
+        episode.ImageRemoved.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "Apply does not mark the image removed when another image remains after the clear, because that image still shows (#1500).")]
     public void Apply_does_not_mark_image_removed_when_another_image_remains()
     {

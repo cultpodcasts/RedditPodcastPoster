@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using FluentAssertions;
+using idunno.AtProto;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Bluesky.Client;
@@ -73,6 +74,58 @@ public class BlueskyApiCardRules
             .Verify(
                 downloader => downloader.Download(It.IsAny<IReadOnlyList<Uri>>(), It.IsAny<CancellationToken>()),
                 Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a curator removed the episode's image, the post embeds the link card with no thumbnail and uploads nothing, because the removed art must not be posted (#1500).")]
+    public async Task card_without_image_embeds_with_no_thumbnail_and_no_upload()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var platform = episode.Urls.YouTube!;
+        var shortUrl = ArrangePlatform(platform);
+        var card = new BlueskyApiCard(shortUrl, _platformCard!.Title, _platformCard.Description, null);
+        var uploads = 0;
+
+        // Act
+        var embed = await BlueskyFeedClient.CreateCardEmbed(card, (_, _) =>
+        {
+            uploads++;
+            return Task.FromResult<Blob?>(null);
+        });
+
+        // Assert
+        embed.Should().NotBeNull();
+        embed!.External.Uri.Should().Be(shortUrl.AbsoluteUri);
+        embed.External.Title.Should().Be(card.Title);
+        embed.External.Description.Should().Be(card.Description);
+        embed.External.Thumbnail.Should().BeNull();
+        uploads.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
+        "When the card has an image but its upload fails, no card is embedded, because a link card with the image is only posted once its thumbnail is uploaded.")]
+    public async Task card_with_image_whose_upload_fails_embeds_nothing()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var platform = episode.Urls.YouTube!;
+        var shortUrl = ArrangePlatform(platform);
+        var card = new BlueskyApiCard(shortUrl, _platformCard!.Title, _platformCard.Description, _image);
+        var uploaded = new List<(BlueskyCardImage Image, string Title)>();
+
+        // Act
+        var embed = await BlueskyFeedClient.CreateCardEmbed(card, (image, title) =>
+        {
+            uploaded.Add((image, title));
+            return Task.FromResult<Blob?>(null);
+        });
+
+        // Assert
+        embed.Should().BeNull();
+        uploaded.Should().ContainSingle().Which.Should().Be((_image!, card.Title));
     }
 
     [Fact(DisplayName =

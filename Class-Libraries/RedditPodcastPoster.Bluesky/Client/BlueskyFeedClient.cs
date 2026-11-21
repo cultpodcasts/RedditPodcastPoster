@@ -1,3 +1,4 @@
+using idunno.AtProto;
 using idunno.Bluesky;
 using idunno.Bluesky.Embed;
 using Microsoft.Extensions.Logging;
@@ -24,14 +25,9 @@ public class BlueskyFeedClient(
         var agent = await blueskyAgent.GetAsync();
         var post = new Post(text, langs: [language]);
         var card = await TryCreateApiCard(url, platformUrl ?? url, withoutCardImage).ConfigureAwait(false);
-        if (card is { Image: null })
+        var embed = await CreateCardEmbed(card, async (image, title) =>
         {
-            // #1500: a curator removed the episode's image, so the card has no thumbnail.
-            post.Embed(new EmbeddedExternal(card.Link.AbsoluteUri, card.Title, card.Description));
-        }
-        else if (card is { Image: not null })
-        {
-            var uploaded = await agent.UploadImage(card.Image.Bytes, card.Image.MimeType, card.Title, aspectRatio: null)
+            var uploaded = await agent.UploadImage(image.Bytes, image.MimeType, title, aspectRatio: null)
                 .ConfigureAwait(false);
             if (!uploaded.Succeeded || uploaded.Result?.Image is null)
             {
@@ -39,15 +35,14 @@ public class BlueskyFeedClient(
                     "Bluesky card image upload failed for '{url}'. Status-code: {statusCode}. Posting without a card.",
                     url,
                     uploaded.StatusCode);
+                return null;
             }
-            else
-            {
-                post.Embed(new EmbeddedExternal(
-                    card.Link.AbsoluteUri,
-                    card.Title,
-                    card.Description,
-                    uploaded.Result.Image));
-            }
+
+            return uploaded.Result.Image;
+        }).ConfigureAwait(false);
+        if (embed is not null)
+        {
+            post.Embed(embed);
         }
 
         var result = await agent.Post(post);
@@ -62,6 +57,31 @@ public class BlueskyFeedClient(
         }
 
         return result.Result.StrongReference.Uri.ToString();
+    }
+
+    /// <summary>
+    /// The external-link embed for <paramref name="card"/>. A card with no image (#1500: a curator removed the
+    /// episode's image) is embedded with no thumbnail and nothing is uploaded. Otherwise the image is uploaded
+    /// through <paramref name="uploadThumbnail"/>, and a failed upload (null) means no card.
+    /// </summary>
+    internal static async Task<EmbeddedExternal?> CreateCardEmbed(
+        BlueskyApiCard? card,
+        Func<BlueskyCardImage, string, Task<Blob?>> uploadThumbnail)
+    {
+        if (card is null)
+        {
+            return null;
+        }
+
+        if (card.Image is null)
+        {
+            return new EmbeddedExternal(card.Link.AbsoluteUri, card.Title, card.Description);
+        }
+
+        var thumbnail = await uploadThumbnail(card.Image, card.Title).ConfigureAwait(false);
+        return thumbnail is null
+            ? null
+            : new EmbeddedExternal(card.Link.AbsoluteUri, card.Title, card.Description, thumbnail);
     }
 
     internal async Task<BlueskyApiCard?> TryCreateApiCard(
