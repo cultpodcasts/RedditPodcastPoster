@@ -1,9 +1,14 @@
 using System.Text.Json.Serialization;
-using RedditPodcastPoster.Models.Podcasts;
-using RedditPodcastPoster.Models.Services;
+using Api.Contracts;
 
 namespace Api.Dtos;
 
+/// <summary>
+/// Public episode JSON returned by <c>/public/episode/{id}</c> (website bookmarks). Exported to
+/// <c>@cultpodcasts/contracts</c> (RPP #1502); <see cref="Ids"/> and <see cref="Services"/> use the
+/// JSON-identical boundary DTOs so the contract stays inside <c>Api.Dtos</c>.
+/// </summary>
+[ExportContract]
 public class PublicEpisodeDto : IPlayableKindDto
 {
     /// <summary><c>Episode</c>, <c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c>.</summary>
@@ -70,11 +75,11 @@ public class PublicEpisodeDto : IPlayableKindDto
 
     [JsonPropertyName("ids")]
     [JsonPropertyOrder(100)]
-    public EpisodeIds? Ids { get; set; }
+    public EpisodeIdsDto? Ids { get; set; }
 
     [JsonPropertyName("services")]
     [JsonPropertyOrder(101)]
-    public Dictionary<string, ServiceLink>? Services { get; set; }
+    public Dictionary<string, ServiceLinkDto>? Services { get; set; }
 
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]
