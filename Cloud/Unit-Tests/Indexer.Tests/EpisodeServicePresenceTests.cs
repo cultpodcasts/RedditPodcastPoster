@@ -140,6 +140,101 @@ public class EpisodeServicePresenceTests
     }
 
     [Fact(DisplayName =
+        "CoalescedImage skips a services entry whose stored value is null and still finds art on a later key, so a null entry cannot fail search, share or the public episode GET (#1508).")]
+    public void coalesced_image_skips_null_services_entry()
+    {
+        // Arrange
+        var appleArt = _fixture.Create<Uri>();
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.Spotify] = null!,
+                [ServiceKeys.Apple] = new() { Image = appleArt }
+            };
+        });
+
+        // Act
+        var image = EpisodeServicePresence.CoalescedImage(episode);
+
+        // Assert
+        image.Should().Be(appleArt);
+    }
+
+    [Fact(DisplayName =
+        "Service URL and image reads treat a services entry whose stored value is null as absent, so curator, public and social reads of that episode do not throw (#1508).")]
+    public void url_and_image_reads_treat_null_entry_as_absent()
+    {
+        // Arrange
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(_fixture.CreatePodcast());
+        episode.Services![ServiceKeys.Spotify] = null!;
+
+        // Act
+        var url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify);
+        var image = EpisodeServicePresence.TryGetImage(episode, ServiceKeys.Spotify);
+        var urls = EpisodeServicePresence.ToServiceUrls(episode);
+
+        // Assert
+        url.Should().BeNull();
+        image.Should().BeNull();
+        urls.Spotify.Should().BeNull();
+        urls.YouTube.Should().NotBeNull();
+    }
+
+    [Fact(DisplayName =
+        "Writing a URL to a service whose stored entry is null replaces the null with a real link, so a curator edit can repair the entry instead of failing (#1508).")]
+    public void upsert_replaces_null_entry()
+    {
+        // Arrange
+        var spotifyUrl = _fixture.Create<Uri>();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(_fixture.CreatePodcast());
+        episode.Services![ServiceKeys.Spotify] = null!;
+
+        // Act
+        EpisodeServicePresence.Upsert(episode, ServiceKeys.Spotify, spotifyUrl, null);
+
+        // Assert
+        EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify).Should().Be(spotifyUrl);
+    }
+
+    [Fact(DisplayName =
+        "NormalizeCatalog drops a services entry whose stored value is null and keeps the real links, so any normal save heals the document (#1508).")]
+    public void normalize_catalog_drops_null_entry()
+    {
+        // Arrange
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(_fixture.CreatePodcast());
+        episode.Services![ServiceKeys.Spotify] = null!;
+
+        // Act
+        EpisodeServicePresence.NormalizeCatalog(episode);
+
+        // Assert
+        episode.Services.Should().NotContainKey(ServiceKeys.Spotify);
+        episode.Services.Should().ContainKey(ServiceKeys.YouTube);
+    }
+
+    [Fact(DisplayName =
+        "Copying a services map leaves out null entries and deep-copies the real links, so catalogue projection, indexing and submit copies of a playable with a null entry do not throw or share links (#1508).")]
+    public void service_link_map_clone_drops_null_entries()
+    {
+        // Arrange
+        var link = new ServiceLink { Url = _fixture.Create<Uri>(), Image = _fixture.Create<Uri>(), Language = _fixture.Create<string>() };
+        var services = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.Spotify] = null!,
+            [ServiceKeys.YouTube] = link
+        };
+
+        // Act
+        var clone = ServiceLinkMap.CloneWithoutNulls(services);
+
+        // Assert
+        clone.Should().ContainSingle();
+        clone![ServiceKeys.YouTube].Should().NotBeSameAs(link);
+        clone[ServiceKeys.YouTube].Should().BeEquivalentTo(link);
+    }
+
+    [Fact(DisplayName =
         "SetSpotifyIdentity writes only nested ids, because leftover top-level spotifyId is retired.")]
     public void set_spotify_identity_writes_nested_ids_only()
     {

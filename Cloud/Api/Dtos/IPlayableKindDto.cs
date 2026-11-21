@@ -1,3 +1,4 @@
+using Api.Dtos.Mapping;
 using Api.Models;
 
 namespace Api.Dtos;
@@ -5,7 +6,7 @@ namespace Api.Dtos;
 /// <summary>Additive kind fields, set only by the GET-by-id endpoints (omitted elsewhere) on the episode read models (<see cref="EpisodeDto"/>, <see cref="PublicEpisodeDto"/>).</summary>
 public interface IPlayableKindDto
 {
-    string? ContentKind { get; set; }
+    ContentKindDto? ContentKind { get; set; }
     Guid? ParentId { get; set; }
     string? ParentName { get; set; }
     string? Slug { get; set; }
@@ -31,7 +32,7 @@ public static class PlayableKindDtoExtensions
             return dto;
         }
 
-        dto.ContentKind = kind.ContentKind;
+        dto.ContentKind = kind.ContentKind.ToContentKindDto();
         dto.ParentId = kind.ParentId;
         dto.ParentName = kind.ParentName;
         dto.Slug = kind.Slug;

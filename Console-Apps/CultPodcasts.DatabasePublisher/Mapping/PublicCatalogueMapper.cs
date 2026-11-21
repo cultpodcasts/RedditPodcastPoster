@@ -104,7 +104,7 @@ public static class PublicCatalogueMapper
         var urls = new SortedDictionary<string, Uri>(StringComparer.Ordinal);
         foreach (var (key, link) in services ?? [])
         {
-            if (link.Url is not null)
+            if (link?.Url is not null)
             {
                 urls[key] = link.Url;
             }

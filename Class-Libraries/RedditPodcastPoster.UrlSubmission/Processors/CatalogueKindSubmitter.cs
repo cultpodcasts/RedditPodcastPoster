@@ -800,7 +800,7 @@ public class CatalogueKindSubmitter(
             categorisedItem.ResolvedAppleItem?.Image);
         item.Services = services;
         if (string.IsNullOrWhiteSpace(item.YouTubeId) &&
-            item.Services.TryGetValue(ServiceKeys.YouTube, out var youtube) && youtube.Url != null)
+            item.Services.TryGetValue(ServiceKeys.YouTube, out var youtube) && youtube?.Url != null)
         {
             item.YouTubeId = YouTubeIdResolver.Extract(youtube.Url);
         }
@@ -817,7 +817,7 @@ public class CatalogueKindSubmitter(
             return;
         }
 
-        if (!services.TryGetValue(key, out var link))
+        if (!services.TryGetValue(key, out var link) || link is null)
         {
             link = new ServiceLink();
             services[key] = link;

@@ -26,6 +26,7 @@ public class ContractWireRules
             new[]
             {
                 "ApprovalStatusDto",
+                "ContentKindDto",
                 "EpisodeDto",
                 "EpisodeDtoMatchResult",
                 "EpisodeDtoPersonMatch",
@@ -224,6 +225,28 @@ public class ContractWireRules
         files[ContractPaths.Zod].Should().Contain("appleId: z.number().int().nullable(),");
         files[ContractPaths.Zod].Should().Contain("lang: z.string().nullable(),");
         files[ContractPaths.Zod].Should().Contain("approvalStatus: approvalStatusDtoSchema.nullable().optional(),");
+    }
+
+    [Fact(DisplayName =
+        "When the contract is rendered, then contentKind on EpisodeDto and PublicEpisodeDto is the ContentKindDto string enum, exported as a const object plus a type of the same name, so clients compare against named members instead of string literals (#1508).")]
+    public void content_kind_exports_as_a_string_enum_const_object()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+
+        // Act
+        var files = ContractText.Render(document).ToDictionary(file => file.RelativePath, file => file.Contents);
+        var shape = document.Types.Single(type => type.Name == "ContentKindDto").Shape;
+
+        // Assert
+        shape.Should().Be(ContractShape.StringEnum);
+        files[ContractPaths.TypeScript].Should().Contain(
+            "export const ContentKindDto = {\n  Episode: \"Episode\",\n  TvShowEpisode: \"TvShowEpisode\",\n  Film: \"Film\",\n  NewsReport: \"NewsReport\",\n} as const;\n");
+        files[ContractPaths.TypeScript].Should().Contain(
+            "export type ContentKindDto = (typeof ContentKindDto)[keyof typeof ContentKindDto];");
+        files[ContractPaths.TypeScript].Should().NotContain("contentKind?: string");
+        files[ContractPaths.TypeScript].Should().Contain("\n  contentKind?: ContentKindDto | null;\n");
+        files[ContractPaths.Zod].Should().Contain("contentKind: contentKindDtoSchema.nullable().optional(),");
     }
 
     [Fact(DisplayName =

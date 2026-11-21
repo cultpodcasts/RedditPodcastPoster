@@ -28,7 +28,7 @@ public static class SearchEpisodeServices
         var encoded = new HashSet<string>(StringComparer.Ordinal);
         foreach (var key in StreamingServiceCatalog.SearchEncodedKeys)
         {
-            if (!services.TryGetValue(key, out var link) || link.Url is null)
+            if (!services.TryGetValue(key, out var link) || link?.Url is null)
             {
                 continue;
             }
@@ -44,7 +44,7 @@ public static class SearchEpisodeServices
                 continue;
             }
 
-            if (pair.Value.Url is null)
+            if (pair.Value?.Url is null)
             {
                 continue;
             }

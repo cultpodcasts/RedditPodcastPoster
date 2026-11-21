@@ -14,7 +14,8 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyName("contentKind")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonPropertyOrder(300)]
-    public string? ContentKind { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ContentKindDto? ContentKind { get; set; }
 
     /// <summary>Podcast, news organisation or TV show id; null for a film.</summary>
     [JsonPropertyName("parentId")]

@@ -1211,9 +1211,7 @@ public class CatalogueParentsUpdater(
     }
 
     private static Dictionary<string, ServiceLink>? CopyServices(Dictionary<string, ServiceLink>? services) =>
-        services?.ToDictionary(
-            pair => pair.Key,
-            pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language });
+        ServiceLinkMap.CloneWithoutNulls(services);
 
     private static EpisodeIds CopyIds(EpisodeIds ids) =>
         new() { Spotify = ids.Spotify, Apple = ids.Apple, YouTube = ids.YouTube };
@@ -1479,9 +1477,7 @@ public class CatalogueParentsUpdater(
             RemovedSubjects = [.. playable.RemovedSubjects],
             SearchTerms = playable.SearchTerms,
             HashTag = playable.HashTag,
-            Services = playable.Services?.ToDictionary(
-                pair => pair.Key,
-                pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language })
+            Services = ServiceLinkMap.CloneWithoutNulls(playable.Services)
         };
         episode.SetRelease(playable.Release);
         episode.Ids = IdsFromServices(playable.Services);
@@ -1497,18 +1493,18 @@ public class CatalogueParentsUpdater(
         }
 
         var ids = new EpisodeIds();
-        if (services.TryGetValue(ServiceKeys.Spotify, out var spotify) && spotify.Url is not null)
+        if (services.TryGetValue(ServiceKeys.Spotify, out var spotify) && spotify?.Url is not null)
         {
             var spotifyId = SpotifyIdResolver.GetEpisodeId(spotify.Url);
             ids.Spotify = string.IsNullOrWhiteSpace(spotifyId) ? null : spotifyId;
         }
 
-        if (services.TryGetValue(ServiceKeys.Apple, out var apple) && apple.Url is not null)
+        if (services.TryGetValue(ServiceKeys.Apple, out var apple) && apple?.Url is not null)
         {
             ids.Apple = AppleIdResolver.GetEpisodeId(apple.Url);
         }
 
-        if (services.TryGetValue(ServiceKeys.YouTube, out var youTube) && youTube.Url is not null)
+        if (services.TryGetValue(ServiceKeys.YouTube, out var youTube) && youTube?.Url is not null)
         {
             ids.YouTube = YouTubeIdResolver.Extract(youTube.Url);
         }
@@ -1523,9 +1519,7 @@ public class CatalogueParentsUpdater(
         target.Length = merged.Length;
         target.Explicit = merged.Explicit;
         target.SetRelease(merged.Release);
-        target.Services = merged.Services?.ToDictionary(
-            pair => pair.Key,
-            pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language });
+        target.Services = ServiceLinkMap.CloneWithoutNulls(merged.Services);
         if (target is ICatalogueYouTubeItem catalogueYouTube)
         {
             // Keep the compact id the search pull reads (c.youTubeId) in step with services.youtube.url.
@@ -1540,9 +1534,7 @@ public class CatalogueParentsUpdater(
     /// </summary>
     private static void ApplyEnrichedServices(Episode enriched, Playable target)
     {
-        target.Services = enriched.Services?.ToDictionary(
-            pair => pair.Key,
-            pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language });
+        target.Services = ServiceLinkMap.CloneWithoutNulls(enriched.Services);
         if (target is ICatalogueYouTubeItem catalogueYouTube)
         {
             EpisodeServicePresence.SyncCatalogueYouTubeIdFromUrl(catalogueYouTube);
