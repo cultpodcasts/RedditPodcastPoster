@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>ContractExporter</RootNamespace>
+    <!-- Repo-relative contracts directory. Tests and CI pass an output directory argument. -->
+    <ContractOutputDir>$(MSBuildThisFileDirectory)..\..\contracts\</ContractOutputDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Cloud\Api\Api.csproj" />
+    <ProjectReference Include="..\..\Class-Libraries\RedditPodcastPoster.Configuration\RedditPodcastPoster.Configuration.csproj" />
+  </ItemGroup>
+
+  <!--
+    Generation is part of building this project, which the solution build includes.
+    Design-time and dotnet-watch builds skip it so the IDE is not rewriting contracts on every keystroke.
+    Set ExportContractsOnBuild=false to compile the tool without writing contracts.
+  -->
+  <Target Name="ExportTypescriptContracts" AfterTargets="Build"
+          Condition="'$(ExportContractsOnBuild)' != 'false' and '$(DesignTimeBuild)' != 'true' and '$(DotNetWatchBuild)' != 'true'">
+    <PropertyGroup>
+      <_ContractOutputFull>$([System.IO.Path]::GetFullPath('$(ContractOutputDir)'))</_ContractOutputFull>
+    </PropertyGroup>
+    <Message Importance="high" Text="Exporting TypeScript contracts to $(_ContractOutputFull)" />
+    <Exec WorkingDirectory="$(TargetDir)"
+          Command="dotnet exec &quot;$(TargetPath)&quot; --output &quot;$(_ContractOutputFull)&quot;" />
+  </Target>
+</Project>

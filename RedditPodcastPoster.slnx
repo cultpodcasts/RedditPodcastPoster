@@ -227,6 +227,14 @@
 
   </Folder>
 
+  <Folder Name="/Tools/">
+
+    <Project Path="Tools/ContractExporter/ContractExporter.csproj" />
+
+    <Project Path="Tools/ContractExporter.Tests/ContractExporter.Tests.csproj" />
+
+  </Folder>
+
   <Folder Name="/Console-Apps/">
 
     <Project Path="Console-Apps/AddAudioPodcast/AddAudioPodcast.csproj" />

@@ -1,0 +1,37 @@
+# Packs contracts/ and publishes @cultpodcasts/contracts to GitHub Packages. # pragma: allowlist secret
+# Runs on main when the package contents change, and from a manual dispatch of main.
+# A dispatch from any other branch is a no-op so a pull request cannot publish.
+
+name: Publish TypeScript contracts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/publish-contracts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: https://npm.pkg.github.com
+          scope: '@cultpodcasts' # pragma: allowlist secret
+      - name: Typecheck
+        working-directory: contracts
+        run: npm ci && npm run typecheck
+      - name: Publish
+        working-directory: contracts
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
