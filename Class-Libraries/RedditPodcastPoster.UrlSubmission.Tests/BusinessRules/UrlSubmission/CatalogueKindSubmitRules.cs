@@ -821,6 +821,38 @@ public class CatalogueKindSubmitRules
     }
 
     [Fact(DisplayName =
+        "When the same Netflix film is submitted as us, gb and country-less /title/ URLs, submit stores one Film " +
+        "under the canonical title URL and returns it for the later pastes (#1517).")]
+    public async Task netflix_country_title_urls_do_not_insert_another_film()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var id = _fixture.CreateAppleId();
+        var us = new Uri($"https://www.netflix.com/us/title/{id}");
+        var gb = new Uri($"https://www.netflix.com/gb/title/{id}");
+        var bare = new Uri($"https://www.netflix.com/title/{id}");
+        var title = _fixture.CreateTitle();
+        ResolvedNonPodcastServiceItem NetflixFilm(Uri url) =>
+            Source() with { Url = url, Title = title, MadeAsFilm = true, ShowName = null };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var first = await sut.TrySubmit(Categorised(NetflixFilm(us)), FilmOptions(us));
+        var second = await sut.TrySubmit(Categorised(NetflixFilm(gb)), FilmOptions(gb));
+        var third = await sut.TrySubmit(Categorised(NetflixFilm(bare)), FilmOptions(bare));
+
+        // Assert
+        first!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        _films.Should().ContainSingle();
+        _films[0].Services![StreamingServiceWire.ToKey(StreamingService.Netflix)].Url.Should().Be(bare);
+        second!.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        second.PlayableId.Should().Be(_films[0].Id);
+        third!.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        third.PlayableId.Should().Be(_films[0].Id);
+        _films.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
         "When the same TvShow episode URL is submitted again, submit returns that episode " +
         "and does not insert another TvShow episode.")]
     public async Task second_tv_episode_url_does_not_insert_another_episode()

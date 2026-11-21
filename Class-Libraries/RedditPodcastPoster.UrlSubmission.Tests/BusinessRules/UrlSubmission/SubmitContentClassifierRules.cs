@@ -3,6 +3,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Models;
 using Xunit;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
@@ -74,6 +75,46 @@ public class SubmitContentClassifierRules
 
         // Act
         var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        result.Reject.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "A Netflix /title/ documentary scraped as a Movie (no show name) is classified as a Film from the submission, " +
+        "even though its page says 'This series is…' (#1517).")]
+    public void netflix_title_documentary_submission_is_a_film()
+    {
+        // Arrange
+        var url = new Uri("https://www.netflix.com/us/title/81774139");
+        var item = new CategorisedItem(null, null, null, null, null, null,
+            new ResolvedNonPodcastServiceItem(StreamingService.Netflix, Url: url, Title: _fixture.CreateTitle(),
+                Description: "This series is: Investigative", MadeAsFilm: true),
+            Service.Other);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(SubmitContentClassifier.FromSubmission(url, item));
+
+        // Assert
+        result.Reject.Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+    }
+
+    [Fact(DisplayName =
+        "A Netflix /title/ docuseries scraped with a show name is still rejected from the submission, " +
+        "because a series hub must not become a TvShow stub (CLS-002).")]
+    public void netflix_title_docuseries_submission_is_rejected()
+    {
+        // Arrange
+        var url = new Uri("https://www.netflix.com/gb/title/81774139");
+        var show = _fixture.CreateTitle();
+        var item = new CategorisedItem(null, null, null, null, null, null,
+            new ResolvedNonPodcastServiceItem(StreamingService.Netflix, Url: url, Title: show,
+                Description: "This series is: Investigative", ShowName: show),
+            Service.Other);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(SubmitContentClassifier.FromSubmission(url, item));
 
         // Assert
         result.Reject.Should().BeTrue();
