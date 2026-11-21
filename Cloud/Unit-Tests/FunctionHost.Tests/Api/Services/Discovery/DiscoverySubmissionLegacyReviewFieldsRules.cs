@@ -14,7 +14,7 @@ namespace FunctionHost.Tests.Api.Services.Discovery;
 public class DiscoverySubmissionLegacyReviewFieldsRules
 {
     [Fact(DisplayName =
-        "Legacy review fields (#1415): a stored submission that still has outputsReviewPending / outputsReviewedAt / outputsReviewedBy deserialises through the Cosmos serializer, and the rest of the document is read as before.")]
+        "Legacy review fields (#1415): a stored submission that still has outputsReviewPending / outputsReviewedAt / outputsReviewedBy deserialises through the Cosmos serializer, the rest of the document is read as before, and the next save drops the old fields.")]
     public void stored_submission_with_dropped_review_fields_still_deserialises()
     {
         // Arrange
@@ -41,6 +41,11 @@ public class DiscoverySubmissionLegacyReviewFieldsRules
 
         // Act
         var submission = serializer.FromStream<DiscoverySubmission>(new MemoryStream(Encoding.UTF8.GetBytes(json)));
+        string saved;
+        using (var reader = new StreamReader(serializer.ToStream(submission)))
+        {
+            saved = reader.ReadToEnd();
+        }
 
         // Assert
         submission.Id.Should().Be(id);
@@ -48,5 +53,7 @@ public class DiscoverySubmissionLegacyReviewFieldsRules
         submission.ItemOutcomes.Should().ContainSingle().Which.EpisodeId.Should().Be(episodeId);
         submission.History.Should().ContainSingle().Which.Action.Should().Be("OutputsReviewed");
         submission.ETag.Should().Be("\"abc\"");
+        saved.Should().NotContain("outputsReviewPending").And.NotContain("outputsReviewedAt")
+            .And.NotContain("outputsReviewedBy", "no extension-data bag carries the dropped fields into the next replace");
     }
 }
