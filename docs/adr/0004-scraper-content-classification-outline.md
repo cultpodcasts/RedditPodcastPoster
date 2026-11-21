@@ -19,7 +19,7 @@ superseded_by: ""
 |----|------|----------|
 | **CLS-001** | One-off / special vs series | **Signed** — single-episode → Film; miniseries / anthology / finite series → TvShow + TvShowEpisodes (epic OPEN-006) |
 | **CLS-007** | Provider `Movie` / `IsMovie` → Film? | **Yes** when standalone made-as-film (epic OPEN-001); not when series |
-| **CLS-002** | Netflix `/title/` catalogue page | **Reject** until episode/watch URL — no TvShow-only stub |
+| **CLS-002** | Netflix `/title/` catalogue page | **Reject** a series hub until episode/watch URL — no TvShow-only stub. A `/title/` page whose primary type is Movie is the film itself → **Film** (#1517) |
 | **CLS-003** | Vimeo | Curator chooses when ambiguous; classifier suggests only |
 | **CLS-004** | News outlet resolution | Scrape → name-attach; USA news-network name heuristics as assist; curator override |
 | **CLS-005** | Multi-source series / ambiguous attach | Podcast-like parent name UI + 0/1/many attach rules (esp. TvShow from disparate channels) |
@@ -51,7 +51,7 @@ superseded_by: ""
 | ID | Rule | Status |
 |----|------|--------|
 | **CLS-001** | Single-episode / one-off vs series | **Signed** — single-episode → Film; miniseries / anthology / finite or ongoing series → TvShow + episodes (OPEN-006) |
-| **CLS-002** | Netflix `/title/` catalogue page | **Signed** — **reject** until episode/watch URL (no TvShow stub alone) |
+| **CLS-002** | Netflix `/title/` catalogue page | **Signed** — **reject** a series hub until episode/watch URL (no TvShow stub alone); a Movie `/title/` page is a Film (#1517) |
 | **CLS-003** | Vimeo — Film vs heuristic | **Signed** — curator chooses; classifier suggests when ambiguous; no auto-persist kind without confirm |
 | **CLS-004** | News outlet resolution | **Signed** — scrape publisher/outlet → name-attach (podcast pattern); investigate USA news-network channel-name heuristics as assist; **curator can override** |
 | **CLS-005** | Ambiguous / multi-source parent attach | **Signed** — same as podcast: 0→create, 1→attach, many→409/picker; **TvShow especially** needs podcast-like UI to see/choose **parent (series) name** when episodes arrive from different YouTube/Vimeo/BBC channels and build up one series |

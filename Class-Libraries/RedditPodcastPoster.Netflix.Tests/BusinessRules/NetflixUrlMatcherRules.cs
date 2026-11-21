@@ -64,4 +64,41 @@ public class NetflixUrlMatcherRules
         // Assert
         matches.Should().BeFalse();
     }
+
+    [Theory(DisplayName =
+        "Netflix title URLs with or without a country or locale segment compact to the same title id and one canonical URL, " +
+        "so us, gb and country-less pastes of one title cannot be stored as separate items (#1517).")]
+    [InlineData("https://www.netflix.com/us/title/81774139")]
+    [InlineData("https://www.netflix.com/gb/title/81774139")]
+    [InlineData("https://www.netflix.com/gb-en/title/81774139")]
+    [InlineData("https://www.netflix.com/title/81774139")]
+    [InlineData("https://netflix.com/US/title/81774139")]
+    public void country_title_urls_share_one_canonical_url(string pasted)
+    {
+        // Arrange
+        var url = new Uri(pasted);
+
+        // Act
+        var compact = NetflixUrlMatcher.TryCompactPayload(url);
+        var canonical = NetflixUrlMatcher.CanonicalUrl(url);
+
+        // Assert
+        compact.Should().Be("81774139");
+        canonical.Should().Be(new Uri("https://www.netflix.com/title/81774139"));
+    }
+
+    [Fact(DisplayName =
+        "A country-prefixed Netflix path that is not a title page does not compact, " +
+        "because only /title/ pages have a stable title id.")]
+    public void country_browse_path_does_not_compact()
+    {
+        // Arrange
+        var url = new Uri($"https://www.netflix.com/gb/browse/{_fixture.CreateAppleId()}");
+
+        // Act
+        var compact = NetflixUrlMatcher.TryCompactPayload(url);
+
+        // Assert
+        compact.Should().BeNull();
+    }
 }
