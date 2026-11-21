@@ -8,8 +8,9 @@
 //   <!-- review-gate: changes-requested sha=<full 40-char head sha> -->   (overrides an earlier acceptable)
 //
 // Markers in review bodies are ignored (pull_request_review would run the PR's own workflow
-// YAML), as are markers on quoted (`>`) lines or inside fenced code blocks. Comments are
-// ordered by created_at, so editing an old comment does not make its marker the latest.
+// YAML), as are markers on quoted (`>`) lines, inside fenced or indented code blocks, or
+// inside inline code spans. Comments are ordered by created_at, so editing an old comment
+// does not make its marker the latest.
 // The label is removed on a new push (`synchronize`) and on ANY run where it is present but
 // the latest marker for the head SHA is not `acceptable` (so a dropped push run self-heals;
 // the reviewer posts the marker first, then adds the label).
@@ -24,8 +25,35 @@ const TRUSTED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 const MARKER_RE = /<!--\s*review-gate:\s*(acceptable|changes-requested)\s+sha=([0-9a-fA-F]{40})\s*-->/gi;
 const MAX_DESCRIPTION = 140;
 
-// Drop quoted lines (`> ...`) and fenced code blocks (``` or ~~~) so a reply that quotes or
-// shows an old marker does not count as a new verdict.
+// Drop quoted lines (`> ...`), fenced code blocks (``` or ~~~), 4-space/tab indented code
+// blocks (start of text or after a blank line), and inline code spans, so a reply that
+// quotes or shows an old marker does not count as a new verdict.
+function stripIndentedCodeBlocks(body) {
+  const kept = [];
+  let inBlock = false;
+  let prevBlank = true;
+  for (const line of body.split(/\r?\n/)) {
+    const isBlank = line.trim() === '';
+    const isIndented = /^(?: {4}|\t)/.test(line);
+    if (inBlock) {
+      if (isBlank || isIndented) continue;
+      inBlock = false;
+    } else if (!isBlank && isIndented && prevBlank) {
+      inBlock = true;
+      continue;
+    }
+    kept.push(line);
+    prevBlank = isBlank;
+  }
+  return kept.join('\n');
+}
+
+function stripInlineCodeSpans(body) {
+  // CommonMark-style: a run of backticks closed by a run of the same length (so
+  // `` `inner` `` is one span). Unclosed ticks are left alone.
+  return body.replace(/(`+)(?:(?!\1)[\s\S])*?\1/g, '');
+}
+
 function stripQuotedAndFenced(body) {
   const kept = [];
   let fence = null;
@@ -39,7 +67,7 @@ function stripQuotedAndFenced(body) {
     if (/^\s{0,3}>/.test(line)) continue;
     kept.push(line);
   }
-  return kept.join('\n');
+  return stripInlineCodeSpans(stripIndentedCodeBlocks(kept.join('\n')));
 }
 
 function parseMarkers(body) {

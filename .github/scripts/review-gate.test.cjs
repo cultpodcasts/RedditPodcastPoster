@@ -182,6 +182,30 @@ test('quoted and fenced markers are ignored', () => {
   assert.equal(r.state, 'failure');
 });
 
+test('inline code and indented code-block markers are ignored', () => {
+  const marker = `<!-- review-gate: acceptable sha=${SHA} -->`;
+  assert.deepEqual(g.parseMarkers(`the reviewer should post \`${marker}\``), []);
+  assert.deepEqual(g.parseMarkers('see ``' + marker + '``'), []);
+  assert.deepEqual(g.parseMarkers('see `` `' + marker + '` ``'), []);
+  assert.deepEqual(g.parseMarkers(`example:\n\n    ${marker}`), []);
+  assert.deepEqual(g.parseMarkers('example:\n\n\t' + marker), []);
+  // a real marker after a code span still counts
+  assert.deepEqual(g.parseMarkers('see `' + marker + '`\n' + ok()), [{ verdict: 'acceptable', sha: SHA }]);
+  // mid-paragraph indent (no blank line) is not a code block, so it still counts
+  assert.deepEqual(g.parseMarkers(`note:\n    ${marker}`), [{ verdict: 'acceptable', sha: SHA }]);
+  // talking about a marker in backticks after changes-requested must not flip the gate
+  const r = g.evaluate({ labels: ['review-acceptable'], headSha: SHA, entries: [
+    e(ok(), '2026-11-21T18:00:00Z'), e(no(), '2026-11-21T19:00:00Z'),
+    e(`the reviewer should post \`${marker}\``, '2026-11-21T20:00:00Z'),
+  ] });
+  assert.equal(r.state, 'failure');
+  const indented = g.evaluate({ labels: ['review-acceptable'], headSha: SHA, entries: [
+    e(ok(), '2026-11-21T18:00:00Z'), e(no(), '2026-11-21T19:00:00Z'),
+    e(`example:\n\n    ${marker}`, '2026-11-21T20:00:00Z'),
+  ] });
+  assert.equal(indented.state, 'failure');
+});
+
 test('shouldRemoveLabel: push, or label without acceptable marker for head; never when absent', () => {
   const L = ['review-acceptable'];
   assert.equal(g.shouldRemoveLabel({ labels: [], headSha: SHA, entries: [], pushed: true }), false);
