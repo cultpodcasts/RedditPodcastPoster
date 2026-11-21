@@ -4,8 +4,11 @@
 // features board's built-in "Item closed" workflow then sets Status = Done.
 // Rule (Jon, cultpodcasts/RedditPodcastPoster#1423): a ticket with PRs in several
 // repos stays open until ALL of its PRs are merged. When any other PR for the issue
-// is still open, this reopens the issue and puts the board card back on In Progress
-// (Ready For Review means the PRs are ready to merge).
+// is still open, this reopens the issue and puts the board card back in the column it
+// was in BEFORE the close (cultpodcasts/RedditPodcastPoster#1514, Jon: "it should stay
+// in the column it is in until I merge the final PR"; then it goes to Done). That
+// column is read from the issue's ProjectV2ItemStatusChangedEvent history; In
+// Progress is only the fallback when the card has no status history.
 //
 // "PR for the issue" = an OPEN pull request in a cultpodcasts repo that is either
 //   1. a Development link (closedByPullRequestsReferences: a closing keyword in the
@@ -33,8 +36,8 @@
 // - the comment is posted BEFORE the reopen, so it never lists a PR that had merged
 //   by the time the issue reopened; if a companion merges in the gap the issue is
 //   re-closed straight away;
-// - the board card is only ever moved to In Progress while the issue is open, and a
-//   closed issue's card is never moved off Done (a stray In Progress is put back).
+// - the board card is only ever moved off Done while the issue is open, and a closed
+//   issue's card is never moved off Done (a stray restored column is put back).
 // Only issues closed as completed (or with no reason) are guarded: `not_planned` and
 // `duplicate` closes are skipped by the job condition AND by a live state_reason check
 // before any side effect, so a curator's reason is never overwritten.
@@ -48,6 +51,7 @@
 const BOARD_OWNER = 'cultpodcasts';
 const BOARD_NUMBER = 1;
 const STATUS_FIELD = 'Status';
+// Fallback only: used when the card has no status history to restore from (#1514).
 const RESTORE_STATUS = 'In Progress';
 const DONE_STATUS = 'Done';
 const TRIO = ['RedditPodcastPoster', 'Api', 'website'];
@@ -102,13 +106,15 @@ function pickBoardItem(projectItems, owner = BOARD_OWNER, number = BOARD_NUMBER)
   );
 }
 
+const MANUAL_RESTORE = 'set Status back to the column it was in before the close (e.g. Ready For Review) by hand';
+
 function buildComment(companions, board = {}) {
   const list = companions.map((p) => `- ${p.repo}#${p.number}: ${p.title} — ${p.url}`).join('\n');
   let boardLine;
   if (board.restored) {
-    boardLine = `Board card restored to **${RESTORE_STATUS}**.`;
+    boardLine = `Board card restored to **${board.status ?? RESTORE_STATUS}**.`;
   } else if (board.reason) {
-    boardLine = `⚠️ Board card NOT restored (${board.reason}); set Status back to ${RESTORE_STATUS} by hand.`;
+    boardLine = `⚠️ Board card NOT restored (${board.reason}); ${MANUAL_RESTORE}.`;
   } else {
     boardLine = '';
   }
@@ -142,6 +148,16 @@ const ITEMS_QUERY = `
             }
           }
         }
+        timelineItems(last: 100, itemTypes: [PROJECT_V2_ITEM_STATUS_CHANGED_EVENT]) {
+          nodes {
+            ... on ProjectV2ItemStatusChangedEvent {
+              createdAt
+              previousStatus
+              status
+              project { number owner { ... on User { login } ... on Organization { login } } }
+            }
+          }
+        }
       }
     }
   }
@@ -156,58 +172,92 @@ const SET_STATUS = `
   }
 `;
 
+// The column the card was in before the close (#1514). Scans this board's
+// ProjectV2ItemStatusChangedEvent history newest-first and returns the newest
+// status that is not Done: the "Item closed" automation's Done event carries the
+// pre-close column as previousStatus, and if that event has not landed yet the
+// newest event's status IS the pre-close column. Repeated closes (Done -> Done
+// chains) are skipped the same way. null when there is no usable history.
+function columnBeforeClose(events, owner = BOARD_OWNER, number = BOARD_NUMBER) {
+  const mine = (events ?? []).filter(
+    (e) => e && e.project && e.project.number === number && e.project.owner?.login === owner
+  );
+  for (let i = mine.length - 1; i >= 0; i--) {
+    for (const s of [mine[i].status, mine[i].previousStatus]) {
+      if (s && s !== DONE_STATUS) return s;
+    }
+  }
+  return null;
+}
+
 function boardContext(res) {
   const issue = res.repository?.issue;
   const item = pickBoardItem(issue?.projectItems?.nodes);
   if (!item) return { error: `issue is not on ${BOARD_OWNER} project ${BOARD_NUMBER}` };
   const field = item.project.field;
   const option = (name) => field?.options?.find((o) => o.name === name);
-  if (!field?.id || !option(RESTORE_STATUS)) return { error: `no "${RESTORE_STATUS}" option on ${STATUS_FIELD}` };
-  return { issueState: issue.state, item, field, option, current: item.fieldValueByName?.name ?? null };
+  if (!field?.id) return { error: `no ${STATUS_FIELD} field on ${BOARD_OWNER} project ${BOARD_NUMBER}` };
+  const current = item.fieldValueByName?.name ?? null;
+  // Column to restore: pre-close history, else the live column if it is not Done
+  // (automation not landed and no history), else the In Progress fallback.
+  const target =
+    columnBeforeClose(issue?.timelineItems?.nodes) ?? (current && current !== DONE_STATUS ? current : RESTORE_STATUS);
+  return { issueState: issue.state, item, field, option, current, target };
 }
 
 // The board's "Item closed" automation can land before OR after this job, so keep
-// re-asserting In Progress until it reads back stable twice in a row. Each pass
-// re-reads the LIVE issue state: once the issue is closed again (a newer merge),
-// stop and never leave the card off Done (#1425).
+// re-asserting the pre-close column until it reads back stable twice in a row. The
+// column is fixed from the FIRST read (later reads would also see this job's own
+// writes). Only Done / empty is ever overwritten: a card a human moved to another
+// column meanwhile is left where it is. Each pass re-reads the LIVE issue state:
+// once the issue is closed again (a newer merge), stop and never leave the card
+// off Done (#1425).
 async function restoreBoardStatus({ graphql, owner, repo, number, sleep, attempts = 8, delayMs = 5000, log = () => {} }) {
   let stable = 0;
   let wrote = false;
+  let target = null;
   for (let i = 0; i < attempts; i++) {
     const ctx = boardContext(await graphql(ITEMS_QUERY, { owner, repo, number }));
     if (ctx.error) return { restored: false, reason: ctx.error };
     const { issueState, item, field, option, current } = ctx;
+    if (target === null) target = ctx.target;
     if (issueState !== 'OPEN') {
       const done = option(DONE_STATUS);
-      if (current !== DONE_STATUS && done && (wrote || current === RESTORE_STATUS)) {
+      if (current !== DONE_STATUS && done && (wrote || current === target)) {
         log(`Issue is closed again; putting the card back on ${DONE_STATUS}.`);
         await graphql(SET_STATUS, { project: item.project.id, item: item.id, field: field.id, option: done.id });
       }
       return { restored: false, closedAgain: true, reason: `issue was closed again; card left on ${DONE_STATUS}` };
     }
-    if (current === RESTORE_STATUS) {
+    if (current === target) {
       stable++;
-      if (stable >= 2) return { restored: true, wrote };
+      if (stable >= 2) return { restored: true, wrote, status: target };
+    } else if (current && current !== DONE_STATUS) {
+      log(`Board Status is ${current} (moved meanwhile, not ${target}); leaving it there.`);
+      return { restored: true, wrote, status: current };
     } else {
+      const opt = option(target);
+      if (!opt) return { restored: false, reason: `no "${target}" option on ${STATUS_FIELD}` };
       stable = 0;
-      log(`Board Status is ${current ?? '(empty)'}; setting ${RESTORE_STATUS}.`);
-      await graphql(SET_STATUS, { project: item.project.id, item: item.id, field: field.id, option: option(RESTORE_STATUS).id });
+      log(`Board Status is ${current ?? '(empty)'}; restoring ${target}.`);
+      await graphql(SET_STATUS, { project: item.project.id, item: item.id, field: field.id, option: opt.id });
       wrote = true;
     }
     if (i < attempts - 1) await sleep(delayMs);
   }
-  return stable >= 1 ? { restored: true, wrote } : { restored: false, reason: 'status kept reverting' };
+  return stable >= 1 ? { restored: true, wrote, status: target } : { restored: false, reason: 'status kept reverting' };
 }
 
-// Closed issue with no open companions: its card belongs on Done. Only a stray
-// In Progress (e.g. left by an older guard run) is corrected; other columns are
-// left to the board's own automation / humans.
+// Closed issue with no open companions: the final PR merged (or the ticket is
+// otherwise complete), so its card belongs on Done (Jon, #1514). Any column a guard
+// run may have restored (In Progress, Ready For Review, Blocked, ...) is moved to
+// Done, the same as the board's own "Item closed" automation does.
 async function settleClosedCard({ graphql, owner, repo, number, log = () => {} }) {
   const ctx = boardContext(await graphql(ITEMS_QUERY, { owner, repo, number }));
   if (ctx.error || ctx.issueState === 'OPEN') return { settled: false };
   const done = ctx.option(DONE_STATUS);
-  if (ctx.current !== RESTORE_STATUS || !done) return { settled: false };
-  log(`Closed issue's card is ${RESTORE_STATUS}; moving it to ${DONE_STATUS}.`);
+  if (!ctx.current || ctx.current === DONE_STATUS || !done) return { settled: false };
+  log(`Closed issue's card is ${ctx.current}; moving it to ${DONE_STATUS}.`);
   await graphql(SET_STATUS, { project: ctx.item.project.id, item: ctx.item.id, field: ctx.field.id, option: done.id });
   return { settled: true };
 }
@@ -461,7 +511,7 @@ async function run({ github, context, core, getOctokit, projectToken, sleep = (m
     }
   }
   if (result.restored) {
-    core.info(`Board Status is ${RESTORE_STATUS}.`);
+    core.info(`Board Status is ${result.status}.`);
   } else if (result.closedAgain) {
     core.info(`${full} was closed again by a newer merge; card left on ${DONE_STATUS}.`);
   } else {
@@ -472,14 +522,14 @@ async function run({ github, context, core, getOctokit, projectToken, sleep = (m
         owner,
         repo,
         issue_number: number,
-        body: `⚠️ Board card NOT restored (${result.reason}); set Status back to ${RESTORE_STATUS} by hand.`,
+        body: `⚠️ Board card NOT restored (${result.reason}); ${MANUAL_RESTORE}.`,
       });
     }
   }
   await writeSummary(
     core,
     `Reopened ${full}: ${after.map((p) => `${p.repo}#${p.number}`).join(', ')} still open. ` +
-      (result.restored ? `Board ${RESTORE_STATUS}.` : `Board NOT restored: ${result.reason}.`)
+      (result.restored ? `Board ${result.status}.` : `Board NOT restored: ${result.reason}.`)
   );
   return { reopened: true, board: result, companions: after };
 }
@@ -495,6 +545,7 @@ module.exports = {
   buildComment,
   restoreBoardStatus,
   settleClosedCard,
+  columnBeforeClose,
   stillOpen,
   RESTORE_STATUS,
   DONE_STATUS,
