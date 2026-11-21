@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <PackageReference Include="idunno.Bluesky" Version="7.0.1" />
+    <!-- Pins idunno.AtProto's transitive Microsoft.AspNetCore.WebUtilities 10.0.0 past GHSA-x33c-w48q-qrgc (NU1903). -->
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="10.0.15" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.12" />
   </ItemGroup>

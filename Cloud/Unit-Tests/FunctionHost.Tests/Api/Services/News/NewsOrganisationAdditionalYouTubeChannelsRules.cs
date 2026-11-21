@@ -790,7 +790,7 @@ public class NewsOrganisationAdditionalYouTubeChannelsRules
             x => x.Log(
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains(archiveChannelId) && v.ToString()!.Contains(playlistId)),
+                It.Is<It.IsAnyType>((v, _) => $"{v}".Contains(archiveChannelId) && $"{v}".Contains(playlistId)),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
