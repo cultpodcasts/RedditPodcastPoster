@@ -158,6 +158,23 @@ public class NewsReportFilmMoveServiceRules
             CancellationToken.None);
 
     [Fact(DisplayName =
+        "Move to an existing film (filmId, RPP #1522) is podcast-episode only: a news report move with filmId is a 400 and the report stays.")]
+    public async Task news_report_move_with_film_id_is_bad_request()
+    {
+        // Arrange
+        var report = SeedReport();
+
+        // Act
+        var result = await _mocker.CreateInstance<NewsReportFilmMoveService>().MoveAsync(
+            new NewsReportFilmMoveCommand(report.Id, new EpisodeFilmMoveRequest { FilmId = Guid.NewGuid() }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.BadRequest);
+        result.Error.Should().Contain("filmId");
+    }
+
+    [Fact(DisplayName =
         "Moving a news report to a film saves a film with the report id, title, services, YouTube id and posted flags and the organisation's publisher fields, then deletes only that report row.")]
     public async Task move_saves_film_with_report_id_and_deletes_report_row()
     {

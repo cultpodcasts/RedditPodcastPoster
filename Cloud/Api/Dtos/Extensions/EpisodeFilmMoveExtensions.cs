@@ -9,7 +9,8 @@ public static class EpisodeFilmMoveExtensions
     {
         Title = request?.Title,
         IdentityDecision = request?.IdentityDecision,
-        SelectedIdentityKey = request?.SelectedIdentityKey
+        SelectedIdentityKey = request?.SelectedIdentityKey,
+        FilmId = request?.FilmId
     };
 
     public static EpisodeFilmMoveResponse ToDto(this EpisodeFilmMoveResult result) =>
