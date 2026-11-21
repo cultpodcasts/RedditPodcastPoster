@@ -86,7 +86,7 @@ public interface ID1SearchRebuilder
 /// documents the reconcile builds) into the shadow, 100 per request, each id once, counting per content kind. If any
 /// eligible playable fails to build, the shadow is dropped: swapping would lose that document from search.</item>
 /// <item><b>Swap:</b> the Worker verifies the shadow (counts within <see cref="D1SearchRebuildOptions.Tolerance"/>
-/// of what was loaded, full-text rows, no shrink beyond <see cref="D1SearchReconcileOptions.DriftThreshold"/>,
+/// of what was loaded, full-text rows, no shrink beyond <see cref="D1SearchRebuildOptions.MaxShrink"/>,
 /// full-text structure) and swaps it in with one transaction, keeping the old index as parked tables. A refused swap
 /// drops the shadow.</item>
 /// <item><b>Check</b>, straight after the swap (Jon: "run checks and drop sooner"): the full-text integrity check
@@ -94,7 +94,8 @@ public interface ID1SearchRebuilder
 /// reconcile with write. It patches the few documents a delete racing the load may have brought back, and refuses
 /// above the drift threshold.</item>
 /// <item><b>Settle:</b> every check passed, so the parked old index is dropped. If any check failed, the old index
-/// is swapped back and the new one dropped.</item>
+/// is swapped back and the new one dropped. The Worker writes every push to the parked old index too while the new
+/// one is being checked (Api #290), so the restored index has missed nothing and needs no catch-up.</item>
 /// </list>
 /// </summary>
 public sealed class D1SearchRebuilder(
@@ -106,7 +107,6 @@ public sealed class D1SearchRebuilder(
     ILogger<D1SearchRebuilder> logger) : ID1SearchRebuilder
 {
     private readonly D1SearchRebuildOptions _rebuild = options.Value.Rebuild;
-    private readonly double _maxShrink = options.Value.Reconcile.DriftThreshold;
 
     public async Task<D1SearchRebuildReport> Rebuild(
         CancellationToken cancellationToken,
@@ -170,7 +170,7 @@ public sealed class D1SearchRebuilder(
         }
 
         progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Swap, 0, 1, "verifying"));
-        var expected = new D1SearchRebuildExpectation(tally.Loaded, tally.Kinds, _rebuild.Tolerance, _maxShrink);
+        var expected = new D1SearchRebuildExpectation(tally.Loaded, tally.Kinds, _rebuild.Tolerance, _rebuild.MaxShrink);
         try
         {
             await client.Swap(rebuildId, expected, cancellationToken);
@@ -314,10 +314,19 @@ public sealed class D1SearchRebuilder(
             }
             catch (Exception ex)
             {
-                return Log(Report(D1SearchRebuildOutcome.Failed, rebuildId, tally,
-                    error: $"the new index passed every check and is live, but dropping the old index failed: {ex.Message}. " +
-                           "Rerun --rebuild to finish.",
-                    resumed: resumed, check: check, reconcile: reconcile));
+                // The drop may have committed with its answer lost.
+                var state = await TryStatus();
+                if (state is { State: D1SearchRebuildStatus.None })
+                {
+                    logger.LogWarning("D1 search rebuild {RebuildId}: finish's answer was lost ({Message}) but it committed.",
+                        rebuildId, ex.Message);
+                }
+                else
+                {
+                    return Log(Report(D1SearchRebuildOutcome.Failed, rebuildId, tally,
+                        error: FinishFailed(rebuildId, state, ex.Message),
+                        resumed: resumed, check: check, reconcile: reconcile));
+                }
             }
 
             progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Settle, 1, 1, "old index dropped"));
@@ -325,28 +334,58 @@ public sealed class D1SearchRebuilder(
                 reconcile: reconcile));
         }
 
+        Exception? swapBackFailure = null;
         try
         {
             await client.SwapBack(rebuildId, cancellationToken);
         }
         catch (Exception ex)
         {
-            return Log(Report(D1SearchRebuildOutcome.Failed, rebuildId, tally, problems,
-                $"the new index failed a check and swapping the old index back failed: {ex.Message}. " +
-                "The new index is still live; rerun --rebuild to check it again, or swap back by hand.",
-                resumed, check, reconcile));
+            swapBackFailure = ex;
+        }
+
+        if (swapBackFailure is not null)
+        {
+            // The swap-back may have committed with its answer lost.
+            if (await TryStatus() is { State: D1SearchRebuildStatus.SwappedBack } back && back.RebuildId == rebuildId)
+            {
+                logger.LogWarning("D1 search rebuild {RebuildId}: swap-back's answer was lost ({Message}) but it committed.",
+                    rebuildId, swapBackFailure.Message);
+            }
+            else
+            {
+                return Log(Report(D1SearchRebuildOutcome.Failed, rebuildId, tally, problems,
+                    $"the new index failed a check and swapping the old index back failed: {swapBackFailure.Message}. " +
+                    "The new index is still live; rerun --rebuild to check it again, or swap back by hand.",
+                    resumed, check, reconcile));
+            }
         }
 
         var dropped = await TryAbort(rebuildId);
         progress?.Report(new D1SearchReconcileProgress(D1SearchReconcilePhase.Settle, 1, 1, "old index back"));
-        if (dropped.Length > 0)
-        {
-            problems.Add($"old index restored{dropped}");
-        }
+        problems.Add($"{RestoredNote}{dropped}");
 
         return Log(Report(D1SearchRebuildOutcome.SwappedBack, rebuildId, tally, problems, resumed: resumed, check: check,
             reconcile: reconcile));
     }
+
+    /// <summary>Added to a swapped-back report: the old index is live again and is not stale.</summary>
+    public const string RestoredNote =
+        "old index restored; it received every write made since the swap (the Worker writes both while checking), " +
+        "so it needs no catch-up";
+
+    /// <summary>The operator's next step when finish failed and the rebuild state says it did not commit.</summary>
+    public static string FinishFailed(string rebuildId, D1SearchRebuildStatus? state, string message) => state switch
+    {
+        { State: D1SearchRebuildStatus.Swapped } when state.RebuildId == rebuildId =>
+            $"the new index passed every check and is live, but dropping the old index failed: {message}. The rebuild " +
+            "is still swapped: rerun --rebuild to check it again and finish.",
+        _ =>
+            $"the new index passed every check and is live, but dropping the old index failed: {message}, and the rebuild " +
+            $"state now reads {state?.State ?? "unknown"}. Check GET /search/admin/rebuild: if it reports none, the old tables were dropped " +
+            "and nothing more is needed (a rerun would start a new rebuild); rerun --rebuild only while it still " +
+            "reports swapped."
+    };
 
     /// <summary>Why a post-swap check failed; empty when it passed.</summary>
     public static IReadOnlyList<string> CheckProblems(D1SearchRebuildCheck check)

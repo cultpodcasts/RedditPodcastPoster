@@ -50,6 +50,15 @@ public sealed class D1SearchRebuildOptions
     public int Tolerance { get; set; } = 50;
 
     /// <summary>
+    /// The swap's <c>maxShrink</c>: the Worker refuses a new index smaller than the live one by more than this share.
+    /// Deliberately not <see cref="D1SearchReconcileOptions.DriftThreshold"/>: a rebuild is the fix when the live index
+    /// has drifted (often bloated with orphans), so the new index may rightly be much smaller. The real size gate is
+    /// the Cosmos counts (<see cref="Tolerance"/>); this only stops a catastrophically short load. The drift
+    /// threshold still gates the post-swap reconcile, so a bad new index is swapped back.
+    /// </summary>
+    public double MaxShrink { get; set; } = 0.5;
+
+    /// <summary>
     /// Searches run against the new index straight after the swap; each must find something or the console swaps the
     /// old index back. Empty means <see cref="DefaultSampleQueries"/>. At most 10.
     /// </summary>

@@ -23,6 +23,7 @@ public class D1SearchRebuilderTests
         _rebuildId = _fixture.CreateGuid().ToString();
         _options.Reconcile.DriftThreshold = 0.05;
         _options.Rebuild.Tolerance = 7;
+        _options.Rebuild.MaxShrink = 0.5;
         _mocker.Use<IOptions<D1SearchOptions>>(Options.Create(_options));
         _mocker.GetMock<ID1SearchIndexWriter>().SetupGet(w => w.IsActive).Returns(true);
         _mocker.GetMock<ID1SearchCatalogue>()
@@ -68,13 +69,96 @@ public class D1SearchRebuilderTests
         var client = _mocker.GetMock<ID1SearchRebuildClient>();
         client.Verify(c => c.Swap(_rebuildId, It.Is<D1SearchRebuildExpectation>(e =>
             e.ExpectedTotal == 250 && e.ExpectedKinds["Episode"] == 200 && e.ExpectedKinds["Film"] == 50 &&
-            e.ExpectedKinds.Count == 2 && e.Tolerance == 7 && e.MaxShrink == 0.05), It.IsAny<CancellationToken>()), Times.Once);
+            e.ExpectedKinds.Count == 2 && e.Tolerance == 7 && e.MaxShrink == 0.5), It.IsAny<CancellationToken>()), Times.Once);
         client.Verify(c => c.Finish(_rebuildId, It.IsAny<CancellationToken>()), Times.Once);
         client.Verify(c => c.SwapBack(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         client.Verify(c => c.Abort(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _mocker.GetMock<ID1SearchReconciler>().Verify(r => r.Reconcile(
             new D1SearchReconcileRequest(true, false, true), It.IsAny<CancellationToken>(),
             It.IsAny<IProgress<D1SearchReconcileProgress>?>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A rebuild sends the swap the rebuild's own MaxShrink, not the reconcile drift threshold, because the live index " +
+        "may be the bloated one being replaced and a correct Cosmos-built index can be far more than 5% smaller.")]
+    public async Task swap_uses_the_rebuild_max_shrink_not_the_drift_threshold()
+    {
+        // Arrange
+        _mocker.GetMock<ID1SearchRebuildClient>()
+            .Setup(c => c.Status(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new D1SearchRebuildStatus(D1SearchRebuildStatus.None, null,
+                new D1SearchRebuildCounts(200, null), null, null));
+        _catalogue = Enumerable.Range(0, 150).Select(_ => Candidate()).ToList();
+        var sut = _mocker.CreateInstance<D1SearchRebuilder>();
+
+        // Act
+        var report = await sut.Rebuild(CancellationToken.None);
+
+        // Assert
+        report.Outcome.Should().Be(D1SearchRebuildOutcome.Rebuilt);
+        _mocker.GetMock<ID1SearchRebuildClient>().Verify(c => c.Swap(_rebuildId,
+            It.Is<D1SearchRebuildExpectation>(e => e.ExpectedTotal == 150 && e.MaxShrink == 0.5 &&
+                                                   e.MaxShrink > _options.Reconcile.DriftThreshold &&
+                                                   e.ExpectedTotal < 200 * (1 - _options.Reconcile.DriftThreshold)),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "A finish whose answer is lost but which the Worker reports as done counts as rebuilt, because the old tables " +
+        "are gone and a rerun would start a whole new rebuild.")]
+    public async Task lost_finish_answer_that_committed_is_rebuilt()
+    {
+        // Arrange
+        _catalogue = [Candidate()];
+        var client = _mocker.GetMock<ID1SearchRebuildClient>();
+        client.Setup(c => c.Finish(_rebuildId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException(_fixture.CreateTitle()));
+        var sut = _mocker.CreateInstance<D1SearchRebuilder>();
+
+        // Act
+        var report = await sut.Rebuild(CancellationToken.None);
+
+        // Assert
+        report.Outcome.Should().Be(D1SearchRebuildOutcome.Rebuilt);
+        report.Error.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "A finish that fails while the rebuild is still swapped tells the operator to rerun --rebuild, which resumes " +
+        "and finishes, because that is the only state in which a rerun does not start over.")]
+    public async Task failed_finish_while_still_swapped_says_rerun_resumes()
+    {
+        // Arrange
+        _catalogue = [Candidate()];
+        var client = _mocker.GetMock<ID1SearchRebuildClient>();
+        client.Setup(c => c.Finish(_rebuildId, It.IsAny<CancellationToken>()))
+            .Callback(() => client
+                .Setup(c => c.Status(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Status(D1SearchRebuildStatus.Swapped, _rebuildId)))
+            .ThrowsAsync(new D1SearchHttpException(HttpStatusCode.ServiceUnavailable, _fixture.CreateTitle()));
+        var sut = _mocker.CreateInstance<D1SearchRebuilder>();
+
+        // Act
+        var report = await sut.Rebuild(CancellationToken.None);
+
+        // Assert
+        report.Outcome.Should().Be(D1SearchRebuildOutcome.Failed);
+        report.Error.Should().Contain("still swapped").And.Contain("rerun --rebuild");
+    }
+
+    [Fact(DisplayName =
+        "The operator hint for a failed finish in any other state says a rerun from none starts a new rebuild, because " +
+        "'rerun to finish' would mislead when the drop had in fact committed.")]
+    public void finish_hint_when_the_state_is_unknown()
+    {
+        // Arrange
+        var rebuildId = _fixture.CreateGuid().ToString();
+
+        // Act
+        var hint = D1SearchRebuilder.FinishFailed(rebuildId, null, _fixture.CreateTitle());
+
+        // Assert
+        hint.Should().Contain("if it reports none, the old tables were dropped").And.Contain("only while it still reports swapped");
     }
 
     [Fact(DisplayName =
@@ -137,7 +221,8 @@ public class D1SearchRebuilderTests
 
         // Assert
         report.Outcome.Should().Be(D1SearchRebuildOutcome.SwappedBack);
-        report.Problems.Should().ContainSingle().Which.Should().Contain("found nothing");
+        report.Problems.Should().Equal(report.Problems[0], D1SearchRebuilder.RestoredNote);
+        report.Problems[0].Should().Contain("found nothing");
         var client = _mocker.GetMock<ID1SearchRebuildClient>();
         client.Verify(c => c.SwapBack(_rebuildId, It.IsAny<CancellationToken>()), Times.Once);
         client.Verify(c => c.Abort(_rebuildId, It.IsAny<CancellationToken>()), Times.Once);
@@ -166,8 +251,34 @@ public class D1SearchRebuilderTests
 
         // Assert
         report.Outcome.Should().Be(D1SearchRebuildOutcome.SwappedBack);
+        report.Problems.Should().Contain(D1SearchRebuilder.RestoredNote);
         _mocker.GetMock<ID1SearchRebuildClient>().Verify(c => c.SwapBack(_rebuildId, It.IsAny<CancellationToken>()), Times.Once);
         _mocker.GetMock<ID1SearchRebuildClient>().Verify(c => c.Finish(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A swap-back whose answer is lost but which the Worker reports as committed still drops the rejected index and " +
+        "reports the swap-back, because the old index is live again.")]
+    public async Task lost_swap_back_answer_that_committed_continues()
+    {
+        // Arrange
+        _catalogue = [Candidate()];
+        var client = _mocker.GetMock<ID1SearchRebuildClient>();
+        client.Setup(c => c.Check(_rebuildId, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Check(hits: 0));
+        client.Setup(c => c.SwapBack(_rebuildId, It.IsAny<CancellationToken>()))
+            .Callback(() => client
+                .Setup(c => c.Status(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Status(D1SearchRebuildStatus.SwappedBack, _rebuildId)))
+            .ThrowsAsync(new HttpRequestException(_fixture.CreateTitle()));
+        var sut = _mocker.CreateInstance<D1SearchRebuilder>();
+
+        // Act
+        var report = await sut.Rebuild(CancellationToken.None);
+
+        // Assert
+        report.Outcome.Should().Be(D1SearchRebuildOutcome.SwappedBack);
+        client.Verify(c => c.Abort(_rebuildId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName =
