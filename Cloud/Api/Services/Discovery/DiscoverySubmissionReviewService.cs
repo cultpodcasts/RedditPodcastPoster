@@ -28,7 +28,6 @@ public class DiscoverySubmissionReviewService(
     public const string StateChangedAction = "StateChanged";
     public const string ApplyQueueFailedAction = "ApplyQueueFailed";
     public const string ApplyInterruptedAction = "ApplyInterrupted";
-    public const string OutputsReviewedAction = "OutputsReviewed";
 
     public const string QueuedMessage =
         "Queued: the results are being created in the background. Reload or keep this page open to see the outcome.";
@@ -55,9 +54,6 @@ public class DiscoverySubmissionReviewService(
                         .GetByStatus(DiscoverySubmissionStatus.PartiallyApplied, c).ToListAsync(c))
                     .Concat(await discoverySubmissionsRepository
                         .GetByStatus(DiscoverySubmissionStatus.Applying, c).ToListAsync(c))
-                    // Applied, but its episodes still wait for the supervisor's review (#1415). A targeted
-                    // query: the list never reads the whole Applied history.
-                    .Concat(await discoverySubmissionsRepository.GetOutputsReviewPending(c).ToListAsync(c))
                     .Where(x => DiscoverySubmissionRules.CanReview(caller, x))
                     .OrderBy(x => x.SubmittedAt)
                     .ToArray();
@@ -328,7 +324,6 @@ public class DiscoverySubmissionReviewService(
             MergeOutcomes(submission, finalSet, result.Outcome, now,
                 aborted: result.Status != DiscoveryCurationSubmitStatus.Ok);
             submission.AppliedAt = now;
-            FlagOutputsForReview(submission, finalSet);
             submission.Status = DiscoverySubmissionRules.DeriveStatus(submission.ItemOutcomes!);
             submission.ApplyError = submission.Status == DiscoverySubmissionStatus.Applied
                 ? null
@@ -498,7 +493,6 @@ public class DiscoverySubmissionReviewService(
         {
             MergeOutcomes(submission, toRetry, result.Outcome, now,
                 aborted: result.Status != DiscoveryCurationSubmitStatus.Ok);
-            FlagOutputsForReview(submission, toRetry);
         }
         else
         {
@@ -692,68 +686,6 @@ public class DiscoverySubmissionReviewService(
 
         EndInProgress(submission);
         return await Finish(submission, submission.ETag!, historyAt, operation, caller, null, AfterClaim);
-    }
-
-    /// <summary>
-    /// Publish as normal, but leave a durable to-do on the submission while any succeeded item has an episode / item
-    /// to check, so a supervisor who navigates away still finds it in the queue (#1415). Only this run's items count:
-    /// a retry that creates nothing new does not re-open a review that was already marked done.
-    /// </summary>
-    private static void FlagOutputsForReview(DiscoverySubmission submission, IReadOnlyCollection<Guid> runResultIds)
-    {
-        if (submission.ItemOutcomes?.Any(x => runResultIds.Contains(x.ResultId) &&
-                x.State == DiscoverySubmissionItemState.Succeeded && x.EpisodeId != null) != true)
-        {
-            return;
-        }
-
-        submission.OutputsReviewPending = true;
-        submission.OutputsReviewedAt = null;
-        submission.OutputsReviewedBy = null;
-    }
-
-    public async Task<DiscoverySubmissionCommandResult> MarkOutputsReviewed(Guid submissionId,
-        DiscoverySubmissionOutputsReviewedRequest request, SupervisionCaller caller, CancellationToken c)
-    {
-        var submission = await discoverySubmissionsRepository.GetById(submissionId, c);
-        if (submission == null)
-        {
-            return new(DiscoverySubmissionCommandStatus.NotFound);
-        }
-
-        if (!DiscoverySubmissionRules.CanReview(caller, submission))
-        {
-            return new(DiscoverySubmissionCommandStatus.Forbidden);
-        }
-
-        if (submission.OutputsReviewPending != true)
-        {
-            return new(DiscoverySubmissionCommandStatus.Ok, "Nothing is waiting for review.", submission.ETag,
-                submission.Status, CurrentDiff(submission), ItemOutcomes: submission.ItemOutcomes);
-        }
-
-        if (submission.Status == DiscoverySubmissionStatus.Applying)
-        {
-            return new(DiscoverySubmissionCommandStatus.Conflict, "Wait for the running apply to finish.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.ETag) || request.ETag != submission.ETag)
-        {
-            return new(DiscoverySubmissionCommandStatus.Conflict, "Submission changed; reload and retry.");
-        }
-
-        submission.OutputsReviewPending = false;
-        submission.OutputsReviewedAt = timeProvider.GetUtcNow().UtcDateTime;
-        submission.OutputsReviewedBy = caller.Subject;
-        AppendHistory(submission, caller.Subject, OutputsReviewedAction);
-        var etag = await discoverySubmissionsRepository.TryReplace(submission, request.ETag, c);
-        if (etag == null)
-        {
-            return new(DiscoverySubmissionCommandStatus.Conflict, "Submission changed; reload and retry.");
-        }
-
-        return new(DiscoverySubmissionCommandStatus.Ok, ETag: etag, SubmissionStatus: submission.Status,
-            Diff: CurrentDiff(submission), ItemOutcomes: submission.ItemOutcomes);
     }
 
     private static bool IsHeldBy(DiscoverySubmission? submission, DiscoverySubmissionApplyQueueMessage message) =>

@@ -63,12 +63,6 @@ public sealed class DiscoverySubmissionReleaseRequest
     public string? Reason { get; init; }
 }
 
-/// <summary>Marks the outputs of an applied submission as reviewed (clears the review to-do, #1415).</summary>
-public sealed class DiscoverySubmissionOutputsReviewedRequest
-{
-    public required string ETag { get; init; }
-}
-
 public sealed class DiscoverySubmissionSetStateRequest
 {
     public required string Status { get; init; }

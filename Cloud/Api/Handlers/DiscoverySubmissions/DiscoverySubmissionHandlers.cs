@@ -53,12 +53,6 @@ public interface IPostDiscoverySubmissionStateHandler
         DiscoverySubmissionReviewRoute<DiscoverySubmissionSetStateRequest> model, CancellationToken c);
 }
 
-public interface IPostDiscoverySubmissionOutputsReviewedHandler
-{
-    Task<HttpResponseData> Handle(IHandlerContext ctx,
-        DiscoverySubmissionReviewRoute<DiscoverySubmissionOutputsReviewedRequest> model, CancellationToken c);
-}
-
 internal static class SupervisionCallerFactory
 {
     /// <summary>
@@ -224,28 +218,6 @@ public class PostDiscoverySubmissionReleaseHandler(IDiscoverySubmissionReviewSer
         }
 
         var result = await service.Release(model.SubmissionId, model.Request, caller, c);
-        return await SupervisionCallerFactory.Command(ctx, model.SubmissionId, result, HttpStatusCode.OK, c);
-    }
-}
-
-public class PostDiscoverySubmissionOutputsReviewedHandler(IDiscoverySubmissionReviewService service)
-    : IPostDiscoverySubmissionOutputsReviewedHandler
-{
-    public async Task<HttpResponseData> Handle(IHandlerContext ctx,
-        DiscoverySubmissionReviewRoute<DiscoverySubmissionOutputsReviewedRequest> model, CancellationToken c)
-    {
-        var caller = SupervisionCallerFactory.From(ctx);
-        if (caller == null)
-        {
-            return await SupervisionCallerFactory.MissingSubject(ctx, c);
-        }
-
-        if (!caller.CanSuperviseAny)
-        {
-            return await SupervisionCallerFactory.Forbidden(ctx, c);
-        }
-
-        var result = await service.MarkOutputsReviewed(model.SubmissionId, model.Request, caller, c);
         return await SupervisionCallerFactory.Command(ctx, model.SubmissionId, result, HttpStatusCode.OK, c);
     }
 }
