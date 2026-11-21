@@ -13,7 +13,10 @@
 // does not make its marker the latest.
 // The label is removed on a new push (`synchronize`) and on ANY run where it is present but
 // the latest marker for the head SHA is not `acceptable` (so a dropped push run self-heals;
-// the reviewer posts the marker first, then adds the label).
+// the reviewer posts the marker first, then adds the label). Removing a PR label needs
+// `pull-requests: write`. A non-404 failure (e.g. 403) is logged as a warning and is not
+// fatal: the status is still published, and is never success when the label is stale or
+// the marker is missing (cultpodcasts/RedditPodcastPoster#1519).
 // Comment bodies are only matched against MARKER_RE here; they are never passed to a shell
 // or a workflow expression. This is a process interlock, not a security boundary: every
 // agent and Jon post as the same OWNER account.
@@ -176,17 +179,34 @@ async function run({ github, context, core }) {
   });
   const entries = commentEntries(comments);
 
+  let removalFailed = false;
   if (shouldRemoveLabel({ labels, headSha, entries, pushed })) {
     try {
       await github.rest.issues.removeLabel({ owner, repo, issue_number: number, name: LABEL });
       core.info(`Removed ${LABEL}: ${pushed ? 'new push' : 'no acceptable marker'} for ${headSha}.`);
+      labels = labels.filter((l) => l !== LABEL);
     } catch (err) {
-      if (err.status !== 404) throw err;
+      if (err.status === 404) {
+        labels = labels.filter((l) => l !== LABEL);
+      } else {
+        removalFailed = true;
+        const reason = err.message || String(err);
+        const msg = `Failed to remove ${LABEL} (${err.status || 'error'}): ${reason}. Publishing review-gate status anyway.`;
+        if (typeof core.warning === 'function') core.warning(msg);
+        else core.info(msg);
+      }
     }
-    labels = labels.filter((l) => l !== LABEL);
   }
 
-  const result = evaluate({ labels, headSha, entries, pushed });
+  let result = evaluate({ labels, headSha, entries, pushed });
+  // A failed removal must never pass the gate: the label is still stale, or the
+  // marker is missing. evaluate() already fails in those cases; this is a guard.
+  if (removalFailed && result.state === 'success') {
+    result = {
+      state: 'failure',
+      description: truncate(`Failed to remove stale ${LABEL}; ${String(headSha || '').slice(0, 7)} not cleared`),
+    };
+  }
   const serverUrl = process.env.GITHUB_SERVER_URL || 'https://github.com';
   const targetUrl = context.runId
     ? `${serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
