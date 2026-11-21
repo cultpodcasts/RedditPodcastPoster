@@ -47,6 +47,14 @@ public class NewsReportFilmMoveService(
 {
     public async Task<EpisodeFilmMoveResult> MoveAsync(NewsReportFilmMoveCommand command, CancellationToken cancellationToken)
     {
+        if (command.Request.FilmId is { } existingFilmId && existingFilmId != Guid.Empty)
+        {
+            // Move to an existing film (RPP #1522) is for podcast episodes only so far.
+            return new EpisodeFilmMoveResult(
+                EpisodeFilmMoveStatus.BadRequest,
+                Error: "Moving a news report into an existing film is not supported; omit filmId");
+        }
+
         try
         {
             var report = await newsReportRepository.GetBy(item => item.Id == command.ReportId);
