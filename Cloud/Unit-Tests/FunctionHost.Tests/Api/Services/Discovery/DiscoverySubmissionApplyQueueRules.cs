@@ -1,4 +1,3 @@
-using RedditPodcastPoster.Discovery.Repositories;
 using AutoFixture;
 using FluentAssertions;
 using Moq;
@@ -15,7 +14,7 @@ namespace FunctionHost.Tests.Api.Services.Discovery;
 /// <summary>
 /// #1415: discovery apply / retry no longer runs inside the HTTP request (14 Nov 52c0c38f and 21 Nov 872299ca both
 /// outlived the ~125 s proxy cut-off while the backend finished). The request claims, preflights and queues; the queue
-/// worker ingests and records the outcome; a supervisor review to-do stays on the submission until marked done.
+/// worker ingests and records the outcome.
 /// </summary>
 public class DiscoverySubmissionApplyQueueRules
 {
@@ -28,7 +27,6 @@ public class DiscoverySubmissionApplyQueueRules
     private IReadOnlyList<DiscoveryResultsDocument> _documents = [];
     private DiscoveryCurationSubmitResult? _preflight;
     private bool _queueFails;
-    private List<DiscoverySubmission> _applied = [];
 
     public DiscoverySubmissionApplyQueueRules()
     {
@@ -44,13 +42,7 @@ public class DiscoverySubmissionApplyQueueRules
                 return s.ETag;
             });
         repository.Setup(r => r.GetByStatus(It.IsAny<DiscoverySubmissionStatus>(), It.IsAny<CancellationToken>()))
-            .Returns((DiscoverySubmissionStatus status, CancellationToken _) =>
-                (status == DiscoverySubmissionStatus.Applied ? _applied : new List<DiscoverySubmission>())
-                .ToAsyncEnumerable());
-        // The real query's server-side filter, applied to the in-memory store.
-        repository.Setup(r => r.GetOutputsReviewPending(It.IsAny<CancellationToken>()))
-            .Returns(() => _applied.AsQueryable().Where(DiscoverySubmissionsRepository.OutputsReviewPendingFilter)
-                .ToList().ToAsyncEnumerable());
+            .Returns(AsyncEnumerable.Empty<DiscoverySubmission>());
         _mocker.GetMock<IDiscoveryResultsService>()
             .Setup(s => s.GetDocuments(It.IsAny<IEnumerable<Guid>>()))
             .ReturnsAsync(() => _documents);
@@ -146,7 +138,6 @@ public class DiscoverySubmissionApplyQueueRules
         final.Status.Should().Be(DiscoverySubmissionStatus.Applied);
         final.InProgressOperation.Should().BeNull();
         final.InProgressWorkerStartedAt.Should().BeNull();
-        final.OutputsReviewPending.Should().BeTrue();
         _replaced.Should().Contain(x => x.Status == DiscoverySubmissionStatus.Applying && x.InProgressWorkerStartedAt != null,
             "the worker records that it started before it ingests, so a redelivery knows");
     }
@@ -257,79 +248,6 @@ public class DiscoverySubmissionApplyQueueRules
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.IdentityDecisionRequired);
         _queued.Should().BeEmpty();
         _replaced.Last().Status.Should().Be(DiscoverySubmissionStatus.Pending);
-    }
-
-    [Fact(DisplayName =
-        "Review to-do (#1415): an applied submission with episodes to check stays in the supervisor's queue until it is marked reviewed; marking it records who and when, and a second mark changes nothing.")]
-    public async Task outputs_review_is_listed_until_marked_done()
-    {
-        // Arrange
-        ArrangeHeld(1);
-        var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
-        await sut.Apply(_submission!.Id, new DiscoverySubmissionApplyRequest { ETag = _submission.ETag! }, Supervisor(),
-            CancellationToken.None);
-        await sut.ProcessQueued(_queued.Single(), CancellationToken.None);
-        _applied = [_submission];
-        var supervisor = Supervisor();
-
-        // Act
-        var listed = await sut.List(supervisor, CancellationToken.None);
-        var marked = await sut.MarkOutputsReviewed(_submission.Id,
-            new DiscoverySubmissionOutputsReviewedRequest { ETag = _submission.ETag! }, supervisor, CancellationToken.None);
-        var writes = _replaced.Count;
-        var again = await sut.MarkOutputsReviewed(_submission.Id,
-            new DiscoverySubmissionOutputsReviewedRequest { ETag = _submission.ETag! }, supervisor, CancellationToken.None);
-        var listedAfter = await sut.List(supervisor, CancellationToken.None);
-
-        // Assert
-        listed.Value!.Submissions.Should().ContainSingle(x => x.Id == _submission.Id);
-        marked.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
-        var final = _replaced.Last();
-        final.OutputsReviewPending.Should().BeFalse();
-        final.OutputsReviewedBy.Should().Be(supervisor.Subject);
-        final.OutputsReviewedAt.Should().NotBeNull();
-        final.Status.Should().Be(DiscoverySubmissionStatus.Applied, "marking reviewed never changes the episodes or the status");
-        again.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
-        _replaced.Should().HaveCount(writes);
-        listedAfter.Value!.Submissions.Should().BeEmpty();
-        _mocker.GetMock<IDiscoverySubmissionsRepository>().Verify(
-            r => r.GetByStatus(DiscoverySubmissionStatus.Applied, It.IsAny<CancellationToken>()), Times.Never,
-            "the review to-dos come from the targeted query, never from reading every Applied submission");
-        _mocker.GetMock<IDiscoverySubmissionsRepository>().Verify(r => r.GetOutputsReviewPending(It.IsAny<CancellationToken>()), Times.Exactly(2));
-    }
-
-    [Fact(DisplayName =
-        "Review to-do query (#1415): the server-side filter matches only Applied submissions whose review is still pending, so the list reads open to-dos and nothing else.")]
-    public void outputs_review_pending_filter_selects_only_open_applied_todos()
-    {
-        // Arrange
-        var open = With(DiscoverySubmissionStatus.Applied, true);
-        var candidates = new[]
-        {
-            open,
-            With(DiscoverySubmissionStatus.Applied, false),
-            With(DiscoverySubmissionStatus.Applied, null),
-            With(DiscoverySubmissionStatus.PartiallyApplied, true),
-            With(DiscoverySubmissionStatus.Applying, true)
-        };
-
-        // Act
-        var matched = candidates.AsQueryable().Where(DiscoverySubmissionsRepository.OutputsReviewPendingFilter).ToList();
-
-        // Assert
-        matched.Should().ContainSingle().Which.Should().BeSameAs(open);
-        return;
-
-        DiscoverySubmission With(DiscoverySubmissionStatus status, bool? pending)
-        {
-            return new DiscoverySubmission
-            {
-                Id = _fixture.Create<Guid>(),
-                SubmitterSubject = _fixture.Create<string>(),
-                Status = status,
-                OutputsReviewPending = pending
-            };
-        }
     }
 
     private DiscoveryCurationSubmitResult Created(DiscoverySubmitRequest request)

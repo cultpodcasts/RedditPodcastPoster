@@ -143,22 +143,6 @@ public sealed class DiscoverySubmission : CosmosSelector
     [JsonPropertyOrder(240)]
     public DiscoverySubmissionStatus? StatusBeforeInProgress { get; set; }
 
-    /// <summary>
-    /// The apply / retry created or matched episodes that the supervisor should check (guests, subjects, ...) (#1415).
-    /// They are public as normal; this is only a durable to-do, cleared when the supervisor marks the outputs reviewed.
-    /// </summary>
-    [JsonPropertyName("outputsReviewPending")]
-    [JsonPropertyOrder(250)]
-    public bool? OutputsReviewPending { get; set; }
-
-    [JsonPropertyName("outputsReviewedAt")]
-    [JsonPropertyOrder(251)]
-    public DateTime? OutputsReviewedAt { get; set; }
-
-    [JsonPropertyName("outputsReviewedBy")]
-    [JsonPropertyOrder(252)]
-    public string? OutputsReviewedBy { get; set; }
-
     [JsonPropertyName("history")]
     [JsonPropertyOrder(300)]
     public DiscoverySubmissionHistoryEntry[] History { get; set; } = [];
