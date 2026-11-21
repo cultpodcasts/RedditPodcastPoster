@@ -112,6 +112,9 @@ public class CatalogueKindSubmitRules
             .Callback<NewsReport>(_reports.Add)
             .Returns(Task.CompletedTask);
         TakenFileKeys<IFilmRepository, Film>(_films);
+        StoredServiceUrls<IFilmRepository, Film>(_films);
+        StoredServiceUrls<ITvShowEpisodeRepository, TvShowEpisode>(_episodes);
+        StoredServiceUrls<INewsReportRepository, NewsReport>(_reports);
         TakenFileKeys<ITvShowRepository, TvShow>(_shows);
         TakenFileKeys<INewsOrganisationRepository, NewsOrganisation>(_organisations);
         _mocker.Use<IFileKeyClaimStore>(new InMemoryFileKeyClaimStore());
@@ -485,6 +488,15 @@ public class CatalogueKindSubmitRules
         film.FileKey.Should().Be(FileKeyFactory.FilmPrefix + FileKeyFactory.GetIdSlug(film.Id));
     }
 
+    private void StoredServiceUrls<TRepository, TEntity>(List<TEntity> store)
+        where TRepository : class, IFilterableRepository<TEntity> =>
+        _mocker.GetMock<TRepository>()
+            .Setup(x => x.GetAllBy(
+                It.IsAny<Expression<Func<TEntity, bool>>>(),
+                It.IsAny<Expression<Func<TEntity, Uri?>>>()))
+            .Returns((Expression<Func<TEntity, bool>> selector, Expression<Func<TEntity, Uri?>> projection) =>
+                Yield(store.Where(selector.Compile()).Select(projection.Compile())));
+
     private void TakenFileKeys<TRepository, TEntity>(List<TEntity> store)
         where TRepository : class, IFilterableRepository<TEntity> =>
         _mocker.GetMock<TRepository>()
@@ -850,6 +862,69 @@ public class CatalogueKindSubmitRules
         third!.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
         third.PlayableId.Should().Be(_films[0].Id);
         _films.Should().ContainSingle();
+    }
+
+    [Theory(DisplayName =
+        "When a Netflix film is already stored under a legacy country-prefixed /title/ URL, a later us or bare paste " +
+        "of the same title id returns that film and does not insert another (#1517).")]
+    [InlineData("us")]
+    [InlineData("")]
+    public async Task netflix_legacy_country_stored_film_is_found(string pastedCountry)
+    {
+        // Arrange
+        UseEnabledFlag();
+        var id = _fixture.CreateAppleId();
+        var legacy = new Uri($"https://www.netflix.com/gb/title/{id}");
+        var existing = new Film(_fixture.CreateTitle())
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [StreamingServiceWire.ToKey(StreamingService.Netflix)] = new() { Url = legacy }
+            }
+        };
+        _films.Add(existing);
+        var pasted = new Uri(pastedCountry.Length == 0
+            ? $"https://www.netflix.com/title/{id}"
+            : $"https://www.netflix.com/{pastedCountry}/title/{id}");
+        var source = Source() with { Url = pasted, MadeAsFilm = true, ShowName = null };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), FilmOptions(pasted));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.PlayableId.Should().Be(existing.Id);
+        _films.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "A stored Netflix film with a different title id is not matched by the legacy country lookup, " +
+        "so a new Netflix title still creates its own Film (#1517).")]
+    public async Task netflix_legacy_lookup_ignores_other_title_ids()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var other = new Film(_fixture.CreateTitle())
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [StreamingServiceWire.ToKey(StreamingService.Netflix)] =
+                    new() { Url = new Uri($"https://www.netflix.com/gb/title/{_fixture.CreateAppleId()}") }
+            }
+        };
+        _films.Add(other);
+        var pasted = new Uri($"https://www.netflix.com/us/title/{_fixture.CreateAppleId()}");
+        var source = Source() with { Url = pasted, MadeAsFilm = true, ShowName = null };
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), FilmOptions(pasted));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        _films.Should().HaveCount(2);
     }
 
     [Fact(DisplayName =

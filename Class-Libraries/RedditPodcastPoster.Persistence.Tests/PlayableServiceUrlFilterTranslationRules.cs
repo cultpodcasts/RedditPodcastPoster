@@ -24,6 +24,29 @@ public class PlayableServiceUrlFilterTranslationRules
             });
 
     [Fact(DisplayName =
+        "When films with a Netflix link are projected to their stored Netflix URL, then the Cosmos SQL filters on " +
+        "services.netflix and selects only its url, so the #1517 legacy country /title/ lookup never reads whole documents.")]
+    public void has_service_link_with_service_url_projection_translates()
+    {
+        // Arrange
+        using var client = CreateClient();
+        var container = client.GetContainer("db", "films");
+
+        // Act
+        var sql = container.GetItemLinqQueryable<Film>()
+            .Where(PlayableServiceUrlFilters.HasServiceLink<Film>("netflix"))
+            .Select(PlayableServiceUrlFilters.ServiceUrl<Film>("netflix"))
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        sql.Should().Contain("SELECT VALUE");
+        sql.Should().Contain("[\"services\"][\"netflix\"]");
+        sql.Should().Contain("[\"url\"]");
+        sql.Should().Contain("!= null");
+    }
+
+    [Fact(DisplayName =
         "When films are filtered by FilmHoldsServiceOrTrailerUrl, then the Cosmos SQL matches the service link or any trailers[].url, because URL membership and the indexer must recognise a trailer URL as already in the catalogue.")]
     public void holds_service_or_trailer_url_translates_to_services_or_trailer_exists()
     {

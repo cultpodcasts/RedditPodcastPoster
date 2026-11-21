@@ -8,6 +8,7 @@ using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
+using RedditPodcastPoster.Persistence.Abstractions.Playables;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Categorisers;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -628,8 +629,56 @@ public class CatalogueKindSubmitter(
 
         var serviceKey = StreamingServiceWire.ToKey(source.StreamingService.Value);
         var canonical = CanonicalStoredUrl(source.Url);
-        return await repository.GetBy(item =>
+        var exact = await repository.GetBy(item =>
             item.Services != null && item.Services[serviceKey].Url == canonical);
+        if (exact != null || source.StreamingService != StreamingService.Netflix)
+        {
+            return exact;
+        }
+
+        return await FindByLegacyNetflixTitleUrl(repository, serviceKey, canonical);
+    }
+
+    /// <summary>
+    /// #1517: a Netflix title stored before canonicalisation may still carry a country segment
+    /// (<c>/gb/title/{id}</c>), so the exact canonical match above misses it. Cosmos LINQ cannot run string
+    /// functions on the stored <see cref="Uri"/>, so this projects only the stored Netflix URL of items that
+    /// have a Netflix link (no full documents), compares compact title ids in memory, and then loads the
+    /// match by its exact stored URL. It only runs after an exact miss for a Netflix <c>/title/</c> URL,
+    /// i.e. just before a new item would be created.
+    /// </summary>
+    private static async Task<T?> FindByLegacyNetflixTitleUrl<T>(
+        IFilterableRepository<T> repository,
+        string serviceKey,
+        Uri canonical)
+        where T : class, IPlayable
+    {
+        var titleId = StreamingServiceCatalog.TryCompactUrl(serviceKey, canonical);
+        if (titleId is null)
+        {
+            return null;
+        }
+
+        await foreach (var stored in repository.GetAllBy(
+                           PlayableServiceUrlFilters.HasServiceLink<T>(serviceKey),
+                           PlayableServiceUrlFilters.ServiceUrl<T>(serviceKey)))
+        {
+            if (stored is null || stored == canonical ||
+                StreamingServiceCatalog.TryCompactUrl(serviceKey, stored) != titleId)
+            {
+                continue;
+            }
+
+            var match = stored;
+            var found = await repository.GetBy(item =>
+                item.Services != null && item.Services[serviceKey].Url == match);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private Dictionary<string, ServiceLink> ServiceMap(ResolvedNonPodcastServiceItem source)
