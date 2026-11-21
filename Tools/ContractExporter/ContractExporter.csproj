@@ -8,7 +8,21 @@
     <RootNamespace>ContractExporter</RootNamespace>
     <!-- Repo-relative contracts directory. Tests and CI pass an output directory argument. -->
     <ContractOutputDir>$(MSBuildThisFileDirectory)..\..\contracts\</ContractOutputDir>
+    <_ContractOutputFull>$([System.IO.Path]::GetFullPath('$(ContractOutputDir)'))</_ContractOutputFull>
   </PropertyGroup>
+
+  <!--
+    The four files ContractPaths writes. UpToDateCheckOutput makes a missing file
+    (for example after deleting gitignored contracts/src) rebuild this project.
+    Keep this list aligned with ContractPaths.
+  -->
+  <ItemGroup>
+    <ContractGenerated Include="$(_ContractOutputFull)src/index.ts" />
+    <ContractGenerated Include="$(_ContractOutputFull)src/zod.ts" />
+    <ContractGenerated Include="$(_ContractOutputFull)schemas/contracts.schema.json" />
+    <ContractGenerated Include="$(_ContractOutputFull)typecheck/assignability.ts" />
+    <UpToDateCheckOutput Include="@(ContractGenerated)" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Cloud\Api\Api.csproj" />
@@ -21,12 +35,14 @@
     Set ExportContractsOnBuild=false to compile the tool without writing contracts.
   -->
   <Target Name="ExportTypescriptContracts" AfterTargets="Build"
+          Inputs="$(TargetPath)"
+          Outputs="@(ContractGenerated)"
           Condition="'$(ExportContractsOnBuild)' != 'false' and '$(DesignTimeBuild)' != 'true' and '$(DotNetWatchBuild)' != 'true'">
-    <PropertyGroup>
-      <_ContractOutputFull>$([System.IO.Path]::GetFullPath('$(ContractOutputDir)'))</_ContractOutputFull>
-    </PropertyGroup>
     <Message Importance="high" Text="Exporting TypeScript contracts to $(_ContractOutputFull)" />
     <Exec WorkingDirectory="$(TargetDir)"
           Command="dotnet exec &quot;$(TargetPath)&quot; --output &quot;$(_ContractOutputFull)&quot;" />
+    <!-- Write() leaves unchanged files alone, so their timestamps can stay older than the dll.
+         Touch makes the outputs newer than $(TargetPath); the next build then skips dotnet exec. -->
+    <Touch Files="@(ContractGenerated)" />
   </Target>
 </Project>

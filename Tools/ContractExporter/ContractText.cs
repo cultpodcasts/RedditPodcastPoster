@@ -479,10 +479,9 @@ public static class ContractText
         {
             foreach (var name in NamedRefs(property.Type))
             {
-                if (!string.Equals(name, type.Name, StringComparison.Ordinal))
-                {
-                    yield return name;
-                }
+                // A self-reference is a cycle. Dropping it made Zod emit `child: fooSchema` inside
+                // `fooSchema`, which throws when the module loads. z.lazy is not emitted.
+                yield return name;
             }
         }
     }

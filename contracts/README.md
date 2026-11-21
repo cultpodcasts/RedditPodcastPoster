@@ -2,7 +2,7 @@
 
 TypeScript types, Zod schemas and JSON Schema generated from the Azure Functions HTTP DTOs. `Tools/ContractExporter` writes them during `dotnet build` into this folder. That output is gitignored; the publish workflow generates it again before `npm publish`. What git stores here is the package shell.
 
-Shapes match the isolated-worker HTTP serializer: `[JsonPropertyName]`, UTC instants ending in `Z`, `TimeSpan` and `Guid` as strings, and string enum names where the property uses `JsonStringEnumConverter`. A field is optional only when the serializer omits null.
+Shapes match the isolated-worker HTTP serializer: `[JsonPropertyName]`, UTC instants ending in `Z`, `TimeSpan` and `Guid` as strings, and string enum names where the property uses `JsonStringEnumConverter`. A field is optional only when the serializer omits it (`JsonIgnoreCondition.WhenWritingNull` or `WhenWritingDefault`). A nullable field without that attribute is required and may be JSON null.
 
 ```ts
 import type { EpisodeDto, EpisodeUpdateResponse, SearchIndexerState } from "@cultpodcasts/contracts"; <!-- pragma: allowlist secret -->
@@ -11,7 +11,7 @@ import { episodeDtoSchema } from "@cultpodcasts/contracts/zod"; <!-- pragma: all
 
 JSON Schema bundle: `@cultpodcasts/contracts/schemas` (`#/$defs/EpisodeDto` and the other definitions). <!-- pragma: allowlist secret -->
 
-Zod is a peer dependency (`zod@^3.25.0 || ^4.0.0`).
+Zod is a peer dependency (`zod@^4.0.0`).
 
 ## Install
 

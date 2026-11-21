@@ -12,8 +12,9 @@
 
   When the inputs that define that shape differ from the base ref, the version must
   be greater than the base. Those inputs are the exporter, the export attributes,
-  the HTTP JSON options, and Cloud/Api/Dtos. A domain enum that an exported DTO
-  references can live outside that list; that change still needs a manual bump.
+  the HTTP JSON options, and Cloud/Api/Dtos. A class, record, struct, or enum
+  outside Api.Dtos is not an input: the exporter refuses it. Map it to an Api.Dtos
+  boundary DTO before it can change the package.
 #>
 [CmdletBinding()]
 param(

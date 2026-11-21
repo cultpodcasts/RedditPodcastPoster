@@ -141,6 +141,116 @@ public class ContractWireRules
         differences.Should().BeEmpty();
     }
 
+    [Fact(DisplayName =
+        "When HTTP serializer options are created, then null is written and property names are case-insensitive, because those are the isolated-worker defaults on WorkerOptions.Serializer.")]
+    public void http_options_follow_the_worker_serializer()
+    {
+        // Arrange
+        var options = ApiJson.CreateHttpSerializerOptions();
+
+        // Act
+        var ignoreNull = options.DefaultIgnoreCondition;
+        var caseInsensitive = options.PropertyNameCaseInsensitive;
+        var json = JsonSerializer.Serialize(new EpisodeDto { Language = null, AppleId = null }, options);
+
+        // Assert
+        ignoreNull.Should().Be(JsonIgnoreCondition.Never);
+        caseInsensitive.Should().BeTrue();
+        json.Should().Contain("\"lang\":null");
+        json.Should().Contain("\"appleId\":null");
+    }
+
+    [Fact(DisplayName =
+        "When a nullable property has no WhenWritingNull or WhenWritingDefault ignore, then the generated contract requires the key and allows null, because the worker writes JSON null rather than omitting the key.")]
+    public void nullable_without_ignore_is_required_and_nullable()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+
+        // Act
+        var files = ContractText.Render(document).ToDictionary(file => file.RelativePath, file => file.Contents);
+
+        // Assert
+        files[ContractPaths.TypeScript].Should().Contain("\n  appleId: number | null;\n");
+        files[ContractPaths.TypeScript].Should().Contain("\n  lang: string | null;\n");
+        files[ContractPaths.TypeScript].Should().Contain("\n  approvalStatus?: ApprovalStatusDto | null;\n");
+        files[ContractPaths.Zod].Should().Contain("appleId: z.number().int().nullable(),");
+        files[ContractPaths.Zod].Should().Contain("lang: z.string().nullable(),");
+        files[ContractPaths.Zod].Should().Contain("approvalStatus: approvalStatusDtoSchema.nullable().optional(),");
+    }
+
+    [Fact(DisplayName =
+        "When an exported property's type is outside Api.Dtos, then the build throws and names that property, because a domain type has to be mapped to a boundary DTO before it can change the package.")]
+    public void property_outside_api_dtos_fails_and_names_the_property()
+    {
+        // Arrange
+        var roots = new[] { typeof(OutsideBoundaryProbeDto) };
+
+        // Act
+        var act = () => ContractGraph.Build(roots, _options);
+
+        // Assert
+        act.Should().Throw<NotSupportedException>()
+            .WithMessage("*Api.Dtos.OutsideBoundaryProbeDto.OutsideKind*ContractExporter.Tests.Probes.OutsideKind*");
+    }
+
+    [Fact(DisplayName =
+        "When an exported DTO references itself, then rendering throws before any contract file is written, because a Zod schema cannot mention itself while it is still being created.")]
+    public void self_reference_is_a_cycle_and_writes_nothing()
+    {
+        // Arrange
+        var directory = Path.Combine(Path.GetTempPath(), "contract-cycle-" + _fixture.Create<Guid>().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var document = ContractGraph.Build(new[] { typeof(SelfReferenceProbeDto) }, _options);
+
+        // Act
+        var act = () => ContractText.Write(directory, document);
+
+        // Assert
+        try
+        {
+            act.Should().Throw<NotSupportedException>().WithMessage("*SelfReferenceProbeDto*");
+            Directory.GetFiles(directory, "*", SearchOption.AllDirectories).Should().BeEmpty();
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact(DisplayName =
+        "When a list of an Api.Dtos enum uses ItemConverterDecorator of JsonStringEnumConverter, then the contract uses member names, because that factory writes each element with the item converter.")]
+    public void item_converter_on_a_list_emits_enum_names()
+    {
+        // Arrange
+        var roots = new[] { typeof(ItemEnumProbeDto) };
+
+        // Act
+        var document = ContractGraph.Build(roots, _options);
+        var zod = ContractText.Render(document).Single(file => file.RelativePath == ContractPaths.Zod).Contents;
+
+        // Assert
+        document.Types.Single(type => type.Name == nameof(ItemEnumProbe)).Shape.Should().Be(ContractShape.StringEnum);
+        zod.Should().Contain("z.enum(");
+        zod.Should().Contain("\"First\"");
+        zod.Should().Contain("\"Second\"");
+        zod.Should().NotContain("z.literal(0)");
+    }
+
+    [Fact(DisplayName =
+        "When one use of an enum is a number and another is an item-converter list of names, then the build throws, because the contract cannot pick one wire form for both.")]
+    public void disagreeing_enum_uses_fail_the_build()
+    {
+        // Arrange
+        var roots = new[] { typeof(ItemEnumSplitProbeDto) };
+
+        // Act
+        var act = () => ContractGraph.Build(roots, _options);
+
+        // Assert
+        act.Should().Throw<NotSupportedException>().WithMessage("*SplitEnumProbe*");
+    }
+
     private void AssertNullHandling(JsonElement json, ContractType contract, object instance)
     {
         foreach (var property in contract.Properties)

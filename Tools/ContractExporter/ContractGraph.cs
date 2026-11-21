@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Api.Contracts;
+using RedditPodcastPoster.Models.Converters;
 
 namespace ContractExporter;
 
@@ -13,7 +14,28 @@ public static class ContractGraph
 {
     public static ContractDocument Build() => Build(Api.Serialization.ApiJson.CreateHttpSerializerOptions());
 
-    public static ContractDocument Build(JsonSerializerOptions options)
+    public static ContractDocument Build(JsonSerializerOptions options) =>
+        Build(MarkedExportRoots(), options);
+
+    public static ContractDocument Build(IEnumerable<Type> roots, JsonSerializerOptions options)
+    {
+        var builder = new Builder(options);
+        foreach (var root in roots.Distinct())
+        {
+            if (root.Namespace is not "Api.Dtos" && root.Namespace?.StartsWith("Api.Dtos.", StringComparison.Ordinal) != true)
+            {
+                throw new NotSupportedException(
+                    $"Export root {root.FullName} is outside Api.Dtos. Mark only Api.Dtos types with {nameof(ExportContractAttribute)}.");
+            }
+
+            builder.Include(root);
+        }
+
+        builder.ReconcileEnumStyles();
+        return new ContractDocument { Types = builder.OrderedTypes() };
+    }
+
+    private static List<Type> MarkedExportRoots()
     {
         var assembly = typeof(ExportContractAttribute).Assembly;
         var roots = new List<Type>();
@@ -36,20 +58,7 @@ public static class ContractGraph
             }
         }
 
-        var builder = new Builder(options);
-        foreach (var root in roots.Distinct())
-        {
-            if (root.Namespace is not "Api.Dtos" && root.Namespace?.StartsWith("Api.Dtos.", StringComparison.Ordinal) != true)
-            {
-                throw new NotSupportedException(
-                    $"Export root {root.FullName} is outside Api.Dtos. Mark only Api.Dtos types with {nameof(ExportContractAttribute)}.");
-            }
-
-            builder.Include(root);
-        }
-
-        builder.ReconcileEnumStyles();
-        return new ContractDocument { Types = builder.OrderedTypes() };
+        return roots;
     }
 
     private static bool IsNamespaceExportCandidate(Type type) =>
@@ -200,7 +209,7 @@ public static class ContractGraph
         {
             var info = _nullability.Create(property);
             var converter = property.GetCustomAttribute<JsonConverterAttribute>(inherit: true);
-            var wire = BuildWire(property.PropertyType, info, converter, property);
+            var wire = BuildWire(property.PropertyType, info, converter, property, recordEnumUse: true);
             var (optional, nullable) = Nullability(property, info);
             if (nullable && !wire.Nullable)
             {
@@ -256,13 +265,18 @@ public static class ContractGraph
             return (optional, nullable);
         }
 
-        private WireType BuildWire(Type type, NullabilityInfo? info, JsonConverterAttribute? converter, PropertyInfo? property)
+        private WireType BuildWire(
+            Type type,
+            NullabilityInfo? info,
+            JsonConverterAttribute? converter,
+            PropertyInfo? property,
+            bool recordEnumUse)
         {
             var underlying = Nullable.GetUnderlyingType(type) ?? type;
             if (underlying.IsEnum)
             {
                 Include(underlying, property);
-                if (property is not null && (Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType) == underlying)
+                if (recordEnumUse)
                 {
                     _enumUses.Add((underlying, converter));
                 }
@@ -280,7 +294,8 @@ public static class ContractGraph
                 }
 
                 var valueInfo = info?.GenericTypeArguments.Length == 2 ? info.GenericTypeArguments[1] : null;
-                var valueWire = BuildWire(value, valueInfo, null, property);
+                var valueConverter = IsEnumType(value) ? EnumItemConverter(converter, underlying) : null;
+                var valueWire = BuildWire(value, valueInfo, valueConverter, property, IsEnumType(value));
                 if (valueInfo is not null && IsClrNullable(value, valueInfo))
                 {
                     valueWire = valueWire.AsNullable();
@@ -293,7 +308,8 @@ public static class ContractGraph
             if (underlying != typeof(byte[]) && IsCollection(underlying, out var element))
             {
                 var elementInfo = underlying.IsArray ? info?.ElementType : info?.GenericTypeArguments.FirstOrDefault();
-                var item = BuildWire(element, elementInfo, null, property);
+                var elementConverter = IsEnumType(element) ? EnumItemConverter(converter, underlying) : null;
+                var item = BuildWire(element, elementInfo, elementConverter, property, IsEnumType(element));
                 if (elementInfo is not null && IsClrNullable(element, elementInfo))
                 {
                     item = item.AsNullable();
@@ -445,6 +461,42 @@ public static class ContractGraph
 
             return probe;
         }
+
+        /// <summary>
+        /// <see cref="JsonStringEnumConverter"/> on a collection does not change element JSON.
+        /// <see cref="ItemConverterDecorator{TItemConverter}"/> does, when it can convert that collection.
+        /// Dictionaries are left alone: the decorator's <c>CanConvert</c> is false for them, and the host
+        /// then does not write element names.
+        /// </summary>
+        private static JsonConverterAttribute? EnumItemConverter(JsonConverterAttribute? converter, Type propertyType)
+        {
+            var converterType = converter?.ConverterType;
+            if (converterType is not { IsGenericType: true })
+            {
+                return null;
+            }
+
+            if (converterType.GetGenericTypeDefinition() != typeof(ItemConverterDecorator<>))
+            {
+                return null;
+            }
+
+            var itemConverterType = converterType.GetGenericArguments()[0];
+            if (itemConverterType != typeof(JsonStringEnumConverter)
+                && !itemConverterType.IsSubclassOf(typeof(JsonStringEnumConverter)))
+            {
+                return null;
+            }
+
+            if (Activator.CreateInstance(converterType) is not JsonConverter factory || !factory.CanConvert(propertyType))
+            {
+                return null;
+            }
+
+            return new JsonConverterAttribute(itemConverterType);
+        }
+
+        private static bool IsEnumType(Type type) => (Nullable.GetUnderlyingType(type) ?? type).IsEnum;
 
         private static bool CanFollow(Type type)
         {

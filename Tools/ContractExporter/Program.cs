@@ -35,13 +35,14 @@ if (check)
         return 0;
     }
 
-    Console.Error.WriteLine("Generated contracts differ from the committed files:");
+    Console.Error.WriteLine("Generated contracts differ from the files on disk:");
     foreach (var difference in differences)
     {
         Console.Error.WriteLine("  " + difference);
     }
 
-    Console.Error.WriteLine("Rebuild Tools/ContractExporter (it writes contracts/) and commit the result.");
+    Console.Error.WriteLine(
+        "Those files are generated and gitignored. A mismatch means the build did not finish writing them. Rebuild Tools/ContractExporter.");
     return 1;
 }
 
