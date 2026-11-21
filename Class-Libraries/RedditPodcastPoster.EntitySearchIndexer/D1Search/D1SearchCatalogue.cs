@@ -58,6 +58,16 @@ public interface ID1SearchCatalogue
     /// incremental reconcile to find D1 orphans without a second full document build.
     /// </summary>
     IAsyncEnumerable<string> ReadEligibleIds(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The candidates for the given playable ids, whatever their <c>_ts</c>, built with the same eligibility and
+    /// document rules as <see cref="Read"/>. Used by an incremental reconcile for eligible ids that are missing from
+    /// D1 but outside the <c>_ts</c> window (#1479), so they are counted and sent rather than silently skipped. An id
+    /// that no container holds is not returned.
+    /// </summary>
+    IAsyncEnumerable<D1SearchCandidate> ReadByIds(
+        IReadOnlyCollection<string> ids,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -164,6 +174,75 @@ public sealed class D1SearchCatalogue(
             if (film.Removed != true)
             {
                 yield return film.Id.ToString();
+            }
+        }
+    }
+
+    /// <summary>How many ids go into one <c>IN</c> query.</summary>
+    public const int ReadByIdsChunkSize = 100;
+
+    public async IAsyncEnumerable<D1SearchCandidate> ReadByIds(
+        IReadOnlyCollection<string> ids,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var guids = ids
+            .Select(id => Guid.TryParse(id, out var guid) ? guid : Guid.Empty)
+            .Where(guid => guid != Guid.Empty)
+            .Distinct()
+            .ToList();
+        var podcasts = new Dictionary<Guid, Podcast?>();
+        var yielded = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var chunk in guids.Chunk(ReadByIdsChunkSize))
+        {
+            // Each container is asked only for the ids the containers before it did not return: almost every gap is
+            // an episode, so the TV, news and film queries are usually skipped (#1479 review).
+            var wanted = chunk.ToList();
+            var found = new HashSet<Guid>();
+            await foreach (var episode in episodeRepository.GetAllBy(e => wanted.Contains(e.Id))
+                               .WithCancellation(cancellationToken))
+            {
+                found.Add(episode.Id);
+                yield return await CandidateForEpisode(episode, podcasts, yielded, cancellationToken);
+            }
+
+            wanted.RemoveAll(found.Contains);
+            if (wanted.Count > 0)
+            {
+                await foreach (var episode in tvShowEpisodeRepository.GetAllBy(e => wanted.Contains(e.Id))
+                                   .WithCancellation(cancellationToken))
+                {
+                    found.Add(episode.Id);
+                    yield return D1SearchEligibility.ShouldExclude(episode)
+                        ? new D1SearchCandidate(episode.Id.ToString(), null, TimestampSeconds: episode.Timestamp)
+                        : Build(episode.Id, () => D1SearchDocuments.For(episode), episode.Timestamp);
+                }
+
+                wanted.RemoveAll(found.Contains);
+            }
+
+            if (wanted.Count > 0)
+            {
+                await foreach (var report in newsReportRepository.GetAllBy(r => wanted.Contains(r.Id))
+                                   .WithCancellation(cancellationToken))
+                {
+                    found.Add(report.Id);
+                    yield return D1SearchEligibility.ShouldExclude(report)
+                        ? new D1SearchCandidate(report.Id.ToString(), null, TimestampSeconds: report.Timestamp)
+                        : Build(report.Id, () => D1SearchDocuments.For(report), report.Timestamp);
+                }
+
+                wanted.RemoveAll(found.Contains);
+            }
+
+            if (wanted.Count > 0)
+            {
+                await foreach (var film in filmRepository.GetAllBy(f => wanted.Contains(f.Id))
+                                   .WithCancellation(cancellationToken))
+                {
+                    yield return D1SearchEligibility.ShouldExclude(film)
+                        ? new D1SearchCandidate(film.Id.ToString(), null, TimestampSeconds: film.Timestamp)
+                        : Build(film.Id, () => D1SearchDocuments.For(film), film.Timestamp);
+                }
             }
         }
     }
