@@ -64,7 +64,7 @@ public class EpisodeDtoMapper(
             Ignored = episode.Ignored,
             Release = episode.ReleaseUtc ,
             Removed = episode.IsRemoved(),
-            ApprovalStatus = episode.ApprovalStatus,
+            ApprovalStatus = episode.ApprovalStatus.ToDto(),
             Length = episode.Length,
             Explicit = episode.Explicit,
             SpotifyId = EpisodeServicePresence.SpotifyEpisodeId(episode) ?? string.Empty,

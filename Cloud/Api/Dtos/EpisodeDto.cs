@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using Api.Contracts;
 using Api.Dtos.Mapping;
-using RedditPodcastPoster.Models.Episodes; // pragma: allowlist secret
 
 namespace Api.Dtos;
 
@@ -109,7 +108,7 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyOrder(451)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ApprovalStatus? ApprovalStatus { get; set; }
+    public ApprovalStatusDto? ApprovalStatus { get; set; }
 
     [JsonPropertyName("lang")]
     [JsonPropertyOrder(46)]

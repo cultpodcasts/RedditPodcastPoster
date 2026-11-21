@@ -39,6 +39,12 @@ public static class ContractGraph
         var builder = new Builder(options);
         foreach (var root in roots.Distinct())
         {
+            if (root.Namespace is not "Api.Dtos" && root.Namespace?.StartsWith("Api.Dtos.", StringComparison.Ordinal) != true)
+            {
+                throw new NotSupportedException(
+                    $"Export root {root.FullName} is outside Api.Dtos. Mark only Api.Dtos types with {nameof(ExportContractAttribute)}.");
+            }
+
             builder.Include(root);
         }
 
@@ -72,7 +78,7 @@ public static class ContractGraph
         private readonly NullabilityInfoContext _nullability = new();
         private readonly List<(Type EnumType, JsonConverterAttribute? Converter)> _enumUses = [];
 
-        public void Include(Type type)
+        public void Include(Type type, PropertyInfo? via = null)
         {
             type = Nullable.GetUnderlyingType(type) ?? type;
             if (IsScalar(type) || IsDictionary(type) || IsCollection(type, out _))
@@ -93,10 +99,7 @@ public static class ContractGraph
 
             if (!CanFollow(type))
             {
-                throw new NotSupportedException(
-                    $"{type.FullName} is referenced by an exported contract but is outside " +
-                    $"{nameof(ContractExportRules.FollowNamespacePrefixes)} and has no {nameof(ExportContractAttribute)}. " +
-                    "Add the namespace prefix or mark the type.");
+                throw OutsideApiDtos(type, via);
             }
 
             if (type.IsEnum && type.GetCustomAttribute<FlagsAttribute>() is not null)
@@ -258,7 +261,7 @@ public static class ContractGraph
             var underlying = Nullable.GetUnderlyingType(type) ?? type;
             if (underlying.IsEnum)
             {
-                Include(underlying);
+                Include(underlying, property);
                 if (property is not null && (Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType) == underlying)
                 {
                     _enumUses.Add((underlying, converter));
@@ -277,26 +280,26 @@ public static class ContractGraph
                 }
 
                 var valueInfo = info?.GenericTypeArguments.Length == 2 ? info.GenericTypeArguments[1] : null;
-                var valueWire = BuildWire(value, valueInfo, null, null);
+                var valueWire = BuildWire(value, valueInfo, null, property);
                 if (valueInfo is not null && IsClrNullable(value, valueInfo))
                 {
                     valueWire = valueWire.AsNullable();
                 }
 
-                IncludeElements(value);
+                IncludeElements(value, property);
                 return new WireType(WireKind.Dictionary, false, DictionaryValue: valueWire);
             }
 
             if (underlying != typeof(byte[]) && IsCollection(underlying, out var element))
             {
                 var elementInfo = underlying.IsArray ? info?.ElementType : info?.GenericTypeArguments.FirstOrDefault();
-                var item = BuildWire(element, elementInfo, null, null);
+                var item = BuildWire(element, elementInfo, null, property);
                 if (elementInfo is not null && IsClrNullable(element, elementInfo))
                 {
                     item = item.AsNullable();
                 }
 
-                IncludeElements(element);
+                IncludeElements(element, property);
                 return new WireType(WireKind.Array, false, Item: item);
             }
 
@@ -305,16 +308,16 @@ public static class ContractGraph
                 return new WireType(ClassifyScalar(underlying, converter), false);
             }
 
-            Include(underlying);
+            Include(underlying, property);
             return new WireType(WireKind.Named, false, Name: TypeScriptName(underlying));
         }
 
-        private void IncludeElements(Type element)
+        private void IncludeElements(Type element, PropertyInfo? via)
         {
             var underlying = Nullable.GetUnderlyingType(element) ?? element;
             if (!IsScalar(underlying) && !IsDictionary(underlying) && !IsCollection(underlying, out _))
             {
-                Include(underlying);
+                Include(underlying, via);
             }
         }
 
@@ -445,15 +448,20 @@ public static class ContractGraph
 
         private static bool CanFollow(Type type)
         {
-            if (type.IsEnum || type.GetCustomAttribute<ExportContractAttribute>() is not null)
-            {
-                return true;
-            }
-
             var ns = type.Namespace ?? "";
             return ContractExportRules.FollowNamespacePrefixes.Any(prefix =>
                 ns.Equals(prefix, StringComparison.Ordinal)
                 || ns.StartsWith(prefix + ".", StringComparison.Ordinal));
+        }
+
+        private static NotSupportedException OutsideApiDtos(Type type, PropertyInfo? via)
+        {
+            var site = via is null
+                ? "An exported contract"
+                : $"{via.DeclaringType?.FullName}.{via.Name}";
+            return new NotSupportedException(
+                $"{site} references {type.FullName}, which is outside Api.Dtos. " +
+                "Add a boundary DTO in Api.Dtos with the same wire shape and map it where the DTO is built.");
         }
 
         private static bool IsClrNullable(Type type, NullabilityInfo info) =>

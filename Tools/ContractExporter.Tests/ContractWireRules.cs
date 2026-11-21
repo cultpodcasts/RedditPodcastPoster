@@ -25,7 +25,7 @@ public class ContractWireRules
         var expected =
             new[]
             {
-                "ApprovalStatus",
+                "ApprovalStatusDto",
                 "EpisodeDto",
                 "EpisodeDtoMatchResult",
                 "EpisodeDtoPersonMatch",

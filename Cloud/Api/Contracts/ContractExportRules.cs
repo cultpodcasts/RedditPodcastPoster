@@ -1,15 +1,11 @@
 namespace Api.Contracts;
 
 /// <summary>
-/// Which referenced types the contract generator may follow. Enums are always followed.
-/// A type outside these prefixes is exported only when it carries <see cref="ExportContractAttribute"/>.
+/// Referenced contract types must live in <c>Api.Dtos</c>. A class, record, struct, or enum
+/// outside that namespace fails the export and names the property that pulled it in.
+/// Primitives and BCL types are not contract types.
 /// </summary>
 public static class ContractExportRules
 {
-    public static readonly string[] FollowNamespacePrefixes =
-    [
-        "Api.Dtos",
-        "Api.Models",
-        "RedditPodcastPoster.Models"
-    ];
+    public static readonly string[] FollowNamespacePrefixes = ["Api.Dtos"];
 }

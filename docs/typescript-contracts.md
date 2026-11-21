@@ -6,7 +6,7 @@ The Api worker (`src/openapiSchemas.ts`) and the website (`*.interface.ts`) stil
 
 ## What is generated
 
-A type is a root when it has `[ExportContract]` (`Cloud/Api/Contracts/ExportContractAttribute.cs`). The generator then follows every referenced DTO whose namespace starts with a prefix in `ContractExportRules.FollowNamespacePrefixes`, and every referenced enum wherever it lives. To export a whole namespace in one step, add an assembly attribute:
+A type is a root when it has `[ExportContract]` (`Cloud/Api/Contracts/ExportContractAttribute.cs`). The generator then follows referenced types in `Api.Dtos` only. A property whose type is a class, record, struct, or enum outside `Api.Dtos` fails the build and names that property. Primitives and BCL types such as `string`, `Guid`, `DateTime`, `TimeSpan`, `Uri`, and collections are fine. To export every public type in `Api.Dtos`, add an assembly attribute:
 
 ```csharp
 [assembly: ExportContractNamespace("Api.Dtos")]
@@ -14,7 +14,7 @@ A type is a root when it has `[ExportContract]` (`Cloud/Api/Contracts/ExportCont
 
 That exports every public concrete class, struct and enum in that exact namespace (not child namespaces).
 
-The pilot roots are `SearchIndexerState`, `EpisodeUpdateResponse` and `EpisodeDto`. Their closure (ids, urls, images, subjects, people, service links, `ServiceDto`, `ApprovalStatus`, and the nested guest-match types) is included with them. <!-- pragma: allowlist secret -->
+The pilot roots are `SearchIndexerState`, `EpisodeUpdateResponse` and `EpisodeDto`. Their closure (ids, urls, images, subjects, people, service links, `ServiceDto`, `ApprovalStatusDto`, and the nested guest-match types) is included with them. <!-- pragma: allowlist secret -->
 
 ## Why a build target, not Tapper or TypeGen
 
