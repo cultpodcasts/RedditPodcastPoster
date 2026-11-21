@@ -578,6 +578,30 @@ public class EpisodeFilmMoveServiceRules
         _uploadedSearchDocuments.Should().BeNull();
     }
 
+    [Theory(DisplayName =
+        "A held or rejected episode cannot be moved to a new film, because a split-off stays hidden until a curator approves it, and nothing is written.")]
+    [InlineData(ApprovalStatus.AwaitingApproval)]
+    [InlineData(ApprovalStatus.Rejected)]
+    public async Task held_episode_is_bad_request(ApprovalStatus status)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.ApprovalStatus = status;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.BadRequest);
+        result.Error.Should().Be("An episode held for approval cannot be moved to a film");
+        _savedFilms.Should().BeEmpty();
+        _uploadedSearchDocuments.Should().BeNull();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
     [Fact(DisplayName =
         "An unknown podcast or an episode not in that podcast is not found.")]
     public async Task unknown_episode_is_not_found()

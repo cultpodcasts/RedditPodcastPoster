@@ -93,6 +93,14 @@ public class EpisodeFilmMoveService(
                     Error: "A removed episode cannot be moved to a film");
             }
 
+            // #1484 / #1416: a split-off stays hidden until a curator approves it.
+            if (episode.IsHeldForApproval())
+            {
+                return new EpisodeFilmMoveResult(
+                    EpisodeFilmMoveStatus.BadRequest,
+                    Error: "An episode held for approval cannot be moved to a film");
+            }
+
             var film = await filmRepository.GetFilm(episode.Id);
             if (film is not null)
             {
@@ -189,6 +197,14 @@ public class EpisodeFilmMoveService(
             return new EpisodeFilmMoveResult(
                 EpisodeFilmMoveStatus.BadRequest,
                 Error: "A removed episode cannot be moved to a film");
+        }
+
+        // #1484 / #1416: a split-off stays hidden until a curator approves it.
+        if (episode.IsHeldForApproval())
+        {
+            return new EpisodeFilmMoveResult(
+                EpisodeFilmMoveStatus.BadRequest,
+                Error: "An episode held for approval cannot be moved to a film");
         }
 
         if (filmId == episode.Id)

@@ -303,6 +303,29 @@ public class EpisodeFilmMergeIntoExistingRules
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
     }
 
+    [Theory(DisplayName =
+        "Merge refuses a held or rejected episode (400), writing nothing, because a split-off stays hidden until a curator approves it.")]
+    [InlineData(ApprovalStatus.AwaitingApproval)]
+    [InlineData(ApprovalStatus.Rejected)]
+    public async Task merge_refuses_held_episode(ApprovalStatus status)
+    {
+        // Arrange
+        var (podcast, episode) = SeedYouTubeEpisode();
+        episode.ApprovalStatus = status;
+        _episodes.Seed(episode);
+        var film = SeedFilm();
+
+        // Act
+        var result = await Merge(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.BadRequest);
+        result.Error.Should().Be("An episode held for approval cannot be moved to a film");
+        _filmSaves.Should().Be(0);
+        _uploads.Should().BeEmpty();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
+    }
+
     [Fact(DisplayName =
         "A re-send after the merge finished (episode row gone) is a 404, not a second write.")]
     public async Task merge_resend_after_completion_is_not_found()
