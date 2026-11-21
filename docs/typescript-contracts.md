@@ -14,7 +14,7 @@ A type is a root when it has `[ExportContract]` (`Cloud/Api/Contracts/ExportCont
 
 That exports every public concrete class, struct and enum in that exact namespace (not child namespaces).
 
-The pilot roots are `SearchIndexerState`, `EpisodeUpdateResponse` and `EpisodeDto`. Their closure (ids, urls, images, subjects, people, service links, `ServiceDto`, `ApprovalStatusDto`, and the nested guest-match types) is included with them. <!-- pragma: allowlist secret -->
+The roots are `SearchIndexerState`, `EpisodeUpdateResponse`, `EpisodeDto` and `PublicEpisodeDto`. `PublicEpisodeDto` is the public `/public/episode/{id}` body the website bookmarks page reads (#1502). It carries the optional `imageRemoved` flag (#1500), which the curator `EpisodeDto` does not; its `ids` and `services` use the JSON-identical `EpisodeIdsDto` and `ServiceLinkDto`, so the public wire bytes are unchanged. Their closure (ids, urls, images, subjects, people, service links, `ServiceDto`, `ApprovalStatusDto`, and the nested guest-match types) is included with them. <!-- pragma: allowlist secret -->
 
 ## Why a build target, not Tapper or TypeGen
 
