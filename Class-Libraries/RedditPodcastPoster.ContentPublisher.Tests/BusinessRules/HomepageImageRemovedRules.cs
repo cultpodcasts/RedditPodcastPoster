@@ -16,7 +16,6 @@ public class HomepageImageRemovedRules
         EpisodeId = Guid.NewGuid(),
         EpisodeTitle = "Synthetic title",
         EpisodeDescription = "Synthetic description",
-        Release = new DateTime(2026, 11, 21, 14, 0, 0, DateTimeKind.Utc),
         Services = new Dictionary<string, ServiceLink>(StringComparer.Ordinal)
         {
             ["youtube"] = new()

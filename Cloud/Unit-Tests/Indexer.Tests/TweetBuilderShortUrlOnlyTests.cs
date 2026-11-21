@@ -1,7 +1,7 @@
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Moq.AutoMock;
 using RedditPodcastPoster.SocialPosting.Factories;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
@@ -148,26 +148,23 @@ public class TweetBuilderShortUrlOnlyTests
 
     private TweetBuilder CreateSut(bool withEpisodeUrl, bool shortUrlOnlyWhenShareImage)
     {
-        var textSanitiser = new Mock<ITextSanitiser>();
-        textSanitiser
+        var mocker = new AutoMocker();
+        mocker.GetMock<ITextSanitiser>()
             .Setup(x => x.SanitiseTitle(It.IsAny<PostModel>()))
             .ReturnsAsync((PostModel pm) => pm.EpisodeTitle);
-        textSanitiser
+        mocker.GetMock<ITextSanitiser>()
             .Setup(x => x.SanitisePodcastName(It.IsAny<PostModel>()))
             .Returns((PostModel pm) => pm.PodcastName);
 
-        var hashTagEnricher = new Mock<IHashTagEnricher>();
-        hashTagEnricher
+        mocker.GetMock<IHashTagEnricher>()
             .Setup(x => x.AddHashTag(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
             .Returns((string input, string _, string? _) => (input, false));
 
-        var hashTagProvider = new Mock<IHashTagProvider>();
-        hashTagProvider
+        mocker.GetMock<IHashTagProvider>()
             .Setup(x => x.GetHashTags(It.IsAny<List<string>>()))
             .ReturnsAsync(new List<HashTag>());
 
-        var postModelFactory = new Mock<IPostModelFactory>();
-        postModelFactory
+        mocker.GetMock<IPostModelFactory>()
             .Setup(x => x.ToPostModel(It.IsAny<(Podcast, IEnumerable<Episode>)>(), It.IsAny<bool>()))
             .Returns((
                 (Podcast Podcast, IEnumerable<Episode> Episodes) pe,
@@ -192,12 +189,11 @@ public class TweetBuilderShortUrlOnlyTests
                 [],
                 []));
 
-        var personGuestHandleResolver = new Mock<IPersonGuestHandleResolver>();
-        personGuestHandleResolver
+        mocker.GetMock<IPersonGuestHandleResolver>()
             .Setup(x => x.Resolve(It.IsAny<Episode>()))
             .ReturnsAsync((Array.Empty<string>(), Array.Empty<string>()));
 
-        var options = Options.Create(new TwitterOptions
+        mocker.Use(Options.Create(new TwitterOptions
         {
             ConsumerKey = "k",
             ConsumerSecret = "s",
@@ -205,15 +201,8 @@ public class TweetBuilderShortUrlOnlyTests
             AccessTokenSecret = "ts",
             WithEpisodeUrl = withEpisodeUrl,
             ShortUrlOnlyWhenShareImage = shortUrlOnlyWhenShareImage
-        });
+        }));
 
-        return new TweetBuilder(
-            textSanitiser.Object,
-            hashTagEnricher.Object,
-            hashTagProvider.Object,
-            postModelFactory.Object,
-            personGuestHandleResolver.Object,
-            options,
-            Mock.Of<ILogger<TweetBuilder>>());
+        return mocker.CreateInstance<TweetBuilder>();
     }
 }
