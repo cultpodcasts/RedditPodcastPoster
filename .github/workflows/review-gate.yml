@@ -22,6 +22,10 @@
 # pull_request_review is NOT used: it would run the PR's own copy of this file with a
 # write token. PR code is never checked out or executed. Comment bodies are only parsed
 # in JavaScript, never interpolated into a shell or an expression.
+# Labels on PRs need `pull-requests: write` (`issues: write` is not enough). A 403 on
+# removeLabel used to abort the job before a status was published (#1519). A failed
+# removal is non-fatal: the script logs a warning and still publishes the status, which
+# is never success when the label is stale or the marker is missing.
 # This is a process interlock, not a security boundary: every agent and Jon post as the
 # same OWNER account, and anyone with write access can label or post statuses.
 # Not the same thing as RPP's "PR gate / gate" CI check: both should be required.
@@ -39,7 +43,7 @@ on:
 permissions:
   contents: read
   statuses: write
-  pull-requests: read
+  pull-requests: write
   issues: write
 
 # One evaluation per PR at a time; each run re-reads live PR state. GitHub replaces a

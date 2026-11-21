@@ -144,6 +144,46 @@ test('run: label already gone (404) on synchronize is fine', async () => {
   assert.equal(calls.statuses.length, 1);
 });
 
+test('run: 403 on label removal still publishes a non-success status (synchronize)', async () => {
+  const { github, calls } = fakeGithub({
+    labels: ['review-acceptable'], comments: [c(ok())], removeStatus: 403,
+  });
+  const warnings = [];
+  const coreWarn = { info() {}, warning(m) { warnings.push(m); } };
+  const r = await g.run({
+    github, core: coreWarn,
+    context: ctx('pull_request_target', 'synchronize', { pull_request: { number: 1 } }),
+  });
+  assert.notEqual(r.state, 'success');
+  assert.equal(r.state, 'failure');
+  assert.equal(calls.statuses.length, 1);
+  assert.equal(calls.statuses[0].state, 'failure');
+  assert.equal(calls.statuses[0].sha, SHA);
+  assert.equal(calls.statuses[0].context, 'review-gate');
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /403/);
+});
+
+test('run: 403 on stale-label removal still publishes a non-success status', async () => {
+  const { github, calls } = fakeGithub({
+    labels: ['review-acceptable'], comments: [c(ok(OLD))], removeStatus: 403,
+  });
+  const warnings = [];
+  const coreWarn = { info() {}, warning(m) { warnings.push(m); } };
+  const r = await g.run({
+    github, core: coreWarn,
+    context: ctx('issue_comment', 'created', { issue: { number: 1, pull_request: {} } }),
+  });
+  assert.notEqual(r.state, 'success');
+  assert.equal(r.state, 'failure');
+  assert.equal(calls.statuses.length, 1);
+  assert.equal(calls.statuses[0].state, 'failure');
+  assert.equal(calls.statuses[0].sha, SHA);
+  assert.match(r.description, /older commit/);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /403/);
+});
+
 test('run: non-PR issue comment and closed PR post nothing', async () => {
   const a = fakeGithub();
   assert.equal(await g.run({ github: a.github, core, context: ctx('issue_comment', 'created', { issue: { number: 3 } }) }), null);
@@ -244,7 +284,7 @@ test('workflow: job id and name differ from the review-gate status context', () 
 });
 
 test('workflow: least privilege and SHA-pinned actions', () => {
-  assert.match(code, /^  pull-requests: read$/m);
+  assert.match(code, /^  pull-requests: write$/m);
   assert.match(code, /^  statuses: write$/m);
   const uses = [...code.matchAll(/^\s*(?:-\s+)?uses:\s*(\S+)/gm)].map((m) => m[1]);
   assert.ok(uses.length >= 2);
