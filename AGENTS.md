@@ -103,23 +103,26 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 
 ## Review gate (HARD, cultpodcasts/RedditPodcastPoster#1507)
 
-`.github/workflows/review-gate.yml` publishes the commit status **`review-gate`** on every PR head SHA. It is red until the review-implement-pr reviewer says the **current head commit** is acceptable, so a PR cannot be merged mid-review. It is separate from CI, which must be green as well.
+`.github/workflows/review-gate.yml` publishes the commit status **`review-gate`** on every PR head SHA. It is red until the review-implement-pr reviewer says the **current head commit** is acceptable, so a PR cannot be merged mid-review. It does **not** look at CI: CI must be green separately.
 
 The reviewer's **final step** when its verdict is acceptable:
 
-1. Post the summary comment (an issue comment or review body) ending with the marker for the **full 40-character head SHA** it reviewed:
+1. Check that every other check for the head SHA has passed (`gh pr checks <n>`). Never mark a SHA while CI is pending or red.
+2. Post a PR **issue comment** (`gh pr comment <n>`) containing the marker for the **full 40-character head SHA** it reviewed. The summary can stay a COMMENT review; the marker goes in a separate one-line comment if needed:
    `<!-- review-gate: acceptable sha=<head sha> -->`
    Get the SHA with `gh pr view <n> --json headRefOid --jq .headRefOid`. To withdraw a verdict, post `<!-- review-gate: changes-requested sha=<head sha> -->`.
-2. Add the label: `gh pr edit <n> --add-label review-acceptable`.
-3. Check the status is green (`gh pr checks <n>` lists `review-gate`), then move the card to Ready For Review.
+3. **Then** add the label: `gh pr edit <n> --add-label review-acceptable` (marker first: a label without an acceptable marker for the head SHA is removed).
+4. Check `review-gate` is green (`gh pr checks <n>`), then move the card to Ready For Review.
 
 Rules:
 
 - Only the reviewer adds the marker and label. The implementor never does.
-- Any new push removes `review-acceptable` and turns the status red. The reviewer must re-review and re-mark the new SHA.
-- Only markers from OWNER, MEMBER or COLLABORATOR accounts count. A marker for any other SHA is ignored.
-- The gate code always runs from `main` (`pull_request_target`; `pull_request_review` checks out the default branch), so editing it in a PR does not change that PR's result.
-- Follow-on after merge (needs Jon's OK): require `review-gate` on `main` in branch protection.
+- Markers count only in PR issue comments from OWNER, MEMBER or COLLABORATOR accounts. Markers in **review bodies**, on quoted (`>`) lines, inside fenced code blocks, or for any other SHA are ignored. Comments are ordered by when they were created, so editing an old comment does not make its marker the latest; within one comment the last marker wins.
+- Any new push removes `review-acceptable` and turns the status red. That includes **merging main into the PR**: with "require branches to be up to date" on, that is a new SHA, so the reviewer must re-check and re-mark it. This is intended.
+- The workflow runs only on `pull_request_target` and `issue_comment`, which both use the workflow file and script from `main`, so editing the gate in a PR does not change that PR's result. `pull_request_review` is deliberately not a trigger, because it would run the PR's own copy of the workflow.
+- **Process interlock, not a security boundary.** The reviewer, the implementor and Jon all post as `cultpodcasts` (author association OWNER), and anyone with write access can add the label or post a status. "Only the reviewer marks" is enforced by agent rules, not by GitHub. (Possible future hardening: a separate reviewer GitHub App, with markers accepted only from its bot login.)
+- The job is named `publish-status`, not `review-gate`, so the only thing called `review-gate` is the commit status. GitHub would otherwise require a check run and a status of the same name.
+- Follow-on after merge (needs Jon's OK): require `review-gate` on `main`, with its source pinned to **GitHub Actions** (the app that posts the status), not "any source".
 
 ## Linking PRs to tickets (HARD)
 

@@ -2,49 +2,60 @@
 # review-implement-pr reviewer says the CURRENT head commit is acceptable.
 #
 # Publishes ONE commit status, context `review-gate`, on the PR head SHA from every
-# trigger (never a job check run), so branch protection on main can require exactly
-# that context. Pass rule (see .github/scripts/review-gate.cjs):
+# trigger. The job is deliberately NOT named `review-gate`: GitHub requires both a check
+# run and a commit status that share a required name. When `review-gate` is made a
+# required check, pin its source to "GitHub Actions" (the app that posts statuses with
+# GITHUB_TOKEN), not "any source".
+#
+# Pass rule (see .github/scripts/review-gate.cjs):
 #   - the PR has label `review-acceptable`, AND
-#   - the latest trusted (OWNER/MEMBER/COLLABORATOR) marker for the head SHA, in an
-#     issue comment or review body, is
+#   - the latest trusted (OWNER/MEMBER/COLLABORATOR) marker for the head SHA, in a PR
+#     issue comment (ordered by created_at; quoted `>` lines and fenced code ignored), is
 #       <!-- review-gate: acceptable sha=<full 40-char head sha> -->
 #     (`changes-requested` instead of `acceptable` fails it).
-# A new push (synchronize) removes the label and fails the status.
+#   Markers in review bodies are ignored.
+# The label is removed on a new push (synchronize), and on any run where it is present
+# without an acceptable marker for the head SHA.
 #
-# pull_request_target runs this file and the script from main, so a PR cannot edit
-# the gate to pass itself; the checkout below is always the default branch, and PR
-# code is never checked out or executed. Comment/review bodies are only parsed in
-# JavaScript, never interpolated into a shell or an expression.
+# Only pull_request_target and issue_comment trigger this; both run this file and the
+# script from the default branch, so a PR cannot edit the gate to change its own result.
+# pull_request_review is NOT used: it would run the PR's own copy of this file with a
+# write token. PR code is never checked out or executed. Comment bodies are only parsed
+# in JavaScript, never interpolated into a shell or an expression.
+# This is a process interlock, not a security boundary: every agent and Jon post as the
+# same OWNER account, and anyone with write access can label or post statuses.
 # Not the same thing as RPP's "PR gate / gate" CI check: both should be required.
-# Mirrored across RedditPodcastPoster, Api and website. Tests: .github/scripts/review-gate.test.cjs.
+# Mirrored byte-identical across RedditPodcastPoster, Api and website.
+# Tests: .github/scripts/review-gate.test.cjs.
 
 name: Review gate
 
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
-  pull_request_review:
-    types: [submitted, edited, dismissed]
   issue_comment:
     types: [created, edited, deleted]
 
 permissions:
   contents: read
   statuses: write
-  pull-requests: write
+  pull-requests: read
   issues: write
 
-# One evaluation per PR at a time; each run re-reads live PR state, so queued runs are safe.
+# One evaluation per PR at a time; each run re-reads live PR state. GitHub replaces a
+# pending run with a newer one, so push (synchronize) runs get their own group and can't
+# be dropped by a comment/label run; the script also removes a stale label on any run.
 concurrency:
-  group: review-gate-${{ github.repository }}-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: review-gate-${{ github.repository }}-${{ github.event.pull_request.number || github.event.issue.number }}-${{ github.event.action == 'synchronize' && 'push' || 'eval' }}
   cancel-in-progress: false
 
 jobs:
-  review-gate:
+  publish-status:
+    name: publish review-gate status
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: .github/scripts
@@ -52,7 +63,7 @@ jobs:
           persist-credentials: false
 
       - name: Publish review-gate status on the PR head SHA
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const { run } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/review-gate.cjs`);
