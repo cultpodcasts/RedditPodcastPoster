@@ -1,6 +1,6 @@
 # TypeScript contracts (`@cultpodcasts/contracts`) <!-- pragma: allowlist secret -->
 
-The Azure Functions HTTP DTOs are the source of truth. `Tools/ContractExporter` reads them during the build and writes TypeScript types, Zod schemas and a JSON Schema bundle to `contracts/`. That folder is the private npm package `@cultpodcasts/contracts`, published to GitHub Packages (`npm.pkg.github.com`). `cultpodcasts` is a personal GitHub user, so the scope is that user — there is no organisation registry. <!-- pragma: allowlist secret -->
+The Azure Functions HTTP DTOs are the source of truth. `Tools/ContractExporter` reads them during the build and writes TypeScript types, Zod schemas and a JSON Schema bundle to `contracts/`. Those generated files are gitignored. That folder is the private npm package `@cultpodcasts/contracts`, published to GitHub Packages (`npm.pkg.github.com`). `cultpodcasts` is a personal GitHub user, so the scope is that user — there is no organisation registry. <!-- pragma: allowlist secret -->
 
 The Api worker (`src/openapiSchemas.ts`) and the website (`*.interface.ts`) still keep their hand-written copies. This package is the replacement; those repos are not switched over here.
 
@@ -38,19 +38,21 @@ Tapper and TypeGen do not see those options. `JsonSchemaExporter` was the closes
 
 `contentKind` stays a string. The C# property is `string?`, not an enum, so the contract does not invent `Episode | NewsReport | TvShowEpisode | Film`.
 
-## Build and drift
+## Build
 
-`Tools/ContractExporter` runs `dotnet exec` on itself after its own build (`ExportTypescriptContracts`). The solution build includes that project, so `dotnet build` refreshes `contracts/src`, `contracts/schemas` and `contracts/typecheck`. Writes are skipped when the bytes already match.
+`Tools/ContractExporter` is in the solution. Target `ExportTypescriptContracts` runs after that project's build and `dotnet exec`s the built dll, writing `contracts/src`, `contracts/schemas` and `contracts/typecheck`. Those three directories are gitignored (`contracts/.gitignore`). A local `dotnet build` refreshes them and does not dirty git. Writes are skipped when the bytes already match.
 
-CI (`Build` workflow) fails when that refresh would change a committed file. It also typechecks the package (`npm run typecheck` under `contracts/`) and runs `scripts/assert-contract-package-version.ps1`: a change under `contracts/src`, `contracts/schemas` or `contracts/typecheck` must bump `contracts/package.json`.
+The hand-written package shell stays in git: `package.json`, `package-lock.json`, `tsconfig.json`, `.npmrc`, `README.md`, and `.gitignore`. The generator does not overwrite those.
 
-`contracts/package.json`, `contracts/README.md` and `contracts/tsconfig.json` are hand-maintained. The generator does not overwrite them.
+CI builds the solution (which runs the generator), typechecks the generated package (`npm run typecheck` under `contracts/`), and runs the contract tests. There is no committed copy to drift against.
 
 ## Version and publish
 
-`0.1.0` is the first version. Bump the patch (or minor, when a consumer would break) in `contracts/package.json` in the same change as the generated files.
+`0.1.0` is the first version. The published version is the semver in `contracts/package.json`, bumped by hand when the wire shape changes. Generated files are not in git, so a diff of them cannot be the bump signal. GitHub Packages rejects a second publish of the same version.
 
-`.github/workflows/publish-contracts.yml` publishes on a push to `main` that touches `contracts/**`, and on a manual run of that workflow from `main`. It uses `GITHUB_TOKEN` with `packages: write` and does not run for any other branch. This pull request does not publish.
+`scripts/assert-contract-package-version.ps1` requires that bump when the exporter, the export attributes, `ApiJson`, or `Cloud/Api/Dtos` differ from the base. A domain enum that an exported DTO references can live outside that list; bump the version by hand for that change.
+
+`.github/workflows/publish-contracts.yml` builds `Tools/ContractExporter` (generating fresh output) and then publishes. It runs on a push to `main` that touches the package shell or those C# inputs, and on a manual run from `main`. It uses `GITHUB_TOKEN` with `packages: write` and does not run for any other branch. This pull request does not publish.
 
 GitHub Packages previously blocked a streaming-submit contract publish (Api `docs/contract-publish.md`). The workflow is in place; a publish still needs Packages to accept the package from this user account.
 

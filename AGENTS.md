@@ -44,7 +44,7 @@ Cross-repo streaming ingest contract (membership `service`, prepare/submit): [`d
 
 ## TypeScript API contracts
 
-HTTP DTO TypeScript, JSON Schema and Zod are generated from `[ExportContract]` types during the build of `Tools/ContractExporter` and committed under `contracts/` (`@cultpodcasts/contracts`). Drift fails CI. Install notes: [`docs/typescript-contracts.md`](docs/typescript-contracts.md). <!-- pragma: allowlist secret -->
+HTTP DTO TypeScript, JSON Schema and Zod are generated from `[ExportContract]` types during the build of `Tools/ContractExporter` into gitignored `contracts/src`, `contracts/schemas` and `contracts/typecheck`. CI typechecks that output. The published version is the hand-written semver in `contracts/package.json`. Install notes: [`docs/typescript-contracts.md`](docs/typescript-contracts.md).
 
 ## CQRS (HARD)
 

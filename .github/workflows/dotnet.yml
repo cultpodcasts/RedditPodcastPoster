@@ -48,15 +48,8 @@ jobs:
         dotnet build "$di" --configuration Release --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
     - name: Build
       run: dotnet build --configuration Release --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
-    - name: TypeScript contract drift
-      run: |
-        set -euo pipefail
-        if [ -n "$(git status --porcelain -- contracts)" ]; then
-          git status --porcelain -- contracts
-          git diff -- contracts
-          echo "Generated contracts/ does not match this commit. The build rewrites it from the DTOs."
-          exit 1
-        fi
+    # The solution build runs Tools/ContractExporter, which writes gitignored contracts/src,
+    # contracts/schemas and contracts/typecheck. Typecheck that output; do not commit it.
     - name: Contract package version
       shell: pwsh
       run: |

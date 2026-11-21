@@ -1,6 +1,7 @@
 # Packs contracts/ and publishes @cultpodcasts/contracts to GitHub Packages. # pragma: allowlist secret
-# Runs on main when the package contents change, and from a manual dispatch of main.
-# A dispatch from any other branch is a no-op so a pull request cannot publish.
+# Runs on main when the package shell or the C# inputs that define the wire shape change,
+# and from a manual dispatch of main. Generated TypeScript is produced in this workflow;
+# it is not stored in git. A dispatch from any other branch is a no-op.
 
 name: Publish TypeScript contracts
 
@@ -9,6 +10,10 @@ on:
     branches: [main]
     paths:
       - 'contracts/**'
+      - 'Tools/ContractExporter/**'
+      - 'Cloud/Api/Contracts/**'
+      - 'Cloud/Api/Serialization/ApiJson.cs'
+      - 'Cloud/Api/Dtos/**'
       - '.github/workflows/publish-contracts.yml'
   workflow_dispatch:
 
@@ -22,6 +27,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Generate contracts
+        run: |
+          set -euo pipefail
+          abs='Class-Libraries/RedditPodcastPoster.DependencyInjection.Abstractions/RedditPodcastPoster.DependencyInjection.Abstractions.csproj'
+          di='Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj'
+          dotnet build "$abs" --configuration Release -p:SkipEnsureDependencyInjectionBuilt=true
+          dotnet build "$di" --configuration Release -p:SkipEnsureDependencyInjectionBuilt=true
+          dotnet build Tools/ContractExporter/ContractExporter.csproj --configuration Release -p:SkipEnsureDependencyInjectionBuilt=true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

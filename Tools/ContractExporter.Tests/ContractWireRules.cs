@@ -127,8 +127,8 @@ public class ContractWireRules
     }
 
     [Fact(DisplayName =
-        "When the exporter has run as part of the build, then the committed contract files match a fresh render, because CI rejects a drift between the DTOs and contracts/.")]
-    public void committed_contract_files_match_the_renderer()
+        "When the exporter has run as part of the build, then the gitignored contract folder matches a fresh render, because CI typechecks that generated output rather than a committed copy.")]
+    public void build_output_matches_the_renderer()
     {
         // Arrange
         var directory = RepositoryContracts();

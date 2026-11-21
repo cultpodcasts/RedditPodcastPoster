@@ -1,6 +1,6 @@
 # @cultpodcasts/contracts <!-- pragma: allowlist secret -->
 
-TypeScript types, Zod schemas and JSON Schema generated from the Cult Podcasts Azure Functions DTOs. The generator lives in RedditPodcastPoster (`Tools/ContractExporter`); this folder is the published package. <!-- pragma: allowlist secret -->
+TypeScript types, Zod schemas and JSON Schema generated from the Azure Functions HTTP DTOs. `Tools/ContractExporter` writes them during `dotnet build` into this folder. That output is gitignored; the publish workflow generates it again before `npm publish`. What git stores here is the package shell.
 
 Shapes match the isolated-worker HTTP serializer: `[JsonPropertyName]`, UTC instants ending in `Z`, `TimeSpan` and `Guid` as strings, and string enum names where the property uses `JsonStringEnumConverter`. A field is optional only when the serializer omits null.
 

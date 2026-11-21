@@ -1,13 +1,19 @@
 <#
 .SYNOPSIS
-  Fails when contracts/src, contracts/schemas or contracts/typecheck changed against a base ref
-  without a greater version in contracts/package.json.
+  Checks the hand-written contracts/package.json version.
 
 .DESCRIPTION
-  The npm package is published from main when contracts/ changes. Publishing the same version
-  twice is rejected by GitHub Packages, so a contract change has to bump the version.
+  Generated TypeScript, Zod and JSON Schema are gitignored, so this script does not
+  diff contracts/src, contracts/schemas or contracts/typecheck.
 
-  A base ref with no contracts/package.json is the initial package and any version is accepted.
+  The published version is the semver in package.json, bumped by hand when the wire
+  shape changes. GitHub Packages rejects a second publish of the same version, which
+  is what stops an unchanged version shipping again.
+
+  When the inputs that define that shape differ from the base ref, the version must
+  be greater than the base. Those inputs are the exporter, the export attributes,
+  the HTTP JSON options, and Cloud/Api/Dtos. A domain enum that an exported DTO
+  references can live outside that list; that change still needs a manual bump.
 #>
 [CmdletBinding()]
 param(
@@ -19,6 +25,14 @@ $ErrorActionPreference = 'Stop'
 
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 Set-Location $root
+
+# Source of the wire shape. Not the generated package files.
+$ContractInputs = @(
+    'Tools/ContractExporter'
+    'Cloud/Api/Contracts'
+    'Cloud/Api/Serialization/ApiJson.cs'
+    'Cloud/Api/Dtos'
+)
 
 function Get-PackageVersion([string] $json) {
     return ([System.Text.Json.JsonDocument]::Parse($json)).RootElement.GetProperty('version').GetString()
@@ -43,6 +57,7 @@ if ([string]::IsNullOrWhiteSpace($headVersion)) {
     Write-Host 'contracts/package.json has no version.'
     exit 1
 }
+$null = ConvertTo-SemVer $headVersion
 
 $baseJson = git show "${BaseRef}:contracts/package.json" 2>$null
 if (-not $baseJson) {
@@ -51,14 +66,17 @@ if (-not $baseJson) {
 }
 
 $baseVersion = Get-PackageVersion ($baseJson -join "`n")
-$changed = @(git diff --name-only $BaseRef -- contracts/src contracts/schemas contracts/typecheck)
+$changed = @(git diff --name-only $BaseRef -- $ContractInputs)
+# Tests do not change the published shape.
+$changed = @($changed | Where-Object { $_ -notlike 'Tools/ContractExporter.Tests/*' })
+
 if ($changed.Count -eq 0) {
-    Write-Host "Contract outputs match $BaseRef (version $headVersion)."
+    Write-Host "Contract inputs match $BaseRef (version $headVersion)."
     exit 0
 }
 
 if ($headVersion -eq $baseVersion) {
-    Write-Host "Contracts changed but version is still $headVersion. Bump contracts/package.json."
+    Write-Host "Contract inputs changed but version is still $headVersion. Bump contracts/package.json."
     $changed | ForEach-Object { Write-Host "  $_" }
     exit 1
 }
