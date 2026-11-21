@@ -325,6 +325,13 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                 }
 
                 EpisodeServicePresence.Upsert(episode, key, url, image);
+                if (pair.Value?.Image is not null && image is null)
+                {
+                    // #1500: an explicit "" image on a kept link clears that service's art. Upsert keeps an image it
+                    // is not given, so clear it here.
+                    EpisodeServicePresence.SetCatalogImage(episode, key, null);
+                }
+
                 ApplyKnownServiceId(episode, key, url, changeState);
             }
         }
