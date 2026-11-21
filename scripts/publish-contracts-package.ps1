@@ -292,7 +292,9 @@ function Invoke-ContractsPackagePublish {
 
     Push-Location $Directory
     try {
-        $versionResult = Invoke-NpmCapture -Command $Command -- version $plan.Version --no-git-tag-version
+        # --allow-same-version: the first publish of a line is major.minor.0, which is already
+        # the version in package.json. npm 10 exits 1 with "Version not changed" without this flag.
+        $versionResult = Invoke-NpmCapture -Command $Command -- version $plan.Version --no-git-tag-version --allow-same-version
         if ($versionResult.ExitCode -ne 0) {
             Write-Host $versionResult.Output
             return $versionResult.ExitCode

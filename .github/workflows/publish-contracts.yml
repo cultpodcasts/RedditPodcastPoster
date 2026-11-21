@@ -21,6 +21,7 @@ on:
       - 'Class-Libraries/RedditPodcastPoster.Models/Serialization/**'
       - 'Class-Libraries/RedditPodcastPoster.Models/Converters/**'
       - '.github/workflows/publish-contracts.yml'
+      - 'scripts/publish-contracts-package.ps1'
   workflow_dispatch:
 
 permissions:

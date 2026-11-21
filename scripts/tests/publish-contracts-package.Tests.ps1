@@ -157,10 +157,51 @@ Describe 'publish script' {
         $code = Invoke-ContractsPackagePublish -Directory $dir -Command $fake
 
         $code | Should -Be 0
-        $calls | Should -Contain 'version 0.1.3 --no-git-tag-version'
+        $calls | Should -Contain 'version 0.1.3 --no-git-tag-version --allow-same-version'
         $calls | Should -Contain 'publish'
         $written = [System.Text.Json.JsonDocument]::Parse((Get-Content -LiteralPath (Join-Path $dir 'package.json') -Raw)).RootElement
         $written.GetProperty('version').GetString() | Should -Be '0.1.3'
+        $written.GetProperty('contractsContentHash').GetString() | Should -Be (Get-ContractsContentHash -Directory $dir)
+    }
+
+    It 'publishes major.minor.0 when npm would reject an unchanged version' {
+        $dir = Join-Path $TestDrive 'pkg-same-version'
+        New-Item -ItemType Directory -Path (Join-Path $dir 'src'), (Join-Path $dir 'schemas') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $dir 'src/index.ts') -Value "export {}`n" -NoNewline
+        Set-Content -LiteralPath (Join-Path $dir 'src/zod.ts') -Value "export {}`n" -NoNewline
+        Set-Content -LiteralPath (Join-Path $dir 'schemas/contracts.schema.json') -Value "{}`n" -NoNewline
+        Set-Content -LiteralPath (Join-Path $dir 'package.json') -Value '{"name":"@example/contracts","version":"0.1.0"}' -NoNewline
+        $calls = [System.Collections.Generic.List[string]]::new()
+        $fake = {
+            $calls.Add(($args -join ' '))
+            $line = $args -join ' '
+            if ($line -match 'versions') {
+                $global:LASTEXITCODE = 1
+                return 'npm error code E404'
+            }
+            if ($line -match '^version ' -and $line -notmatch '--allow-same-version') {
+                $global:LASTEXITCODE = 1
+                return 'npm error Version not changed'
+            }
+            if ($line -match '^version ') {
+                $global:LASTEXITCODE = 0
+                return $args[1]
+            }
+            if ($line -eq 'publish') {
+                $global:LASTEXITCODE = 0
+                return ''
+            }
+            $global:LASTEXITCODE = 1
+            return "unexpected $line"
+        }
+
+        $code = Invoke-ContractsPackagePublish -Directory $dir -Command $fake
+
+        $code | Should -Be 0
+        $calls | Should -Contain 'version 0.1.0 --no-git-tag-version --allow-same-version'
+        $calls | Should -Contain 'publish'
+        $written = [System.Text.Json.JsonDocument]::Parse((Get-Content -LiteralPath (Join-Path $dir 'package.json') -Raw)).RootElement
+        $written.GetProperty('version').GetString() | Should -Be '0.1.0'
         $written.GetProperty('contractsContentHash').GetString() | Should -Be (Get-ContractsContentHash -Directory $dir)
     }
 }
