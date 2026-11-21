@@ -34,7 +34,7 @@ Tapper and TypeGen do not see those options. `JsonSchemaExporter` was the closes
 | `TimeSpan` | constant format, e.g. `01:30:00` or `1.00:00:00` |
 | `Guid` | string, `uuid` |
 | `Uri` | string, `uri` |
-| `long` / `int` | JSON number (`z.number().int()`, TypeScript `number`). `EpisodeDto.AppleId` and `EpisodeIdsDto.Apple` are `long?`. JavaScript cannot represent every Int64 (`Number.MAX_SAFE_INTEGER` is 9007199254740991). The worker writes a JSON number, so this package does too. Whether every stored Apple id fits in a safe integer is still open; emitting strings would change the wire format |
+| `long` / `int` | JSON number (`z.number().int()`, TypeScript `number`). `EpisodeDto.AppleId` and `EpisodeIdsDto.Apple` (`long?`) stay JSON numbers and are assumed within `Number.MAX_SAFE_INTEGER` (9007199254740991). |
 
 `contentKind` stays a string. The C# property is `string?`, not an enum, so the contract does not invent `Episode | NewsReport | TvShowEpisode | Film`.
 
