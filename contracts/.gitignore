@@ -1,0 +1,4 @@
+# Written by Tools/ContractExporter during dotnet build. Not source.
+src/
+schemas/
+typecheck/

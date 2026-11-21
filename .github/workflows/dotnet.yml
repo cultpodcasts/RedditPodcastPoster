@@ -48,6 +48,15 @@ jobs:
         dotnet build "$di" --configuration Release --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
     - name: Build
       run: dotnet build --configuration Release --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
+    # The solution build runs Tools/ContractExporter, which writes gitignored contracts/src,
+    # contracts/schemas and contracts/typecheck. Typecheck that output; do not commit it.
+    # Patch numbers are assigned at publish time. Git only carries major.minor.0.
+    - name: Contract release line
+      shell: pwsh
+      run: ./scripts/assert-contract-package-version.ps1
+    - name: Typecheck generated contracts
+      working-directory: contracts
+      run: npm ci && npm run typecheck
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal
     - name: Episode domain coverage gate

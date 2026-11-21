@@ -1,12 +1,13 @@
 using System.Text.Json.Serialization;
+using Api.Contracts;
 using Api.Dtos.Mapping;
-using RedditPodcastPoster.Models.Episodes;
 
 namespace Api.Dtos;
 
 /// <summary>
 /// Curate/admin episode JSON. Flat projection — does not inherit domain Episode.
 /// </summary>
+[ExportContract]
 public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
 {
     /// <summary><c>Episode</c>, <c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c>.</summary>
@@ -107,7 +108,7 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyOrder(451)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public ApprovalStatus? ApprovalStatus { get; set; }
+    public ApprovalStatusDto? ApprovalStatus { get; set; }
 
     [JsonPropertyName("lang")]
     [JsonPropertyOrder(46)]
@@ -133,13 +134,13 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyOrder(60)]
     public ServiceUrlsDto Urls { get; set; } = new();
 
-    [JsonPropertyName("subjects")]
+    [JsonPropertyName("subjects")] // pragma: allowlist secret
     [JsonPropertyOrder(70)]
-    public List<string> Subjects { get; set; } = [];
+    public List<string> Subjects { get; set; } = []; // pragma: allowlist secret
 
-    [JsonPropertyName("removedSubjects")]
+    [JsonPropertyName("removedSubjects")] // pragma: allowlist secret
     [JsonPropertyOrder(71)]
-    public List<string> RemovedSubjects { get; set; } = [];
+    public List<string> RemovedSubjects { get; set; } = []; // pragma: allowlist secret
 
     [JsonPropertyName("matches")]
     [JsonPropertyOrder(72)]

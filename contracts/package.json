@@ -1,0 +1,46 @@
+{
+  "name": "@\u0063\u0075\u006c\u0074\u0070\u006f\u0064\u0063\u0061\u0073\u0074\u0073/contracts",
+  "version": "0.1.0",
+  "description": "TypeScript, JSON Schema and Zod contracts generated from the \u0043\u0075\u006c\u0074\u0020\u0050\u006f\u0064\u0063\u0061\u0073\u0074\u0073 Azure Functions DTOs.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./zod": {
+      "types": "./src/zod.ts",
+      "import": "./src/zod.ts",
+      "default": "./src/zod.ts"
+    },
+    "./schemas": "./schemas/contracts.schema.json"
+  },
+  "files": [
+    "src",
+    "schemas",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/\u0063\u0075\u006c\u0074\u0070\u006f\u0064\u0063\u0061\u0073\u0074\u0073/RedditPodcastPoster.git",
+    "directory": "contracts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "zod": "^4.6.7"
+  }
+}

@@ -42,6 +42,10 @@ Cursor also runs this via `.cursor/hooks.json` on `stop` / `afterFileEdit`.
 
 Cross-repo streaming ingest contract (membership `service`, prepare/submit): [`docs/streaming-submit-orchestration.md`](docs/streaming-submit-orchestration.md). JSON copy under `docs/contracts/` must match Api fixture — `pwsh ./scripts/assert-streaming-submit-contract-copy.ps1`.
 
+## TypeScript API contracts
+
+HTTP DTO TypeScript, JSON Schema and Zod are generated from `[ExportContract]` types during the build of `Tools/ContractExporter` into gitignored `contracts/src`, `contracts/schemas` and `contracts/typecheck`. CI typechecks that output. `contracts/package.json` stores the release line (`major.minor.0`). The publish workflow assigns the patch and publishes only when a hash of the generated files differs from the latest GitHub Packages version. Install notes: [`docs/typescript-contracts.md`](docs/typescript-contracts.md).
+
 ## CQRS (HARD)
 
 A command changes state and returns an acknowledgement (empty 202) or a command outcome. It does not return the resource read model. A query returns the read model and changes nothing.
