@@ -245,7 +245,6 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostDiscoverySubmissionRetryHandler, PostDiscoverySubmissionRetryHandler>()
             .AddScoped<IPostDiscoverySubmissionReleaseHandler, PostDiscoverySubmissionReleaseHandler>()
             .AddScoped<IPostDiscoveryReportReleaseHandler, PostDiscoveryReportReleaseHandler>()
-            .AddScoped<IPostDiscoverySubmissionOutputsReviewedHandler, PostDiscoverySubmissionOutputsReviewedHandler>()
             .AddScoped<IPostDiscoverySubmissionStateHandler, PostDiscoverySubmissionStateHandler>();
 
     public static IServiceCollection AddApiDiscoverySchedule(this IServiceCollection services) =>

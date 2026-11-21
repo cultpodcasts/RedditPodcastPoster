@@ -9,11 +9,6 @@ public interface IDiscoverySubmissionsRepository
     Task Delete(Guid id, CancellationToken cancellationToken = default);
     Task<DiscoverySubmission?> GetById(Guid id, CancellationToken cancellationToken = default);
     IAsyncEnumerable<DiscoverySubmission> GetByStatus(DiscoverySubmissionStatus status, CancellationToken cancellationToken = default);
-    /// <summary>
-    /// Applied submissions whose created / matched episodes still wait for the supervisor's review (#1415).
-    /// Filtered server-side, so the supervisor list never reads the whole (ever-growing) Applied history.
-    /// </summary>
-    IAsyncEnumerable<DiscoverySubmission> GetOutputsReviewPending(CancellationToken cancellationToken = default);
     IAsyncEnumerable<DiscoverySubmission> GetBySubmitter(string submitterSubject, CancellationToken cancellationToken = default);
 
     /// <summary>

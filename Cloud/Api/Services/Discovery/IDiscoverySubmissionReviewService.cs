@@ -52,13 +52,6 @@ public interface IDiscoverySubmissionReviewService
         SupervisionCaller caller, CancellationToken c);
 
     /// <summary>
-    /// The supervisor has checked the episodes an apply / retry created or matched: clears the review to-do on the
-    /// submission (#1415). Nothing about the episodes changes. A no-op when nothing is waiting for review.
-    /// </summary>
-    Task<DiscoverySubmissionCommandResult> MarkOutputsReviewed(Guid submissionId,
-        DiscoverySubmissionOutputsReviewedRequest request, SupervisionCaller caller, CancellationToken c);
-
-    /// <summary>
     /// Admin only: returns a report stuck in PendingSupervisor with no live (unapplied) submission to Unprocessed.
     /// </summary>
     Task<DiscoverySubmissionCommandResult> ReleaseStuckReport(Guid documentId, DiscoveryReportReleaseRequest request,

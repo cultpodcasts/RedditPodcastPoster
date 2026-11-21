@@ -22,7 +22,6 @@ public class DiscoverySubmissionsController(
     IPostDiscoverySubmissionReleaseHandler postDiscoverySubmissionReleaseHandler,
     IPostDiscoveryReportReleaseHandler postDiscoveryReportReleaseHandler,
     IPostDiscoverySubmissionStateHandler postDiscoverySubmissionStateHandler,
-    IPostDiscoverySubmissionOutputsReviewedHandler postDiscoverySubmissionOutputsReviewedHandler,
     IClientPrincipalFactory clientPrincipalFactory,
     ILogger<DiscoverySubmissionsController> logger,
     IOptions<HostingOptions> hostingOptions,
@@ -116,23 +115,6 @@ public class DiscoverySubmissionsController(
             SuperviseRoles,
             new DiscoverySubmissionReviewRoute<DiscoverySubmissionReleaseRequest>(submissionId, request.ToModel()),
             postDiscoverySubmissionReleaseHandler.Handle,
-            Unauthorised,
-            ct);
-
-    /// <summary>The supervisor has reviewed the episodes an apply created or matched; clears the review to-do (#1415).</summary>
-    [Function("DiscoverySubmissionOutputsReviewedPost")]
-    public Task<HttpResponseData> PostOutputsReviewed(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = ItemRoute + "/outputs-reviewed")]
-        HttpRequestData req,
-        Guid submissionId,
-        FunctionContext _,
-        [FromBody] Dtos.DiscoverySubmissionOutputsReviewedRequestDto request,
-        CancellationToken ct) =>
-        HandleRequest(
-            req,
-            SuperviseRoles,
-            new DiscoverySubmissionReviewRoute<DiscoverySubmissionOutputsReviewedRequest>(submissionId, request.ToModel()),
-            postDiscoverySubmissionOutputsReviewedHandler.Handle,
             Unauthorised,
             ct);
 

@@ -31,12 +31,8 @@ public static class DiscoverySubmissionExtensions
         ReleasedAt = s.ReleasedAt,
         ReleaseReason = s.ReleaseReason,
         InProgressOperation = s.InProgressOperation?.ToString(),
-        InProgressSince = s.InProgressSince,
-        OutputsReviewPending = s.OutputsReviewPending == true
+        InProgressSince = s.InProgressSince
     };
-
-    public static DiscoverySubmissionOutputsReviewedRequest ToModel(this DiscoverySubmissionOutputsReviewedRequestDto dto) =>
-        new() { ETag = dto.ETag };
 
     public static DiscoverySubmissionSetStateRequest ToModel(this DiscoverySubmissionSetStateRequestDto dto) =>
         new() { Status = dto.Status ?? "", ETag = dto.ETag, Reason = dto.Reason };
@@ -108,9 +104,6 @@ public static class DiscoverySubmissionExtensions
             ReleaseReason = s.ReleaseReason,
             InProgressOperation = s.InProgressOperation?.ToString(),
             InProgressSince = s.InProgressSince,
-            OutputsReviewPending = s.OutputsReviewPending == true,
-            OutputsReviewedAt = s.OutputsReviewedAt,
-            OutputsReviewedBy = s.OutputsReviewedBy,
             Reports = detail.Reports.Select(r => new DiscoverySubmissionReportDto
             {
                 Id = r.Id,

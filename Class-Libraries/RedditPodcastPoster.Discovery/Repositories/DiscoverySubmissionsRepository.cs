@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using System.Net;
 using System.Runtime.CompilerServices;
 using Microsoft.Azure.Cosmos;
@@ -48,30 +47,6 @@ public class DiscoverySubmissionsRepository(Container submissionsContainer) : ID
         var iterator = submissionsContainer
             .GetItemLinqQueryable<DiscoverySubmission>()
             .Where(x => x.Status == status)
-            .ToFeedIterator();
-        while (iterator.HasMoreResults)
-        {
-            foreach (var item in await iterator.ReadNextAsync(cancellationToken))
-            {
-                yield return item;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Server-side filter for <see cref="GetOutputsReviewPending"/>: status Applied and <c>outputsReviewPending = true</c>.
-    /// Both are top-level scalar paths covered by the container's default (all paths) index, so the query is
-    /// index-served and returns only the open review to-dos.
-    /// </summary>
-    public static readonly Expression<Func<DiscoverySubmission, bool>> OutputsReviewPendingFilter =
-        x => x.Status == DiscoverySubmissionStatus.Applied && x.OutputsReviewPending == true;
-
-    public async IAsyncEnumerable<DiscoverySubmission> GetOutputsReviewPending(
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var iterator = submissionsContainer
-            .GetItemLinqQueryable<DiscoverySubmission>()
-            .Where(OutputsReviewPendingFilter)
             .ToFeedIterator();
         while (iterator.HasMoreResults)
         {
