@@ -17,6 +17,7 @@ public class DiscoverySubmissionReviewServiceTests
     private readonly AutoMocker _mocker = new();
     private readonly List<DiscoverySubmission> _replaced = [];
     private readonly List<DiscoverySubmitRequest> _applied = [];
+    private readonly List<DiscoverySubmitRequest> _preflighted = [];
     private DiscoverySubmission? _submission;
     private IReadOnlyList<DiscoveryResultsDocument> _documents = [];
     private readonly List<DiscoverySubmitRequest> _retried = [];
@@ -34,9 +35,14 @@ public class DiscoverySubmissionReviewServiceTests
     {
         _failureReason = _fixture.Create<string>();
         _mocker.Use(TimeProvider.System);
+        _mocker.GetMock<IDiscoverySubmissionApplyQueue>()
+            .Setup(q => q.EnqueueAsync(It.IsAny<DiscoverySubmissionApplyQueueMessage>(), It.IsAny<CancellationToken>()))
+            .Callback((DiscoverySubmissionApplyQueueMessage m, CancellationToken _) => _queued.Add(m))
+            .Returns(Task.CompletedTask);
         _mocker.GetMock<IDiscoverySubmissionsRepository>()
             .Setup(r => r.GetById(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => ++_getCalls > 1 && _rereadSubmission != null ? _rereadSubmission : _submission);
+            // Read 1 is the request's, read 2 the queue worker's; a re-read after a 412 is read 3 onwards.
+            .ReturnsAsync(() => ++_getCalls > 2 && _rereadSubmission != null ? _rereadSubmission : _submission);
         _mocker.GetMock<IDiscoverySubmissionsRepository>()
             .Setup(r => r.TryReplace(It.IsAny<DiscoverySubmission>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((DiscoverySubmission s, string _, CancellationToken _) =>
@@ -54,6 +60,17 @@ public class DiscoverySubmissionReviewServiceTests
         _mocker.GetMock<IDiscoveryResultsService>()
             .Setup(s => s.GetDocuments(It.IsAny<IEnumerable<Guid>>()))
             .ReturnsAsync(() => _documents);
+        // The preflight answers a decision hold on the request; anything else reaches the queued ingest (#1415).
+        _mocker.GetMock<IDiscoveryCurationSubmitService>()
+            .Setup(s => s.PreflightAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<CancellationToken>()))
+            .Callback((DiscoverySubmitRequest r, CancellationToken _) => _preflighted.Add(r))
+            .ReturnsAsync((DiscoverySubmitRequest r, CancellationToken _) =>
+                _ingest(r) is { Status: DiscoveryCurationSubmitStatus.LanguageDecisionRequired
+                    or DiscoveryCurationSubmitStatus.KindDecisionRequired
+                    or DiscoveryCurationSubmitStatus.InvalidKindDecision
+                    or DiscoveryCurationSubmitStatus.IdentityDecisionRequired } hold
+                    ? hold
+                    : null);
         _mocker.GetMock<IDiscoveryCurationSubmitService>()
             .Setup(s => s.ApplyHeldAsync(It.IsAny<DiscoverySubmitRequest>(), It.IsAny<CancellationToken>()))
             .Callback((DiscoverySubmitRequest r, CancellationToken _) => _applied.Add(r))
@@ -82,7 +99,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest([kept, missed]), supervisor, CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest([kept, missed]), supervisor, CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
@@ -110,7 +127,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
@@ -127,7 +144,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.ApplyFailed);
@@ -147,7 +164,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
@@ -165,7 +182,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id,
+        var result = await ApplyAndRun(sut, _submission!.Id,
             new DiscoverySubmissionApplyRequest { ETag = _fixture.Create<string>() }, Supervisor(),
             CancellationToken.None);
 
@@ -184,7 +201,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest([foreign]), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest([foreign]), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Invalid);
@@ -202,7 +219,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Forbidden);
@@ -219,7 +236,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
@@ -239,7 +256,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        await sut.Apply(_submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        await ApplyAndRun(sut, _submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         _applied.Should().ContainSingle().Which.ResultIds.Should().Equal(missed);
@@ -372,7 +389,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest([kept, dropped]), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest([kept, dropped]), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
@@ -400,7 +417,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        await sut.Apply(_submission!.Id, ApplyRequest([kept, dropped]), Supervisor(), CancellationToken.None);
+        await ApplyAndRun(sut, _submission!.Id, ApplyRequest([kept, dropped]), Supervisor(), CancellationToken.None);
 
         // Assert
         var final = _replaced.Last();
@@ -419,7 +436,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
 
         // Assert
         result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.Applied);
@@ -442,7 +459,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
 
         // Assert
         result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.PartiallyApplied);
@@ -458,7 +475,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission!.Id, RetryRequest(failed), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission!.Id, RetryRequest(failed), Supervisor(), CancellationToken.None);
 
         // Assert
         result.SubmissionStatus.Should().Be(DiscoverySubmissionStatus.Applied);
@@ -477,7 +494,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission!.Id, RetryRequest(succeeded), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission!.Id, RetryRequest(succeeded), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Invalid);
@@ -500,7 +517,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission.Id, RetryRequest(), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
@@ -516,7 +533,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
@@ -533,7 +550,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission.Id, RetryRequest(), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Forbidden);
@@ -672,7 +689,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         var claim = _replaced.First();
@@ -716,7 +733,7 @@ public class DiscoverySubmissionReviewServiceTests
         var review = await sut.SaveReview(_submission!.Id,
             new DiscoverySubmissionReviewRequest { ETag = _submission.ETag!, ReportComment = _fixture.Create<string>() },
             Supervisor(), CancellationToken.None);
-        var apply = await sut.Apply(_submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var apply = await ApplyAndRun(sut, _submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         review.Status.Should().Be(DiscoverySubmissionCommandStatus.Conflict);
@@ -754,14 +771,14 @@ public class DiscoverySubmissionReviewServiceTests
         var (_, failed) = ArrangePartiallyApplied();
         _ingest = Ingest();
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
-        await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        await RetryAndRun(sut, _submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
         var claim = _replaced.First();
         _submission = claim;
         _submission.ETag = _fixture.Create<string>();
         _retried.Clear();
 
         // Act
-        var second = await sut.Retry(_submission.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        var second = await RetryAndRun(sut, _submission.Id, RetryRequest(), Supervisor(), CancellationToken.None);
 
         // Assert
         claim.Status.Should().Be(DiscoverySubmissionStatus.Applying);
@@ -778,12 +795,12 @@ public class DiscoverySubmissionReviewServiceTests
         // Arrange
         ArrangeHeldSubmission();
         _ingest = Ingest();
-        _refuseReplaceOnCall.Add(2);
+        _refuseReplaceOnCall.Add(3); // the terminal write (after the claim and the worker's start write)
         _rereadSubmission = AsApplyingCopy(DiscoverySubmissionOperation.Apply);
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
@@ -800,12 +817,13 @@ public class DiscoverySubmissionReviewServiceTests
         // Arrange
         ArrangeHeldSubmission();
         _ingest = Ingest();
-        _refuseReplaceOnCall.UnionWith([2, 3, 4, 5]);
+        // Write 1 is the claim, write 2 the worker's start; every terminal write attempt is refused.
+        _refuseReplaceOnCall.UnionWith([3, 4, 5, 6]);
         _rereadSubmission = AsApplyingCopy(DiscoverySubmissionOperation.Apply);
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.ApplyFailed);
@@ -947,11 +965,12 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(expected);
-        _writtenETags.Should().HaveCount(2);
+        // A report conflict is found by the queued ingest, after the worker's start write.
+        _writtenETags.Should().HaveCount(preflight == DiscoveryCurationSubmitStatus.Conflict ? 3 : 2);
         result.ETag.Should().Be(_writtenETags.Last()).And.NotBe(originalETag).And.NotBe(_writtenETags.First());
         _replaced.Last().Status.Should().Be(DiscoverySubmissionStatus.Pending);
         result.SubmissionStatus.Should().BeNull("the DTO must expose the decision status, not Pending");
@@ -969,17 +988,20 @@ public class DiscoverySubmissionReviewServiceTests
         // Arrange
         ArrangeHeldSubmission();
         _ingest = _ => new DiscoveryCurationSubmitResult(preflight);
-        _refuseReplaceOnCall.Add(2);
+        // A report conflict is found by the queued ingest, after the worker's start write (write 2).
+        var restoreWrite = preflight == DiscoveryCurationSubmitStatus.Conflict ? 3 : 2;
+        _refuseReplaceOnCall.Add(restoreWrite);
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.ApplyFailed);
         result.Message.Should().Be(DiscoverySubmissionReviewService.OutcomeNotRecorded);
         result.ETag.Should().BeNull();
-        _replaced.Should().ContainSingle().Which.Status.Should().Be(DiscoverySubmissionStatus.Applying);
+        _replaced.Should().HaveCount(restoreWrite - 1).And
+            .OnlyContain(x => x.Status == DiscoverySubmissionStatus.Applying);
     }
 
     [Theory(DisplayName =
@@ -997,7 +1019,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(expected);
@@ -1020,7 +1042,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.ApplyFailed);
@@ -1038,12 +1060,12 @@ public class DiscoverySubmissionReviewServiceTests
         _ingest = _ => new DiscoveryCurationSubmitResult(DiscoveryCurationSubmitStatus.KindDecisionRequired,
             new DiscoverySubmitOutcome("KindDecisionRequired", false, [], new EntitySearchIndexerResponse()));
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
-        var hold = await sut.Apply(_submission!.Id, ApplyRequest([kept]), caller, CancellationToken.None);
+        var hold = await ApplyAndRun(sut, _submission!.Id, ApplyRequest([kept]), caller, CancellationToken.None);
         _submission.ETag = _writtenETags.Last(); // Cosmos GET returns the version persisted by the hold.
         _ingest = Ingest();
 
         // Act
-        var result = await sut.Apply(_submission.Id, new DiscoverySubmissionApplyRequest
+        var result = await ApplyAndRun(sut, _submission.Id, new DiscoverySubmissionApplyRequest
         {
             ETag = hold.ETag!, AcceptedResultIds = [kept], KindDecisions = new() { [kept] = "continue" }
         }, caller, CancellationToken.None);
@@ -1068,7 +1090,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.KindDecisionRequired);
@@ -1095,7 +1117,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Apply(_submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
+        var result = await ApplyAndRun(sut, _submission!.Id, ApplyRequest(null), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Invalid);
@@ -1120,7 +1142,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.KindDecisionRequired);
@@ -1146,7 +1168,7 @@ public class DiscoverySubmissionReviewServiceTests
         var sut = _mocker.CreateInstance<DiscoverySubmissionReviewService>();
 
         // Act
-        var result = await sut.Retry(_submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
+        var result = await RetryAndRun(sut, _submission!.Id, RetryRequest(), Supervisor(), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(DiscoverySubmissionCommandStatus.Invalid);
@@ -1261,4 +1283,24 @@ public class DiscoverySubmissionReviewServiceTests
 
     private static DiscoverySubmission Snapshot(DiscoverySubmission s) =>
         System.Text.Json.JsonSerializer.Deserialize<DiscoverySubmission>(System.Text.Json.JsonSerializer.Serialize(s))!;
+
+    private readonly List<DiscoverySubmissionApplyQueueMessage> _queued = [];
+
+    /// <summary>
+    /// The request (claim + preflight + enqueue) followed by the queue worker, as production runs them (#1415).
+    /// Returns the worker's result when the request queued the ingest, otherwise the request's own answer.
+    /// </summary>
+    private async Task<DiscoverySubmissionCommandResult> ApplyAndRun(DiscoverySubmissionReviewService sut,
+        Guid submissionId, DiscoverySubmissionApplyRequest request, SupervisionCaller caller, CancellationToken c) =>
+        await RunQueued(sut, await sut.Apply(submissionId, request, caller, c));
+
+    private async Task<DiscoverySubmissionCommandResult> RetryAndRun(DiscoverySubmissionReviewService sut,
+        Guid submissionId, DiscoverySubmissionRetryRequest request, SupervisionCaller caller, CancellationToken c) =>
+        await RunQueued(sut, await sut.Retry(submissionId, request, caller, c));
+
+    private async Task<DiscoverySubmissionCommandResult> RunQueued(DiscoverySubmissionReviewService sut,
+        DiscoverySubmissionCommandResult requestResult) =>
+        requestResult.Status == DiscoverySubmissionCommandStatus.Accepted
+            ? await sut.ProcessQueued(_queued.Last(), CancellationToken.None)
+            : requestResult;
 }

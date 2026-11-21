@@ -13,9 +13,14 @@ namespace Api.Services.Podcasts;
 /// </summary>
 public static class PodcastKindTransferQueueClientFactory
 {
-    public static QueueClient Create()
+    public static QueueClient Create() => Create(PodcastKindTransferQueueMessage.QueueName);
+
+    /// <summary>
+    /// Same storage account and Base64 encoding for any Api-app queue (the discovery-submission apply queue reuses
+    /// it, #1415).
+    /// </summary>
+    public static QueueClient Create(string queueName)
     {
-        const string queueName = PodcastKindTransferQueueMessage.QueueName;
         var connection = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
         if (IsStorageConnectionString(connection))
         {
@@ -26,7 +31,7 @@ public static class PodcastKindTransferQueueClientFactory
         if (string.IsNullOrWhiteSpace(accountName))
         {
             throw new InvalidOperationException(
-                "AzureWebJobsStorage connection string or AzureWebJobsStorage__accountName is required for the podcast kind-transfer queue.");
+                $"AzureWebJobsStorage connection string or AzureWebJobsStorage__accountName is required for the {queueName} queue.");
         }
 
         var clientId = Environment.GetEnvironmentVariable("AzureWebJobsStorage__clientId");

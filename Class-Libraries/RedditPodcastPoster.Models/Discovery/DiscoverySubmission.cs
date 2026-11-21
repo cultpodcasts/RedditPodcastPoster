@@ -129,11 +129,35 @@ public sealed class DiscoverySubmission : CosmosSelector
     [JsonPropertyOrder(230)]
     public Guid[]? InProgressResultIds { get; set; }
 
+    /// <summary>
+    /// When the queued apply / retry worker started ingesting this claim (#1415). <c>null</c> while the claim is still
+    /// queued. A redelivered message that finds it set knows an earlier run may have created episodes.
+    /// </summary>
+    [JsonPropertyName("inProgressWorkerStartedAt")]
+    [JsonPropertyOrder(235)]
+    public DateTime? InProgressWorkerStartedAt { get; set; }
+
     /// <summary>Status before the in-progress claim (restored when an apply is refused before any ingest).</summary>
     [JsonPropertyName("statusBeforeInProgress")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
     [JsonPropertyOrder(240)]
     public DiscoverySubmissionStatus? StatusBeforeInProgress { get; set; }
+
+    /// <summary>
+    /// The apply / retry created or matched episodes that the supervisor should check (guests, subjects, ...) (#1415).
+    /// They are public as normal; this is only a durable to-do, cleared when the supervisor marks the outputs reviewed.
+    /// </summary>
+    [JsonPropertyName("outputsReviewPending")]
+    [JsonPropertyOrder(250)]
+    public bool? OutputsReviewPending { get; set; }
+
+    [JsonPropertyName("outputsReviewedAt")]
+    [JsonPropertyOrder(251)]
+    public DateTime? OutputsReviewedAt { get; set; }
+
+    [JsonPropertyName("outputsReviewedBy")]
+    [JsonPropertyOrder(252)]
+    public string? OutputsReviewedBy { get; set; }
 
     [JsonPropertyName("history")]
     [JsonPropertyOrder(300)]
