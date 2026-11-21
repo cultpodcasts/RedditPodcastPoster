@@ -134,7 +134,7 @@ public static class EpisodeServicePresence
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         if (episode.Services is { Count: > 0 } &&
             episode.Services.TryGetValue(key, out var link) &&
-            link.Url is not null)
+            link?.Url is not null)
         {
             return link.Url;
         }
@@ -151,7 +151,7 @@ public static class EpisodeServicePresence
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         if (episode.Services is { Count: > 0 } &&
             episode.Services.TryGetValue(key, out var link) &&
-            link.Image is not null)
+            link?.Image is not null)
         {
             return link.Image;
         }
@@ -266,7 +266,7 @@ public static class EpisodeServicePresence
     {
         if (services is null ||
             !services.TryGetValue(ServiceKeys.YouTube, out var link) ||
-            link.Url is null ||
+            link?.Url is null ||
             string.IsNullOrWhiteSpace(link.Url.ToString()))
         {
             return null;
@@ -428,7 +428,7 @@ public static class EpisodeServicePresence
         var seen = new HashSet<string>(keyOrder, StringComparer.Ordinal);
         foreach (var (key, link) in episode.Services ?? [])
         {
-            if (link.Url is null || !seen.Add(key))
+            if (link?.Url is null || !seen.Add(key))
             {
                 continue;
             }
@@ -479,7 +479,7 @@ public static class EpisodeServicePresence
 
         foreach (var (key, link) in episode.Services)
         {
-            if (!seen.Add(key) || link.Url is null)
+            if (!seen.Add(key) || link?.Url is null)
             {
                 continue;
             }
@@ -554,7 +554,8 @@ public static class EpisodeServicePresence
 
         foreach (var key in keyOrder)
         {
-            if (services.TryGetValue(key, out var link) && link.Image is not null)
+            // A stored "key": null entry has no art; skip it rather than throw (#1508).
+            if (services.TryGetValue(key, out var link) && link?.Image is not null)
             {
                 return link.Image;
             }
@@ -562,7 +563,7 @@ public static class EpisodeServicePresence
 
         foreach (var link in services.Values)
         {
-            if (link.Image is not null)
+            if (link?.Image is not null)
             {
                 return link.Image;
             }
@@ -588,7 +589,7 @@ public static class EpisodeServicePresence
             return;
         }
 
-        if (!episode.Services.TryGetValue(key, out var link))
+        if (!episode.Services.TryGetValue(key, out var link) || link is null)
         {
             link = new ServiceLink();
             episode.Services[key] = link;
@@ -624,7 +625,7 @@ public static class EpisodeServicePresence
         }
 
         episode.Services ??= new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
-        if (!episode.Services.TryGetValue(key, out var link))
+        if (!episode.Services.TryGetValue(key, out var link) || link is null)
         {
             link = new ServiceLink();
             episode.Services[key] = link;
