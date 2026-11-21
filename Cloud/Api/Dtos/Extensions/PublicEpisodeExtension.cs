@@ -22,7 +22,10 @@ public static class PublicEpisodeExtension
             Ids = episode.Ids,
             Services = episode.Services,
             Subjects = episode.Subjects,
-            Image = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder)
+            Image = episode.IsImageRemoved()
+                ? null
+                : EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder),
+            ImageRemoved = episode.IsImageRemoved() ? true : null
         };
     }
 }

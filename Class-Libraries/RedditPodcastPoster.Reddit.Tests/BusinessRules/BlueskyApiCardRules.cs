@@ -50,6 +50,32 @@ public class BlueskyApiCardRules
     }
 
     [Fact(DisplayName =
+        "When a curator removed the episode's image, the API card keeps its title and description but has no image and no image is downloaded, because the removed YouTube art must not be posted (#1500).")]
+    public async Task without_card_image_returns_a_card_with_no_image()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var platform = episode.Urls.YouTube!;
+        var shortUrl = ArrangePlatform(platform);
+        var sut = _mocker.CreateInstance<BlueskyFeedClient>();
+
+        // Act
+        var card = await sut.TryCreateApiCard(shortUrl, platform, withoutCardImage: true);
+
+        // Assert
+        card.Should().NotBeNull();
+        card!.Link.Should().Be(shortUrl);
+        card.Title.Should().Be(_platformCard!.Title);
+        card.Description.Should().Be(_platformCard.Description);
+        card.Image.Should().BeNull();
+        _mocker.GetMock<IBlueskyCardImageDownloader>()
+            .Verify(
+                downloader => downloader.Download(It.IsAny<IReadOnlyList<Uri>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+    }
+
+    [Fact(DisplayName =
         "When the public link is a short URL and the platform URL is Spotify, the API card still opens the short link, because the Spotify episode API supplies the title and image and the short-url page is not fetched.")]
     public async Task short_url_with_spotify_platform_url_returns_an_api_card()
     {
@@ -90,8 +116,8 @@ public class BlueskyApiCardRules
 
         // Assert
         card.Should().NotBeNull();
-        card!.Image.Bytes.Should().Equal(fitted);
-        card.Image.MimeType.Should().Be("image/jpeg");
+        card!.Image!.Bytes.Should().Equal(fitted);
+        card.Image!.MimeType.Should().Be("image/jpeg");
         handler.Requested.Should().Equal(tall, small);
     }
 
@@ -114,8 +140,8 @@ public class BlueskyApiCardRules
 
         // Assert
         card.Should().NotBeNull();
-        card!.Image.Bytes.Should().Equal(fitted);
-        card.Image.MimeType.Should().Be("image/jpeg");
+        card!.Image!.Bytes.Should().Equal(fitted);
+        card.Image!.MimeType.Should().Be("image/jpeg");
         handler.Requested.Should().Equal(tall, small);
     }
 

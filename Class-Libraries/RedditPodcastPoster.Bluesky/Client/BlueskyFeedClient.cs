@@ -11,12 +11,25 @@ public class BlueskyFeedClient(
     IBlueskyCardImageDownloader imageDownloader,
     ILogger<BlueskyFeedClient> logger) : IBlueskyFeedClient
 {
-    public async Task<string?> PostOpenGraphCard(string text, Uri url, string language, Uri? platformUrl = null)
+    public Task<string?> PostOpenGraphCard(string text, Uri url, string language, Uri? platformUrl = null) =>
+        PostOpenGraphCard(text, url, language, platformUrl, withoutCardImage: false);
+
+    public async Task<string?> PostOpenGraphCard(
+        string text,
+        Uri url,
+        string language,
+        Uri? platformUrl,
+        bool withoutCardImage)
     {
         var agent = await blueskyAgent.GetAsync();
         var post = new Post(text, langs: [language]);
-        var card = await TryCreateApiCard(url, platformUrl ?? url).ConfigureAwait(false);
-        if (card is not null)
+        var card = await TryCreateApiCard(url, platformUrl ?? url, withoutCardImage).ConfigureAwait(false);
+        if (card is { Image: null })
+        {
+            // #1500: a curator removed the episode's image, so the card has no thumbnail.
+            post.Embed(new EmbeddedExternal(card.Link.AbsoluteUri, card.Title, card.Description));
+        }
+        else if (card is { Image: not null })
         {
             var uploaded = await agent.UploadImage(card.Image.Bytes, card.Image.MimeType, card.Title, aspectRatio: null)
                 .ConfigureAwait(false);
@@ -54,12 +67,18 @@ public class BlueskyFeedClient(
     internal async Task<BlueskyApiCard?> TryCreateApiCard(
         Uri publicUrl,
         Uri platformUrl,
+        bool withoutCardImage = false,
         CancellationToken cancellationToken = default)
     {
         var details = await cardSource.TryGetAsync(platformUrl, cancellationToken).ConfigureAwait(false);
         if (details is null)
         {
             return null;
+        }
+
+        if (withoutCardImage)
+        {
+            return new BlueskyApiCard(publicUrl, details.Title, details.Description, null);
         }
 
         BlueskyCardImage? image;

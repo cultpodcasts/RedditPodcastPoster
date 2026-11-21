@@ -43,6 +43,11 @@ public class PodcastResult
     [JsonPropertyName("images")]
     public EpisodeImages? Images { get; set; } = null;
 
+    /// <summary>#1500: a curator removed this episode's image; the homepage shows no art for it.</summary>
+    [JsonPropertyName("imageRemoved")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool ImageRemoved { get; set; }
+
     [JsonPropertyName("knownTerms")]
     [JsonPropertyOrder(271)]
     public string[]? KnownTerms { get; set; } = null;

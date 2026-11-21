@@ -100,6 +100,45 @@ public class TweetBuilderShortUrlOnlyTests
         QuotedTitleLength(shortOnly).Should().BeGreaterThan(QuotedTitleLength(dualUrl));
     }
 
+    [Fact(DisplayName =
+        "When a curator removed the episode's image, the tweet uses only the short URL even without a share image, because X would build the card from the YouTube link and show the removed art (#1500).")]
+    public async Task Image_removed_tweet_is_short_url_only()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.ImageRemoved = true;
+        var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var shortUrl = new Uri($"https://s.cultpodcasts.com/{_fixture.CreateGuid():N}");
+        var platformHost = episode.Urls.YouTube!.Host;
+        var sut = CreateSut(withEpisodeUrl: true, shortUrlOnlyWhenShareImage: false);
+
+        // Act
+        var tweet = await sut.BuildTweet(podcastEpisode, shortUrl, hasShareImage: false);
+
+        // Assert
+        tweet.Should().Contain(shortUrl.ToString());
+        tweet.Should().NotContain(platformHost);
+    }
+
+    [Fact(DisplayName =
+        "When a curator removed the episode's image but there is no short URL, the tweet still links the platform URL, because a tweet needs a link (#1500).")]
+    public async Task Image_removed_without_short_url_keeps_platform_url()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.ImageRemoved = true;
+        var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var sut = CreateSut(withEpisodeUrl: true, shortUrlOnlyWhenShareImage: false);
+
+        // Act
+        var tweet = await sut.BuildTweet(podcastEpisode, shortUrl: null, hasShareImage: false);
+
+        // Assert
+        tweet.Should().Contain(episode.Urls.YouTube!.ToString());
+    }
+
     private static int QuotedTitleLength(string post)
     {
         var start = post.IndexOf('"') + 1;

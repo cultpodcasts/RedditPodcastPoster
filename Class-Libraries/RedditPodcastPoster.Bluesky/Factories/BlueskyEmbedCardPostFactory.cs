@@ -213,7 +213,12 @@ public class BlueskyEmbedCardPostFactory(
         }
 
         var tweet = postBuilder.ToString();
-        return new BlueskyEmbedCardPost(tweet, url, urlPodcastService, platformUrl);
+        return new BlueskyEmbedCardPost(
+            tweet,
+            url,
+            urlPodcastService,
+            platformUrl,
+            WithoutCardImage: podcastEpisode.Episode.IsImageRemoved());
     }
 
     /// <summary>

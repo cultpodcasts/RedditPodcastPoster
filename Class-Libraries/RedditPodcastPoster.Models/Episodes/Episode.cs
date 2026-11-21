@@ -59,6 +59,27 @@ public class Episode : Playable
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public ApprovalStatus? ApprovalStatus { get; set; }
 
+    /// <summary>
+    /// #1500: true when a curator deliberately removed this episode's image (an edit that cleared the image and left
+    /// no other image). Public surfaces then show <b>no</b> art: the search index and D1 carry
+    /// <see cref="ImageRemovedSearchToken"/> instead of <c>""</c>, and the homepage, public episode, share cards and
+    /// social posts never fall back to the YouTube thumbnail. <b>Null means not removed</b>, so an episode with no stored
+    /// image and no flag keeps the YouTube thumbnail fallback. Cleared when a curator sets an image again.
+    /// </summary>
+    [JsonPropertyName("imageRemoved")]
+    [JsonPropertyOrder(95)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ImageRemoved { get; set; }
+
+    /// <summary>
+    /// #1500: search-index / D1 <c>image</c> value for an episode whose image a curator removed. One character that is
+    /// neither a URL nor a compaction sigil (<c>y</c>/<c>s</c>/<c>a</c>), so clients that predate it expand it to nothing.
+    /// </summary>
+    public const string ImageRemovedSearchToken = "-";
+
+    /// <summary>True when a curator deliberately removed this episode's image (#1500).</summary>
+    public bool IsImageRemoved() => ImageRemoved == true;
+
     /// <summary>Cosmos SQL (alias <c>e</c>) for episodes awaiting curator approval (#1484, #1491).</summary>
     public const string CosmosAwaitingApprovalSql = "e.approvalStatus = 'AwaitingApproval'";
 

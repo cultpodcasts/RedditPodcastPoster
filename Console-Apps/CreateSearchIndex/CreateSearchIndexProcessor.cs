@@ -775,6 +775,9 @@ public partial class CreateSearchIndexProcessor(
         //      Azure AI Search merge ignores null source values, so an empty string (or a real
         //      value) is required to clear/overwrite a previously-indexed image during incremental
         //      (high-water-mark) reindexing (e.g. a stale Spotify cover before YouTube).
+        //   3b. #1500: an episode whose image a curator removed (e.imageRemoved = true) projects "-"
+        //      (Episode.ImageRemovedSearchToken), never "", so clients show no art instead of the
+        //      YouTube thumbnail they synthesize from youtubeId for an empty image.
         //   4. youtubeImageVariant has been removed entirely (field no longer exists on the index):
         //      a full reindex / index recreate is required after deploy so every document carries a
         //      lossless `image` token/URL and clients no longer rely on the coarse variant.
@@ -842,10 +845,11 @@ public partial class CreateSearchIndexProcessor(
                             e.subjects as subjects,
                             e.publisherSearchTerms as publisherSearchTerms,
                             e.searchTerms as episodeSearchTerms,
-                            IIF({isYouTubeToken}, {youTubeToken},
-                                IIF({isSpotifyToken}, {spotifyToken},
-                                    IIF({isAppleToken}, {appleToken},
-                                        ({coalescedImageFallback}) ?? """"))) as image,
+                            IIF(IS_DEFINED(e.imageRemoved) AND e.imageRemoved = true, ""{RedditPodcastPoster.Models.Episodes.Episode.ImageRemovedSearchToken}"",
+                                IIF({isYouTubeToken}, {youTubeToken},
+                                    IIF({isSpotifyToken}, {spotifyToken},
+                                        IIF({isAppleToken}, {appleToken},
+                                            ({coalescedImageFallback}) ?? """")))) as image,
                             e.lang as lang,
                             e._ts
                             FROM episodes e
