@@ -55,10 +55,9 @@ public class DiscoverySubmissionReviewService(
                         .GetByStatus(DiscoverySubmissionStatus.PartiallyApplied, c).ToListAsync(c))
                     .Concat(await discoverySubmissionsRepository
                         .GetByStatus(DiscoverySubmissionStatus.Applying, c).ToListAsync(c))
-                    // Applied, but its episodes still wait for the supervisor's review (#1415).
-                    .Concat((await discoverySubmissionsRepository
-                            .GetByStatus(DiscoverySubmissionStatus.Applied, c).ToListAsync(c))
-                        .Where(x => x.OutputsReviewPending == true))
+                    // Applied, but its episodes still wait for the supervisor's review (#1415). A targeted
+                    // query: the list never reads the whole Applied history.
+                    .Concat(await discoverySubmissionsRepository.GetOutputsReviewPending(c).ToListAsync(c))
                     .Where(x => DiscoverySubmissionRules.CanReview(caller, x))
                     .OrderBy(x => x.SubmittedAt)
                     .ToArray();

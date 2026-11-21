@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Discovery.Repositories;
 using AutoFixture;
 using FluentAssertions;
 using Moq;
@@ -46,6 +47,10 @@ public class DiscoverySubmissionApplyQueueRules
             .Returns((DiscoverySubmissionStatus status, CancellationToken _) =>
                 (status == DiscoverySubmissionStatus.Applied ? _applied : new List<DiscoverySubmission>())
                 .ToAsyncEnumerable());
+        // The real query's server-side filter, applied to the in-memory store.
+        repository.Setup(r => r.GetOutputsReviewPending(It.IsAny<CancellationToken>()))
+            .Returns(() => _applied.AsQueryable().Where(DiscoverySubmissionsRepository.OutputsReviewPendingFilter)
+                .ToList().ToAsyncEnumerable());
         _mocker.GetMock<IDiscoveryResultsService>()
             .Setup(s => s.GetDocuments(It.IsAny<IEnumerable<Guid>>()))
             .ReturnsAsync(() => _documents);
@@ -287,6 +292,44 @@ public class DiscoverySubmissionApplyQueueRules
         again.Status.Should().Be(DiscoverySubmissionCommandStatus.Ok);
         _replaced.Should().HaveCount(writes);
         listedAfter.Value!.Submissions.Should().BeEmpty();
+        _mocker.GetMock<IDiscoverySubmissionsRepository>().Verify(
+            r => r.GetByStatus(DiscoverySubmissionStatus.Applied, It.IsAny<CancellationToken>()), Times.Never,
+            "the review to-dos come from the targeted query, never from reading every Applied submission");
+        _mocker.GetMock<IDiscoverySubmissionsRepository>().Verify(r => r.GetOutputsReviewPending(It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact(DisplayName =
+        "Review to-do query (#1415): the server-side filter matches only Applied submissions whose review is still pending, so the list reads open to-dos and nothing else.")]
+    public void outputs_review_pending_filter_selects_only_open_applied_todos()
+    {
+        // Arrange
+        var open = With(DiscoverySubmissionStatus.Applied, true);
+        var candidates = new[]
+        {
+            open,
+            With(DiscoverySubmissionStatus.Applied, false),
+            With(DiscoverySubmissionStatus.Applied, null),
+            With(DiscoverySubmissionStatus.PartiallyApplied, true),
+            With(DiscoverySubmissionStatus.Applying, true)
+        };
+
+        // Act
+        var matched = candidates.AsQueryable().Where(DiscoverySubmissionsRepository.OutputsReviewPendingFilter).ToList();
+
+        // Assert
+        matched.Should().ContainSingle().Which.Should().BeSameAs(open);
+        return;
+
+        DiscoverySubmission With(DiscoverySubmissionStatus status, bool? pending)
+        {
+            return new DiscoverySubmission
+            {
+                Id = _fixture.Create<Guid>(),
+                SubmitterSubject = _fixture.Create<string>(),
+                Status = status,
+                OutputsReviewPending = pending
+            };
+        }
     }
 
     private DiscoveryCurationSubmitResult Created(DiscoverySubmitRequest request)

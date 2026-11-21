@@ -82,6 +82,9 @@ public class DiscoverySubmissionReviewServiceTests
         _mocker.GetMock<IDiscoverySubmissionsRepository>()
             .Setup(r => r.GetByStatus(It.IsAny<DiscoverySubmissionStatus>(), It.IsAny<CancellationToken>()))
             .Returns(AsyncEnumerable.Empty<DiscoverySubmission>());
+        _mocker.GetMock<IDiscoverySubmissionsRepository>()
+            .Setup(r => r.GetOutputsReviewPending(It.IsAny<CancellationToken>()))
+            .Returns(AsyncEnumerable.Empty<DiscoverySubmission>());
         _mocker.GetMock<IDiscoveryResultsRepository>()
             .Setup(r => r.TryTransitionState(It.IsAny<Guid>(), It.IsAny<DiscoveryResultsDocumentState>(),
                 It.IsAny<DiscoveryResultsDocumentState>(), It.IsAny<CancellationToken>()))
