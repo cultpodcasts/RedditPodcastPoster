@@ -1041,6 +1041,35 @@ public class CatalogueKindSubmitRules
     }
 
     [Fact(DisplayName =
+        "When the submit content-type flag is on, a Netflix /title/ URL scraped as a Movie writes a Film " +
+        "and is not rejected, because a film's title page is the film itself (#1517).")]
+    public async Task netflix_title_film_writes_a_film()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var url = new Uri($"https://www.netflix.com/us/title/{_fixture.CreateAppleId()}");
+        var source = Source() with { Url = url, MadeAsFilm = true, ShowName = null };
+        var item = Categorised(source);
+        var signals = SubmitContentClassifier.FromSubmission(url, item);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(
+            item,
+            new SubmitOptions(null, MatchOtherServices: false, PersistToDatabase: true, ClassificationSignals: signals));
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Rejected.Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.EpisodeResult.Should().Be(SubmitResultState.Created);
+        _films.Should().ContainSingle();
+        result.PlayableId.Should().Be(_films[0].Id);
+        _films[0].Services.Should().ContainKey("netflix");
+        _episodes.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When the submit content-type flag is on, an unconfirmed Vimeo URL requires a curator " +
         "and writes no playable, so the client can tell a hold from an empty success.")]
     public async Task unconfirmed_vimeo_requires_a_curator_and_writes_nothing()

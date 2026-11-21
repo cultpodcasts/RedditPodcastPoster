@@ -28,6 +28,58 @@ public class SubmitContentClassifierRules
     }
 
     [Fact(DisplayName =
+        "A Netflix /title/ URL whose page is a Movie is a Film with no parent and is not rejected, " +
+        "because a film's title page is the film itself, not a series catalogue hub (#1517).")]
+    public void netflix_title_film_is_a_film()
+    {
+        // Arrange
+        var signals = Signals(NetflixTitleUrl(), madeAsFilm: true, series: false);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        result.Reject.Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.HasParent.Should().BeFalse();
+        result.RequiresCurator.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "A Netflix /title/ URL with a country segment whose page is a Movie is a Film, " +
+        "because the us, gb and country-less forms are the same title page (#1517).")]
+    [InlineData("https://www.netflix.com/us/title/81774139")]
+    [InlineData("https://www.netflix.com/gb/title/81774139")]
+    [InlineData("https://www.netflix.com/title/81774139")]
+    public void netflix_title_film_with_country_is_a_film(string url)
+    {
+        // Arrange
+        var signals = Signals(new Uri(url), madeAsFilm: true, series: false);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        result.Reject.Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+    }
+
+    [Fact(DisplayName =
+        "A Netflix /title/ URL for a series is still rejected, " +
+        "because a series catalogue hub must not become a TvShow stub (CLS-002).")]
+    public void netflix_title_series_hub_is_still_rejected()
+    {
+        // Arrange
+        var signals = Signals(NetflixTitleUrl(), series: true);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        result.Reject.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "A Netflix /watch/ URL for a series episode is a TvShow episode with a parent, " +
         "because a watch URL is not the catalogue hub.")]
     public void netflix_watch_series_is_a_tv_show_episode()
