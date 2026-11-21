@@ -48,11 +48,32 @@ CI builds the solution (which runs the generator), typechecks the generated pack
 
 ## Version and publish
 
-`0.1.0` is the first version. The published version is the semver in `contracts/package.json`, bumped by hand when the wire shape changes. Generated files are not in git, so a diff of them cannot be the bump signal. GitHub Packages rejects a second publish of the same version.
+Git stores the release line in `contracts/package.json` as `major.minor.0`. The patch in git is always `0`. Change the major for a breaking wire change, or the minor for an intentional compatible line. Do not hand-edit the patch. `scripts/assert-contract-package-version.ps1` rejects any other shape. It does not diff a base ref.
 
-`scripts/assert-contract-package-version.ps1` requires that bump when the exporter, the export attributes, `ApiJson`, or `Cloud/Api/Dtos` differ from the base. A wire change is a change under that list. A class, record, struct, or enum outside `Api.Dtos` fails the build, so it has to be mapped to an `Api.Dtos` boundary DTO before it can affect the package.
+The published patch is assigned on `main` by `.github/workflows/publish-contracts.yml`. The workflow builds `Tools/ContractExporter`, typechecks, then runs `scripts/publish-contracts-package.ps1`. That script hashes `src/index.ts`, `src/zod.ts` and `schemas/contracts.schema.json` (newline-normalised). It reads published versions with `npm view`. When nothing is published, the first version is `major.minor.0`. When the hash matches the highest published version on this same line, the job exits 0. When the hash differs, or the published package has no `contractsContentHash`, the script runs `npm version major.minor.(highest patch + 1) --no-git-tag-version`, writes the hash onto that package, and publishes. A move to a higher major or minor publishes `major.minor.0` of the new line. A committed line behind the registry fails the job. An `npm view` error other than package-not-found (`E404`) fails the job. The workflow does not commit the version back to git.
 
-`.github/workflows/publish-contracts.yml` builds `Tools/ContractExporter` (generating fresh output), typechecks, and then publishes. On a push to `main` it runs `assert-contract-package-version.ps1` with `-BaseRef` set to `github.event.before` (skipped when that SHA is all zeros). It publishes only when `npm view` of this exact version returns E404. Any other `npm view` failure fails the job. If the version is already in the registry and the assert passed, the job exits 0, so a retry or a push that does not change the wire shape stays green. A manual run from `main` skips the assert (there is no `before`) and still no-ops when the version exists. A concurrency group stops two main publishes at once. It uses `GITHUB_TOKEN` with `packages: write` and does not run for any other branch. This pull request does not publish.
+`github.run_number` is not the patch. It does not reset when the release line changes, and a skipped publish would still burn a number. The registry is the source of the next patch. A concurrency group (`cancel-in-progress: false`) stops two main publishes from reading the same highest patch. A retry sees the hash it just published and exits 0.
+
+```mermaid
+flowchart TD
+  build[Generate and typecheck]
+  hash[Hash the generated files]
+  view{npm view}
+  same{Same hash on this release line?}
+  skip[Exit 0]
+  bump["npm version --no-git-tag-version"]
+  publish[Store the hash and npm publish]
+  fail[Fail the job]
+  build --> hash --> view
+  view -->|E404, nothing published| bump
+  view -->|other error| fail
+  view -->|versions| same
+  same -->|yes| skip
+  same -->|no, or a higher major.minor| bump
+  bump --> publish
+```
+
+The workflow runs for pushes to `main` that touch `contracts/**`, `Tools/ContractExporter/**`, `Cloud/Api/Dtos/**`, `Cloud/Api/Contracts/**`, `Cloud/Api/Serialization/**`, the UTC JSON registration, or the model JSON converters, and for a manual run from `main`. A domain type still has to be mapped to an `Api.Dtos` boundary DTO before it can change the generated files. Paths are wider than that on purpose: a run whose generated hash matches the registry publishes nothing. It uses `GITHUB_TOKEN` with `packages: write` and does not run for any other branch. This pull request does not publish.
 
 GitHub Packages previously blocked a streaming-submit contract publish (Api `docs/contract-publish.md`). The workflow is in place; a publish still needs Packages to accept the package from this user account.
 

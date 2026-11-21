@@ -44,7 +44,7 @@ Cross-repo streaming ingest contract (membership `service`, prepare/submit): [`d
 
 ## TypeScript API contracts
 
-HTTP DTO TypeScript, JSON Schema and Zod are generated from `[ExportContract]` types during the build of `Tools/ContractExporter` into gitignored `contracts/src`, `contracts/schemas` and `contracts/typecheck`. CI typechecks that output. The published version is the hand-written semver in `contracts/package.json`. Install notes: [`docs/typescript-contracts.md`](docs/typescript-contracts.md).
+HTTP DTO TypeScript, JSON Schema and Zod are generated from `[ExportContract]` types during the build of `Tools/ContractExporter` into gitignored `contracts/src`, `contracts/schemas` and `contracts/typecheck`. CI typechecks that output. `contracts/package.json` stores the release line (`major.minor.0`). The publish workflow assigns the patch and publishes only when a hash of the generated files differs from the latest GitHub Packages version. Install notes: [`docs/typescript-contracts.md`](docs/typescript-contracts.md).
 
 ## CQRS (HARD)
 

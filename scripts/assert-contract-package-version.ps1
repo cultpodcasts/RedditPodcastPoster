@@ -1,91 +1,38 @@
 <#
 .SYNOPSIS
-  Checks the hand-written contracts/package.json version.
+  Checks that contracts/package.json names a release line, not a published patch.
 
 .DESCRIPTION
-  Generated TypeScript, Zod and JSON Schema are gitignored, so this script does not
-  diff contracts/src, contracts/schemas or contracts/typecheck.
-
-  The published version is the semver in package.json, bumped by hand when the wire
-  shape changes. GitHub Packages rejects a second publish of the same version, which
-  is what stops an unchanged version shipping again.
-
-  When the inputs that define that shape differ from the base ref, the version must
-  be greater than the base. Those inputs are the exporter, the export attributes,
-  the HTTP JSON options, and Cloud/Api/Dtos. A class, record, struct, or enum
-  outside Api.Dtos is not an input: the exporter refuses it. Map it to an Api.Dtos
-  boundary DTO before it can change the package.
+  The publish workflow assigns the patch from GitHub Packages. Git stores major.minor.0
+  only. A non-zero patch would look like a version that ships, and it does not.
+  Edit the major or the minor for an intentional breaking or feature release line.
+  There is no diff against a base ref: generated contracts are not in git, and a
+  content hash at publish time decides whether a new patch is published.
 #>
 [CmdletBinding()]
 param(
-    [string] $BaseRef = 'origin/main'
+    [string] $PackageJson
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$root = Resolve-Path (Join-Path $PSScriptRoot '..')
-Set-Location $root
-
-# Source of the wire shape. Not the generated package files.
-$ContractInputs = @(
-    'Tools/ContractExporter'
-    'Cloud/Api/Contracts'
-    'Cloud/Api/Serialization/ApiJson.cs'
-    'Cloud/Api/Dtos'
-)
-
-function Get-PackageVersion([string] $json) {
-    return ([System.Text.Json.JsonDocument]::Parse($json)).RootElement.GetProperty('version').GetString()
+if (-not $PackageJson) {
+    $root = Resolve-Path (Join-Path $PSScriptRoot '..')
+    $PackageJson = Join-Path $root 'contracts/package.json'
 }
 
-function ConvertTo-SemVer([string] $version) {
-    $core = ($version -split '-', 2)[0]
-    $parts = $core.Split('.')
-    if ($parts.Length -lt 2) {
-        throw "Not a semver: $version"
-    }
-    $patch = 0
-    if ($parts.Length -gt 2) {
-        $patch = [int]$parts[2]
-    }
-    return [version]::new([int]$parts[0], [int]$parts[1], $patch)
-}
-
-$headJson = Get-Content -LiteralPath (Join-Path $root 'contracts/package.json') -Raw
-$headVersion = Get-PackageVersion $headJson
-if ([string]::IsNullOrWhiteSpace($headVersion)) {
+$version = ([System.Text.Json.JsonDocument]::Parse((Get-Content -LiteralPath $PackageJson -Raw))).RootElement.GetProperty('version').GetString()
+if ([string]::IsNullOrWhiteSpace($version)) {
     Write-Host 'contracts/package.json has no version.'
     exit 1
 }
-$null = ConvertTo-SemVer $headVersion
 
-$baseJson = git show "${BaseRef}:contracts/package.json" 2>$null
-if (-not $baseJson) {
-    Write-Host "No contracts package on $BaseRef; $headVersion is the initial version."
-    exit 0
-}
-
-$baseVersion = Get-PackageVersion ($baseJson -join "`n")
-$changed = @(git diff --name-only $BaseRef -- $ContractInputs)
-# Tests do not change the published shape.
-$changed = @($changed | Where-Object { $_ -notlike 'Tools/ContractExporter.Tests/*' })
-
-if ($changed.Count -eq 0) {
-    Write-Host "Contract inputs match $BaseRef (version $headVersion)."
-    exit 0
-}
-
-if ($headVersion -eq $baseVersion) {
-    Write-Host "Contract inputs changed but version is still $headVersion. Bump contracts/package.json."
-    $changed | ForEach-Object { Write-Host "  $_" }
+if ($version -notmatch '^\d+\.\d+\.0$') {
+    Write-Host "contracts/package.json version must be major.minor.0 (got $version)."
+    Write-Host 'The publish workflow assigns the patch. Change only the major or minor for an intentional release line.'
     exit 1
 }
 
-if ((ConvertTo-SemVer $headVersion) -le (ConvertTo-SemVer $baseVersion)) {
-    Write-Host "Version $headVersion is not greater than $baseVersion."
-    exit 1
-}
-
-Write-Host "Contract version $baseVersion -> $headVersion."
+Write-Host "Contract release line $version. The published patch is assigned from the registry."
 exit 0

@@ -2,9 +2,9 @@
 # Runs on main when the package shell or the C# inputs that define the wire shape change,
 # and from a manual dispatch of main. Generated TypeScript is produced in this workflow;
 # it is not stored in git. A dispatch from any other branch is a no-op.
-# npm publish is not idempotent. A push re-runs the version assert against github.event.before
-# and publishes only when this version is absent from the registry. A second publish of the
-# same version, or a push that does not change the wire shape, exits 0.
+# The patch is assigned here from the highest published patch on the release line.
+# A content hash of the generated files skips a publish when nothing changed, so a retry
+# and an unrelated push exit 0. The workflow does not commit the version back to git.
 
 name: Publish TypeScript contracts
 
@@ -15,8 +15,11 @@ on:
       - 'contracts/**'
       - 'Tools/ContractExporter/**'
       - 'Cloud/Api/Contracts/**'
-      - 'Cloud/Api/Serialization/ApiJson.cs'
+      - 'Cloud/Api/Serialization/**'
       - 'Cloud/Api/Dtos/**'
+      - 'Cloud/Api/Extensions/UtcJsonServiceCollectionExtensions.cs'
+      - 'Class-Libraries/RedditPodcastPoster.Models/Serialization/**'
+      - 'Class-Libraries/RedditPodcastPoster.Models/Converters/**'
       - '.github/workflows/publish-contracts.yml'
   workflow_dispatch:
 
@@ -34,9 +37,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Fetch the previous main commit
-        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
-        run: git fetch --no-tags --depth=1 origin ${{ github.event.before }}
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
@@ -56,32 +56,8 @@ jobs:
       - name: Typecheck
         working-directory: contracts
         run: npm ci && npm run typecheck
-      - name: Require a version bump when the wire inputs changed
-        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+      - name: Publish when the generated contracts changed
         shell: pwsh
-        run: ./scripts/assert-contract-package-version.ps1 -BaseRef ${{ github.event.before }}
-      - name: Publish when this version is not in the registry
-        working-directory: contracts
-        run: |
-          set -euo pipefail
-          name=$(node -p "require('./package.json').name")
-          version=$(node -p "require('./package.json').version")
-          spec="${name}@${version}"
-          set +e
-          view_output=$(npm view "$spec" version 2>&1)
-          view_status=$?
-          set -e
-          if [[ "$view_status" -eq 0 ]]; then
-            echo "Version ${version} is already in the registry. Nothing to publish."
-            exit 0
-          fi
-          if printf '%s\n' "$view_output" | grep -q 'E404'; then
-            echo "Version ${version} is not published. Publishing."
-            npm publish
-            exit 0
-          fi
-          echo "npm view failed for ${spec} (exit ${view_status}). Not publishing." >&2
-          printf '%s\n' "$view_output" >&2
-          exit "$view_status"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/publish-contracts-package.ps1

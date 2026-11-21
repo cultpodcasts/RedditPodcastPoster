@@ -2,6 +2,8 @@
 
 TypeScript types, Zod schemas and JSON Schema generated from the Azure Functions HTTP DTOs. `Tools/ContractExporter` writes them during `dotnet build` into this folder. That output is gitignored; the publish workflow generates it again before `npm publish`. What git stores here is the package shell.
 
+`package.json` `version` is the release line (`major.minor.0`). The workflow assigns the patch and publishes a new version only when the generated files differ from the latest package on GitHub Packages. Do not hand-bump the patch.
+
 Shapes match the isolated-worker HTTP serializer: `[JsonPropertyName]`, UTC instants ending in `Z`, `TimeSpan` and `Guid` as strings, and string enum names where the property uses `JsonStringEnumConverter`. A field is optional only when the serializer omits it (`JsonIgnoreCondition.WhenWritingNull` or `WhenWritingDefault`). A nullable field without that attribute is required and may be JSON null.
 
 ```ts
