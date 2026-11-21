@@ -86,6 +86,7 @@ public class EpisodeDtoMapper(
             PrimaryPostService = podcast.PrimaryPostService.ToDto(),
             Image =
                 EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder),
+            ImageRemoved = episode.IsImageRemoved() ? true : null,
             Language = episode.Language,
             Guests = episode.Guests,
             DisplayTitle = await textSanitiser.SanitiseTitle(
