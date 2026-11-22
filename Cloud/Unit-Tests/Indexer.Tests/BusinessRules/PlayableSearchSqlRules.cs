@@ -127,6 +127,8 @@ public class PlayableSearchSqlRules
         sql.Should().Contain("c.seriesImdbId as seriesImdbId");
         sql.Should().Contain("c.seriesTmdbId as seriesTmdbId");
         sql.Should().Contain("c.seriesTvdbId as seriesTvdbId");
+        sql.Should().Contain(" as youTubeAlternates");
+        sql.Should().Contain("c.additionalYouTube");
         sql.Should().Contain("c.services.");
         sql.Should().Contain("?? \"\"");
         sql.Should().Contain("\u2026");

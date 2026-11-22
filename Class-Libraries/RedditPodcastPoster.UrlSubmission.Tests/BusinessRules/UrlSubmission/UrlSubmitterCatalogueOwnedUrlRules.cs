@@ -4,6 +4,10 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.YouTube;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
@@ -265,5 +269,85 @@ public class UrlSubmitterCatalogueOwnedUrlRules
             s => s.Submit(It.IsAny<CatalogueParentMatch>(), It.IsAny<Uri>(), It.IsAny<IndexingContext>(),
                 It.IsAny<SubmitOptions>()),
             Times.Never);
+    }
+
+
+    [Fact(DisplayName =
+        "When a YouTube URL is a podcast episode's primary, the submit still reaches the podcast submitter, because a live episode's own YouTube is not catalogue-owned (RPP #1411).")]
+    public async Task youtube_primary_on_a_podcast_episode_still_reaches_the_podcast_submitter()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube)!;
+        var episodes = new InMemoryEpisodeRepository();
+        episodes.Seed(episode);
+        _mocker.Use<IEpisodeRepository>(episodes);
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions()));
+        _mocker.Use<IUrlMembershipLookup>(_mocker.CreateInstance<UrlMembershipLookup>());
+        _mocker.GetMock<IEpisodeUrlRouter>()
+            .Setup(x => x.RouteByOwner(url, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(new EpisodeUrlRoute(null, null, null));
+        _mocker.GetMock<IUrlCategoriser>()
+            .Setup(c => c.Categorise(It.IsAny<Podcast?>(), url, It.IsAny<IndexingContext>(), It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>(), It.IsAny<bool>()))
+            .ReturnsAsync(new CategorisedItem(null, null, null, null, null, null, null, Service.YouTube));
+        var enriched = new SubmitResult(SubmitResultState.Enriched, SubmitResultState.None);
+        _mocker.GetMock<ICategorisedItemProcessor>()
+            .Setup(p => p.ProcessCategorisedItem(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(enriched);
+        var sut = CreateSut();
+
+        // Act
+        var result = await sut.Submit(url, new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        result.Should().BeSameAs(enriched);
+        _mocker.GetMock<ICategorisedItemProcessor>().Verify(
+            p => p.ProcessCategorisedItem(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()),
+            Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "When a YouTube URL is only an additionalYouTube upload on a podcast episode, the submit is already-exists for that episode, because the source row was deleted on attach and must not come back (RPP #1411).")]
+    public async Task youtube_alternate_on_a_podcast_episode_is_catalogue_owned()
+    {
+        // Arrange
+        var url = YouTubeUrl();
+        var holder = new Episode
+        {
+            Id = _fixture.CreateGuid(),
+            PodcastId = _fixture.CreateGuid(),
+            PodcastName = _fixture.CreateTitle(),
+            Title = _fixture.CreateTitle(),
+            AdditionalYouTube =
+            [
+                new YouTubeAlternate
+                {
+                    YouTubeId = YouTubeIdResolver.Extract(url)!,
+                    Url = url,
+                    AddedAt = DateTime.UtcNow
+                }
+            ]
+        };
+        var episodes = new InMemoryEpisodeRepository();
+        episodes.Seed(holder);
+        _mocker.Use<IEpisodeRepository>(episodes);
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions()));
+        _mocker.Use<IUrlMembershipLookup>(_mocker.CreateInstance<UrlMembershipLookup>());
+        _mocker.GetMock<IEpisodeUrlRouter>()
+            .Setup(x => x.RouteByOwner(url, It.IsAny<IndexingContext>()))
+            .ReturnsAsync(new EpisodeUrlRoute(null, null, null));
+        var sut = CreateSut();
+
+        // Act
+        var result = await sut.Submit(
+            url, new IndexingContext(), new SubmitOptions(null, MatchOtherServices: true, PersistToDatabase: true));
+
+        // Assert
+        result.EpisodeResult.Should().Be(SubmitResultState.EpisodeAlreadyExists);
+        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.PlayableId.Should().Be(holder.Id);
+        VerifyNothingSubmitted();
     }
 }

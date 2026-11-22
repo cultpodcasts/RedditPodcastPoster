@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using Api.Models;
@@ -26,6 +27,9 @@ using System.Text.Json;
 using Xunit;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Updaters;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
+using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace FunctionHost.Tests.Api.Services.Episodes;
 
@@ -158,12 +162,48 @@ public class EpisodeFilmMergeIntoExistingRules
     }
 
     [Fact(DisplayName =
-        "The Manic case: merging an episode whose YouTube video differs from the film's YouTube link is a 409 naming the film and #1411, and writes nothing (film, search, episode row and short link all untouched).")]
-    public async Task merge_with_a_different_youtube_link_conflicts_and_writes_nothing()
+        "The Manic case (RPP #1411): merging an episode whose YouTube video differs from the film's primary YouTube adds that upload as an additional YouTube link, keeps the film's primary YouTube, pushes search, and retires the episode.")]
+    public async Task merge_with_a_different_youtube_link_adds_an_alternate_and_retires_episode()
     {
         // Arrange
         var (podcast, episode) = SeedYouTubeEpisode();
         var film = SeedFilm(f => SetYouTube(f, "VCRf_qazO9s"));
+        var episodeUrl = episode.Services![ServiceKeys.YouTube].Url!;
+        var episodeYouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+
+        // Act
+        var result = await Merge(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        result.FilmId.Should().Be(film.Id);
+        var stored = Stored(film.Id)!;
+        stored.YouTubeId.Should().Be("VCRf_qazO9s");
+        stored.Services![ServiceKeys.YouTube].Url.Should().Be(new Uri("https://www.youtube.com/watch?v=VCRf_qazO9s"));
+        stored.AdditionalYouTube.Should().ContainSingle();
+        stored.AdditionalYouTube![0].YouTubeId.Should().Be(episodeYouTubeId);
+        stored.AdditionalYouTube[0].Url.Should().Be(episodeUrl);
+        stored.AdditionalYouTube[0].SourceEpisodeId.Should().Be(episode.Id);
+        _uploads.Should().ContainSingle().Which.Should().ContainSingle();
+        _uploads[0][0].YouTubeAlternates.Should().ContainSingle().Which.Should().StartWith(episodeYouTubeId + "|");
+        _searchDeletes.Should().Equal(episode.Id);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+        _redirects.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "Merging an episode that has a different Spotify link from the film is still a 409 and writes nothing (Spotify stays single-valued).")]
+    public async Task merge_with_a_different_spotify_link_conflicts_and_writes_nothing()
+    {
+        // Arrange
+        var (podcast, episode) = SeedYouTubeEpisode();
+        episode.Services![ServiceKeys.Spotify] = new ServiceLink { Url = new Uri("https://open.spotify.com/episode/sourceep") };
+        _episodes.Seed(episode);
+        var film = SeedFilm(f =>
+        {
+            SetYouTube(f, "VCRf_qazO9s");
+            f.Services![ServiceKeys.Spotify] = new ServiceLink { Url = new Uri("https://open.spotify.com/episode/filmep") };
+        });
 
         // Act
         var result = await Merge(podcast.Id, episode.Id, film.Id);
@@ -171,11 +211,10 @@ public class EpisodeFilmMergeIntoExistingRules
         // Assert
         result.Status.Should().Be(EpisodeFilmMoveStatus.Conflict);
         result.FilmId.Should().Be(film.Id);
-        result.Error.Should().Contain("youtube").And.Contain("#1411");
+        result.Error.Should().Contain("spotify");
+        result.Error.Should().NotContain("#1411");
         _filmSaves.Should().Be(0);
         _uploads.Should().BeEmpty();
-        _searchDeletes.Should().BeEmpty();
-        _redirects.Should().BeEmpty();
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
     }
 
@@ -358,5 +397,64 @@ public class EpisodeFilmMergeIntoExistingRules
         _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
             m => m.MaterialiseAsync(It.IsAny<Podcast>(), It.Is<Episode>(e => e.Id == episode.Id), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+
+    [Fact(DisplayName =
+        "Merging into an existing film is a conflict naming the holder when the episode's YouTube id already belongs to another item (RPP #1411).")]
+    public async Task merge_is_conflict_when_another_item_holds_the_youtube_id()
+    {
+        // Arrange
+        var (podcast, episode) = SeedYouTubeEpisode();
+        var film = SeedFilm();
+        var holderId = _fixture.CreateGuid();
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode)!;
+        _mocker.GetMock<IUrlMembershipLookup>()
+            .Setup(lookup => lookup.FindYouTubeHolderExcluding(
+                youTubeId,
+                It.IsAny<IReadOnlyCollection<Guid>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueServiceUrlOwner("NewsReport", "Outlet", holderId));
+
+        // Act
+        var result = await Merge(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Conflict);
+        result.Error.Should().Contain(youTubeId);
+        result.Error.Should().Contain("NewsReport");
+        result.Error.Should().Contain(holderId.ToString());
+        _filmSaves.Should().Be(0);
+        _episodes.GetStored(episode.Id).Should().NotBeNull();
+    }
+
+
+    [Fact(DisplayName =
+        "Merging is a conflict naming the other film when the target already holds the source YouTube id and a second film also holds it, because uniqueness still checks the already-held id with the target excluded (RPP #1411).")]
+    public async Task merge_is_conflict_when_another_film_holds_the_youtube_id_even_if_the_target_already_has_it()
+    {
+        // Arrange
+        var (podcast, episode) = SeedYouTubeEpisode();
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode)!;
+        var film = SeedFilm(f => SetYouTube(f, youTubeId));
+        var other = new Film("Other Film") { Id = _fixture.CreateGuid() };
+        SetYouTube(other, youTubeId);
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
+            .ReturnsAsync((Expression<Func<Film, bool>> predicate) =>
+                new[] { Stored(film.Id)!, other }.FirstOrDefault(predicate.Compile()));
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions()));
+        _mocker.Use<IUrlMembershipLookup>(_mocker.CreateInstance<UrlMembershipLookup>());
+
+        // Act
+        var result = await Merge(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Conflict);
+        result.Error.Should().Contain(youTubeId);
+        result.Error.Should().Contain("Film");
+        result.Error.Should().Contain(other.Id.ToString());
+        _filmSaves.Should().Be(0);
+        _episodes.GetStored(episode.Id).Should().NotBeNull();
     }
 }

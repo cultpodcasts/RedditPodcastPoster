@@ -108,6 +108,10 @@ public static class RequestModelExtensions
             Services = request.Services,
             Trailers = request.Trailers?.Select(trailer => new Models.FilmTrailerChange(trailer.Id, trailer.Title)).ToArray(),
             ExpectedTrailerIds = request.ExpectedTrailerIds,
+            AdditionalYouTube = request.AdditionalYouTube?.Select(item =>
+                new Models.YouTubeAlternateChange(item.YouTubeId, item.Url, item.Title, item.ChannelName)).ToArray(),
+            ExpectedAdditionalYouTubeIds = request.ExpectedAdditionalYouTubeIds,
+            PromoteYouTubeId = request.PromoteYouTubeId,
             Release = request.Release,
             Duration = request.Duration,
             Explicit = request.Explicit,

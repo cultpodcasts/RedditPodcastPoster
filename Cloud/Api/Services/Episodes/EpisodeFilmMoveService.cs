@@ -13,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.YouTube;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -51,6 +52,7 @@ public class EpisodeFilmMoveService(
     IIdentityMetadataEnricher identityMetadata,
     IEpisodeServiceMaterialiser episodeServiceMaterialiser,
     IFileKeyAllocator fileKeyAllocator,
+    IUrlMembershipLookup urlMembershipLookup,
     ILogger<EpisodeFilmMoveService> logger) : IEpisodeFilmMoveService
 {
     public async Task<EpisodeFilmMoveResult> MoveAsync(EpisodeFilmMoveCommand command, CancellationToken cancellationToken)
@@ -167,11 +169,11 @@ public class EpisodeFilmMoveService(
     /// <list type="number">
     /// <item>Materialise the episode's Spotify / Apple / YouTube ids into <c>services</c> urls, as a move does.</item>
     /// <item>Plan the link merge (<see cref="ServiceLinkMerge"/>): links for services the film has none for are added;
-    /// identical links are already held; a different link for a service the film already has (for example a second
-    /// YouTube upload) is a 409 naming the film, and nothing is written. A film holds one link per service until
-    /// #1411 (alternate YouTube links).</item>
-    /// <item>Save the film with the added links and the episode's subjects (not ones the film removed), ETag-guarded
-    /// and re-read on a conflict.</item>
+    /// identical links are already held; a different YouTube upload is added as an <c>additionalYouTube</c> entry
+    /// (RPP #1411) so merging Manic-style re-uploads works; a different link for Spotify, Apple or another
+    /// single-valued service is a 409 naming the film, and nothing is written.</item>
+    /// <item>Save the film with the added links, any YouTube alternates, and the episode's subjects (not ones the film
+    /// removed), ETag-guarded and re-read on a conflict.</item>
     /// <item>Push the film's search document, then delete the episode's. On failure the episode row is kept and a
     /// re-send resumes (the links are then already held).</item>
     /// <item>Re-read the film: gone, or no longer holding the episode's links, stops with the episode row kept.</item>
@@ -240,7 +242,7 @@ public class EpisodeFilmMoveService(
                     "A removed film cannot take an episode's links");
             }
 
-            var plan = ServiceLinkMerge.Plan(latest.Services, source);
+            var plan = ServiceLinkMerge.Plan(latest.Services, source, latest.AdditionalYouTube);
             if (plan.HasConflicts)
             {
                 var conflict = plan.Conflicts[0];
@@ -250,27 +252,47 @@ public class EpisodeFilmMoveService(
                 return new EpisodeFilmMoveResult(
                     EpisodeFilmMoveStatus.Conflict, latest.Id, latest.Name,
                     $"Film '{latest.Name}' already has a different {conflict.Service} link ({conflict.TargetUrl}). " +
-                    "A film holds one link per service until multiple YouTube links are supported (#1411).");
+                    "A film holds one link for this service.");
+            }
+
+            var heldYouTube = await YouTubeAlternateOwnership.ConflictMessageIfHeld(
+                urlMembershipLookup,
+                YouTubeAlternateOwnership.YouTubeIdsToCheckForMerge(latest, source),
+                [latest.Id, episode.Id],
+                cancellationToken);
+            if (heldYouTube is not null)
+            {
+                return new EpisodeFilmMoveResult(
+                    EpisodeFilmMoveStatus.Conflict, latest.Id, latest.Name, heldYouTube);
             }
 
             var addedSubjects = episode.Subjects
                 .Where(subject => !latest.Subjects.Contains(subject, StringComparer.OrdinalIgnoreCase) &&
                                   !latest.RemovedSubjects.Contains(subject, StringComparer.OrdinalIgnoreCase))
                 .ToList();
-            if (plan.ToAdd.Count == 0 && addedSubjects.Count == 0)
+            if (!plan.HasWork && addedSubjects.Count == 0)
             {
                 film = latest;
                 break;
             }
 
             latest.Services = ServiceLinkMerge.Apply(latest.Services, plan);
+            latest.AdditionalYouTube = ServiceLinkMerge.ApplyYouTubeAlternates(
+                latest.AdditionalYouTube,
+                plan,
+                DateTime.UtcNow,
+                episode,
+                string.IsNullOrWhiteSpace(podcast.YouTubeChannelId) ? null : podcast.YouTubeChannelId,
+                podcast.Name);
             EpisodeServicePresence.SyncCatalogueYouTubeIdFromUrl(latest);
             latest.Subjects.AddRange(addedSubjects);
             if (await filmRepository.TryReplace(latest, version.ETag))
             {
+                var added = plan.ToAdd.Keys.Concat(
+                    plan.YouTubeAlternatesToAdd.Count > 0 ? ["youtube-alternate"] : Array.Empty<string>());
                 logger.LogInformation(
                     "{method}: Added {services} and {subjects} subject(s) from episode '{episodeId}' to film '{filmId}'.",
-                    nameof(MergeIntoFilmAsync), string.Join(", ", plan.ToAdd.Keys), addedSubjects.Count, episode.Id,
+                    nameof(MergeIntoFilmAsync), string.Join(", ", added), addedSubjects.Count, episode.Id,
                     latest.Id);
                 film = latest;
                 break;
@@ -305,8 +327,8 @@ public class EpisodeFilmMoveService(
 
         // Last check before the only irreversible step: a concurrent film write could have dropped the links.
         var current = await filmRepository.GetFilm(film.Id);
-        if (current is null || ServiceLinkMerge.Plan(current.Services, source) is { ToAdd.Count: > 0 } or
-                { HasConflicts: true })
+        if (current is null || ServiceLinkMerge.Plan(current.Services, source, current.AdditionalYouTube) is
+                { HasWork: true } or { HasConflicts: true })
         {
             logger.LogError(
                 "{method}: Film '{filmId}' was deleted or lost episode '{episodeId}' links after the save. Episode row kept.",

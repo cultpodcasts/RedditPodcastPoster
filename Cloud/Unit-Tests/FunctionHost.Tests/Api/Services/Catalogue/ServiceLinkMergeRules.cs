@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using Xunit;
@@ -36,20 +37,65 @@ public class ServiceLinkMergeRules
         target.Should().ContainSingle("Apply returns a new map and leaves the target as it was");
     }
 
-    [Fact(DisplayName = "Two different YouTube videos for one item are a conflict (the Manic case until #1411).")]
-    public void different_youtube_videos_conflict()
+    [Fact(DisplayName = "Two different YouTube videos are planned as an additional YouTube link (RPP #1411, the Manic case).")]
+    public void different_youtube_videos_become_an_alternate()
     {
         // Arrange
         var target = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = Link("https://www.youtube.com/watch?v=VCRf_qazO9s") };
-        var source = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = Link("https://www.youtube.com/watch?v=GSIPAfDO_ec") };
+        var source = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = Link("https://www.youtube.com/watch?v=GSIPAfDO_ec", "https://i.ytimg.com/vi/GSIPAfDO_ec/hqdefault.jpg") };
+
+        // Act
+        var plan = ServiceLinkMerge.Plan(target, source);
+
+        // Assert
+        plan.HasConflicts.Should().BeFalse();
+        plan.ToAdd.Should().BeEmpty();
+        plan.YouTubeAlternatesToAdd.Should().ContainSingle().Which.Url.Should().Be(new Uri("https://www.youtube.com/watch?v=GSIPAfDO_ec"));
+        plan.HasWork.Should().BeTrue();
+        ServiceLinkMerge.Apply(target, plan).Keys.Should().Equal(ServiceKeys.YouTube);
+        var alternates = ServiceLinkMerge.ApplyYouTubeAlternates(null, plan, DomainTestFixture.UtcToday);
+        alternates.Should().ContainSingle().Which.YouTubeId.Should().Be("GSIPAfDO_ec");
+    }
+
+    [Fact(DisplayName = "A source YouTube that is already an alternate on the target is already held.")]
+    public void youtube_already_held_as_alternate()
+    {
+        // Arrange
+        var target = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = Link("https://www.youtube.com/watch?v=VCRf_qazO9s") };
+        var source = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = Link("https://youtu.be/GSIPAfDO_ec") };
+        var existing = new[]
+        {
+            new RedditPodcastPoster.Models.YouTube.YouTubeAlternate
+            {
+                YouTubeId = "GSIPAfDO_ec",
+                Url = new Uri("https://www.youtube.com/watch?v=GSIPAfDO_ec"),
+                AddedAt = DateTime.UtcNow
+            }
+        };
+
+        // Act
+        var plan = ServiceLinkMerge.Plan(target, source, existing);
+
+        // Assert
+        plan.HasConflicts.Should().BeFalse();
+        plan.HasWork.Should().BeFalse();
+        plan.AlreadyHeld.Should().Equal(ServiceKeys.YouTube);
+    }
+
+    [Fact(DisplayName = "Different Spotify (or Apple) links are still a conflict: those services stay single-valued.")]
+    public void different_spotify_links_conflict()
+    {
+        // Arrange
+        var target = new Dictionary<string, ServiceLink> { [ServiceKeys.Spotify] = Link("https://open.spotify.com/episode/aaa") };
+        var source = new Dictionary<string, ServiceLink> { [ServiceKeys.Spotify] = Link("https://open.spotify.com/episode/bbb") };
 
         // Act
         var plan = ServiceLinkMerge.Plan(target, source);
 
         // Assert
         plan.HasConflicts.Should().BeTrue();
-        plan.Conflicts.Should().ContainSingle().Which.Service.Should().Be(ServiceKeys.YouTube);
-        plan.ToAdd.Should().BeEmpty();
+        plan.Conflicts.Should().ContainSingle().Which.Service.Should().Be(ServiceKeys.Spotify);
+        plan.YouTubeAlternatesToAdd.Should().BeEmpty();
     }
 
     [Theory(DisplayName = "The same link written differently is already held, not a conflict.")]

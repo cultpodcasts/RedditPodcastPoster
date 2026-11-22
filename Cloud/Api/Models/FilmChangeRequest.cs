@@ -15,6 +15,9 @@ public class FilmChangeRequest : PublisherFieldsChange
     /// both mean the client listed none.
     /// </summary>
     public Guid[]? ExpectedTrailerIds { get; set; }
+    public YouTubeAlternateChange[]? AdditionalYouTube { get; set; }
+    public string[]? ExpectedAdditionalYouTubeIds { get; set; }
+    public string? PromoteYouTubeId { get; set; }
     public string? Release { get; set; }
     public string? Duration { get; set; }
     public bool? Explicit { get; set; }

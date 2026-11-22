@@ -32,6 +32,7 @@ public static class FilmExtension
                     Release = trailer.Release,
                     Duration = CatalogueDtoMapping.FormatDuration(trailer.Length)
                 }).ToArray()
-                : null
+                : null,
+            AdditionalYouTube = YouTubeAlternateDtoMapping.ToDtos(film.AdditionalYouTube)
         }.WithPublisherFields(film);
 }
