@@ -121,7 +121,7 @@ public static class PlayableSearchSql
             "a.youTubeId, \"|\", " +
             "IIF(IS_DEFINED(a.release) AND IS_STRING(a.release) AND LENGTH(a.release) >= 10, SUBSTRING(a.release, 0, 10), \"\"), " +
             "\"|\", " +
-            "IIF(IS_DEFINED(a.channelName) AND IS_STRING(a.channelName), a.channelName, \"\") " +
+            "IIF(IS_DEFINED(a.channelName) AND IS_STRING(a.channelName), a.channelName, \"\")) " +
             $"FROM a IN {alias}.additionalYouTube), null)";
     }
 
