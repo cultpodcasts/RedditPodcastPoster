@@ -71,6 +71,7 @@ public static class D1SearchDocuments
             Subjects = record.Subjects,
             Image = record.Image,
             Trailers = record.Trailers,
+            YouTubeAlternates = record.YouTubeAlternates,
             AlternativeTitles = record.AlternativeTitles,
             ImdbId = record.ImdbId,
             TmdbId = record.TmdbId,

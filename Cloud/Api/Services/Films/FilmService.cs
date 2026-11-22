@@ -67,6 +67,7 @@ public class FilmService(
             // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
             var target = SocialPostRemovalTarget.For(film);
             var hadTrailers = film.Trailers is { Count: > 0 };
+            var hadAdditionalYouTube = film.AdditionalYouTube is { Count: > 0 };
             var readTrailerIds = film.Trailers?.Select(trailer => trailer.Id).ToHashSet() ?? [];
 
             if (!PlayableChangeApplier.TryParseRelease(request.Change.Release, allowYear: true, out _, out var fieldError) ||
@@ -87,6 +88,15 @@ public class FilmService(
             if (request.Change.Trailers is not null)
             {
                 var stale = await ReadStaleTrailers(film.Id, request.Change.ExpectedTrailerIds);
+                if (stale.Status != FilmUpdateStatus.Accepted)
+                {
+                    return stale;
+                }
+            }
+
+            if (request.Change.AdditionalYouTube is not null)
+            {
+                var stale = await ReadStaleYouTubeAlternates(film.Id, request.Change.ExpectedAdditionalYouTubeIds);
                 if (stale.Status != FilmUpdateStatus.Accepted)
                 {
                     return stale;
@@ -141,7 +151,8 @@ public class FilmService(
                 target.Projection,
                 request.Change.Removed == true,
                 cancellationToken,
-                trailersCleared: hadTrailers && saved.Trailers is not { Count: > 0 });
+                trailersCleared: hadTrailers && saved.Trailers is not { Count: > 0 },
+                youTubeAlternatesCleared: hadAdditionalYouTube && saved.AdditionalYouTube is not { Count: > 0 });
 
             return new FilmUpdateResult(FilmUpdateStatus.Accepted, Outcome: outcome);
         }
@@ -284,6 +295,41 @@ public class FilmService(
                ?? [];
     }
 
+    private const string StaleYouTubeAlternatesMessage =
+        "The film's additional YouTube links changed after this edit was loaded. Close and reopen the film to edit them.";
+
+    private async Task<FilmUpdateResult> ReadStaleYouTubeAlternates(Guid filmId, string[]? expectedIds)
+    {
+        var latest = await filmRepository.GetFilmForUpdate(filmId);
+        if (latest is null)
+        {
+            return new FilmUpdateResult(FilmUpdateStatus.NotFound);
+        }
+
+        var expected = expectedIds is null ? new HashSet<string>(StringComparer.Ordinal) : expectedIds.ToHashSet(StringComparer.Ordinal);
+        var unexpected = latest.Film.AdditionalYouTube?
+            .Select(item => item.YouTubeId)
+            .Where(id => !expected.Contains(id))
+            .ToArray() ?? [];
+        if (unexpected.Length == 0)
+        {
+            return new FilmUpdateResult(FilmUpdateStatus.Accepted);
+        }
+
+        return StaleYouTubeAlternates(filmId, unexpected);
+    }
+
+    private FilmUpdateResult StaleYouTubeAlternates(Guid filmId, string[] unexpected)
+    {
+        logger.LogWarning(
+            "{method}: Film '{filmId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
+            nameof(StaleYouTubeAlternates), filmId, unexpected.Length);
+        return new FilmUpdateResult(
+            FilmUpdateStatus.Conflict,
+            StaleYouTubeAlternatesMessage,
+            UnexpectedAdditionalYouTubeIds: unexpected);
+    }
+
     /// <summary>
     /// The film this replace wrote, or a result and no film when the edit was not saved.
     /// </summary>
@@ -323,7 +369,23 @@ public class FilmService(
                     return new FilmPersist(StaleTrailers(filmId, unexpected), null);
                 }
             }
-            else
+
+            if (change.AdditionalYouTube is not null)
+            {
+                var expected = change.ExpectedAdditionalYouTubeIds is null
+                    ? new HashSet<string>(StringComparer.Ordinal)
+                    : change.ExpectedAdditionalYouTubeIds.ToHashSet(StringComparer.Ordinal);
+                var unexpectedYouTube = latest.Film.AdditionalYouTube?
+                    .Select(item => item.YouTubeId)
+                    .Where(id => !expected.Contains(id))
+                    .ToArray() ?? [];
+                if (unexpectedYouTube.Length > 0)
+                {
+                    return new FilmPersist(StaleYouTubeAlternates(filmId, unexpectedYouTube), null);
+                }
+            }
+
+            if (!guardingTrailers)
             {
                 var attached = latest.Film.Trailers?.Count(trailer => !readTrailerIds.Contains(trailer.Id)) ?? 0;
                 if (attached > 0)

@@ -47,6 +47,12 @@ public sealed class PublicFilm(Guid id) : PublicCatalogueEntity(id, ModelType.Fi
     [JsonPropertyOrder(15)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<PublicFilmTrailer>? Trailers { get; set; }
+
+    /// <summary>Extra YouTube uploads in display order (RPP #1411); omitted when there are none.</summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonPropertyOrder(16)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<PublicYouTubeAlternate>? AdditionalYouTube { get; set; }
 }
 
 /// <summary>One film trailer. <c>release</c> is the publish date <c>yyyy-MM-dd</c> (UTC).</summary>

@@ -30,7 +30,8 @@ public class PostFilmHandler(
                 await ctx.Conflict(new
                 {
                     message = result.Message,
-                    unexpectedTrailerIds = result.UnexpectedTrailerIds ?? []
+                    unexpectedTrailerIds = result.UnexpectedTrailerIds ?? [],
+                    unexpectedAdditionalYouTubeIds = result.UnexpectedAdditionalYouTubeIds ?? []
                 }, c),
             FilmUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update film"), c),

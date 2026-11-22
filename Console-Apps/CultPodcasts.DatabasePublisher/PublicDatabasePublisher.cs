@@ -364,7 +364,8 @@ public class PublicDatabasePublisher(
                           ?? EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.BbcSounds)),
                     InternetArchive = EpisodeServicePresence.TryGetUrl(episode, StreamingServiceWire.ToKey(StreamingService.InternetArchive))
                 },
-                Subjects = episode.Subjects.Any() ? episode.Subjects : null
+                Subjects = episode.Subjects.Any() ? episode.Subjects : null,
+                AdditionalYouTube = PublicCatalogueMapper.ToPublicYouTube(episode.AdditionalYouTube)
             });
         }
 

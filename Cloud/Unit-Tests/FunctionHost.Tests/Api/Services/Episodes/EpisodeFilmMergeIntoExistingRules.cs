@@ -158,12 +158,48 @@ public class EpisodeFilmMergeIntoExistingRules
     }
 
     [Fact(DisplayName =
-        "The Manic case: merging an episode whose YouTube video differs from the film's YouTube link is a 409 naming the film and #1411, and writes nothing (film, search, episode row and short link all untouched).")]
-    public async Task merge_with_a_different_youtube_link_conflicts_and_writes_nothing()
+        "The Manic case (RPP #1411): merging an episode whose YouTube video differs from the film's primary YouTube adds that upload as an additional YouTube link, keeps the film's primary YouTube, pushes search, and retires the episode.")]
+    public async Task merge_with_a_different_youtube_link_adds_an_alternate_and_retires_episode()
     {
         // Arrange
         var (podcast, episode) = SeedYouTubeEpisode();
         var film = SeedFilm(f => SetYouTube(f, "VCRf_qazO9s"));
+        var episodeUrl = episode.Services![ServiceKeys.YouTube].Url!;
+        var episodeYouTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
+
+        // Act
+        var result = await Merge(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Accepted);
+        result.FilmId.Should().Be(film.Id);
+        var stored = Stored(film.Id)!;
+        stored.YouTubeId.Should().Be("VCRf_qazO9s");
+        stored.Services![ServiceKeys.YouTube].Url.Should().Be(new Uri("https://www.youtube.com/watch?v=VCRf_qazO9s"));
+        stored.AdditionalYouTube.Should().ContainSingle();
+        stored.AdditionalYouTube![0].YouTubeId.Should().Be(episodeYouTubeId);
+        stored.AdditionalYouTube[0].Url.Should().Be(episodeUrl);
+        stored.AdditionalYouTube[0].SourceEpisodeId.Should().Be(episode.Id);
+        _uploads.Should().ContainSingle().Which.Should().ContainSingle();
+        _uploads[0][0].YouTubeAlternates.Should().ContainSingle().Which.Should().StartWith(episodeYouTubeId + "|");
+        _searchDeletes.Should().Equal(episode.Id);
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+        _redirects.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "Merging an episode that has a different Spotify link from the film is still a 409 and writes nothing (Spotify stays single-valued).")]
+    public async Task merge_with_a_different_spotify_link_conflicts_and_writes_nothing()
+    {
+        // Arrange
+        var (podcast, episode) = SeedYouTubeEpisode();
+        episode.Services![ServiceKeys.Spotify] = new ServiceLink { Url = new Uri("https://open.spotify.com/episode/sourceep") };
+        _episodes.Seed(episode);
+        var film = SeedFilm(f =>
+        {
+            SetYouTube(f, "VCRf_qazO9s");
+            f.Services![ServiceKeys.Spotify] = new ServiceLink { Url = new Uri("https://open.spotify.com/episode/filmep") };
+        });
 
         // Act
         var result = await Merge(podcast.Id, episode.Id, film.Id);
@@ -171,11 +207,10 @@ public class EpisodeFilmMergeIntoExistingRules
         // Assert
         result.Status.Should().Be(EpisodeFilmMoveStatus.Conflict);
         result.FilmId.Should().Be(film.Id);
-        result.Error.Should().Contain("youtube").And.Contain("#1411");
+        result.Error.Should().Contain("spotify");
+        result.Error.Should().NotContain("#1411");
         _filmSaves.Should().Be(0);
         _uploads.Should().BeEmpty();
-        _searchDeletes.Should().BeEmpty();
-        _redirects.Should().BeEmpty();
         (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
     }
 

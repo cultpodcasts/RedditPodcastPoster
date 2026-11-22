@@ -10,6 +10,7 @@ using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.YouTube;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Search.Models;
 using Xunit;
@@ -529,5 +530,162 @@ public class FilmLinkUpdateRules
         result.Status.Should().Be(FilmUpdateStatus.NotFound);
         _saved.Should().BeNull();
         _uploads.Should().BeEmpty();
+    }
+
+
+    private YouTubeAlternate CreateAlternate(string? youTubeId = null, string? channelName = null)
+    {
+        var id = youTubeId ?? _fixture.CreateYouTubeId();
+        return new YouTubeAlternate
+        {
+            YouTubeId = id,
+            Url = _fixture.DefaultYouTubeUrl(id),
+            ChannelName = channelName ?? _fixture.CreateTitle(),
+            AddedAt = DateTime.UtcNow
+        };
+    }
+
+    private static FilmChangeRequest SeenYouTube(Film film, FilmChangeRequest change)
+    {
+        change.ExpectedAdditionalYouTubeIds = film.AdditionalYouTube?.Select(item => item.YouTubeId).ToArray() ?? [];
+        return change;
+    }
+
+    [Fact(DisplayName =
+        "PATCH film additionalYouTube adds a YouTube URL as an alternate, keeps listed existing ids, and a keep-list that omits an id removes it (RPP #1411).")]
+    public async Task additional_youtube_add_keep_and_remove()
+    {
+        // Arrange
+        var existing = CreateAlternate();
+        var film = CreateFilm(f => f.AdditionalYouTube = [existing]);
+        var addedId = _fixture.CreateYouTubeId();
+        var addedUrl = _fixture.DefaultYouTubeUrl(addedId);
+
+        // Act
+        var added = await Update(film, SeenYouTube(film, new FilmChangeRequest
+        {
+            AdditionalYouTube =
+            [
+                new YouTubeAlternateChange(existing.YouTubeId, null, null, null),
+                new YouTubeAlternateChange(null, addedUrl.ToString(), "Other channel cut", "True Crime Fix")
+            ]
+        }));
+
+        // Assert
+        added.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.AdditionalYouTube.Should().HaveCount(2);
+        _saved.AdditionalYouTube![0].YouTubeId.Should().Be(existing.YouTubeId);
+        _saved.AdditionalYouTube[1].YouTubeId.Should().Be(addedId);
+        _saved.AdditionalYouTube[1].ChannelName.Should().Be("True Crime Fix");
+        _uploads.Should().ContainSingle();
+        _uploads[0].YouTubeAlternates.Should().HaveCount(2);
+        _uploads[0].YouTubeAlternates![1].Should().StartWith(addedId + "|");
+
+        // Arrange
+        _uploads.Clear();
+        film.AdditionalYouTube = _saved.AdditionalYouTube;
+
+        // Act
+        var removed = await Update(film, SeenYouTube(film, new FilmChangeRequest
+        {
+            AdditionalYouTube = [new YouTubeAlternateChange(existing.YouTubeId, null, null, null)]
+        }));
+
+        // Assert
+        removed.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved.AdditionalYouTube.Should().ContainSingle().Which.YouTubeId.Should().Be(existing.YouTubeId);
+    }
+
+    [Fact(DisplayName =
+        "PATCH film promoteYouTubeId swaps that additional upload into the primary YouTube link, and the previous primary becomes the first additional upload.")]
+    public async Task additional_youtube_promote_swaps_into_primary()
+    {
+        // Arrange
+        var primaryId = _fixture.CreateYouTubeId();
+        var alternate = CreateAlternate(channelName: "True Crime Fix");
+        var film = CreateFilm(f =>
+        {
+            f.YouTubeId = primaryId;
+            f.Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(primaryId) }
+            };
+            f.AdditionalYouTube = [alternate];
+        });
+
+        // Act
+        var result = await Update(film, SeenYouTube(film, new FilmChangeRequest
+        {
+            AdditionalYouTube = [new YouTubeAlternateChange(alternate.YouTubeId, null, null, null)],
+            PromoteYouTubeId = alternate.YouTubeId
+        }));
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Accepted);
+        _saved!.YouTubeId.Should().Be(alternate.YouTubeId);
+        _saved.Services!["youtube"].Url.Should().Be(alternate.Url);
+        _saved.AdditionalYouTube.Should().ContainSingle().Which.YouTubeId.Should().Be(primaryId);
+    }
+
+    [Fact(DisplayName =
+        "PATCH film additionalYouTube is a conflict when the keep-list omits the ids the client last saw, and nothing is saved.")]
+    public async Task additional_youtube_keep_list_without_expected_ids_is_conflict()
+    {
+        // Arrange
+        var existing = CreateAlternate();
+        var film = CreateFilm(f => f.AdditionalYouTube = [existing]);
+
+        // Act
+        var result = await Update(film, new FilmChangeRequest
+        {
+            AdditionalYouTube = [new YouTubeAlternateChange(existing.YouTubeId, null, null, null)]
+        });
+
+        // Assert
+        result.Status.Should().Be(FilmUpdateStatus.Conflict);
+        result.UnexpectedAdditionalYouTubeIds.Should().Equal(existing.YouTubeId);
+        _saved.Should().BeNull();
+        _uploads.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "PATCH film additionalYouTube cannot add the film's primary YouTube id or a trailer YouTube id.")]
+    public async Task additional_youtube_rejects_primary_and_trailer_ids()
+    {
+        // Arrange
+        var primaryId = _fixture.CreateYouTubeId();
+        var trailer = CreateTrailer();
+        var film = CreateFilm(f =>
+        {
+            f.YouTubeId = primaryId;
+            f.Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.YouTube] = new() { Url = _fixture.DefaultYouTubeUrl(primaryId) }
+            };
+            f.Trailers = [trailer];
+        });
+
+        // Act
+        var asPrimary = await Update(film, SeenYouTube(film, new FilmChangeRequest
+        {
+            AdditionalYouTube =
+            [
+                new YouTubeAlternateChange(null, _fixture.DefaultYouTubeUrl(primaryId).ToString(), null, null)
+            ]
+        }));
+        var asTrailer = await Update(film, SeenYouTube(film, new FilmChangeRequest
+        {
+            AdditionalYouTube =
+            [
+                new YouTubeAlternateChange(null, trailer.Url!.ToString(), null, null)
+            ]
+        }));
+
+        // Assert
+        asPrimary.Status.Should().Be(FilmUpdateStatus.BadRequest);
+        asPrimary.Message.Should().Contain(primaryId);
+        asTrailer.Status.Should().Be(FilmUpdateStatus.BadRequest);
+        asTrailer.Message.Should().Contain("trailer");
+        _saved.Should().BeNull();
     }
 }

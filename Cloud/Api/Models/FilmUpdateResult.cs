@@ -13,4 +13,5 @@ public record FilmUpdateResult(
     FilmUpdateStatus Status,
     string? Message = null,
     EpisodeUpdateOutcome? Outcome = null,
-    Guid[]? UnexpectedTrailerIds = null);
+    Guid[]? UnexpectedTrailerIds = null,
+    string[]? UnexpectedAdditionalYouTubeIds = null);

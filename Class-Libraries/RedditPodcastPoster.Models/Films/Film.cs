@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.YouTube;
 
 namespace RedditPodcastPoster.Models.Films;
 
@@ -175,6 +176,15 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     [JsonPropertyOrder(153)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<FilmTrailer>? Trailers { get; set; }
+
+    /// <summary>
+    /// Extra YouTube uploads of this film (RPP #1411), in display order. The primary upload stays on
+    /// <c>services.youtube</c> / <see cref="YouTubeId"/>. Omitted when there are none.
+    /// </summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonPropertyOrder(154)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<YouTubeAlternate>? AdditionalYouTube { get; set; }
 
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]

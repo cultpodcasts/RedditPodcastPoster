@@ -183,7 +183,8 @@ public class UrlMembershipLookup(
 
         cancellationToken.ThrowIfCancellationRequested();
         var episode = await tvShowEpisodes.GetBy(
-            PlayableServiceUrlFilters.HoldsServiceUrl<TvShowEpisode>(serviceKey, canonical, stored));
+            PlayableServiceUrlFilters.HoldsServiceUrlOrYouTubeAlternate<TvShowEpisode>(
+                serviceKey, canonical, stored, youTubeId));
         if (episode != null)
         {
             return new CatalogueServiceUrlOwner(
@@ -192,7 +193,8 @@ public class UrlMembershipLookup(
 
         cancellationToken.ThrowIfCancellationRequested();
         var report = await newsReports.GetBy(
-            PlayableServiceUrlFilters.HoldsServiceUrl<NewsReport>(serviceKey, canonical, stored));
+            PlayableServiceUrlFilters.HoldsServiceUrlOrYouTubeAlternate<NewsReport>(
+                serviceKey, canonical, stored, youTubeId));
         if (report != null)
         {
             return new CatalogueServiceUrlOwner(
@@ -292,6 +294,9 @@ public class UrlMembershipLookup(
 
         return episode =>
             (episode.Ids != null && episode.Ids.YouTube == episodeId) ||
-            (episode.Services != null && episode.Services[ServiceKeys.YouTube].Url == url);
+            (episode.Services != null && episode.Services[ServiceKeys.YouTube].Url == url) ||
+            (episode.AdditionalYouTube != null &&
+             episode.AdditionalYouTube.Any(alternate =>
+                 alternate.YouTubeId == episodeId || alternate.Url == url));
     }
 }

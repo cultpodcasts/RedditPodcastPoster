@@ -63,4 +63,10 @@ public class PublicEpisode
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(14)]
     public PublicServiceUrls Urls { get; set; } = new();
+
+    /// <summary>Extra YouTube uploads in display order (RPP #1411); omitted when there are none.</summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonPropertyOrder(15)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<PublicYouTubeAlternate>? AdditionalYouTube { get; set; }
 }

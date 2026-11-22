@@ -35,6 +35,7 @@ public static class CataloguePlayableSearchDocument
         record.SeriesName = episode.TvShowName?.Trim() ?? string.Empty;
         record.PublisherSearchTerms = episode.PublisherSearchTerms ?? string.Empty;
         PreferCatalogueYouTubeId(record, episode.YouTubeId);
+        record.YouTubeAlternates = YouTubeAlternateSearchToken.For(episode);
         ApplyServiceIds(record, episode.Services);
         UseIdentityImageWhenNoServiceImage(record, episode.Image);
         record.ImdbId = string.IsNullOrWhiteSpace(episode.ImdbId) ? null : episode.ImdbId;
@@ -59,6 +60,7 @@ public static class CataloguePlayableSearchDocument
         record.SeriesName = report.NewsOrganisationName?.Trim() ?? string.Empty;
         record.PublisherSearchTerms = report.PublisherSearchTerms ?? string.Empty;
         PreferCatalogueYouTubeId(record, report.YouTubeId);
+        record.YouTubeAlternates = YouTubeAlternateSearchToken.For(report);
         ApplyServiceIds(record, report.Services);
         return record;
     }
@@ -79,6 +81,7 @@ public static class CataloguePlayableSearchDocument
         record.ImdbId = string.IsNullOrWhiteSpace(film.ImdbId) ? null : film.ImdbId;
         record.TmdbId = film.TmdbId;
         PreferCatalogueYouTubeId(record, film.YouTubeId);
+        record.YouTubeAlternates = YouTubeAlternateSearchToken.For(film);
         ApplyServiceIds(record, film.Services);
         UseIdentityImageWhenNoServiceImage(record, film.Image);
         return record;

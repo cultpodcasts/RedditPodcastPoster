@@ -67,4 +67,9 @@ public class FilmDto : PublisherFieldsDto, IPlayableGuestFieldsDto
     [JsonPropertyName("trailers")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public FilmTrailerDto[]? Trailers { get; set; }
+
+    /// <summary>Extra YouTube uploads, in display order; omitted when the film has none (RPP #1411).</summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public YouTubeAlternateDto[]? AdditionalYouTube { get; set; }
 }

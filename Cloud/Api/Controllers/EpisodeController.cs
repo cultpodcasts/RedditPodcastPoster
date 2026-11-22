@@ -20,6 +20,7 @@ public class EpisodeController(
     IDeleteEpisodeHandler deleteEpisodeHandler,
     IPostEpisodeFilmMoveHandler postEpisodeFilmMoveHandler,
     IPostEpisodeTrailerAttachHandler postEpisodeTrailerAttachHandler,
+    IPostEpisodeYouTubeAlternateAttachHandler postEpisodeYouTubeAlternateAttachHandler,
     IPostEpisodeTvShowMoveHandler postEpisodeTvShowMoveHandler,
     IPostEpisodeNewsMoveHandler postEpisodeNewsMoveHandler,
     IClientPrincipalFactory clientPrincipalFactory,
@@ -36,6 +37,7 @@ public class EpisodeController(
     private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
     private const string? FilmMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/film";
     private const string? TrailerAttachRoute = "episode/{podcastId:guid}/{episodeId:guid}/trailer";
+    private const string? YouTubeAlternateAttachRoute = "episode/{podcastId:guid}/{episodeId:guid}/youtube-alternate";
     private const string? TvShowMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/tvshow";
     private const string? NewsMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/news";
 
@@ -292,6 +294,46 @@ public class EpisodeController(
             ["curate"],
             new EpisodeTrailerAttachCommand(podcastId, episodeId, request.ToModel()),
             postEpisodeTrailerAttachHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    /// <summary>
+    /// Attaches one podcast episode's YouTube upload to an existing catalogue item as an additional YouTube
+    /// link (RPP #1411); the episode row is then deleted. Body: <c>targetKind</c>, <c>targetId</c>.
+    /// </summary>
+    [Function("PodcastEpisodeAttachYouTubeAlternate")]
+    public Task<HttpResponseData> AttachYouTubeAlternate(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = YouTubeAlternateAttachRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        Dtos.EpisodeYouTubeAlternateAttachRequest? request,
+        CancellationToken ct
+    )
+    {
+        var model = request.ToModel();
+        if (model is null)
+        {
+            return HandleRequest(
+                req,
+                ["curate"],
+                new { error = "Body must include targetId and targetKind (Film, NewsReport, TvShowEpisode or Episode)" },
+                async (ctx, _, token) => await ctx.BadRequest(
+                    Api.Dtos.ApiErrorResponse.Failure(
+                        "Body must include targetId and targetKind (Film, NewsReport, TvShowEpisode or Episode)"),
+                    token),
+                Unauthorised,
+                ct);
+        }
+
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeYouTubeAlternateAttachCommand(podcastId, episodeId, model),
+            postEpisodeYouTubeAlternateAttachHandler.Handle,
             Unauthorised,
             ct);
     }

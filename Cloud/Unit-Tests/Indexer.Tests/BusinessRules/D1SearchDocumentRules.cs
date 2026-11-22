@@ -19,7 +19,7 @@ public class D1SearchDocumentRules
     private static readonly HashSet<string> WorkerKeys =
     [
         "id", "contentKind", "title", "seriesName", "description", "release", "duration", "spotifyId", "appleId",
-        "podcastAppleId", "youtubeId", "bbc", "internetArchive", "svc", "subjects", "image", "trailers",
+        "podcastAppleId", "youtubeId", "bbc", "internetArchive", "svc", "subjects", "image", "trailers", "youTubeAlternates",
         "alternativeTitles", "imdbId", "tmdbId", "tvdbId", "seriesImdbId", "seriesTmdbId", "seriesTvdbId", "lang",
         "guests", "publisherSearchTerms", "episodeSearchTerms", "modifiedAt"
     ];
