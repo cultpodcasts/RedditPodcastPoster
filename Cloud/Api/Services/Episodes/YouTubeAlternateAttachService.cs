@@ -14,6 +14,7 @@ using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using RedditPodcastPoster.UrlShortening.Services;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.Episodes;
 
@@ -31,6 +32,7 @@ public class YouTubeAlternateAttachService(
     IShortnerService shortnerService,
     IEpisodeServiceMaterialiser episodeServiceMaterialiser,
     IEpisodeFilmMoveService episodeFilmMoveService,
+    IUrlMembershipLookup urlMembershipLookup,
     ILogger<YouTubeAlternateAttachService> logger) : IYouTubeAlternateAttachService
 {
     private const int MaxSaveAttempts = 3;
@@ -169,6 +171,12 @@ public class YouTubeAlternateAttachService(
                     "A removed news report cannot take an episode's links");
             }
 
+            var held = await YouTubeHeldByAnother(latest, source, episode.Id, latest.Title, cancellationToken);
+            if (held is not null)
+            {
+                return held;
+            }
+
             var applied = ApplyMerge(latest, latest.Title, source, episode, podcast, out var conflict);
             if (conflict is not null)
             {
@@ -211,29 +219,61 @@ public class YouTubeAlternateAttachService(
         Guid targetId,
         CancellationToken cancellationToken)
     {
-        var latest = await tvShowEpisodeRepository.GetBy(item => item.Id == targetId);
+        TvShowEpisode? latest = null;
+        for (var attempt = 1; attempt <= MaxSaveAttempts && latest is null; attempt++)
+        {
+            var found = await tvShowEpisodeRepository.GetBy(item => item.Id == targetId);
+            if (found is null)
+            {
+                return new EpisodeYouTubeAlternateAttachResult(
+                    EpisodeYouTubeAlternateAttachStatus.NotFound, Error: "TV episode not found");
+            }
+
+            var version = await tvShowEpisodeRepository.GetTvShowEpisodeWithETag(found.TvShowId, found.Id);
+            if (version is null)
+            {
+                return new EpisodeYouTubeAlternateAttachResult(
+                    EpisodeYouTubeAlternateAttachStatus.NotFound, Error: "TV episode not found");
+            }
+
+            var current = version.Item;
+            if (current.IsRemoved())
+            {
+                return new EpisodeYouTubeAlternateAttachResult(
+                    EpisodeYouTubeAlternateAttachStatus.BadRequest, current.Id, current.Title,
+                    "A removed TV episode cannot take an episode's links");
+            }
+
+            var held = await YouTubeHeldByAnother(current, source, episode.Id, current.Title, cancellationToken);
+            if (held is not null)
+            {
+                return held;
+            }
+
+            var applied = ApplyMerge(current, current.Title, source, episode, podcast, out var conflict);
+            if (conflict is not null)
+            {
+                return conflict;
+            }
+
+            if (applied is null)
+            {
+                latest = current;
+                break;
+            }
+
+            if (await tvShowEpisodeRepository.TryReplace(current, version.ETag))
+            {
+                latest = current;
+                break;
+            }
+        }
+
         if (latest is null)
         {
             return new EpisodeYouTubeAlternateAttachResult(
-                EpisodeYouTubeAlternateAttachStatus.NotFound, Error: "TV episode not found");
-        }
-
-        if (latest.IsRemoved())
-        {
-            return new EpisodeYouTubeAlternateAttachResult(
-                EpisodeYouTubeAlternateAttachStatus.BadRequest, latest.Id, latest.Title,
-                "A removed TV episode cannot take an episode's links");
-        }
-
-        var applied = ApplyMerge(latest, latest.Title, source, episode, podcast, out var conflict);
-        if (conflict is not null)
-        {
-            return conflict;
-        }
-
-        if (applied is not null)
-        {
-            await tvShowEpisodeRepository.Save(latest);
+                EpisodeYouTubeAlternateAttachStatus.Failed, targetId,
+                Error: "The TV episode kept changing; send again");
         }
 
         return await Finish(
@@ -252,29 +292,61 @@ public class YouTubeAlternateAttachService(
         Guid targetId,
         CancellationToken cancellationToken)
     {
-        var latest = await episodeRepository.GetBy(item => item.Id == targetId);
+        Episode? latest = null;
+        for (var attempt = 1; attempt <= MaxSaveAttempts && latest is null; attempt++)
+        {
+            var found = await episodeRepository.GetBy(item => item.Id == targetId);
+            if (found is null)
+            {
+                return new EpisodeYouTubeAlternateAttachResult(
+                    EpisodeYouTubeAlternateAttachStatus.NotFound, Error: "Episode not found");
+            }
+
+            var version = await episodeRepository.GetEpisodeWithETag(found.PodcastId, found.Id);
+            if (version is null)
+            {
+                return new EpisodeYouTubeAlternateAttachResult(
+                    EpisodeYouTubeAlternateAttachStatus.NotFound, Error: "Episode not found");
+            }
+
+            var current = version.Item;
+            if (current.Removed)
+            {
+                return new EpisodeYouTubeAlternateAttachResult(
+                    EpisodeYouTubeAlternateAttachStatus.BadRequest, current.Id, current.Title,
+                    "A removed episode cannot take another episode's links");
+            }
+
+            var held = await YouTubeHeldByAnother(current, source, sourceEpisode.Id, current.Title, cancellationToken);
+            if (held is not null)
+            {
+                return held;
+            }
+
+            var applied = ApplyMerge(current, current.Title, source, sourceEpisode, sourcePodcast, out var conflict);
+            if (conflict is not null)
+            {
+                return conflict;
+            }
+
+            if (applied is null)
+            {
+                latest = current;
+                break;
+            }
+
+            if (await episodeRepository.TryReplace(current, version.ETag))
+            {
+                latest = current;
+                break;
+            }
+        }
+
         if (latest is null)
         {
             return new EpisodeYouTubeAlternateAttachResult(
-                EpisodeYouTubeAlternateAttachStatus.NotFound, Error: "Episode not found");
-        }
-
-        if (latest.Removed)
-        {
-            return new EpisodeYouTubeAlternateAttachResult(
-                EpisodeYouTubeAlternateAttachStatus.BadRequest, latest.Id, latest.Title,
-                "A removed episode cannot take another episode's links");
-        }
-
-        var applied = ApplyMerge(latest, latest.Title, source, sourceEpisode, sourcePodcast, out var conflict);
-        if (conflict is not null)
-        {
-            return conflict;
-        }
-
-        if (applied is not null)
-        {
-            await episodeRepository.Save(latest);
+                EpisodeYouTubeAlternateAttachStatus.Failed, targetId,
+                Error: "The episode kept changing; send again");
         }
 
         var targetPodcast = await podcastRepository.GetPodcast(latest.PodcastId);
@@ -292,6 +364,33 @@ public class YouTubeAlternateAttachService(
             cancellationToken,
             current => ServiceLinkMerge.Plan(current.Services, source, current.AdditionalYouTube),
             () => episodeRepository.GetBy(item => item.Id == latest.Id));
+    }
+
+    private async Task<EpisodeYouTubeAlternateAttachResult?> YouTubeHeldByAnother(
+        RedditPodcastPoster.Models.Catalogue.IPlayable target,
+        Dictionary<string, ServiceLink> source,
+        Guid sourceEpisodeId,
+        string? name,
+        CancellationToken cancellationToken)
+    {
+        var except = new List<Guid> { sourceEpisodeId };
+        if (TargetIdFrom(target) is Guid targetId)
+        {
+            except.Add(targetId);
+        }
+
+        var message = await YouTubeAlternateOwnership.ConflictMessageIfHeld(
+            urlMembershipLookup,
+            YouTubeAlternateOwnership.IdsAMergeWouldAdd(target, source),
+            except,
+            cancellationToken);
+        if (message is null)
+        {
+            return null;
+        }
+
+        return new EpisodeYouTubeAlternateAttachResult(
+            EpisodeYouTubeAlternateAttachStatus.Conflict, TargetIdFrom(target), name, message);
     }
 
     /// <summary>

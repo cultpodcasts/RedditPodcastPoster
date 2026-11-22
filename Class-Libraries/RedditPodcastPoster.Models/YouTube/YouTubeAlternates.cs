@@ -133,15 +133,19 @@ public static class YouTubeAlternates
         var youTubeId = string.IsNullOrWhiteSpace(primaryYouTubeId)
             ? url is null ? null : YouTubeIdResolver.Extract(url)
             : primaryYouTubeId;
-        if (string.IsNullOrWhiteSpace(youTubeId) || url is null)
+        if (string.IsNullOrWhiteSpace(youTubeId))
         {
             return null;
         }
 
+        var watchUrl = url is not null && YouTubeIdResolver.Extract(url) is not null
+            ? url
+            : new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+
         return new YouTubeAlternate
         {
             YouTubeId = youTubeId,
-            Url = url,
+            Url = watchUrl,
             Image = link?.Image,
             AddedAt = addedAtUtc
         };

@@ -15,6 +15,7 @@ public class FilmService(
     CataloguePlayableSearchSync searchSync,
     IPlayableSocialRetraction socialRetraction,
     IIdentityMetadataEnricher identityMetadata,
+    IUrlMembershipLookup urlMembershipLookup,
     ILogger<FilmService> logger) : IFilmService
 {
     public async Task<FilmGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -77,6 +78,16 @@ public class FilmService(
                 return new FilmUpdateResult(FilmUpdateStatus.BadRequest, fieldError);
             }
 
+            var heldYouTube = await YouTubeAlternateOwnership.ConflictMessageIfHeld(
+                urlMembershipLookup,
+                YouTubeAlternateOwnership.NewFilmAlternateIds(film, request.Change),
+                [film.Id],
+                cancellationToken);
+            if (heldYouTube is not null)
+            {
+                return new FilmUpdateResult(FilmUpdateStatus.Conflict, heldYouTube);
+            }
+
             // Same decision as PostStatusApplier, without writing the film this request first read.
             // The replace below applies the request onto the film that wins the ETag race.
             var postStatus = new PostStatusChange(
@@ -108,7 +119,7 @@ public class FilmService(
             var metadata = await ReadIdentityMetadata(film, request.Change, cancellationToken);
             var skip = SkipFrom(request.Change);
             var refillEmptyAlternativeTitles = IdentityIdsChanged(film, request.Change) && request.Change.AlternativeTitles is null;
-            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds, metadata, skip, refillEmptyAlternativeTitles);
+            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds, metadata, skip, cancellationToken, refillEmptyAlternativeTitles);
             if (persisted.Result.Status != FilmUpdateStatus.Accepted || persisted.Film is null)
             {
                 return persisted.Result;
@@ -347,6 +358,7 @@ public class FilmService(
         IReadOnlySet<Guid> readTrailerIds,
         TmdbMovieMetadata? metadata,
         IdentityFieldSkip skip,
+        CancellationToken cancellationToken,
         bool refillEmptyAlternativeTitles = false)
     {
         var guardingTrailers = change.Trailers is not null;
@@ -394,6 +406,16 @@ public class FilmService(
                         "{method}: Keeping {count} trailer(s) attached to film '{filmId}' during this edit.",
                         nameof(SaveKeepingAttachedTrailers), attached, filmId);
                 }
+            }
+
+            var heldYouTube = await YouTubeAlternateOwnership.ConflictMessageIfHeld(
+                urlMembershipLookup,
+                YouTubeAlternateOwnership.NewFilmAlternateIds(latest.Film, change),
+                [latest.Film.Id],
+                cancellationToken);
+            if (heldYouTube is not null)
+            {
+                return new FilmPersist(new FilmUpdateResult(FilmUpdateStatus.Conflict, heldYouTube), null);
             }
 
             if (!TryApply(latest.Film, change, out _, out var applyError))

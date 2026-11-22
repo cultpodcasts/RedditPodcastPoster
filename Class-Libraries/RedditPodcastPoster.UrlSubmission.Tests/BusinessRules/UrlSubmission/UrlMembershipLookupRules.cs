@@ -20,6 +20,7 @@ using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.UrlSubmission.Tests.Support;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.YouTube;
 
 namespace RedditPodcastPoster.UrlSubmission.Tests.BusinessRules.UrlSubmission;
 
@@ -1227,5 +1228,64 @@ public class UrlMembershipLookupRules
             [StreamingServiceWire.ToKey(StreamingService.BbcIplayer)] = new() { Url = iplayerUrl },
             [StreamingServiceWire.ToKey(StreamingService.BbcSounds)] = new()
         };
+    }
+
+
+    [Fact(DisplayName =
+        "A YouTube URL held only as additionalYouTube on a podcast episode is a catalogue service-url owner of that episode, because an attach that deleted the source row must not be recreated by the indexer (RPP #1411 / #1068).")]
+    public async Task youtube_alternate_on_a_podcast_episode_is_a_catalogue_owner()
+    {
+        // Arrange
+        var url = YouTubeServiceUrl();
+        var podcastName = _fixture.CreateTitle();
+        var episode = new Episode
+        {
+            Id = _fixture.CreateGuid(),
+            PodcastId = _fixture.CreateGuid(),
+            PodcastName = podcastName,
+            Title = _fixture.CreateTitle(),
+            AdditionalYouTube =
+            [
+                new YouTubeAlternate { YouTubeId = RedditPodcastPoster.PodcastServices.YouTube.Resolvers.YouTubeIdResolver.Extract(url)!, Url = url, AddedAt = DateTime.UtcNow }
+            ]
+        };
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindCatalogueServiceUrlOwner(url, CancellationToken.None);
+
+        // Assert
+        owner.Should().NotBeNull();
+        owner!.ContentKind.Should().Be(SubmitClassification.Episode);
+        owner.ParentName.Should().Be(podcastName);
+        owner.PlayableId.Should().Be(episode.Id);
+        owner.ParentId.Should().Be(episode.PodcastId);
+    }
+
+    [Fact(DisplayName =
+        "A YouTube URL held only as additionalYouTube on a film, TV episode or news report is a catalogue service-url owner of that item (RPP #1411).")]
+    public async Task youtube_alternate_on_film_tv_or_news_is_a_catalogue_owner()
+    {
+        // Arrange
+        var url = YouTubeServiceUrl();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            AdditionalYouTube =
+            [
+                new YouTubeAlternate { YouTubeId = RedditPodcastPoster.PodcastServices.YouTube.Resolvers.YouTubeIdResolver.Extract(url)!, Url = url, AddedAt = DateTime.UtcNow }
+            ]
+        };
+        SetupFilms(film);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindCatalogueServiceUrlOwner(url, CancellationToken.None);
+
+        // Assert
+        owner.Should().NotBeNull();
+        owner!.ContentKind.Should().Be(SubmitClassification.Film);
+        owner.PlayableId.Should().Be(film.Id);
     }
 }

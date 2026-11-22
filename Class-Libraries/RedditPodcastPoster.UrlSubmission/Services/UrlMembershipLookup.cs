@@ -201,6 +201,23 @@ public class UrlMembershipLookup(
                 SubmitClassification.NewsReport, report.NewsOrganisationName, report.Id, report.NewsOrganisationId);
         }
 
+        // Podcast episodes too: after a YouTube-alternate attach (targetKind Episode) the source row is
+        // deleted and the url lives only on another episode's additionalYouTube. The indexer must treat
+        // that as owned so it does not recreate the deleted episode (#1068 / RPP #1411).
+        if (youTubeId != null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var podcastEpisode = await episodeRepository.GetBy(YouTubeStoredEquals(canonical));
+            if (podcastEpisode != null)
+            {
+                return new CatalogueServiceUrlOwner(
+                    SubmitClassification.Episode,
+                    podcastEpisode.PodcastName,
+                    podcastEpisode.Id,
+                    podcastEpisode.PodcastId);
+            }
+        }
+
         return null;
     }
 

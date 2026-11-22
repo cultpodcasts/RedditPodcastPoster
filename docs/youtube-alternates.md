@@ -43,6 +43,10 @@ episode row is gone is a 404.
 
 Edit Film can add or remove additional YouTube links through this PATCH.
 
+PATCH of `additionalYouTube` on news reports, TV episodes and podcast episodes is deferred to
+[#1526](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1526). Those kinds already store
+and display the list, and accept an attach / merge; only the Edit-item PATCH body is a follow-up.
+
 ## Indexer, discovery and paste-a-link
 
 A YouTube id that matches an alternate counts as already in the catalogue (`PlayableServiceUrlFilters` and
@@ -53,8 +57,27 @@ and Submit / paste-a-link resolve it to the owning item and do not recreate it a
 
 No extra search documents. The item's document carries a retrievable, non-searchable `youTubeAlternates` field:
 `{youTubeId}|{release}|{channelName}` (`YouTubeAlternateSearchToken`). The same field is written to Azure Search
-and to D1. The live Azure index must have the field (`CreateSearchIndex --update-existing`) before any document
-carries it. The D1 Worker accepts the field once its schema migration is applied (Api, merge that Worker first).
+and to D1. The Azure pull SQL (`PlayableSearchSql.SiblingQuery` for films, TV and news, and the episode
+datasource query in CreateSearchIndex) also projects `youTubeAlternates` from `additionalYouTube`, so a later
+pull or indexer run keeps the field. Push paths already send it.
+
+### Merge order
+
+1. Merge the Api PR first (Worker schema migration `0003_youtube_alternates.sql` and `SEARCH_SCHEMA_VERSION` 3).
+   Before merging, confirm `GET /search/admin/rebuild` shows no in-flight shadow and no parked generation, so a
+   mid-rebuild or a parked swap-back cannot restore a `search_docs` that lacks `youtube_alternates`.
+2. Then, **before this RPP PR**, Jon runs:
+
+   `CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcasts-ds --all-playables`
+
+   `--all-playables` is required so the TV and news sibling datasources get the new projection too (films are
+   push-only and do not use the pull SQL). Do not pass `--teardown-index`. `--reset-high-water-mark` is only
+   needed if existing pull-indexed documents already have `additionalYouTube` the previous query omitted; none
+   should, until this RPP is merged. Do not run this command as part of opening or reviewing the PR.
+3. Merge this RPP PR (it starts sending `youTubeAlternates` on search documents).
+4. Merge the website PR.
+
+The D1 Worker accepts the field once its schema migration is applied (step 1).
 
 ## Website
 

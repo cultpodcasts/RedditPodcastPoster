@@ -52,6 +52,7 @@ public class EpisodeFilmMoveService(
     IIdentityMetadataEnricher identityMetadata,
     IEpisodeServiceMaterialiser episodeServiceMaterialiser,
     IFileKeyAllocator fileKeyAllocator,
+    IUrlMembershipLookup urlMembershipLookup,
     ILogger<EpisodeFilmMoveService> logger) : IEpisodeFilmMoveService
 {
     public async Task<EpisodeFilmMoveResult> MoveAsync(EpisodeFilmMoveCommand command, CancellationToken cancellationToken)
@@ -252,6 +253,17 @@ public class EpisodeFilmMoveService(
                     EpisodeFilmMoveStatus.Conflict, latest.Id, latest.Name,
                     $"Film '{latest.Name}' already has a different {conflict.Service} link ({conflict.TargetUrl}). " +
                     "A film holds one link for this service.");
+            }
+
+            var heldYouTube = await YouTubeAlternateOwnership.ConflictMessageIfHeld(
+                urlMembershipLookup,
+                YouTubeAlternateOwnership.IdsAMergeWouldAdd(latest, source),
+                [latest.Id, episode.Id],
+                cancellationToken);
+            if (heldYouTube is not null)
+            {
+                return new EpisodeFilmMoveResult(
+                    EpisodeFilmMoveStatus.Conflict, latest.Id, latest.Name, heldYouTube);
             }
 
             var addedSubjects = episode.Subjects

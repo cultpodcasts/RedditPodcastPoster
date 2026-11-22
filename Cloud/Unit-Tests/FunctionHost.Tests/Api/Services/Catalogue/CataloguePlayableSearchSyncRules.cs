@@ -387,4 +387,21 @@ public class CataloguePlayableSearchSyncRules
         // Assert
         response.IndexerState.Should().Be(IndexerState.Failure);
     }
+
+
+    [Fact(DisplayName =
+        "When AfterSave is told the last additional YouTube upload was cleared, the pushed document sends youTubeAlternates as an empty array so Azure merge-or-upload drops the stale list (RPP #1411).")]
+    public async Task youtube_alternates_cleared_sends_empty_array()
+    {
+        // Arrange
+        var film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = _fixture.CreateDuration() };
+
+        // Act
+        await Sut.AfterSave(film, SocialPostRemovalTarget.For(film).Projection,
+            removedByChange: false, CancellationToken.None, youTubeAlternatesCleared: true);
+
+        // Assert
+        var document = _uploaded.Should().ContainSingle().Subject;
+        document.YouTubeAlternates.Should().BeEmpty();
+    }
 }

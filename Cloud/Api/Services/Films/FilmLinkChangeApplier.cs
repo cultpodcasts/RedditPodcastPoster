@@ -132,7 +132,7 @@ internal static partial class FilmLinkChangeApplier
     internal static bool TryValidateYouTubeAlternates(Film film, FilmChangeRequest change, out string? error)
     {
         error = null;
-        var primary = PrimaryYouTubeId(film);
+        var primary = ResultingPrimaryYouTubeId(film, change);
         var trailerIds = TrailerYouTubeIds(film);
         var promote = string.IsNullOrWhiteSpace(change.PromoteYouTubeId) ? null : change.PromoteYouTubeId.Trim();
         HashSet<string>? resultingIds = null;
@@ -317,6 +317,30 @@ internal static partial class FilmLinkChangeApplier
         }
 
         film.AdditionalYouTube = YouTubeAlternates.OrNull(remaining);
+    }
+
+    /// <summary>
+    /// The YouTube id the film will have as its primary after <see cref="Apply"/> runs <c>services</c>
+    /// (RPP #1411 review). Validation that rejects an additionalYouTube entry matching the primary must
+    /// use this, not the pre-PATCH primary, so a PATCH that moves the primary to X and also lists X as
+    /// an alternate is rejected.
+    /// </summary>
+    internal static string? ResultingPrimaryYouTubeId(Film film, FilmChangeRequest change)
+    {
+        if (change.Services is null)
+        {
+            return PrimaryYouTubeId(film);
+        }
+
+        var applied = Catalogue.PlayableServicesChangeApplier.Apply(film.Services, change.Services);
+        if (applied is not null &&
+            applied.TryGetValue(ServiceKeys.YouTube, out var link) &&
+            link?.Url is not null)
+        {
+            return YouTubeIdResolver.Extract(link.Url);
+        }
+
+        return null;
     }
 
     internal static string? PrimaryYouTubeId(Film film)

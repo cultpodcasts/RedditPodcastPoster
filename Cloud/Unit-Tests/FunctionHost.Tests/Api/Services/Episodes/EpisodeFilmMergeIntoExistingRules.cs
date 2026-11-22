@@ -26,6 +26,8 @@ using System.Text.Json;
 using Xunit;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Updaters;
+using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace FunctionHost.Tests.Api.Services.Episodes;
 
@@ -393,5 +395,33 @@ public class EpisodeFilmMergeIntoExistingRules
         _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
             m => m.MaterialiseAsync(It.IsAny<Podcast>(), It.Is<Episode>(e => e.Id == episode.Id), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+
+    [Fact(DisplayName =
+        "Merging into an existing film is a conflict naming the holder when the episode's YouTube id already belongs to another item (RPP #1411).")]
+    public async Task merge_is_conflict_when_another_item_holds_the_youtube_id()
+    {
+        // Arrange
+        var (podcast, episode) = SeedYouTubeEpisode();
+        var film = SeedFilm();
+        var holderId = _fixture.CreateGuid();
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode)!;
+        _mocker.GetMock<IUrlMembershipLookup>()
+            .Setup(lookup => lookup.FindCatalogueServiceUrlOwner(
+                It.Is<Uri>(url => url.ToString().Contains(youTubeId, StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueServiceUrlOwner("NewsReport", "Outlet", holderId));
+
+        // Act
+        var result = await Merge(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.Conflict);
+        result.Error.Should().Contain(youTubeId);
+        result.Error.Should().Contain("NewsReport");
+        result.Error.Should().Contain(holderId.ToString());
+        _filmSaves.Should().Be(0);
+        _episodes.GetStored(episode.Id).Should().NotBeNull();
     }
 }
