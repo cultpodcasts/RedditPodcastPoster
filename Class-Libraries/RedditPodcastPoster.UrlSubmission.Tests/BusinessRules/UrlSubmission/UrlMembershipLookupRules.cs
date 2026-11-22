@@ -1246,7 +1246,7 @@ public class UrlMembershipLookupRules
             Title = _fixture.CreateTitle(),
             AdditionalYouTube =
             [
-                new YouTubeAlternate { YouTubeId = RedditPodcastPoster.PodcastServices.YouTube.Resolvers.YouTubeIdResolver.Extract(url)!, Url = url, AddedAt = DateTime.UtcNow }
+                new YouTubeAlternate { YouTubeId = YouTubeIdResolver.Extract(url)!, Url = url, AddedAt = DateTime.UtcNow }
             ]
         };
         _episodes.Seed(episode);
@@ -1274,7 +1274,7 @@ public class UrlMembershipLookupRules
             Id = _fixture.CreateGuid(),
             AdditionalYouTube =
             [
-                new YouTubeAlternate { YouTubeId = RedditPodcastPoster.PodcastServices.YouTube.Resolvers.YouTubeIdResolver.Extract(url)!, Url = url, AddedAt = DateTime.UtcNow }
+                new YouTubeAlternate { YouTubeId = YouTubeIdResolver.Extract(url)!, Url = url, AddedAt = DateTime.UtcNow }
             ]
         };
         SetupFilms(film);
@@ -1287,5 +1287,89 @@ public class UrlMembershipLookupRules
         owner.Should().NotBeNull();
         owner!.ContentKind.Should().Be(SubmitClassification.Film);
         owner.PlayableId.Should().Be(film.Id);
+    }
+
+
+    [Fact(DisplayName =
+        "A YouTube URL that is a podcast episode's primary (ids.youtube or services.youtube) is not a catalogue service-url owner, because submit, discovery and the indexer keep the existing per-podcast merge (RPP #1411).")]
+    public async Task youtube_primary_on_a_podcast_episode_is_not_a_catalogue_owner()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube)!;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindCatalogueServiceUrlOwner(url, CancellationToken.None);
+
+        // Assert
+        owner.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "FindYouTubeHolderExcluding skips an excluded first film and returns the next film that also holds the id, because uniqueness must not miss a second holder (RPP #1411).")]
+    public async Task uniqueness_lookup_skips_an_excluded_film_and_returns_the_other()
+    {
+        // Arrange
+        var url = YouTubeServiceUrl();
+        var youTubeId = YouTubeIdResolver.Extract(url)!;
+        var target = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            YouTubeId = youTubeId,
+            Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = url } }
+        };
+        var other = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            YouTubeId = youTubeId,
+            Services = new Dictionary<string, ServiceLink> { [ServiceKeys.YouTube] = new() { Url = url } }
+        };
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
+            .ReturnsAsync((Expression<Func<Film, bool>> predicate) =>
+                new[] { target, other }.FirstOrDefault(predicate.Compile()));
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindYouTubeHolderExcluding(youTubeId, [target.Id], CancellationToken.None);
+
+        // Assert
+        owner.Should().NotBeNull();
+        owner!.ContentKind.Should().Be(SubmitClassification.Film);
+        owner.PlayableId.Should().Be(other.Id);
+    }
+
+    [Fact(DisplayName =
+        "FindYouTubeHolderExcluding skips an excluded source episode and returns a second podcast episode that holds the same primary YouTube id (RPP #1411).")]
+    public async Task uniqueness_lookup_skips_the_source_episode_and_returns_the_other()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var source = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var url = EpisodeServicePresence.TryGetUrl(source, ServiceKeys.YouTube)!;
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(source)!;
+        var otherPodcast = _fixture.CreatePodcast();
+        var other = _fixture.CreateStoredEpisodeWithYouTubeOnly(otherPodcast);
+        other.Ids = new EpisodeIds { YouTube = youTubeId };
+        other.Services = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.YouTube] = new() { Url = url }
+        };
+        _episodes.Seed(source);
+        _episodes.Seed(other);
+        var sut = _mocker.CreateInstance<UrlMembershipLookup>();
+
+        // Act
+        var owner = await sut.FindYouTubeHolderExcluding(youTubeId, [source.Id], CancellationToken.None);
+
+        // Assert
+        owner.Should().NotBeNull();
+        owner!.ContentKind.Should().Be(SubmitClassification.Episode);
+        owner.PlayableId.Should().Be(other.Id);
+        owner.ParentId.Should().Be(other.PodcastId);
     }
 }

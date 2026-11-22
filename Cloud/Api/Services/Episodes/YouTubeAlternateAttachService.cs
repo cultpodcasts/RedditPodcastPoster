@@ -381,7 +381,7 @@ public class YouTubeAlternateAttachService(
 
         var message = await YouTubeAlternateOwnership.ConflictMessageIfHeld(
             urlMembershipLookup,
-            YouTubeAlternateOwnership.IdsAMergeWouldAdd(target, source),
+            YouTubeAlternateOwnership.YouTubeIdsToCheckForMerge(target, source),
             except,
             cancellationToken);
         if (message is null)

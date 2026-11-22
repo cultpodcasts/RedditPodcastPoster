@@ -13,4 +13,17 @@ public interface IUrlMembershipLookup
     /// still persists podcasts. Other hosts return null without querying catalogue containers.
     /// </summary>
     Task<CatalogueServiceUrlOwner?> FindCatalogueServiceUrlOwner(Uri url, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The first catalogue item that already holds this YouTube id as a primary, an alternate, or a film
+    /// trailer, excluding <paramref name="exceptIds"/> (RPP #1411 curator uniqueness). Exclusions are
+    /// applied in the queries so a later holder is not missed when the first match is the source episode
+    /// or the target itself. Podcast-episode primaries are included (unlike
+    /// <see cref="FindCatalogueServiceUrlOwner"/>, which only treats episode <c>additionalYouTube</c> as
+    /// catalogue-owned so submit/discovery/indexer keep their existing per-podcast merge).
+    /// </summary>
+    Task<CatalogueServiceUrlOwner?> FindYouTubeHolderExcluding(
+        string youTubeId,
+        IReadOnlyCollection<Guid> exceptIds,
+        CancellationToken cancellationToken);
 }

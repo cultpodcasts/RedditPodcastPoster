@@ -782,8 +782,9 @@ public class FilmLinkUpdateRules
         var holderId = _fixture.CreateGuid();
         var film = CreateFilm();
         _mocker.GetMock<IUrlMembershipLookup>()
-            .Setup(lookup => lookup.FindCatalogueServiceUrlOwner(
-                It.Is<Uri>(url => url.ToString().Contains(heldId, StringComparison.Ordinal)),
+            .Setup(lookup => lookup.FindYouTubeHolderExcluding(
+                heldId,
+                It.IsAny<IReadOnlyCollection<Guid>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CatalogueServiceUrlOwner("NewsReport", "Outlet", holderId));
 

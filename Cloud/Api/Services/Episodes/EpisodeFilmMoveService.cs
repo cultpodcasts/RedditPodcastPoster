@@ -257,7 +257,7 @@ public class EpisodeFilmMoveService(
 
             var heldYouTube = await YouTubeAlternateOwnership.ConflictMessageIfHeld(
                 urlMembershipLookup,
-                YouTubeAlternateOwnership.IdsAMergeWouldAdd(latest, source),
+                YouTubeAlternateOwnership.YouTubeIdsToCheckForMerge(latest, source),
                 [latest.Id, episode.Id],
                 cancellationToken);
             if (heldYouTube is not null)

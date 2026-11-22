@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using Api.Models;
@@ -19,6 +20,7 @@ using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Cloudflare.Models;
 using RedditPodcastPoster.UrlShortening.Services;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using Xunit;
@@ -226,8 +228,9 @@ public class YouTubeAlternateAttachServiceRules
         var holderId = _fixture.CreateGuid();
         var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode)!;
         _mocker.GetMock<IUrlMembershipLookup>()
-            .Setup(lookup => lookup.FindCatalogueServiceUrlOwner(
-                It.Is<Uri>(url => url.ToString().Contains(youTubeId, StringComparison.Ordinal)),
+            .Setup(lookup => lookup.FindYouTubeHolderExcluding(
+                youTubeId,
+                It.IsAny<IReadOnlyCollection<Guid>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CatalogueServiceUrlOwner("Film", null, holderId));
 
@@ -347,5 +350,41 @@ public class YouTubeAlternateAttachServiceRules
         result.FailureIndexing.Should().BeTrue();
         _episodes.GetStored(episode.Id).Should().NotBeNull();
         _uploads.Should().HaveCountGreaterThan(1);
+    }
+
+
+    [Fact(DisplayName =
+        "Attaching is a conflict naming the second podcast episode when the source and that episode share a YouTube id, even though the source is excluded from the uniqueness query (RPP #1411).")]
+    public async Task attach_is_conflict_when_a_second_podcast_episode_holds_the_same_youtube_id()
+    {
+        // Arrange
+        var (podcast, episode) = SeedSource();
+        var otherPodcast = _fixture.CreatePodcast();
+        var other = _fixture.CreateStoredEpisodeWithYouTubeOnly(otherPodcast);
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode)!;
+        var url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube)!;
+        other.Ids = new EpisodeIds { YouTube = youTubeId };
+        other.Services = new Dictionary<string, ServiceLink>
+        {
+            [ServiceKeys.YouTube] = new() { Url = url }
+        };
+        other.Title = "Second Holder Episode";
+        other.PodcastName = otherPodcast.Name;
+        _episodes.Seed(other);
+        var news = SeedNews();
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions()));
+        _mocker.Use<IUrlMembershipLookup>(_mocker.CreateInstance<UrlMembershipLookup>());
+
+        // Act
+        var result = await Attach(podcast.Id, episode.Id, ContentKind.NewsReport, news.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeYouTubeAlternateAttachStatus.Conflict);
+        result.Error.Should().Contain(youTubeId);
+        result.Error.Should().Contain("Episode");
+        result.Error.Should().Contain(other.PodcastName);
+        result.Error.Should().Contain(other.Id.ToString());
+        _newsReplaces.Should().Be(0);
+        _episodes.GetStored(episode.Id).Should().NotBeNull();
     }
 }

@@ -13,9 +13,8 @@ namespace Api.Services;
 
 /// <summary>
 /// Cross-item uniqueness for YouTube ids (RPP #1411): a YouTube id may belong to only one playable.
-/// Looks up the holder with <see cref="IUrlMembershipLookup.FindCatalogueServiceUrlOwner"/> (films, TV,
-/// news, and podcast episodes, including additionalYouTube) and excludes the source episode being
-/// moved and the target itself.
+/// Looks up the holder with <see cref="IUrlMembershipLookup.FindYouTubeHolderExcluding"/>, which
+/// puts source/target exclusions in the queries and includes podcast-episode primaries.
 /// </summary>
 internal static class YouTubeAlternateOwnership
 {
@@ -37,20 +36,8 @@ internal static class YouTubeAlternateOwnership
         IEnumerable<Guid> exceptIds,
         CancellationToken cancellationToken)
     {
-        var url = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
-        var owner = await lookup.FindCatalogueServiceUrlOwner(url, cancellationToken);
-        if (owner is null)
-        {
-            return null;
-        }
-
-        var except = exceptIds as ISet<Guid> ?? exceptIds.ToHashSet();
-        if (owner.PlayableId is Guid id && except.Contains(id))
-        {
-            return null;
-        }
-
-        return owner;
+        var except = exceptIds as IReadOnlyCollection<Guid> ?? exceptIds.ToHashSet();
+        return await lookup.FindYouTubeHolderExcluding(youTubeId, except, cancellationToken);
     }
 
     public static IReadOnlyList<string> IdsAMergeWouldAdd(
@@ -72,6 +59,27 @@ internal static class YouTubeAlternateOwnership
         }
 
         if (plan.ToAdd.TryGetValue(ServiceKeys.YouTube, out var primary) && primary.Url is not null)
+        {
+            var id = YouTubeIdResolver.Extract(primary.Url);
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                ids.Add(id);
+            }
+        }
+
+        return ids.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    /// <summary>
+    /// YouTube ids a merge or attach is about, including a source id the target already holds, so a
+    /// second holder is still found when the target is excluded from the uniqueness query.
+    /// </summary>
+    public static IReadOnlyList<string> YouTubeIdsToCheckForMerge(
+        IPlayable target,
+        IReadOnlyDictionary<string, ServiceLink> source)
+    {
+        var ids = IdsAMergeWouldAdd(target, source).ToList();
+        if (source.TryGetValue(ServiceKeys.YouTube, out var primary) && primary.Url is not null)
         {
             var id = YouTubeIdResolver.Extract(primary.Url);
             if (!string.IsNullOrWhiteSpace(id))

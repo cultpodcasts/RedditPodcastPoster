@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.YouTube;
 using RedditPodcastPoster.Search.Formatting;
@@ -13,22 +14,25 @@ public class YouTubeAlternateSearchTokenRules
     public void format_and_for_cover_empty_pipe_and_non_utc_release()
     {
         // Arrange
-        var empty = new YouTubeAlternate { YouTubeId = "abc", Url = new Uri("https://www.youtube.com/watch?v=abc"), AddedAt = DateTime.UtcNow };
+        var utcRelease = DomainTestFixture.UtcDaysAgo(10);
+        var utcAtEvening = DomainTestFixture.UtcAtTime(-10, TimeSpan.FromHours(22));
+        var localRelease = new DateTime(utcAtEvening.Ticks, DateTimeKind.Local);
+        var empty = new YouTubeAlternate { YouTubeId = "abc", Url = new Uri("https://www.youtube.com/watch?v=abc"), AddedAt = DomainTestFixture.UtcToday };
         var piped = new YouTubeAlternate
         {
             YouTubeId = "def",
             Url = new Uri("https://www.youtube.com/watch?v=def"),
-            Release = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+            Release = utcRelease,
             ChannelName = "True | Crime Fix",
-            AddedAt = DateTime.UtcNow
+            AddedAt = DomainTestFixture.UtcToday
         };
         var local = new YouTubeAlternate
         {
             YouTubeId = "ghi",
             Url = new Uri("https://www.youtube.com/watch?v=ghi"),
-            Release = new DateTime(2024, 3, 1, 22, 0, 0, DateTimeKind.Local),
+            Release = localRelease,
             ChannelName = "Channel",
-            AddedAt = DateTime.UtcNow
+            AddedAt = DomainTestFixture.UtcToday
         };
         var film = new Film("Manic")
         {
@@ -45,7 +49,7 @@ public class YouTubeAlternateSearchTokenRules
 
         // Assert
         emptyToken.Should().Be("abc||");
-        pipedToken.Should().Be("def|2024-03-01|True | Crime Fix");
+        pipedToken.Should().Be($"def|{utcRelease.ToUniversalTime():yyyy-MM-dd}|True | Crime Fix");
         localToken.Should().Be($"ghi|{local.Release.Value.ToUniversalTime():yyyy-MM-dd}|Channel");
         tokens.Should().Equal(emptyToken, pipedToken);
         none.Should().BeNull();

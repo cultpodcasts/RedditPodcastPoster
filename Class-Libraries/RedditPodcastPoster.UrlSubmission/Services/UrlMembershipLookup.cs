@@ -201,13 +201,15 @@ public class UrlMembershipLookup(
                 SubmitClassification.NewsReport, report.NewsOrganisationName, report.Id, report.NewsOrganisationId);
         }
 
-        // Podcast episodes too: after a YouTube-alternate attach (targetKind Episode) the source row is
-        // deleted and the url lives only on another episode's additionalYouTube. The indexer must treat
-        // that as owned so it does not recreate the deleted episode (#1068 / RPP #1411).
+        // Podcast-episode additionalYouTube only: after a YouTube-alternate attach (targetKind Episode)
+        // the source row is deleted and the url lives only on another episode's additionalYouTube.
+        // Primary podcast-episode matches stay on the existing per-podcast merge, so submit, discovery
+        // and the indexer do not treat a live episode's own YouTube as catalogue-owned (#1068 / RPP #1411).
         if (youTubeId != null)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var podcastEpisode = await episodeRepository.GetBy(YouTubeStoredEquals(canonical));
+            var podcastEpisode = await episodeRepository.GetBy(
+                YouTubeAlternateEquals(canonical, stored, youTubeId));
             if (podcastEpisode != null)
             {
                 return new CatalogueServiceUrlOwner(
@@ -216,6 +218,71 @@ public class UrlMembershipLookup(
                     podcastEpisode.Id,
                     podcastEpisode.PodcastId);
             }
+        }
+
+        return null;
+    }
+
+    public async Task<CatalogueServiceUrlOwner?> FindYouTubeHolderExcluding(
+        string youTubeId,
+        IReadOnlyCollection<Guid> exceptIds,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(youTubeId);
+        ArgumentNullException.ThrowIfNull(exceptIds);
+
+        var url = new Uri($"https://www.youtube.com/watch?v={youTubeId}");
+        var canonical = CanonicalStoredUrl(url);
+        var stored = PodcastServiceUrlNormaliser.Stored(canonical, ServiceKeys.YouTube);
+        var except = exceptIds as IReadOnlySet<Guid> ?? exceptIds.ToHashSet();
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var film = await films.GetBy(AndIdNotIn(
+            PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(
+                ServiceKeys.YouTube, canonical, stored, youTubeId: youTubeId),
+            except,
+            item => item.Id));
+        if (film != null)
+        {
+            return new CatalogueServiceUrlOwner(SubmitClassification.Film, null, film.Id);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var tvEpisode = await tvShowEpisodes.GetBy(AndIdNotIn(
+            PlayableServiceUrlFilters.HoldsServiceUrlOrYouTubeAlternate<TvShowEpisode>(
+                ServiceKeys.YouTube, canonical, stored, youTubeId),
+            except,
+            item => item.Id));
+        if (tvEpisode != null)
+        {
+            return new CatalogueServiceUrlOwner(
+                SubmitClassification.TvShowEpisode, tvEpisode.TvShowName, tvEpisode.Id, tvEpisode.TvShowId);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var report = await newsReports.GetBy(AndIdNotIn(
+            PlayableServiceUrlFilters.HoldsServiceUrlOrYouTubeAlternate<NewsReport>(
+                ServiceKeys.YouTube, canonical, stored, youTubeId),
+            except,
+            item => item.Id));
+        if (report != null)
+        {
+            return new CatalogueServiceUrlOwner(
+                SubmitClassification.NewsReport, report.NewsOrganisationName, report.Id, report.NewsOrganisationId);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var podcastEpisode = await episodeRepository.GetBy(AndIdNotIn(
+            YouTubeStoredEquals(canonical),
+            except,
+            item => item.Id));
+        if (podcastEpisode != null)
+        {
+            return new CatalogueServiceUrlOwner(
+                SubmitClassification.Episode,
+                podcastEpisode.PodcastName,
+                podcastEpisode.Id,
+                podcastEpisode.PodcastId);
         }
 
         return null;
@@ -298,6 +365,51 @@ public class UrlMembershipLookup(
             (episode.Services != null &&
              (episode.Services[ServiceKeys.Apple].Url == url ||
               episode.Services[ServiceKeys.Apple].Url == cleaned));
+    }
+
+    /// <summary>
+    /// A podcast episode that holds this YouTube id only as an <c>additionalYouTube</c> entry, not as its primary.
+    /// </summary>
+    private static Expression<Func<Episode, bool>> YouTubeAlternateEquals(Uri url, Uri storedUrl, string youTubeId) =>
+        episode =>
+            episode.AdditionalYouTube != null &&
+            episode.AdditionalYouTube.Any(alternate =>
+                alternate.YouTubeId == youTubeId || alternate.Url == url || alternate.Url == storedUrl);
+
+    private static Expression<Func<T, bool>> AndIdNotIn<T>(
+        Expression<Func<T, bool>> holds,
+        IReadOnlySet<Guid> exceptIds,
+        Expression<Func<T, Guid>> idSelector)
+    {
+        if (exceptIds.Count == 0)
+        {
+            return holds;
+        }
+
+        var parameter = idSelector.Parameters[0];
+        Expression exclude = Expression.Constant(true);
+        foreach (var id in exceptIds)
+        {
+            exclude = Expression.AndAlso(
+                exclude,
+                Expression.NotEqual(idSelector.Body, Expression.Constant(id)));
+        }
+
+        var notExcluded = Expression.Lambda<Func<T, bool>>(exclude, parameter);
+        var combined = Expression.Parameter(typeof(T), "item");
+        var body = Expression.AndAlso(
+            ReplaceParameter(holds.Body, holds.Parameters[0], combined),
+            ReplaceParameter(notExcluded.Body, notExcluded.Parameters[0], combined));
+        return Expression.Lambda<Func<T, bool>>(body, combined);
+    }
+
+    private static Expression ReplaceParameter(Expression body, ParameterExpression from, ParameterExpression to) =>
+        new ParameterReplacer(from, to).Visit(body)!;
+
+    private sealed class ParameterReplacer(ParameterExpression from, ParameterExpression to) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node) =>
+            node == from ? to : base.VisitParameter(node);
     }
 
     private static Expression<Func<Episode, bool>> YouTubeStoredEquals(Uri url)

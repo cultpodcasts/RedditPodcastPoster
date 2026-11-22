@@ -1,4 +1,5 @@
 using FluentAssertions;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using Xunit;
@@ -52,7 +53,7 @@ public class ServiceLinkMergeRules
         plan.YouTubeAlternatesToAdd.Should().ContainSingle().Which.Url.Should().Be(new Uri("https://www.youtube.com/watch?v=GSIPAfDO_ec"));
         plan.HasWork.Should().BeTrue();
         ServiceLinkMerge.Apply(target, plan).Keys.Should().Equal(ServiceKeys.YouTube);
-        var alternates = ServiceLinkMerge.ApplyYouTubeAlternates(null, plan, new DateTime(2026, 11, 22, 0, 0, 0, DateTimeKind.Utc));
+        var alternates = ServiceLinkMerge.ApplyYouTubeAlternates(null, plan, DomainTestFixture.UtcToday);
         alternates.Should().ContainSingle().Which.YouTubeId.Should().Be("GSIPAfDO_ec");
     }
 
