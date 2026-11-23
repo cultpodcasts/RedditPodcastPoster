@@ -851,6 +851,7 @@ public partial class CreateSearchIndexProcessor(
                                         IIF({isAppleToken}, {appleToken},
                                             ({coalescedImageFallback}) ?? """")))) as image,
                             e.lang as lang,
+                            {PlayableSearchSql.YouTubeAlternatesProjection("e")} as youTubeAlternates,
                             e._ts
                             FROM episodes e
                             WHERE {ActiveEpisodesFilter}

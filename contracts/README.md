@@ -7,7 +7,7 @@ TypeScript types, Zod schemas and JSON Schema generated from the Azure Functions
 Shapes match the isolated-worker HTTP serializer: `[JsonPropertyName]`, UTC instants ending in `Z`, `TimeSpan` and `Guid` as strings, and string enum names where the property uses `JsonStringEnumConverter`. A field is optional only when the serializer omits it (`JsonIgnoreCondition.WhenWritingNull` or `WhenWritingDefault`). A nullable field without that attribute is required and may be JSON null.
 
 ```ts
-import type { EpisodeDto, EpisodeUpdateResponse, SearchIndexerState } from "@cultpodcasts/contracts"; <!-- pragma: allowlist secret -->
+import type { EpisodeDto, EpisodeUpdateResponse, PublicEpisodeDto, SearchIndexerState } from "@cultpodcasts/contracts"; <!-- pragma: allowlist secret -->
 import { episodeDtoSchema } from "@cultpodcasts/contracts/zod"; <!-- pragma: allowlist secret -->
 ```
 

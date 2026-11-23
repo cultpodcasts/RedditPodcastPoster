@@ -40,6 +40,7 @@ public static class PublicCatalogueMapper
                     Explicit = e.Explicit,
                     Subjects = NullIfEmpty(e.Subjects),
                     Urls = ToUrls(e.Services),
+                    AdditionalYouTube = ToPublicYouTube(e.AdditionalYouTube),
                     ImdbId = NullIfBlank(e.ImdbId),
                     TvdbId = e.TvdbId,
                     TmdbId = e.TmdbId
@@ -65,7 +66,8 @@ public static class PublicCatalogueMapper
                     Length = r.Length,
                     Explicit = r.Explicit,
                     Subjects = NullIfEmpty(r.Subjects),
-                    Urls = ToUrls(r.Services)
+                    Urls = ToUrls(r.Services),
+                    AdditionalYouTube = ToPublicYouTube(r.AdditionalYouTube)
                 })
                 .ToList()
         };
@@ -91,7 +93,8 @@ public static class PublicCatalogueMapper
                     Release = trailer.Release?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     Length = trailer.Length
                 }).ToList()
-                : null
+                : null,
+            AdditionalYouTube = ToPublicYouTube(film.AdditionalYouTube)
         };
 
     private static IEnumerable<T> NewestFirst<T>(IEnumerable<T> playables) where T : Playable =>
@@ -99,12 +102,26 @@ public static class PublicCatalogueMapper
             .OrderByDescending(p => p.Release?.ToSortUtc() ?? DateTime.MinValue)
             .ThenBy(p => p.Id);
 
+
+    internal static List<PublicYouTubeAlternate>? ToPublicYouTube(
+        IReadOnlyList<RedditPodcastPoster.Models.YouTube.YouTubeAlternate>? alternates) =>
+        alternates is { Count: > 0 }
+            ? alternates.Select(item => new PublicYouTubeAlternate
+            {
+                YouTubeId = item.YouTubeId,
+                Url = item.Url,
+                Title = string.IsNullOrWhiteSpace(item.Title) ? null : item.Title,
+                ChannelName = string.IsNullOrWhiteSpace(item.ChannelName) ? null : item.ChannelName,
+                Release = item.Release?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            }).ToList()
+            : null;
+
     private static SortedDictionary<string, Uri> ToUrls(Dictionary<string, ServiceLink>? services)
     {
         var urls = new SortedDictionary<string, Uri>(StringComparer.Ordinal);
         foreach (var (key, link) in services ?? [])
         {
-            if (link.Url is not null)
+            if (link?.Url is not null)
             {
                 urls[key] = link.Url;
             }

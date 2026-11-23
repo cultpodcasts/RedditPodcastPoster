@@ -4,6 +4,7 @@ using Microsoft.Azure.Cosmos.Linq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Playables;
 using RedditPodcastPoster.Persistence.Providers;
@@ -22,6 +23,29 @@ public class PlayableServiceUrlFilterTranslationRules
             {
                 UseSystemTextJsonSerializerWithOptions = new JsonSerializerOptionsProvider().GetJsonSerializerOptions()
             });
+
+    [Fact(DisplayName =
+        "When films with a Netflix link are projected to their stored Netflix URL, then the Cosmos SQL filters on " +
+        "services.netflix and selects only its url, so the #1517 legacy country /title/ lookup never reads whole documents.")]
+    public void has_service_link_with_service_url_projection_translates()
+    {
+        // Arrange
+        using var client = CreateClient();
+        var container = client.GetContainer("db", "films");
+
+        // Act
+        var sql = container.GetItemLinqQueryable<Film>()
+            .Where(PlayableServiceUrlFilters.HasServiceLink<Film>("netflix"))
+            .Select(PlayableServiceUrlFilters.ServiceUrl<Film>("netflix"))
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        sql.Should().Contain("SELECT VALUE");
+        sql.Should().Contain("[\"services\"][\"netflix\"]");
+        sql.Should().Contain("[\"url\"]");
+        sql.Should().Contain("!= null");
+    }
 
     [Fact(DisplayName =
         "When films are filtered by FilmHoldsServiceOrTrailerUrl, then the Cosmos SQL matches the service link or any trailers[].url, because URL membership and the indexer must recognise a trailer URL as already in the catalogue.")]
@@ -181,5 +205,59 @@ public class PlayableServiceUrlFilterTranslationRules
         }
 
         return -1;
+    }
+
+
+    [Fact(DisplayName =
+        "When films are filtered by FilmHoldsServiceOrTrailerUrl for YouTube, then the Cosmos SQL also matches additionalYouTube[].youTubeId, because an alternate upload is already in the catalogue (RPP #1411).")]
+    public void holds_service_or_trailer_url_translates_additionalYouTube()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var pasted = new Uri($"https://youtu.be/{videoId}");
+        var stored = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        using var client = CreateClient();
+        var container = client.GetContainer("db", "films");
+
+        // Act
+        var sql = container.GetItemLinqQueryable<Film>()
+            .Where(PlayableServiceUrlFilters.FilmHoldsServiceOrTrailerUrl(
+                ServiceKeys.YouTube, pasted, stored, youTubeId: videoId))
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        sql.Should().Contain("[\"additionalYouTube\"]");
+        sql.Should().Contain("[\"youTubeId\"]");
+        sql.Should().Contain(videoId);
+    }
+
+    [Fact(DisplayName =
+        "When TV episodes or news reports are filtered by HoldsServiceUrlOrYouTubeAlternate for YouTube, then the Cosmos SQL matches additionalYouTube[].youTubeId (RPP #1411).")]
+    public void holds_service_url_or_youtube_alternate_translates_additionalYouTube()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var pasted = new Uri($"https://youtu.be/{videoId}");
+        var stored = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        using var client = CreateClient();
+        var tvSql = client.GetContainer("db", "tv")
+            .GetItemLinqQueryable<TvShowEpisode>()
+            .Where(PlayableServiceUrlFilters.HoldsServiceUrlOrYouTubeAlternate<TvShowEpisode>(
+                ServiceKeys.YouTube, pasted, stored, videoId))
+            .ToQueryDefinition()
+            .QueryText;
+        var newsSql = client.GetContainer("db", "news")
+            .GetItemLinqQueryable<NewsReport>()
+            .Where(PlayableServiceUrlFilters.HoldsServiceUrlOrYouTubeAlternate<NewsReport>(
+                ServiceKeys.YouTube, pasted, stored, videoId))
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        tvSql.Should().Contain("[\"additionalYouTube\"]");
+        tvSql.Should().Contain("[\"youTubeId\"]");
+        newsSql.Should().Contain("[\"additionalYouTube\"]");
+        newsSql.Should().Contain(videoId);
     }
 }

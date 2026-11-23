@@ -31,6 +31,38 @@ public class EpisodeRepository(
         }
     }
 
+    public Task<ETagged<Episode>?> GetEpisodeWithETag(Guid podcastId, Guid episodeId) =>
+        CataloguePlayableFieldPatchOperations.ReadWithETag<Episode>(
+            container, episodeId.ToString(), ToPartitionKey(podcastId));
+
+    public async Task<bool> TryReplace(Episode episode, string etag)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(etag);
+        if (episode.Id == Guid.Empty || episode.PodcastId == Guid.Empty)
+        {
+            throw new ArgumentException("Episode Id and PodcastId must be set before replace.");
+        }
+
+        try
+        {
+            EpisodeServicePresence.FillYouTubeIdFromUrl(episode);
+            await container.ReplaceItemAsync(
+                episode,
+                episode.Id.ToString(),
+                ToPartitionKey(episode.PodcastId),
+                new ItemRequestOptions { IfMatchEtag = etag });
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.PreconditionFailed
+                                             or HttpStatusCode.NotFound)
+        {
+            logger.LogWarning(
+                "{method}: episode '{EpisodeId}' changed or was deleted since it was read ({status}).",
+                nameof(TryReplace), episode.Id, ex.StatusCode);
+            return false;
+        }
+    }
+
     public IAsyncEnumerable<Episode> GetAll()
     {
         return GetAllBy(_ => true);

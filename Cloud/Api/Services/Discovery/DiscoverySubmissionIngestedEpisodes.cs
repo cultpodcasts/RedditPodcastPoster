@@ -232,7 +232,7 @@ public sealed class DiscoverySubmissionIngestedEpisodes(
 
         if (ids.Spotify != null &&
             services.TryGetValue(ServiceKeys.Spotify, out var spotify) &&
-            spotify.Url != null &&
+            spotify?.Url != null &&
             SpotifyIdResolver.GetEpisodeId(spotify.Url) == ids.Spotify)
         {
             return true;
@@ -240,7 +240,7 @@ public sealed class DiscoverySubmissionIngestedEpisodes(
 
         if (ids.Apple != null &&
             services.TryGetValue(ServiceKeys.Apple, out var apple) &&
-            apple.Url != null &&
+            apple?.Url != null &&
             AppleIdResolver.GetEpisodeId(apple.Url) == ids.Apple)
         {
             return true;
@@ -248,7 +248,7 @@ public sealed class DiscoverySubmissionIngestedEpisodes(
 
         if (ids.YouTube != null &&
             services.TryGetValue(ServiceKeys.YouTube, out var youTube) &&
-            youTube.Url != null &&
+            youTube?.Url != null &&
             YouTubeIdResolver.Extract(youTube.Url) == ids.YouTube)
         {
             return true;

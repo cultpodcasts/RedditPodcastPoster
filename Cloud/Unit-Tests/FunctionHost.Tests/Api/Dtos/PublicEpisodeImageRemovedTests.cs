@@ -8,7 +8,7 @@ using Xunit;
 
 namespace FunctionHost.Tests.Api.Dtos;
 
-/// <summary>#1500: the public episode DTO exposes a curator-removed image as no image plus <c>imageRemoved</c>.</summary>
+/// <summary>#1500: the public episode DTO exposes a curator-removed image as no image plus <c>imageRemoved</c>. #1502: its ids and services stay JSON-identical to the domain types.</summary>
 public class PublicEpisodeImageRemovedTests
 {
     private static readonly JsonSerializerOptions ApiOptions = new(JsonSerializerDefaults.Web);
@@ -49,5 +49,26 @@ public class PublicEpisodeImageRemovedTests
         // Assert
         dto.ImageRemoved.Should().BeNull();
         json.TryGetProperty("imageRemoved", out _).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "The public episode DTO writes ids and services with the same JSON as the domain EpisodeIds and ServiceLink, so exporting it to the contracts package does not change the public wire bytes (#1502).")]
+    public void ids_and_services_json_matches_the_domain()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+
+        // Act
+        var dto = episode.ToDto(podcast);
+        var dtoIds = JsonSerializer.Serialize(dto.Ids, ApiOptions);
+        var dtoServices = JsonSerializer.Serialize(dto.Services, ApiOptions);
+        var domainIds = JsonSerializer.Serialize(episode.Ids, ApiOptions);
+        var domainServices = JsonSerializer.Serialize(episode.Services, ApiOptions);
+
+        // Assert
+        dtoIds.Should().Be(domainIds);
+        dtoServices.Should().Be(domainServices);
+        dto.Services.Should().NotBeNullOrEmpty();
     }
 }

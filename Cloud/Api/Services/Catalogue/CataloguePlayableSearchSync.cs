@@ -104,12 +104,17 @@ public class CataloguePlayableSearchSync(
     /// keep pushing before the index has the field), and merge-or-upload ignores an omitted field, so this sends
     /// <c>[]</c> to clear the stale list.
     /// </param>
+    /// <param name="youTubeAlternatesCleared">
+    /// True when the edit removed the film's last additional YouTube upload. Same merge-or-upload rule as
+    /// <paramref name="trailersCleared"/>: send <c>[]</c> so the stale list is cleared (RPP #1411).
+    /// </param>
     public Task<EntitySearchIndexerResponse?> AfterSave(
         Film film,
         PodcastEpisode shortLinkTarget,
         bool removedByChange,
         CancellationToken cancellationToken,
-        bool trailersCleared = false) =>
+        bool trailersCleared = false,
+        bool youTubeAlternatesCleared = false) =>
         AfterSave(
             film.Id,
             film.Name,
@@ -121,6 +126,11 @@ public class CataloguePlayableSearchSync(
                 if (trailersCleared && document.Trailers is null)
                 {
                     document.Trailers = [];
+                }
+
+                if (youTubeAlternatesCleared && document.YouTubeAlternates is null)
+                {
+                    document.YouTubeAlternates = [];
                 }
 
                 return document;

@@ -88,5 +88,5 @@ public static class PlayableServiceSearchIds
     }
 
     private static string? UrlOf(IReadOnlyDictionary<string, ServiceLink>? services, string key) =>
-        services is not null && services.TryGetValue(key, out var link) ? link.Url?.OriginalString : null;
+        services is not null && services.TryGetValue(key, out var link) ? link?.Url?.OriginalString : null;
 }

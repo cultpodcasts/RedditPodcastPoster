@@ -33,6 +33,7 @@ public sealed class D1SearchDocument
     [JsonPropertyName("subjects")] public string[]? Subjects { get; init; }
     [JsonPropertyName("image")] public string? Image { get; init; }
     [JsonPropertyName("trailers")] public string[]? Trailers { get; init; }
+    [JsonPropertyName("youTubeAlternates")] public string[]? YouTubeAlternates { get; init; }
     [JsonPropertyName("alternativeTitles")] public string[]? AlternativeTitles { get; init; }
     [JsonPropertyName("imdbId")] public string? ImdbId { get; init; }
     [JsonPropertyName("tmdbId")] public int? TmdbId { get; init; }

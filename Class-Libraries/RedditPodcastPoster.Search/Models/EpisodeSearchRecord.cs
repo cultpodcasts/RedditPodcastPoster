@@ -106,6 +106,17 @@ public class EpisodeSearchRecord
     public string[]? Trailers { get; set; }
 
     /// <summary>
+    /// Extra YouTube uploads of this item as <c>{youTubeId}|{release}|{channelName}</c>
+    /// (<see cref="Formatting.YouTubeAlternateSearchToken"/>; RPP #1411). Retrievable, not searchable, so it costs
+    /// no index terms. Null is omitted from the upload. The live index must have the field
+    /// (<c>CreateSearchIndex --update-existing</c>) before any document carries it, because Azure Search rejects a
+    /// document with an unknown field. Added to a live index the same way as <see cref="Trailers"/>.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [SimpleField(IsSortable = false, IsFacetable = false, IsFilterable = false)]
+    public string[]? YouTubeAlternates { get; set; }
+
+    /// <summary>
     /// Film only: other titles the film is known by (original, alternative and translated titles; RPP #1431).
     /// Searchable, so a search for "Father's House" finds Faderhuset, and retrievable for the film page.
     /// Null is omitted from the upload, so other kinds (and films with none) never send it. The live index must have

@@ -22,8 +22,49 @@ public static class PlayableServiceUrlFilters
                 (item.Services[serviceKey].Url == url || item.Services[serviceKey].Url == storedUrl);
 
     /// <summary>
+    /// Like <see cref="HoldsServiceUrl{TPlayable}"/>, and when <paramref name="serviceKey"/> is YouTube also
+    /// matches an <c>additionalYouTube</c> entry by video id or url (RPP #1411).
+    /// </summary>
+    public static Expression<Func<TPlayable, bool>> HoldsServiceUrlOrYouTubeAlternate<TPlayable>(
+        string serviceKey,
+        Uri url,
+        Uri storedUrl,
+        string? youTubeId = null)
+        where TPlayable : class, IPlayable
+    {
+        if (serviceKey == ServiceKeys.YouTube && !string.IsNullOrWhiteSpace(youTubeId))
+        {
+            var id = youTubeId;
+            return item =>
+                (item.Services != null &&
+                 (item.Services[serviceKey].Url == url || item.Services[serviceKey].Url == storedUrl)) ||
+                (item.AdditionalYouTube != null &&
+                 item.AdditionalYouTube.Any(alternate =>
+                     alternate.YouTubeId == id || alternate.Url == url || alternate.Url == storedUrl));
+        }
+
+        return HoldsServiceUrl<TPlayable>(serviceKey, url, storedUrl);
+    }
+
+    /// <summary>
+    /// Playables that have a <paramref name="serviceKey"/> link at all. In Cosmos a missing key is undefined, so
+    /// <c>!= null</c> is false for it (in-memory callers must only pass items that have the key or guard it).
+    /// </summary>
+    public static Expression<Func<TPlayable, bool>> HasServiceLink<TPlayable>(string serviceKey)
+        where TPlayable : class, IPlayable =>
+        item => item.Services != null && item.Services[serviceKey] != null;
+
+    /// <summary>
+    /// Projects only the stored <paramref name="serviceKey"/> URL (<c>SELECT VALUE c.services[key].url</c>), so a
+    /// caller can compare stored URLs in memory without reading whole documents (#1517 legacy Netflix title URLs).
+    /// </summary>
+    public static Expression<Func<TPlayable, Uri?>> ServiceUrl<TPlayable>(string serviceKey)
+        where TPlayable : class, IPlayable =>
+        item => item.Services![serviceKey].Url;
+
+    /// <summary>
     /// Films holding the URL as their <paramref name="serviceKey"/> link or as a trailer. An episode attached as a
-    /// trailer has its row deleted, so without the trailer match the same URL would be submitted or indexed again as a
+    /// trailer or as an additional YouTube upload (RPP #1411) has its row deleted, so without those matches the same URL would be submitted or indexed again as a
     /// new episode. Trailer match covers <c>trailers[].url</c> (playback), <c>trailers[].services[{key}].url</c>
     /// (source-episode platform URLs), and <c>trailers[].ids</c> for the platform of <paramref name="serviceKey"/>
     /// when the matching id is supplied.
@@ -78,6 +119,9 @@ public static class PlayableServiceUrlFilters
             return film =>
                 (film.Services != null &&
                  (film.Services[serviceKey].Url == url || film.Services[serviceKey].Url == storedUrl)) ||
+                (film.AdditionalYouTube != null &&
+                 film.AdditionalYouTube.Any(alternate =>
+                     alternate.YouTubeId == id || alternate.Url == url || alternate.Url == storedUrl)) ||
                 (film.Trailers != null &&
                  film.Trailers.Any(trailer =>
                      trailer.Url == url ||

@@ -26,6 +26,7 @@ public class ContractWireRules
             new[]
             {
                 "ApprovalStatusDto",
+                "ContentKindDto",
                 "EpisodeDto",
                 "EpisodeDtoMatchResult",
                 "EpisodeDtoPersonMatch",
@@ -33,6 +34,7 @@ public class ContractWireRules
                 "EpisodeImagesDto",
                 "EpisodeUpdateResponse",
                 "PersonDto",
+                "PublicEpisodeDto",
                 "SearchIndexerState",
                 "ServiceDto",
                 "ServiceLinkDto",
@@ -109,6 +111,52 @@ public class ContractWireRules
     }
 
     [Fact(DisplayName =
+        "When a PublicEpisodeDto is written by the HTTP serializer, then imageRemoved and the kind fields are omitted when null, image is written as null, and property order matches the generated contract, because website bookmarks read /public/episode/{id} through that contract (#1502).")]
+    public void public_episode_dto_matches_http_json()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+        var contract = document.Types.Single(type => type.Name == "PublicEpisodeDto");
+        var removed = new PublicEpisodeDto();
+        Populate(removed, 0);
+        removed.Image = null;
+        removed.ImageRemoved = true;
+        var kept = new PublicEpisodeDto();
+
+        // Act
+        using var removedJson = JsonDocument.Parse(JsonSerializer.Serialize(removed, _options));
+        using var keptJson = JsonDocument.Parse(JsonSerializer.Serialize(kept, _options));
+
+        // Assert
+        removedJson.RootElement.GetProperty("imageRemoved").GetBoolean().Should().BeTrue();
+        removedJson.RootElement.GetProperty("image").ValueKind.Should().Be(JsonValueKind.Null);
+        keptJson.RootElement.TryGetProperty("imageRemoved", out _).Should().BeFalse();
+        keptJson.RootElement.TryGetProperty("contentKind", out _).Should().BeFalse();
+        keptJson.RootElement.GetProperty("image").ValueKind.Should().Be(JsonValueKind.Null);
+        contract.Properties.Single(property => property.JsonName == "imageRemoved").Optional.Should().BeTrue();
+        AssertNullHandling(keptJson.RootElement, contract, kept);
+        AssertPropertyOrder(contract, removed);
+    }
+
+    [Fact(DisplayName =
+        "When TypeScript and Zod are rendered, then PublicEpisodeDto has an optional nullable imageRemoved and a required nullable image, matching the WhenWritingNull attributes on the C# DTO (#1502).")]
+    public void rendered_public_episode_has_optional_image_removed()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+
+        // Act
+        var files = ContractText.Render(document).ToDictionary(file => file.RelativePath, file => file.Contents);
+
+        // Assert
+        files[ContractPaths.TypeScript].Should().Contain("export interface PublicEpisodeDto {");
+        files[ContractPaths.TypeScript].Should().Contain("\n  imageRemoved?: boolean | null;\n");
+        files[ContractPaths.Zod].Should().Contain("publicEpisodeDtoSchema");
+        files[ContractPaths.Zod].Should().Contain("imageRemoved: z.boolean().nullable().optional(),");
+        files[ContractPaths.JsonSchema].Should().Contain("\"PublicEpisodeDto\"");
+    }
+
+    [Fact(DisplayName =
         "When TypeScript and Zod are rendered for the pilot, then the episode contract includes subjects, removed subjects, alternative titles, matches and searchIndexerState, because those are on the C# DTOs.")] // pragma: allowlist secret
     public void rendered_contracts_include_fields_missing_from_hand_written_clients()
     {
@@ -179,6 +227,28 @@ public class ContractWireRules
         files[ContractPaths.Zod].Should().Contain("appleId: z.number().int().nullable(),");
         files[ContractPaths.Zod].Should().Contain("lang: z.string().nullable(),");
         files[ContractPaths.Zod].Should().Contain("approvalStatus: approvalStatusDtoSchema.nullable().optional(),");
+    }
+
+    [Fact(DisplayName =
+        "When the contract is rendered, then contentKind on EpisodeDto and PublicEpisodeDto is the ContentKindDto string enum, exported as a const object plus a type of the same name, so clients compare against named members instead of string literals (#1508).")]
+    public void content_kind_exports_as_a_string_enum_const_object()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+
+        // Act
+        var files = ContractText.Render(document).ToDictionary(file => file.RelativePath, file => file.Contents);
+        var shape = document.Types.Single(type => type.Name == "ContentKindDto").Shape;
+
+        // Assert
+        shape.Should().Be(ContractShape.StringEnum);
+        files[ContractPaths.TypeScript].Should().Contain(
+            "export const ContentKindDto = {\n  Episode: \"Episode\",\n  TvShowEpisode: \"TvShowEpisode\",\n  Film: \"Film\",\n  NewsReport: \"NewsReport\",\n} as const;\n");
+        files[ContractPaths.TypeScript].Should().Contain(
+            "export type ContentKindDto = (typeof ContentKindDto)[keyof typeof ContentKindDto];");
+        files[ContractPaths.TypeScript].Should().NotContain("contentKind?: string");
+        files[ContractPaths.TypeScript].Should().Contain("\n  contentKind?: ContentKindDto | null;\n");
+        files[ContractPaths.Zod].Should().Contain("contentKind: contentKindDtoSchema.nullable().optional(),");
     }
 
     [Fact(DisplayName =

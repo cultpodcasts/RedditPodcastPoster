@@ -13,6 +13,15 @@ namespace RedditPodcastPoster.Persistence.Abstractions.Repositories;
 public interface IEpisodeRepository : IRepository<Episode>, IFilterableRepository<Episode>
 {
     Task<Episode?> GetEpisode(Guid podcastId, Guid episodeId);
+
+    /// <summary>Point read that also returns the ETag; null when the episode does not exist.</summary>
+    Task<ETagged<Episode>?> GetEpisodeWithETag(Guid podcastId, Guid episodeId);
+
+    /// <summary>
+    /// Replace the episode when its current ETag is <paramref name="etag"/>. False on a mismatch or a missing row.
+    /// Does not update homepage counts or the podcast's latest-release (callers use this when those have not changed).
+    /// </summary>
+    Task<bool> TryReplace(Episode episode, string etag);
     Task<int> Count(Guid podcastId);
     IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId);
     IAsyncEnumerable<Episode> GetByPodcastId(Guid podcastId, Expression<Func<Episode, bool>> selector);

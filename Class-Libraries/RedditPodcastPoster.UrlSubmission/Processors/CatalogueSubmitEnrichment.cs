@@ -104,9 +104,7 @@ public sealed class CatalogueSubmitEnrichment(
             Language = string.IsNullOrWhiteSpace(language) ? transient.Language : language,
             // The item's platform links (cloned, so nothing on the projection is shared back), so the submit
             // response's Spotify / Apple / YouTube flags and extra service keys describe the item.
-            Services = services?.ToDictionary(
-                pair => pair.Key,
-                pair => new ServiceLink { Url = pair.Value.Url, Image = pair.Value.Image, Language = pair.Value.Language })
+            Services = ServiceLinkMap.CloneWithoutNulls(services)
         };
         var subjectsResult = await subjectEnricher.EnrichSubjects(
             projection,

@@ -83,7 +83,10 @@ public static class SubmitContentClassifier
     {
         ArgumentNullException.ThrowIfNull(signals);
 
-        if (IsNetflixTitleHub(signals.Url))
+        // CLS-002: a Netflix /title/ page for a series is a catalogue hub (no TvShow stub), so it is rejected.
+        // #1517: a /title/ page whose primary type is Movie is the film's own page (films have no stable
+        // public watch URL), so it falls through to Film below.
+        if (IsNetflixTitleHub(signals.Url) && !IsStandaloneFilm(signals))
         {
             return new SubmitClassification(
                 SubmitClassification.Episode,
@@ -153,6 +156,9 @@ public static class SubmitContentClassifier
         return path.Contains("/title/", StringComparison.OrdinalIgnoreCase)
                && !path.Contains("/watch/", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsStandaloneFilm(SubmitClassificationSignals signals) =>
+        signals.MadeAsFilm && !signals.Series;
 
     public static bool IsVimeo(Uri url) => HostIs(url, "vimeo.com");
 

@@ -9,6 +9,7 @@ const OPTIONS = [
   { id: 'todo', name: 'Todo' },
   { id: 'in-progress', name: 'In Progress' },
   { id: 'rfr', name: 'Ready For Review' },
+  { id: 'blocked', name: 'Blocked' },
   { id: 'done', name: 'Done' },
 ];
 function item(status, { owner = 'cultpodcasts', number = 1 } = {}) {
@@ -23,7 +24,8 @@ function item(status, { owner = 'cultpodcasts', number = 1 } = {}) {
 // `closedBeforeRead` lists read indices before which a newer merge closes the issue
 // again (the automation then also sets Done). `issueState` is what the board query
 // sees for the issue (OPEN after the guard reopened it).
-function fakeBoard(initial, automationDoneBeforeRead = [], { issueState = 'OPEN', closedBeforeRead = [] } = {}) {
+// `history` = the issue's ProjectV2ItemStatusChangedEvent nodes (oldest first), see ev().
+function fakeBoard(initial, automationDoneBeforeRead = [], { issueState = 'OPEN', closedBeforeRead = [], history = [] } = {}) {
   let status = initial;
   let state = issueState;
   let reads = 0;
@@ -40,13 +42,16 @@ function fakeBoard(initial, automationDoneBeforeRead = [], { issueState = 'OPEN'
       status = 'Done';
     }
     reads++;
-    return { repository: { issue: { state, projectItems: { nodes: [item(status)] } } } };
+    return { repository: { issue: { state, projectItems: { nodes: [item(status)] }, timelineItems: { nodes: history } } } };
   };
   return { graphql, writes, get status() { return status; } };
 }
+function ev(previousStatus, status, { owner = 'cultpodcasts', number = 1 } = {}) {
+  return { previousStatus, status, project: { number, owner: { login: owner } } };
+}
 const noSleep = async () => {};
 
-test('RESTORE_STATUS is In Progress (Ready For Review means ready to merge)', () => {
+test('RESTORE_STATUS (fallback when the card has no status history) is In Progress', () => {
   assert.equal(g.RESTORE_STATUS, 'In Progress');
 });
 
@@ -513,12 +518,106 @@ test('run: final close with no open companions settles a stray In Progress card 
   assert.deepEqual(h.calls.order, []);
 });
 
-test('run: final close leaves a Ready For Review / Todo card alone (only stray In Progress is corrected)', async () => {
+test('run: final close settles a stray restored Ready For Review card to Done (#1514: final merge -> Done)', async () => {
   const board = fakeBoard('Ready For Review', [], { issueState: 'CLOSED' });
+  const h = harness({ ...ISSUE_1423, board, nodes: [] });
+  const r = await g.run(h.args);
+  assert.equal(r.settled, true);
+  assert.equal(board.status, 'Done');
+  assert.deepEqual(board.writes.map((w) => w.option), ['done']);
+});
+
+test('run: final close leaves a card with no Status alone', async () => {
+  const board = fakeBoard(null, [], { issueState: 'CLOSED' });
   const h = harness({ ...ISSUE_1423, board, nodes: [] });
   const r = await g.run(h.args);
   assert.equal(r.settled, false);
   assert.equal(board.writes.length, 0);
+});
+
+// cultpodcasts/RedditPodcastPoster#1514: #1510 merged and closed #1507 while its card
+// was in Ready For Review; Item closed set Done; the guard reopened it (Api#296 +
+// website#691 open) and moved the card to In Progress. It must keep Ready For Review.
+const HISTORY_1507 = [
+  ev('', 'In Progress'),
+  ev('In Progress', 'Ready For Review'),
+  ev('Ready For Review', 'In Progress'),
+  ev('In Progress', 'Ready For Review'),
+  ev('Ready For Review', 'Done'), // github-project-automation: Item closed
+];
+
+test('columnBeforeClose: newest non-Done status, skipping Done and other boards', () => {
+  assert.equal(g.columnBeforeClose(HISTORY_1507), 'Ready For Review');
+  // automation not landed yet: newest event's status is the pre-close column
+  assert.equal(g.columnBeforeClose(HISTORY_1507.slice(0, 4)), 'Ready For Review');
+  // repeated closes: Done -> Done chains are skipped back to the real column
+  assert.equal(g.columnBeforeClose([ev('', 'Blocked'), ev('Blocked', 'Done'), ev('Done', 'Done')]), 'Blocked');
+  assert.equal(g.columnBeforeClose([ev('', 'Todo'), ev('Todo', 'In Progress', { number: 2 }), ev('Todo', 'Done')]), 'Todo');
+  assert.equal(g.columnBeforeClose([ev('Todo', 'In Progress', { owner: 'someone' })]), null);
+  assert.equal(g.columnBeforeClose([]), null);
+  assert.equal(g.columnBeforeClose(undefined), null);
+});
+
+test('run: #1507 replay - Ready For Review card stays Ready For Review after the guard reopens', async () => {
+  const board = fakeBoard('Done', [], { history: HISTORY_1507 });
+  const h = harness({
+    repo: 'RedditPodcastPoster',
+    number: 1507,
+    projectToken: 'pat',
+    board,
+    nodes: [pr(RPP, 1510, 'MERGED'), pr('cultpodcasts/Api', 296, 'OPEN'), pr('cultpodcasts/website', 691, 'OPEN')],
+  });
+  const r = await g.run(h.args);
+  assert.equal(r.reopened, true);
+  assert.equal(r.board.status, 'Ready For Review');
+  assert.equal(board.status, 'Ready For Review');
+  assert.deepEqual(board.writes.map((w) => w.option), ['rfr'], 'never In Progress');
+  assert.equal(h.calls.warn.length, 0);
+});
+
+test('restore: Item closed automation lands after the first read -> pre-close column re-asserted', async () => {
+  // read0: still Ready For Review (stable 1); automation sets Done before read1 -> write RFR; then stable
+  const board = fakeBoard('Ready For Review', [1], { history: HISTORY_1507.slice(0, 4) });
+  const r = await g.restoreBoardStatus({ graphql: board.graphql, owner: 'cultpodcasts', repo: 'RedditPodcastPoster', number: 1507, sleep: noSleep });
+  assert.equal(r.restored, true);
+  assert.equal(r.status, 'Ready For Review');
+  assert.equal(board.status, 'Ready For Review');
+  assert.deepEqual(board.writes.map((w) => w.option), ['rfr']);
+});
+
+test('restore: Blocked / Todo cards are restored to their own column too', async () => {
+  for (const [col, id] of [['Blocked', 'blocked'], ['Todo', 'todo']]) {
+    const board = fakeBoard('Done', [], { history: [ev('', col), ev(col, 'Done')] });
+    const r = await g.restoreBoardStatus({ graphql: board.graphql, owner: 'cultpodcasts', repo: 'Api', number: 1, sleep: noSleep });
+    assert.equal(r.status, col);
+    assert.deepEqual(board.writes.map((w) => w.option), [id]);
+  }
+});
+
+test('restore: a card a human moved to another column meanwhile is left there', async () => {
+  // read0: Done -> write RFR; a human then moves it to In Progress before read1
+  let reads = 0;
+  const inner = fakeBoard('Done', [], { history: HISTORY_1507 });
+  const graphql = async (q, vars) => {
+    const res = await inner.graphql(q, vars);
+    if (!q.includes('updateProjectV2ItemFieldValue') && ++reads === 2) {
+      res.repository.issue.projectItems.nodes[0].fieldValueByName = { name: 'In Progress' };
+    }
+    return res;
+  };
+  const r = await g.restoreBoardStatus({ graphql, owner: 'cultpodcasts', repo: 'RedditPodcastPoster', number: 1507, sleep: noSleep });
+  assert.equal(r.restored, true);
+  assert.equal(r.status, 'In Progress');
+  assert.deepEqual(inner.writes.map((w) => w.option), ['rfr'], 'no second write over the human move');
+});
+
+test('run: restored comment / summary name the restored column; manual hint is not In Progress-only', async () => {
+  const board = fakeBoard('Done', [], { history: HISTORY_1507 });
+  const h = harness({ nodes: OPEN_247, projectToken: 'pat', board });
+  await g.run(h.args);
+  assert.match(h.calls.summary.join(''), /Board Ready For Review\./);
+  assert.match(g.buildComment([], { restored: true, status: 'Ready For Review' }), /restored to \*\*Ready For Review\*\*/);
+  assert.match(g.buildComment([], { reason: 'x' }), /column it was in before the close/);
 });
 
 test('run: #1423 replay - three merges, each run sees live state; no stale comment after the final close', async () => {

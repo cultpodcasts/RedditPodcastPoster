@@ -10,4 +10,10 @@ public class EpisodeFilmMoveRequest
 
     /// <summary>Candidate <c>key</c> when <see cref="IdentityDecision"/> is <c>select</c> (e.g. <c>tmdb:123</c>).</summary>
     public string? SelectedIdentityKey { get; set; }
+
+    /// <summary>
+    /// RPP #1522 Move to an existing film: the film to merge the episode into. Null (or empty) creates a new film from
+    /// the episode as before; when set, <see cref="Title"/> and the identity fields are ignored.
+    /// </summary>
+    public Guid? FilmId { get; set; }
 }

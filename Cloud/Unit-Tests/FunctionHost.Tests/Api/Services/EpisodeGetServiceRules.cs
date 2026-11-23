@@ -1,3 +1,5 @@
+using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.Podcasts;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -108,5 +110,48 @@ public class EpisodeGetServiceRules
         result.Kind!.ContentKind.Should().Be("TvShowEpisode");
         result.Kind.ParentName.Should().Be(show.Name);
         result.Kind.Path.Should().StartWith("/tv/");
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a TV episode's stored services hold a null entry, then the curator get still returns it without that key and with its real links, because a null entry is not a link and must not fail the Review page (#1508).")]
+    public async Task get_returns_catalogue_playable_with_null_services_entry()
+    {
+        // Arrange
+        var show = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var episode = new TvShowEpisode(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.Spotify] = null!,
+                [ServiceKeys.YouTube] = new() { Url = _fixture.Create<Uri>() }
+            }
+        };
+        episode.SetTvShowProperties(show);
+        var resolution = new CataloguePlayableResolution(
+            nameof(TvShowEpisode),
+            CatalogueParentKindMapper.ToPostProjection(episode, show),
+            show.Id,
+            show.Name,
+            show.Name,
+            Removed: false);
+        _mocker.GetMock<IPodcastEpisodeResolver>()
+            .Setup(r => r.ResolvePodcast(It.IsAny<PodcastEpisodeResolverRequest>(), It.IsAny<string>()))
+            .ReturnsAsync(new PodcastEpisodeResolverResponse(null, null, PodcastEpisodeResolveState.Resolved));
+        _mocker.GetMock<ICataloguePlayableResolver>()
+            .Setup(r => r.Resolve(episode.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(resolution);
+        _mocker.GetMock<ICachedSubjectProvider>()
+            .Setup(p => p.GetAll())
+            .Returns(AsyncEnumerable.Empty<RedditPodcastPoster.Models.Subjects.Subject>());
+        var sut = _mocker.CreateInstance<EpisodeGetService>();
+
+        // Act
+        var result = await sut.GetAsync(new PodcastEpisodeRequestWrapper(episode.Id), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodeGetStatus.Ok);
+        result.Episode!.Services.Should().NotContainKey(ServiceKeys.Spotify);
+        result.Episode.Services.Should().ContainKey(ServiceKeys.YouTube);
     }
 }

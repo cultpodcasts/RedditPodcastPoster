@@ -101,6 +101,29 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - Azure Functions Flex Consumption `instanceMemoryMB` is 512, 2048, or 4096.
 - Memory probing goes through `IMemoryProbeOrchestrator`: `Start(nameof(Class))` and `End()`. `MemoryProbeOptions` decides whether a session is created.
 
+## Review gate (HARD, cultpodcasts/RedditPodcastPoster#1507)
+
+`.github/workflows/review-gate.yml` publishes the commit status **`review-gate`** on every PR head SHA. It is red until the review-implement-pr reviewer says the **current head commit** is acceptable, so a PR cannot be merged mid-review. It does **not** look at CI: CI must be green separately.
+
+The reviewer's **final step** when its verdict is acceptable:
+
+1. Check that every other check for the head SHA has passed (`gh pr checks <n>`). Never mark a SHA while CI is pending or red.
+2. Post a PR **issue comment** (`gh pr comment <n>`) containing the marker for the **full 40-character head SHA** it reviewed. The summary can stay a COMMENT review; the marker goes in a separate one-line comment if needed:
+   `<!-- review-gate: acceptable sha=<head sha> -->`
+   Get the SHA with `gh pr view <n> --json headRefOid --jq .headRefOid`. To withdraw a verdict, post `<!-- review-gate: changes-requested sha=<head sha> -->`.
+3. **Then** add the label: `gh pr edit <n> --add-label review-acceptable` (marker first: a label without an acceptable marker for the head SHA is removed).
+4. Check `review-gate` is green (`gh pr checks <n>`), then move the card to Ready For Review.
+
+Rules:
+
+- Only the reviewer adds the marker and label. The implementor never does.
+- Markers count only in PR issue comments from OWNER, MEMBER or COLLABORATOR accounts. Markers in **review bodies**, on quoted (`>`) lines, inside fenced or indented code blocks, inside inline code spans, or for any other SHA are ignored. Comments are ordered by when they were created, so editing an old comment does not make its marker the latest; within one comment the last marker wins.
+- Any new push removes `review-acceptable` and turns the status red. That includes **merging main into the PR**: with "require branches to be up to date" on, that is a new SHA, so the reviewer must re-check and re-mark it. This is intended.
+- The workflow runs only on `pull_request_target` and `issue_comment`, which both use the workflow file and script from `main`, so editing the gate in a PR does not change that PR's result. `pull_request_review` is deliberately not a trigger, because it would run the PR's own copy of the workflow.
+- **Process interlock, not a security boundary.** The reviewer, the implementor and Jon all post as `cultpodcasts` (author association OWNER), and anyone with write access can add the label or post a status. "Only the reviewer marks" is enforced by agent rules, not by GitHub. (Possible future hardening: a separate reviewer GitHub App, with markers accepted only from its bot login.)
+- The job is named `publish-status`, not `review-gate`, so the only thing called `review-gate` is the commit status. GitHub would otherwise require a check run and a status of the same name.
+- Follow-on after merge (needs Jon's OK): require `review-gate` on `main`, with its source pinned to **GitHub Actions** (the app that posts the status), not "any source".
+
 ## Linking PRs to tickets (HARD)
 
 - Every PR for a ticket links it with a **closing keyword** so it shows under the issue's **Development** panel: same repo `Closes #N`; another repo `Closes cultpodcasts/<repo>#N` (e.g. Api / website companions of an RPP ticket: `Closes cultpodcasts/RedditPodcastPoster#N`). Do **not** use `Refs` for the ticket a PR delivers — `Refs` PRs are invisible under Development.
