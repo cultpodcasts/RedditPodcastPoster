@@ -88,6 +88,7 @@ public class ContractWireRules
         episode.ApprovalStatus = null;
         episode.ContentKind = null;
         episode.AlternativeTitles = null;
+        episode.ImageRemoved = null;
 
         // Act
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(episode, _options));
@@ -101,6 +102,7 @@ public class ContractWireRules
         json.RootElement.TryGetProperty("contentKind", out _).Should().BeFalse();
         json.RootElement.TryGetProperty("alternativeTitles", out _).Should().BeFalse();
         json.RootElement.TryGetProperty("approvalStatus", out _).Should().BeFalse();
+        json.RootElement.TryGetProperty("imageRemoved", out _).Should().BeFalse();
         json.RootElement.GetProperty("subjects").ValueKind.Should().Be(JsonValueKind.Array); // pragma: allowlist secret
         json.RootElement.GetProperty("removedSubjects").ValueKind.Should().Be(JsonValueKind.Array); // pragma: allowlist secret
         json.RootElement.GetProperty("matches").ValueKind.Should().Be(JsonValueKind.Array);
@@ -247,6 +249,26 @@ public class ContractWireRules
         files[ContractPaths.TypeScript].Should().NotContain("contentKind?: string");
         files[ContractPaths.TypeScript].Should().Contain("\n  contentKind?: ContentKindDto | null;\n");
         files[ContractPaths.Zod].Should().Contain("contentKind: contentKindDtoSchema.nullable().optional(),");
+    }
+
+    [Fact(DisplayName =
+        "When TypeScript and Zod are rendered, then EpisodeDto has an optional imageRemoved flag, because the curator episode JSON omits it unless a curator removed the image (RPP #1500, #1502).")]
+    public void episode_contract_has_optional_image_removed()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+        var contract = document.Types.Single(type => type.Name == "EpisodeDto");
+
+        // Act
+        var files = ContractText.Render(document).ToDictionary(file => file.RelativePath, file => file.Contents);
+
+        // Assert
+        contract.Properties.Single(property => property.JsonName == "imageRemoved").Optional.Should().BeTrue();
+        files[ContractPaths.TypeScript].Should().Contain("export interface EpisodeDto {");
+        files[ContractPaths.TypeScript].Should().Contain("\n  imageRemoved?: boolean | null;\n");
+        files[ContractPaths.Zod].Should().Contain("episodeDtoSchema");
+        files[ContractPaths.Zod].Should().Contain("imageRemoved: z.boolean().nullable().optional(),");
+        files[ContractPaths.JsonSchema].Should().Contain("\"EpisodeDto\"");
     }
 
     [Fact(DisplayName =

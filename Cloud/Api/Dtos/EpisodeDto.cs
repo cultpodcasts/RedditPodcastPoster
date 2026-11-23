@@ -199,6 +199,16 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string[]? AlternativeTitles { get; set; }
 
+    /// <summary>
+    /// RPP #1500: true when a curator removed this episode's image, so the site shows no art rather than the YouTube
+    /// thumbnail. Omitted otherwise (never <c>false</c>). Read-only: set and cleared by image edits, not by this field.
+    /// Same name, order and omission as <see cref="PublicEpisodeDto.ImageRemoved"/>.
+    /// </summary>
+    [JsonPropertyName("imageRemoved")]
+    [JsonPropertyOrder(252)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ImageRemoved { get; set; }
+
     /// <summary>Resolved people for <see cref="Guests"/> (curator edit).</summary>
     [JsonPropertyName("guestPeople")]
     [JsonPropertyOrder(270)]
