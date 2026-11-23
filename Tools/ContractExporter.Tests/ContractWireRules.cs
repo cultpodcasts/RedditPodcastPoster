@@ -257,13 +257,18 @@ public class ContractWireRules
     {
         // Arrange
         var document = ContractGraph.Build(_options);
+        var contract = document.Types.Single(type => type.Name == "EpisodeDto");
 
         // Act
         var files = ContractText.Render(document).ToDictionary(file => file.RelativePath, file => file.Contents);
 
         // Assert
+        contract.Properties.Single(property => property.JsonName == "imageRemoved").Optional.Should().BeTrue();
+        files[ContractPaths.TypeScript].Should().Contain("export interface EpisodeDto {");
         files[ContractPaths.TypeScript].Should().Contain("\n  imageRemoved?: boolean | null;\n");
+        files[ContractPaths.Zod].Should().Contain("episodeDtoSchema");
         files[ContractPaths.Zod].Should().Contain("imageRemoved: z.boolean().nullable().optional(),");
+        files[ContractPaths.JsonSchema].Should().Contain("\"EpisodeDto\"");
     }
 
     [Fact(DisplayName =
