@@ -19,6 +19,19 @@
 #
 # Only pull_request_target and issue_comment trigger this; both run this file and the
 # script from the default branch, so a PR cannot edit the gate to change its own result.
+# GitHub's default public-repo event policy currently warns (evaluate mode) and, from
+# 2 December 2026, will block pull_request_target unless an Actions event policy
+# explicitly allows it (https://github.blog/changelog/2026-11-02-pull_request_target-blocked-by-default-december-2/).
+# This workflow must keep pull_request_target: it has to run this file from the
+# default branch (a pull_request trigger would run the PR's own copy with a write
+# token), and it needs statuses/write and pull-requests/write. It never checks out
+# or executes PR code (ref is the default branch; persist-credentials is false).
+# Do not switch the trigger. Before 2 December 2026, an org or repo owner should
+# create an Actions event policy that allows pull_request_target for this file
+# only (.github/workflows/review-gate.yml), via workflow file targeting. See
+# https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target
+# and "Governing execution of GitHub Actions workflows". Agents must not change
+# repo or org Actions settings.
 # pull_request_review is NOT used: it would run the PR's own copy of this file with a
 # write token. PR code is never checked out or executed. Comment bodies are only parsed
 # in JavaScript, never interpolated into a shell or an expression.
@@ -59,7 +72,7 @@ jobs:
     if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: .github/scripts
