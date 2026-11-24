@@ -39,6 +39,8 @@ env:
   suffix: ${{ github.ref == 'refs/heads/main' && 'infra' || 'net11t' }}
   location: uksouth
   functionState: ${{ github.ref == 'refs/heads/main' && 'start' || 'stop' }}
+  # JSON boolean for functions.bicep. Kept here so the parameters string has no nested quotes (those break the workflow parser).
+  d1SearchProductionEnabled: ${{ github.ref == 'refs/heads/main' }}
   COSMOS_DEPLOYMENT_NAME: infra-cosmos
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
@@ -296,7 +298,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}", "d1SearchProductionEnabled": ${{ github.ref == 'refs/heads/main' }}}'
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}", "d1SearchProductionEnabled": ${{ env.d1SearchProductionEnabled }}}'
 
     - name: Set Function State
       if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.run_provision == 'true' }}
