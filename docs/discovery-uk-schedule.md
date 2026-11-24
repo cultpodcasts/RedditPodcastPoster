@@ -21,7 +21,7 @@ Cloud Discovery **will not invent a lookback window** when there is no prior suc
 .\scripts\publish-console-apps.ps1
 # or: dotnet publish Console-Apps/Discover/Discover.csproj -c Release -r win-x64
 
-$exe = ".\Console-Apps\Discover\bin\Release\net10.0\win-x64\Discover.exe"
+$exe = ".\Console-Apps\Discover\bin\Release\net11.0\win-x64\Discover.exe"
 # Choose an intentional window (UTC). Example: last 24 hours:
 & $exe --time-since (Get-Date).ToUniversalTime().AddHours(-24).ToString("yyyy-MM-ddTHH:mm:ssZ") `
   --include-listen-notes --include-taddy --include-youtube `

@@ -11,11 +11,11 @@ Production deploys are defined by:
 | [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | Build, test, provision (bicep), deploy all three function apps |
 | [`Infrastructure/function.bicep`](../Infrastructure/function.bicep) | Flex Consumption hosting, blob-container deployment target, app settings |
 | [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) | Per-app settings and module wiring |
-| [`global.json`](../global.json) | Pins **stable .NET SDK 10.0.x** for local CLI (`rollForward: latestFeature`). Never publish Functions with a preview SDK (e.g. .NET 11 preview). |
+| [`global.json`](../global.json) | Pins **stable .NET SDK 11.0.x** for local CLI (`rollForward: latestFeature`). Never publish Functions with a preview SDK. |
 
 **CI does not use local PowerShell scripts.** Agents must not replace or extend the CI mechanism without explicit user approval.
 
-Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-discover.ps1` / `deploy-indexer.ps1`) **refuses** to publish if `dotnet --version` is not stable `10.x` (preview/RC or other majors fail fast).
+Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-discover.ps1` / `deploy-indexer.ps1`) **refuses** to publish if `dotnet --version` is not stable `11.x` (preview/RC or other majors fail fast).
 
 ## CI vs local (1:1)
 
@@ -23,11 +23,13 @@ Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-di
 |------|-------------------|-------------------------------------|
 | Publish | `dotnet build -m:1` then `dotnet publish --no-build` (`-c Release -r linux-x64`, `SkipEnsureDependencyInjectionBuilt`) — avoids MSB4018 deps.json races on shared Class-Libraries | Same (`-c Release -r linux-x64` → `scripts/.deploy-local/<name>`; optional `-SingleNodeMsBuild`) |
 | Package | Folder artifact (Linux paths; `include-hidden-files: true` for `.azurefunctions/`) | `New-LinuxFunctionAppZip` — forward-slash zip (Windows and Linux) |
-| Deploy | `Azure/functions-action@v1` → `package: output/<name>` → `*-infra` | Upload `released-package.zip` to bicep deployment container → `az functionapp restart` |
+| Deploy | `Azure/functions-action@v1` → `package: output/<name>` → `api-${suffix}` / `discover-${suffix}` / `indexer-${suffix}` (`suffix` is `infra` on `main`) | Upload `released-package.zip` to bicep deployment container → `az functionapp restart` |
 | App settings | Bicep only | **Never changed** by deploy scripts |
 | Provision | Bicep when `Infrastructure/**` changes **or** manual `workflow_dispatch` with `run_provision=true`; Cosmos/functions before subscription budget; `*-deploy` requires `needs.provision.result == 'success'` **and** `needs.provision.outputs.deploy_allowed == 'true'` (latch + same-run gate; no package deploy on provision failure) | Not run locally — and local package upload **does not** honour `PROVISION_LATCH` (see § Provision latch) |
 
-**Manual run (main):** Actions → **Provision and Deploy** → **Run workflow** → branch `main`. Set **run_provision** to create/update Cosmos containers and function app settings even when this commit did not touch `Infrastructure/**` (e.g. retry after a failed provision). Leave it off to redeploy packages only. Provision failure still blocks `*-deploy`.
+**Manual run (main):** Actions → **Provision and Deploy** → **Run workflow** → branch `main`. Set **run_provision** to create/update Cosmos containers and function app settings even when this commit did not touch `Infrastructure/**` (e.g. retry after a failed provision). Leave it off to redeploy packages only. Provision failure still blocks `*-deploy`. `trial_resource_group` is ignored on `main`.
+
+**Branch trial:** Run workflow on a non-`main` branch and set **trial_resource_group** to a new group (not `AutomatedInfra`, not the Cosmos group). That run creates the group and deploys storage, Application Insights, and `api-net11t` / `discover-net11t` / `indexer-net11t` there. It does **not** deploy `cosmos-db.bicep` or Cosmos diagnostics; the apps read the existing account from Key Vault. D1 search sync is off. Apps are stopped after deploy so timers do not run against production data. The run does not set or clear `PROVISION_LATCH`. A push to a branch does not deploy; only this manual run does.
 
 ### PR gate (required check for `main`, #1374)
 

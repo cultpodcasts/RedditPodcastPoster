@@ -864,7 +864,7 @@ module apiFunction 'function.bicep' = {
     storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}api-deployment'
     runtime: runtime
-    runtimeVersion: '10.0'
+    runtimeVersion: '11.0'
     suffix: suffix
     publicNetworkAccess: true
     instanceMemoryMB: 2048
@@ -887,7 +887,7 @@ module discoveryFunction 'function.bicep' = {
     storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}discovery-deployment'
     runtime: runtime
-    runtimeVersion: '10.0'
+    runtimeVersion: '11.0'
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
@@ -909,7 +909,7 @@ module indexerFunction 'function.bicep' = {
     storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}indexer-deployment'
     runtime: runtime
-    runtimeVersion: '10.0'
+    runtimeVersion: '11.0'
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048

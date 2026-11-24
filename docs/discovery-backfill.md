@@ -14,7 +14,7 @@ Lookback is **Dynamic only**: `since = lastSuccess - discover__DynamicLookbackOv
 
 ## CLI — verified
 
-Executable: `Console-Apps/Discover/bin/Release/net10.0/win-x64/Discover.exe` (or publish via `.\scripts\publish-console-apps.ps1`).
+Executable: `Console-Apps/Discover/bin/Release/net11.0/win-x64/Discover.exe` (or publish via `.\scripts\publish-console-apps.ps1`).
 
 ```text
 Discover 1.0.0+...
@@ -71,7 +71,7 @@ Exit code `0`. Cosmos/API credentials were available via user secrets on the ope
 **Requires user approval before running against production Cosmos.**
 
 ```powershell
-$exe = ".\Console-Apps\Discover\bin\Release\net10.0\win-x64\Discover.exe"
+$exe = ".\Console-Apps\Discover\bin\Release\net11.0\win-x64\Discover.exe"
 & $exe --time-since "2026-07-18T20:00:00Z" `
   --include-listen-notes --include-taddy --include-youtube `
   --taddy-offset 02:00:00
@@ -84,7 +84,7 @@ Adjust `--time-since` to the intentional backfill start (UTC). Successful run pr
 For the miss under the **previous** schedule (`:33` UTC / 6h cadence). Prefer UK-slot-aware `--time-since` going forward.
 
 ```powershell
-$exe = ".\Console-Apps\Discover\bin\Release\net10.0\win-x64\Discover.exe"
+$exe = ".\Console-Apps\Discover\bin\Release\net11.0\win-x64\Discover.exe"
 & $exe --time-since "2026-06-10T20:20:00Z" `
   --include-listen-notes --include-taddy --include-youtube `
   --taddy-offset 02:00:00

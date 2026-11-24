@@ -20,8 +20,8 @@ param storageAccountName string
 param userAssignedIdentityClientId string
 
 @description('Target language version used by the function app.')
-@allowed([ '8.0', '9.0', '10.0'])
-param runtimeVersion string = '10.0' 
+@allowed([ '8.0', '9.0', '10.0', '11.0'])
+param runtimeVersion string = '11.0' 
 
 @description('Storage-container-blob-endpoint for this Function')
 param storageUrl string

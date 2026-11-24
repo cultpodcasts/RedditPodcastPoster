@@ -14,6 +14,10 @@ on:
         description: 'Break-glass only: allow *-deploy this run while PROVISION_LATCH is set. Does NOT clear the latch. Agents must never set this without explicit user approval in the current conversation.'
         type: boolean
         default: false
+      trial_resource_group:
+        description: 'Branch only. New resource group for storage, insights, and the three function apps. Refuses AutomatedInfra and the Cosmos resource group. Does not deploy Cosmos (apps use the existing account via Key Vault). Ignored on main.'
+        type: string
+        default: ''
 
 permissions:
   id-token: write
@@ -21,22 +25,23 @@ permissions:
   # PROVISION_LATCH set/clear uses secrets.RPP_VARIABLES_TOKEN (not a GITHUB_TOKEN permission).
 
 env:  
-  DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
+  # main → production AutomatedInfra. Any other ref → the workflow_dispatch trial group.
+  DEPLOYMENT_RESOURCEGROUP_NAME: ${{ github.ref == 'refs/heads/main' && 'AutomatedInfra' || inputs.trial_resource_group }}
   DATABASE_RESOURCEGROUP_NAME: ${{ secrets.DATABASE_RESOURCEGROUP_NAME }}
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
   BUDGET_ALERT_EMAIL: ${{ secrets.BUDGET_ALERT_EMAIL }}
   MONTHLY_FUNCTIONS_BUDGET_AMOUNT: '3'
-  storageName: cultpodcastsstg
-  suffix: infra
+  # Distinct names so a branch trial cannot take the production storage account or api-infra.
+  storageName: ${{ github.ref == 'refs/heads/main' && 'cultpodcastsstg' || 'cultpodnet11t' }}
+  suffix: ${{ github.ref == 'refs/heads/main' && 'infra' || 'net11t' }}
   location: uksouth
-  functionState: start
-  ALLOW_NON_MAIN_DEPLOY: 'true'
+  functionState: ${{ github.ref == 'refs/heads/main' && 'start' || 'stop' }}
   COSMOS_DEPLOYMENT_NAME: infra-cosmos
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
-  DOTNET_VERSION: '10.0.x' 
+  DOTNET_VERSION: '11.0.x' 
   buildConfiguration: 'Release'
   TARGET_RUNTIME: 'linux-x64'
   outputApi: 'output/api'
@@ -51,9 +56,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      # Paths-filter hit, or manual "Run workflow" on main with run_provision=true.
+      # Paths-filter hit, manual run_provision, or a branch trial (new resource group always needs bicep).
       # Authoritative gate for provision steps / archive-infrastructure (do not re-export the raw filter).
-      run_provision: ${{ steps.changes.outputs.infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_provision == 'true') }}
+      run_provision: ${{ steps.changes.outputs.infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_provision == 'true') || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && github.event.inputs.trial_resource_group != '') }}
     strategy:
       matrix:
         project:
@@ -83,7 +88,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore /p:Configuration=Release -r ${{ env.TARGET_RUNTIME }}
-    # Shared Class-Libraries write the same bin/Release/net10.0/*.deps.json. Parallel
+    # Shared Class-Libraries write the same bin/Release/net11.0/*.deps.json. Parallel
     # MSBuild nodes race on GenerateDepsFile (MSB4018, run 42713443340 attempt 1 on api).
     # EnsureDependencyInjectionBuilt is skipped when RuntimeIdentifier is set (-r), so the
     # deploy path has no serialize target. Build once single-node, then publish --no-build.
@@ -172,7 +177,7 @@ jobs:
   provision:
     runs-on: ubuntu-latest
     needs: [build, test, archive-infrastructure]
-    if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && github.event.inputs.trial_resource_group != '')
     continue-on-error: false
     permissions:
       id-token: write
@@ -184,6 +189,17 @@ jobs:
       # Same-run gate for *-deploy (vars context may not refresh after we clear the latch).
       deploy_allowed: ${{ steps.provision_latch.outputs.deploy_allowed }}
     steps:
+    - name: Trial resource group guard
+      if: github.ref != 'refs/heads/main'
+      run: |
+        set -euo pipefail
+        RG="${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}"
+        DB="${{ env.DATABASE_RESOURCEGROUP_NAME }}"
+        if [[ -z "$RG" || "$RG" == "AutomatedInfra" || "$RG" == "$DB" ]]; then
+          echo "::error::Branch deploy requires trial_resource_group, and it must not be AutomatedInfra or the Cosmos resource group ($DB)."
+          exit 1
+        fi
+        echo "Trial resource group: $RG (suffix ${{ env.suffix }}, storage ${{ env.storageName }}). Cosmos bicep is skipped."
     - name: Download bicep artifact
       uses: actions/download-artifact@v8
       if: needs.build.outputs.run_provision == 'true'
@@ -202,12 +218,21 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
 
+    - name: Create trial resource group
+      if: github.ref != 'refs/heads/main' && needs.build.outputs.run_provision == 'true'
+      uses: Azure/cli@v3.0.0
+      with:
+        azcliversion: latest
+        inlineScript: |
+          az group create --name ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }} --location ${{ env.location }}
+
     # Critical resources first. Budget is last: a budget-only failure must not
     # skip Cosmos/functions, but still fails this job so *-deploy does not run.
+    # Branch trials skip Cosmos entirely and keep the existing account (Key Vault secrets).
     - name: Cosmos DB (Deploy Bicep)
       id: bicepcosmosdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.run_provision == 'true'
+      if: needs.build.outputs.run_provision == 'true' && github.ref == 'refs/heads/main'
       with:
         type: deployment
         operation: create
@@ -220,7 +245,7 @@ jobs:
     - name: Cosmos DB diagnostics (Deploy Bicep)
       id: bicepcosmosdiagnosticsdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.run_provision == 'true'
+      if: needs.build.outputs.run_provision == 'true' && github.ref == 'refs/heads/main'
       with:
         type: deployment
         operation: create
@@ -269,7 +294,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}", "d1SearchProductionEnabled": ${{ github.ref == 'refs/heads/main' }}}'
 
     - name: Set Function State
       if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.run_provision == 'true' }}
@@ -309,9 +334,21 @@ jobs:
         LATCH_VALUE: ${{ vars.PROVISION_LATCH }}
       run: |
         set -euo pipefail
+        JOB_OK="${{ job.status }}"
+        # A branch trial must not set or clear the production latch.
+        if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+          if [[ "${JOB_OK}" == "success" ]]; then
+            echo "deploy_allowed=true" >> "$GITHUB_OUTPUT"
+            echo "Branch trial succeeded. PROVISION_LATCH was not changed. Cosmos was not deployed."
+          else
+            echo "deploy_allowed=false" >> "$GITHUB_OUTPUT"
+            echo "Branch trial failed. PROVISION_LATCH was not changed."
+          fi
+          exit 0
+        fi
+
         REPO="${{ github.repository }}"
         RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        JOB_OK="${{ job.status }}"
 
         if [[ -n "${RPP_VARIABLES_TOKEN:-}" ]]; then
           export GH_TOKEN="$RPP_VARIABLES_TOKEN"
@@ -369,7 +406,7 @@ jobs:
   api-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
+    if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && github.event.inputs.trial_resource_group != '')) && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -393,14 +430,14 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'api-infra'
+          app-name: api-${{ env.suffix }}
           slot-name: 'Production'
           package: ${{ env.outputApi }}
 
   discover-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
+    if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && github.event.inputs.trial_resource_group != '')) && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -424,14 +461,14 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'discover-infra'
+          app-name: discover-${{ env.suffix }}
           slot-name: 'Production'
           package: ${{ env.outputDiscover }}
 
   indexer-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
+    if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && github.event.inputs.trial_resource_group != '')) && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -455,7 +492,31 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'indexer-infra'
+          app-name: indexer-${{ env.suffix }}
           slot-name: 'Production'
           package: ${{ env.outputIndexer }}
+
+  # functions-action starts the apps. Trial timers would hit the existing Cosmos account
+  # and the production social secrets, so stop them again after the package deploy.
+  trial-stop:
+    runs-on: ubuntu-latest
+    needs: [api-deploy, discover-deploy, indexer-deploy]
+    if: github.ref != 'refs/heads/main' && needs.api-deploy.result == 'success' && needs.discover-deploy.result == 'success' && needs.indexer-deploy.result == 'success'
+    permissions:
+      id-token: write
+    steps:
+      - name: Login to Azure
+        uses: Azure/login@v3.1.0
+        with:
+          client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
+          tenant-id: ${{ secrets.AZURE_Tenant_ID }}
+          subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+      - name: Stop trial function apps
+        uses: Azure/cli@v3.0.0
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az functionapp stop --name api-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+            az functionapp stop --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+            az functionapp stop --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
 
