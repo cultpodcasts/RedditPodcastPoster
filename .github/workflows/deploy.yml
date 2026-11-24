@@ -500,8 +500,8 @@ jobs:
           slot-name: 'Production'
           package: ${{ env.outputIndexer }}
 
-  # functions-action starts the apps. Trial timers would hit the existing Cosmos account
-  # and the production social secrets, so stop them again after the package deploy.
+  # functions-action starts the apps. Confirm the isolated worker indexed functions, then stop
+  # them. Trial timers would hit the existing Cosmos account and the production social secrets.
   trial-stop:
     runs-on: ubuntu-latest
     needs: [api-deploy, discover-deploy, indexer-deploy]
@@ -515,7 +515,47 @@ jobs:
           client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
           tenant-id: ${{ secrets.AZURE_Tenant_ID }}
           subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+      - name: Confirm .NET 11 worker indexed functions
+        uses: Azure/cli@v3.0.0
+        with:
+          azcliversion: latest
+          inlineScript: |
+            set -euo pipefail
+            RG="${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}"
+            SUFFIX="${{ env.suffix }}"
+            # Authored entry points. Listing them means the isolated worker loaded the assembly.
+            # Do not call the functions: indexer and discovery timers would touch production data.
+            check_app() {
+              local app="$1" required="$2"
+              local runtime_name runtime_version
+              runtime_name="$(az functionapp show --resource-group "$RG" --name "$app" --query "functionAppConfig.runtime.name" -o tsv)"
+              runtime_version="$(az functionapp show --resource-group "$RG" --name "$app" --query "functionAppConfig.runtime.version" -o tsv)"
+              echo "$app runtime: ${runtime_name} ${runtime_version}"
+              if [[ "$runtime_name" != "dotnet-isolated" || "$runtime_version" != 11* ]]; then
+                echo "::error::$app runtime is ${runtime_name} ${runtime_version}; expected dotnet-isolated 11."
+                return 1
+              fi
+              az functionapp start --resource-group "$RG" --name "$app"
+              local attempt names
+              for attempt in $(seq 1 24); do
+                names="$(az functionapp function list --resource-group "$RG" --name "$app" --query "[].name" -o tsv 2>/dev/null || true)"
+                echo "$app attempt ${attempt}: ${names//$'\n'/, }"
+                if printf '%s\n' "$names" | grep -Eq "(^|/)${required}$"; then
+                  echo "$app indexed ${required}"
+                  return 0
+                fi
+                sleep 15
+              done
+              echo "::error::$app did not list ${required}. The .NET worker did not index functions."
+              return 1
+            }
+            failed=0
+            check_app "api-${SUFFIX}" "Test" || failed=1
+            check_app "discover-${SUFFIX}" "DiscoveryTrigger" || failed=1
+            check_app "indexer-${SUFFIX}" "Hourly" || failed=1
+            exit "$failed"
       - name: Stop trial function apps
+        if: always()
         uses: Azure/cli@v3.0.0
         with:
           azcliversion: latest
