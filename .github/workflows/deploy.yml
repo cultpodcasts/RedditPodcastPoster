@@ -15,7 +15,7 @@ on:
         type: boolean
         default: false
       trial_resource_group:
-        description: 'Branch only. New resource group for storage, insights, and the three function apps. Refuses AutomatedInfra and the Cosmos resource group. Does not deploy Cosmos (apps use the existing account via Key Vault). Ignored on main.'
+        description: 'Branch only. New resource group for storage, insights, and the three function apps. Refuses AutomatedInfra, Management, and the Cosmos resource group. Does not deploy Cosmos (apps use the existing account via Key Vault). Ignored on main.'
         type: string
         default: ''
 
@@ -36,6 +36,8 @@ env:
   MONTHLY_FUNCTIONS_BUDGET_AMOUNT: '3'
   # Distinct names so a branch trial cannot take the production storage account or api-infra.
   storageName: ${{ github.ref == 'refs/heads/main' && 'cultpodcastsstg' || 'cultpodnet11t' }}
+  # cultpodcastsstg stays kind Storage (one-way upgrade). New trial accounts reject Storage.
+  storageKind: ${{ github.ref == 'refs/heads/main' && 'Storage' || 'StorageV2' }}
   suffix: ${{ github.ref == 'refs/heads/main' && 'infra' || 'net11t' }}
   location: uksouth
   functionState: ${{ github.ref == 'refs/heads/main' && 'start' || 'stop' }}
@@ -199,13 +201,21 @@ jobs:
       if: github.ref != 'refs/heads/main'
       run: |
         set -euo pipefail
-        RG="${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}"
-        DB="${{ env.DATABASE_RESOURCEGROUP_NAME }}"
-        if [[ -z "$RG" || "$RG" == "AutomatedInfra" || "$RG" == "$DB" ]]; then
-          echo "::error::Branch deploy requires trial_resource_group, and it must not be AutomatedInfra or the Cosmos resource group ($DB)."
+        # From the environment, not ${{ }} inside quotes: double quotes still run command substitution.
+        RG="$DEPLOYMENT_RESOURCEGROUP_NAME"
+        DB="${DATABASE_RESOURCEGROUP_NAME:-}"
+        MGMT="${MANAGEMENT_RESOURCEGROUP_NAME:-}"
+        rg_lc="${RG,,}"
+        db_lc="${DB,,}"
+        mgmt_lc="${MGMT,,}"
+        if [[ ! "$RG" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,89}$ ]] \
+          || [[ "$rg_lc" == "automatedinfra" || "$rg_lc" == "management" || "$rg_lc" == "automateddata" ]] \
+          || [[ -n "$db_lc" && "$rg_lc" == "$db_lc" ]] \
+          || [[ -n "$mgmt_lc" && "$rg_lc" == "$mgmt_lc" ]]; then
+          echo "::error::Branch deploy requires trial_resource_group matching ^[A-Za-z0-9][A-Za-z0-9_-]{0,89}$, and it must not be AutomatedInfra, Management, or the Cosmos resource group."
           exit 1
         fi
-        echo "Trial resource group: $RG (suffix ${{ env.suffix }}, storage ${{ env.storageName }}). Cosmos bicep is skipped."
+        echo "Trial resource group: $RG (suffix ${suffix}, storage ${storageName}). Cosmos bicep is skipped."
     - name: Download bicep artifact
       uses: actions/download-artifact@v8
       if: needs.build.outputs.run_provision == 'true'
@@ -230,7 +240,8 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
-          az group create --name ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }} --location ${{ env.location }}
+          set -euo pipefail
+          az group create --name "$DEPLOYMENT_RESOURCEGROUP_NAME" --location "$location"
 
     # The workflow identity is subscription Contributor. That can create the group
     # and cannot grant itself User Access Administrator. The functions template
@@ -242,10 +253,15 @@ jobs:
         azcliversion: latest
         inlineScript: |
           set -euo pipefail
-          RG="${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}"
+          RG="$DEPLOYMENT_RESOURCEGROUP_NAME"
           SUB="${{ secrets.AZURE_Subscription_ID }}"
           SCOPE="/subscriptions/${SUB}/resourceGroups/${RG}"
-          COUNT="$(az role assignment list --assignee 95cf9d89-e437-472a-8c3d-b756b0974ced --role "User Access Administrator" --scope "$SCOPE" --query "length(@)" -o tsv)"
+          PRINCIPAL="$(python3 -c 'import json; print(json.load(open("Infrastructure/deployment-principal.json"))["assigneeObjectId"])')"
+          if [[ ! "$PRINCIPAL" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+            echo "::error::Infrastructure/deployment-principal.json assigneeObjectId is not a GUID."
+            exit 1
+          fi
+          COUNT="$(az role assignment list --assignee "$PRINCIPAL" --role "User Access Administrator" --scope "$SCOPE" --query "length(@)" -o tsv)"
           if [[ "${COUNT}" == "0" || -z "${COUNT}" ]]; then
             echo "::error::Deployment cannot assign roles in ${RG}. Signed in as an owner, run: pwsh ./scripts/enable-branch-trial-auth.ps1 -ResourceGroup ${RG} -Branch ${{ github.ref_name }}"
             exit 1
@@ -293,7 +309,7 @@ jobs:
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/function-storage.bicep
-        parameters: '{"location":"${{ env.location }}", "storageName":"${{ env.storageName }}"}'
+        parameters: '{"location":"${{ env.location }}", "storageName":"${{ env.storageName }}", "storageKind":"${{ env.storageKind }}"}'
     - name: Application-Insights (Deploy Bicep)
       id: bicepappinsightsdeploy
       uses: azure/bicep-deploy@v2.5.0
@@ -328,9 +344,10 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
-          az functionapp ${{ env.functionState }} --name api-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          set -euo pipefail
+          az functionapp "$functionState" --name "api-${suffix}" --resource-group "$DEPLOYMENT_RESOURCEGROUP_NAME"
+          az functionapp "$functionState" --name "indexer-${suffix}" --resource-group "$DEPLOYMENT_RESOURCEGROUP_NAME"
+          az functionapp "$functionState" --name "discover-${suffix}" --resource-group "$DEPLOYMENT_RESOURCEGROUP_NAME"
 
     # After Cosmos/functions. Must succeed for provision to pass (no continue-on-error).
     # A new budget cannot use the live budget's April 2026 start date, and that date must
@@ -524,12 +541,13 @@ jobs:
           slot-name: 'Production'
           package: ${{ env.outputIndexer }}
 
-  # functions-action starts the apps. Confirm the isolated worker indexed functions, then stop
-  # them. Trial timers would hit the existing Cosmos account and the production social secrets.
+  # functions-action starts the apps. Confirm the isolated worker and the timer-disable
+  # settings, then stop them. A partial success still stops: one started app would hit
+  # the existing Cosmos account and the production social secrets.
   trial-stop:
     runs-on: ubuntu-latest
     needs: [api-deploy, discover-deploy, indexer-deploy]
-    if: github.ref != 'refs/heads/main' && needs.api-deploy.result == 'success' && needs.discover-deploy.result == 'success' && needs.indexer-deploy.result == 'success'
+    if: ${{ always() && !cancelled() && github.ref != 'refs/heads/main' && (needs.api-deploy.result == 'success' || needs.discover-deploy.result == 'success' || needs.indexer-deploy.result == 'success') }}
     permissions:
       id-token: write
     steps:
@@ -539,17 +557,16 @@ jobs:
           client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
           tenant-id: ${{ secrets.AZURE_Tenant_ID }}
           subscription-id: ${{ secrets.AZURE_Subscription_ID }}
-      - name: Confirm .NET 11 worker indexed functions
+      - name: Confirm .NET 11 worker and disabled timers
         uses: Azure/cli@v3.0.0
         with:
           azcliversion: latest
           inlineScript: |
             set -euo pipefail
-            RG="${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}"
-            SUFFIX="${{ env.suffix }}"
-            # Do not start the apps. functions-action starts them; trial-stop stops them.
-            # Discover and indexer timers are disabled by disableScheduledFunctions, and this
-            # check must not call az functionapp start.
+            RG="$DEPLOYMENT_RESOURCEGROUP_NAME"
+            SUFFIX="$suffix"
+            # Do not start the apps. functions-action starts them; the next step stops them.
+            # This check must not call az functionapp start or az functionapp function list.
             check_app() {
               local app="$1"
               local runtime_name runtime_version
@@ -566,10 +583,50 @@ jobs:
                 return 1
               fi
             }
+            # Dotted AzureWebJobs.<Function>.Disabled is the documented control (functions.bicep
+            # discoverScheduleDisabled / indexerScheduleDisabled). AzureWebJobs_HalfHourly_Disabled
+            # is a different name and does not count.
+            require_disabled() {
+              local app="$1"
+              shift
+              local file
+              file="$(mktemp)"
+              az functionapp config appsettings list --resource-group "$RG" --name "$app" -o json > "$file"
+              python3 - "$file" "$@" <<'PY'
+            import json, sys
+            path, *keys = sys.argv[1:]
+            with open(path, encoding="utf-8") as handle:
+                rows = json.load(handle)
+            found = {row.get("name"): row.get("value") for row in rows}
+            failed = False
+            for key in keys:
+                value = found.get(key)
+                text = "" if value is None else str(value)
+                if text.lower() not in ("true", "1"):
+                    shown = text if text else "unset"
+                    print("::error::%s must be true or 1 (found %r). AzureWebJobs_*_Disabled does not satisfy this check." % (key, shown))
+                    failed = True
+                else:
+                    print("%s=%s" % (key, text))
+            sys.exit(1 if failed else 0)
+            PY
+              local status=$?
+              rm -f "$file"
+              return "$status"
+            }
             failed=0
             check_app "api-${SUFFIX}" || failed=1
             check_app "discover-${SUFFIX}" || failed=1
             check_app "indexer-${SUFFIX}" || failed=1
+            require_disabled "discover-${SUFFIX}" \
+              "AzureWebJobs.DiscoveryTrigger.Disabled" || failed=1
+            require_disabled "indexer-${SUFFIX}" \
+              "AzureWebJobs.Hourly.Disabled" \
+              "AzureWebJobs.HourlyCatchUp.Disabled" \
+              "AzureWebJobs.HalfHourly.Disabled" \
+              "AzureWebJobs.D1SearchReconcile.Disabled" \
+              "AzureWebJobs.SearchSuggestionsPublish.Disabled" \
+              "AzureWebJobs.YouTubeQuotaReport.Disabled" || failed=1
             exit "$failed"
       - name: Stop trial function apps
         if: always()
@@ -577,7 +634,12 @@ jobs:
         with:
           azcliversion: latest
           inlineScript: |
-            az functionapp stop --name api-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-            az functionapp stop --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-            az functionapp stop --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+            set -euo pipefail
+            RG="$DEPLOYMENT_RESOURCEGROUP_NAME"
+            SUFFIX="$suffix"
+            failed=0
+            az functionapp stop --name "api-${SUFFIX}" --resource-group "$RG" || failed=1
+            az functionapp stop --name "discover-${SUFFIX}" --resource-group "$RG" || failed=1
+            az functionapp stop --name "indexer-${SUFFIX}" --resource-group "$RG" || failed=1
+            exit "$failed"
 

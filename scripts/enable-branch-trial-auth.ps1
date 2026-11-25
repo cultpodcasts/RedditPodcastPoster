@@ -25,7 +25,8 @@ param(
 
     # User-assigned managed identity used by deploy.yml Azure Login. Federated
     # credentials live on this identity, not on an app registration.
-    [string]$AssigneeObjectId = '95cf9d89-e437-472a-8c3d-b756b0974ced',
+    # Empty uses Infrastructure/deployment-principal.json (the workflow preflight reads the same file).
+    [string]$AssigneeObjectId,
 
     [string]$IdentityName = 'Deployment',
 
@@ -48,6 +49,37 @@ if ([string]::IsNullOrWhiteSpace($Branch) -or $Branch -eq 'HEAD' -or $Branch -eq
 
 if ($Branch -match '\s') {
     throw "Branch name '$Branch' cannot contain whitespace."
+}
+
+# Same production groups the workflow guard refuses: AutomatedInfra, Management
+# (the Deployment identity's group), and the Cosmos group AutomatedData
+# (DATABASE_RESOURCEGROUP_NAME). Refuse before any Azure write.
+$productionGroups = @(
+    'AutomatedInfra',
+    'Management',
+    'AutomatedData',
+    $IdentityResourceGroup
+)
+if ([string]::IsNullOrWhiteSpace($ResourceGroup) -or $ResourceGroup -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]{0,89}$') {
+    throw "ResourceGroup '$ResourceGroup' must match ^[A-Za-z0-9][A-Za-z0-9_-]{0,89}$ and must not be empty."
+}
+foreach ($denied in $productionGroups) {
+    if ([string]::IsNullOrWhiteSpace($denied)) { continue }
+    if ($ResourceGroup.Equals($denied.Trim(), [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "ResourceGroup '$ResourceGroup' is a production group (AutomatedInfra, Management, or the Cosmos group AutomatedData). Refusing to create it or grant User Access Administrator."
+    }
+}
+
+$principalPath = Join-Path $PSScriptRoot '../Infrastructure/deployment-principal.json'
+if (-not (Test-Path -LiteralPath $principalPath)) {
+    throw "Deployment principal file not found: $principalPath"
+}
+$principal = Get-Content -LiteralPath $principalPath -Raw | ConvertFrom-Json
+if ([string]::IsNullOrWhiteSpace($AssigneeObjectId)) {
+    $AssigneeObjectId = [string]$principal.assigneeObjectId
+}
+if ($AssigneeObjectId -notmatch '^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$') {
+    throw "AssigneeObjectId '$AssigneeObjectId' is not a GUID. The shared source is Infrastructure/deployment-principal.json."
 }
 
 $account = az account show --query id -o tsv 2>$null
