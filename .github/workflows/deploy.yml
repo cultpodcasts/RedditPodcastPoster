@@ -530,8 +530,13 @@ jobs:
             check_app() {
               local app="$1" required="$2"
               local runtime_name runtime_version
-              runtime_name="$(az functionapp show --resource-group "$RG" --name "$app" --query "functionAppConfig.runtime.name" -o tsv)"
-              runtime_version="$(az functionapp show --resource-group "$RG" --name "$app" --query "functionAppConfig.runtime.version" -o tsv)"
+              # Current az returns the ARM envelope (properties.*). Older az flattened those fields.
+              runtime_name="$(az functionapp show --resource-group "$RG" --name "$app" --query "properties.functionAppConfig.runtime.name" -o tsv)"
+              runtime_version="$(az functionapp show --resource-group "$RG" --name "$app" --query "properties.functionAppConfig.runtime.version" -o tsv)"
+              if [[ -z "$runtime_name" ]]; then
+                runtime_name="$(az functionapp show --resource-group "$RG" --name "$app" --query "functionAppConfig.runtime.name" -o tsv)"
+                runtime_version="$(az functionapp show --resource-group "$RG" --name "$app" --query "functionAppConfig.runtime.version" -o tsv)"
+              fi
               echo "$app runtime: ${runtime_name} ${runtime_version}"
               if [[ "$runtime_name" != "dotnet-isolated" || "$runtime_version" != 11* ]]; then
                 echo "::error::$app runtime is ${runtime_name} ${runtime_version}; expected dotnet-isolated 11."
