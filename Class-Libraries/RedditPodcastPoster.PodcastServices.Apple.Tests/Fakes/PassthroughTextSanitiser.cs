@@ -21,7 +21,8 @@ internal sealed class PassthroughTextSanitiser : ITextSanitiser
         Regex? regex,
         string[] podcastKnownTerms,
         string[] subjectKnownTerms,
-        string? language = null) =>
+        string? language = null,
+        Guid? parentId = null) =>
         Task.FromResult(episodeTitle);
 
     public string SanitisePodcastName(string podcastName) => podcastName;

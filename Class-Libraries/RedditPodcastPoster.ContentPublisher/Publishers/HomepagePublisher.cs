@@ -99,6 +99,7 @@ public class HomepagePublisher(
                 podcasts.TryGetValue(episode.PodcastId, out var podcast);
                 return new PodcastResult
                 {
+                    ParentId = episode.PodcastId,
                     PodcastName = episode.PodcastName ?? podcast?.Name ?? string.Empty,
                     TitleRegex = podcast?.TitleRegex ?? string.Empty,
                     DescriptionRegex = podcast?.DescriptionRegex ?? string.Empty,
@@ -347,7 +348,8 @@ public class HomepagePublisher(
             titleRegex,
             podcastResult.KnownTerms ?? [],
             subjectKnownTerms,
-            podcastResult.Language);
+            podcastResult.Language,
+            podcastResult.ParentId == Guid.Empty ? null : podcastResult.ParentId);
 
         podcastResult.EpisodeDescription = SanitiseDescription(podcastResult, rawEpisodeTitle, textSanitiser);
         return podcastResult;
@@ -356,7 +358,7 @@ public class HomepagePublisher(
     /// <summary>
     /// Sanitises a homepage episode's description. The description regex tokens
     /// (<c>{episode-title}</c>, <c>{podcast-name}</c>) are resolved from <paramref name="rawEpisodeTitle" />, the title
-    /// captured before <see cref="ITextSanitiser.SanitiseTitle(string, Regex?, string[], string[], string?)" />
+    /// captured before <see cref="ITextSanitiser.SanitiseTitle(string, Regex?, string[], string[], string?, Guid?)" />
     /// rewrites it, because the raw title is what the feed description starts with.
     /// </summary>
     internal static string SanitiseDescription(
