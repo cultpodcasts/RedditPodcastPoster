@@ -201,7 +201,7 @@ jobs:
       if: github.ref != 'refs/heads/main'
       run: |
         set -euo pipefail
-        # From the environment, not ${{ }} inside quotes: double quotes still run command substitution.
+        # Read the group name from the process environment. Pasting it into this script would still run command substitution inside double quotes.
         RG="$DEPLOYMENT_RESOURCEGROUP_NAME"
         DB="${DATABASE_RESOURCEGROUP_NAME:-}"
         MGMT="${MANAGEMENT_RESOURCEGROUP_NAME:-}"
