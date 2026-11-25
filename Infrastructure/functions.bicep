@@ -155,6 +155,8 @@ resource storageQueueService 'Microsoft.Storage/storageAccounts/queueServices@20
 
 // The scale controller queries this poison queue on every host start. The apply
 // function only created the primary queue, so GetProperties returned 404.
+// Name is DiscoverySubmissionApplyQueueMessage.PoisonQueueName
+// ("discovery-submission-apply" + "-poison"). Do not drift from that constant.
 resource discoverySubmissionApplyPoisonQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2022-05-01' = {
   parent: storageQueueService
   name: 'discovery-submission-apply-poison'

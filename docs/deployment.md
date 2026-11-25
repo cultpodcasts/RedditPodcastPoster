@@ -150,6 +150,12 @@ az functionapp restart -g AutomatedInfra -n discover-infra
 
 This is what `deploy-function-local.ps1` does in `FlexBlob` mode (default). Proven when OneDeploy paths fail from Windows (`az webapp deploy` / `az functionapp deploy --src-path` can return 502 on these Flex hosts).
 
+### Always-ready durable instances
+
+`discover-infra` and `indexer-infra` set `scaleAndConcurrency.alwaysReady` with name `durable` and `instanceCount` 1 through [`function.bicep`](../Infrastructure/function.bicep) (`durableAlwaysReadyCount`). That name is the Flex Consumption scale group for orchestration, activity, and entity triggers. Timer triggers schedule orchestrations onto that group; with zero always-ready instances the group never starts and orchestrations stay Pending. `api-infra` stays at the default 0 because it has no durable triggers.
+
+`deploy.yml` applies the group when it provisions because `Infrastructure/**` changed. A package-only deploy, including local `scripts/deploy-*.ps1`, does not run bicep, so it does not set the `durable` group and does not create the `discovery-submission-apply-poison` queue. That poison queue is the same [`functions.bicep`](../Infrastructure/functions.bicep) deployment; its name is `DiscoverySubmissionApplyQueueMessage.PoisonQueueName`.
+
 ### Do not change app settings
 
 Local deploy scripts are **code-only**. App settings come from bicep ([`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep)). Never add `az functionapp config appsettings set` to deploy scripts unless the user explicitly requests it.
