@@ -4,7 +4,7 @@ using Azure.Diagnostics;
 using FluentAssertions;
 using Indexer.Activities;
 using Indexer.Services;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -36,6 +36,9 @@ public class IndexerActivityParentFailureRules
         _mocker.GetMock<IMemoryProbeOrchestrator>()
             .Setup(x => x.Start(It.IsAny<string>()))
             .Returns(() => _mocker.GetMock<IMemoryProbeScope>().Object);
+        _mocker.GetMock<FunctionContext>()
+            .SetupGet(x => x.InvocationId)
+            .Returns(_fixture.Create<string>());
         _mocker.GetMock<IPodcastsUpdater>()
             .Setup(x => x.UpdatePodcasts(It.IsAny<Guid[]>(), It.IsAny<IndexingContext>()))
             .ReturnsAsync(true);
@@ -52,7 +55,7 @@ public class IndexerActivityParentFailureRules
     }
 
     private Task<IndexerContext> Run() =>
-        _mocker.CreateInstance<Activities.Indexer>().RunAsync(_mocker.GetMock<TaskActivityContext>().Object, _wrapper);
+        _mocker.CreateInstance<Activities.Indexer>().Run(_wrapper, _mocker.GetMock<FunctionContext>().Object);
 
     [Fact(DisplayName =
         "Indexer pass: when the podcast batch throws, then the TV/News parents for the pass are still indexed and " +

@@ -1,4 +1,4 @@
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure.Diagnostics;
@@ -12,7 +12,6 @@ using RedditPodcastPoster.Search.Services;
 
 namespace Indexer.Activities;
 
-[DurableTask(nameof(Publisher))]
 public class Publisher(
     IHomepagePublisher contentPublisher,
     ISearchIndexerService searchIndexerService,
@@ -22,18 +21,20 @@ public class Publisher(
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Publisher> logger)
-    : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
-    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
+    [Function(nameof(Publisher))]
+    public async Task<IndexerContext> Run(
+        [ActivityTrigger] IndexerContext indexerContext,
+        FunctionContext functionContext)
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Publisher));
 
         logger.LogInformation(
             "{nameofPublisher} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
-            nameof(Publisher), context.InstanceId);
+            nameof(Publisher), functionContext.InvocationId);
         logger.LogInformation(indexerContext.ToString());
 
         if (!activityOptionsProvider.RunPublisher(out var reason))
@@ -71,7 +72,7 @@ public class Publisher(
         await PushFilms();
         memoryProbe.End();
 
-        logger.LogInformation("{nameofRunAsync} Completed", nameof(RunAsync));
+        logger.LogInformation("{nameofRun} Completed", nameof(Run));
         return indexerContext with { Success = true };
     }
 

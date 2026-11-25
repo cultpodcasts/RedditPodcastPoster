@@ -1,4 +1,4 @@
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure.Diagnostics;
@@ -10,23 +10,24 @@ using RedditPodcastPoster.Configuration.Options;
 
 namespace Indexer.Activities;
 
-[DurableTask(nameof(LoadRecentCandidates))]
 public class LoadRecentCandidates(
     IRecentEpisodeCandidatesProvider recentEpisodeCandidatesProvider,
     IOptions<PostingCriteria> postingCriteria,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<LoadRecentCandidates> logger)
-    : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
-    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
+    [Function(nameof(LoadRecentCandidates))]
+    public async Task<IndexerContext> Run(
+        [ActivityTrigger] IndexerContext indexerContext,
+        FunctionContext functionContext)
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(LoadRecentCandidates));
 
         logger.LogInformation(
             "{LoadRecentCandidatesName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.",
-            nameof(LoadRecentCandidates), context.InstanceId);
+            nameof(LoadRecentCandidates), functionContext.InvocationId);
         logger.LogInformation(indexerContext.ToString());
 
         if (indexerContext.RecentEpisodeCandidates != null)

@@ -1,4 +1,4 @@
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure.Diagnostics;
@@ -9,25 +9,26 @@ using RedditPodcastPoster.Configuration.Options;
 
 namespace Indexer.Activities;
 
-[DurableTask(nameof(Bluesky))]
 public class Bluesky(
     IBlueskyPostManager blueskyPostManager,
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Bluesky> logger)
-    : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
-    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
+    [Function(nameof(Bluesky))]
+    public async Task<IndexerContext> Run(
+        [ActivityTrigger] IndexerContext indexerContext,
+        FunctionContext functionContext)
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Bluesky));
 
         logger.LogInformation(
             "{BlueskyName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.", nameof(Bluesky),
-            context.InstanceId);
+            functionContext.InvocationId);
         logger.LogInformation(indexerContext.ToString());
 
         if (!activityOptionsProvider.RunBluesky(out var reason))
@@ -56,7 +57,7 @@ public class Bluesky(
 
         memoryProbe.End();
 
-        logger.LogInformation("{method} Completed", nameof(RunAsync));
+        logger.LogInformation("{method} Completed", nameof(Run));
         return indexerContext with { Success = true };
     }
 }

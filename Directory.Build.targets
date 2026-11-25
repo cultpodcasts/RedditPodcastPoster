@@ -36,6 +36,8 @@
     (Azure.Functions.Sdk.Inner.props) and DurableTask pulls Microsoft.AspNetCore.WebUtilities
     2.3.0 (NU1902, GHSA-6527-9fp8-r4x6, patched in 2.3.14). WebUtilities 11.0.0 cannot restore
     onto net10.0, so pin the newest 10.0 release, which is outside the advisory.
+    The generated path is combined with the host separator: Build and deploy run on Ubuntu, and
+    File.Exists treats a backslash as part of the filename there. A missing project fails the build.
   -->
   <UsingTask TaskName="PinFunctionsExtensionPackage" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
@@ -45,6 +47,7 @@
     </ParameterGroup>
     <Task>
       <Using Namespace="Microsoft.Build.Framework" />
+      <Using Namespace="System" />
       <Using Namespace="System.IO" />
       <Using Namespace="System.Linq" />
       <Using Namespace="System.Xml.Linq" />
@@ -53,8 +56,8 @@
         var path = Path.GetFullPath(ProjectPath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar));
         if (!File.Exists(path))
         {
-          Log.LogWarning("Functions extension project not found at '{0}'. WebUtilities was not pinned.", path);
-          return true;
+          throw new InvalidOperationException(
+            "Functions extension project was not written: " + path);
         }
 
         var doc = XDocument.Load(path);
@@ -62,8 +65,8 @@
         var group = doc.Descendants(ns + "ItemGroup").FirstOrDefault();
         if (group == null)
         {
-          Log.LogWarning("Functions extension project '{0}' has no ItemGroup. WebUtilities was not pinned.", path);
-          return true;
+          throw new InvalidOperationException(
+            "Functions extension project has no ItemGroup: " + path);
         }
 
         var existing = group.Elements(ns + "PackageReference")
