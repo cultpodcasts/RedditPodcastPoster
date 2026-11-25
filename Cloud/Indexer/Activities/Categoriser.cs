@@ -1,4 +1,4 @@
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure.Diagnostics;
@@ -9,7 +9,6 @@ using RedditPodcastPoster.Subjects.Categorisation;
 
 namespace Indexer.Activities;
 
-[DurableTask(nameof(Categoriser))]
 public class Categoriser(
     IRecentPodcastEpisodeCategoriser recentEpisodeCategoriser,
     IRecentCataloguePlayableCategoriser recentCataloguePlayableCategoriser,
@@ -17,18 +16,20 @@ public class Categoriser(
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Categoriser> logger)
-    : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
-    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
+    [Function(nameof(Categoriser))]
+    public async Task<IndexerContext> Run(
+        [ActivityTrigger] IndexerContext indexerContext,
+        FunctionContext functionContext)
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Categoriser));
 
         logger.LogInformation(
             "{nameofCategoriser} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
-            nameof(Categoriser), context.InstanceId);
+            nameof(Categoriser), functionContext.InvocationId);
         logger.LogInformation(indexerContext.ToString());
 
         if (!activityOptionsProvider.RunCategoriser(out var reason))
@@ -63,7 +64,7 @@ public class Categoriser(
 
         memoryProbe.End();
 
-        logger.LogInformation("{method} Completed", nameof(RunAsync));
+        logger.LogInformation("{method} Completed", nameof(Run));
         return indexerContext with { Success = true };
     }
 }

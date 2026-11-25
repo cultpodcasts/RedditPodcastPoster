@@ -2,7 +2,7 @@ using Azure.Diagnostics;
 using FluentAssertions;
 using Indexer.Activities;
 using Indexer.Services;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -28,6 +28,9 @@ public class CategoriserActivityRules
         _mocker.GetMock<IMemoryProbeOrchestrator>()
             .Setup(x => x.Start(It.IsAny<string>()))
             .Returns(_mocker.GetMock<IMemoryProbeScope>().Object);
+        _mocker.GetMock<FunctionContext>()
+            .SetupGet(x => x.InvocationId)
+            .Returns(_fixture.Create<string>());
         var reason = "enabled";
         _mocker.GetMock<IActivityOptionsProvider>()
             .Setup(x => x.RunCategoriser(out reason))
@@ -47,9 +50,9 @@ public class CategoriserActivityRules
     }
 
     private Task<IndexerContext> Run(IndexerContext indexerContext) =>
-        _mocker.CreateInstance<global::Indexer.Activities.Categoriser>().RunAsync(
-            _mocker.GetMock<TaskActivityContext>().Object,
-            indexerContext);
+        _mocker.CreateInstance<global::Indexer.Activities.Categoriser>().Run(
+            indexerContext,
+            _mocker.GetMock<FunctionContext>().Object);
 
     [Fact(DisplayName =
         "When the categoriser activity runs, then it categorises podcast candidates and catalogue playables, because TV episodes and news reports are not on the podcast candidate list.")]

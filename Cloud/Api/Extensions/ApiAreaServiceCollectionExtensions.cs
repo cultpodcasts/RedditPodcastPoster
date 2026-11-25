@@ -235,9 +235,11 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IDiscoveryChannelBanService, DiscoveryChannelBanService>()
             .AddScoped<IPostDiscoveryChannelBanHandler, PostDiscoveryChannelBanHandler>()
             .AddScoped<IDiscoverySubmissionReviewService, DiscoverySubmissionReviewService>()
-            // Own QueueClient: the container's QueueClient singleton is the kind-transfer queue (#1415).
+            // Own QueueClients: the container's QueueClient singleton is the kind-transfer queue (#1415).
+            // The poison client is this singleton, not a new credential on every enqueue.
             .AddSingleton<IDiscoverySubmissionApplyQueue>(sp => new DiscoverySubmissionApplyQueue(
                 PodcastKindTransferQueueClientFactory.Create(DiscoverySubmissionApplyQueueMessage.QueueName),
+                PodcastKindTransferQueueClientFactory.Create(DiscoverySubmissionApplyQueueMessage.PoisonQueueName),
                 sp.GetRequiredService<ILogger<DiscoverySubmissionApplyQueue>>()))
             .AddScoped<IDiscoverySubmissionIngestedEpisodes, DiscoverySubmissionIngestedEpisodes>()
             .AddScoped<IGetDiscoverySubmissionsHandler, GetDiscoverySubmissionsHandler>()

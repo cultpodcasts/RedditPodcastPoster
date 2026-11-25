@@ -51,6 +51,10 @@ param userAssignedIdentityId string
 
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
+var scaleAndConcurrency = {
+  maximumInstanceCount: maxInstanceCount
+  instanceMemoryMB: instanceMemoryMB
+}
 
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
@@ -91,10 +95,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           }
         }
       }
-      scaleAndConcurrency: {
-        maximumInstanceCount: maxInstanceCount
-        instanceMemoryMB: instanceMemoryMB
-      }
+      scaleAndConcurrency: scaleAndConcurrency
       runtime: { 
         name: runtime
         version: runtimeVersion

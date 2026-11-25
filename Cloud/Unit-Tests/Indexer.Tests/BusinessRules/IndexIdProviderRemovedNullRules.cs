@@ -4,7 +4,7 @@ using FluentAssertions;
 using Indexer.Activities;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -30,6 +30,7 @@ public class IndexIdProviderRemovedNullRules
 
     public IndexIdProviderRemovedNullRules()
     {
+        _mocker.GetMock<FunctionContext>().SetupGet(x => x.InvocationId).Returns("test");
         _mocker.Use(Options.Create(new IndexerOptions()));
         _mocker.GetMock<IPodcastRepository>()
             .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<Podcast, bool>>>()))
@@ -64,7 +65,7 @@ public class IndexIdProviderRemovedNullRules
         var activity = _mocker.CreateInstance<IndexIdProvider>();
 
         // Act
-        await activity.RunAsync(_mocker.GetMock<TaskActivityContext>().Object, new IndexIdProviderRequest(1));
+        await activity.Run(new IndexIdProviderRequest(1), _mocker.GetMock<FunctionContext>().Object);
 
         // Assert
         _selector.Should().NotBeNull();

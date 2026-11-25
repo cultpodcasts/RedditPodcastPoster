@@ -1,3 +1,4 @@
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Indexer.Activities;
@@ -5,15 +6,17 @@ using Indexer.Models;
 
 namespace Indexer.Orchestrations;
 
-[DurableTask(nameof(HalfHourlyOrchestration))]
-public class HalfHourlyOrchestration : TaskOrchestrator<object, IndexerContext>
+public class HalfHourlyOrchestration
 {
-    public override async Task<IndexerContext> RunAsync(TaskOrchestrationContext context, object input)
+    [Function(nameof(HalfHourlyOrchestration))]
+    public static async Task<IndexerContext> Run(
+        [OrchestrationTrigger] TaskOrchestrationContext context,
+        object? input)
     {
         var logger = context.CreateReplaySafeLogger<HalfHourlyOrchestration>();
         logger.LogInformation(
-            "{nameofHalfHourlyOrchestration}.{nameofRunAsync} initiated. Instance-id: '{contextInstanceId}'.",
-            nameof(HalfHourlyOrchestration), nameof(RunAsync), context.InstanceId);
+            "{nameofHalfHourlyOrchestration}.{nameofRun} initiated. Instance-id: '{contextInstanceId}'.",
+            nameof(HalfHourlyOrchestration), nameof(Run), context.InstanceId);
 
         var indexerContext = new IndexerContext
         {
@@ -24,17 +27,19 @@ public class HalfHourlyOrchestration : TaskOrchestrator<object, IndexerContext>
             SpotifyError = true
         };
 
-        indexerContext = await context.CallLoadRecentCandidatesAsync(indexerContext);
+        indexerContext = await context.CallActivityAsync<IndexerContext>(nameof(LoadRecentCandidates), indexerContext);
         logger.LogInformation("{nameofLoadRecentCandidates} complete.", nameof(LoadRecentCandidates));
 
-        indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
+        indexerContext = await context.CallActivityAsync<IndexerContext>(
+            nameof(Poster), indexerContext with {PosterOperationId = context.NewGuid()});
         logger.LogInformation("{nameofPoster} complete.", nameof(Poster));
 
-        indexerContext =
-            await context.CallPublisherAsync(indexerContext with {PublisherOperationId = context.NewGuid()});
+        indexerContext = await context.CallActivityAsync<IndexerContext>(
+            nameof(Publisher), indexerContext with {PublisherOperationId = context.NewGuid()});
         logger.LogInformation("{nameofPublisher} complete.", nameof(Publisher));
 
-        indexerContext = await context.CallBlueskyAsync(indexerContext with {BlueskyOperationId = context.NewGuid()});
+        indexerContext = await context.CallActivityAsync<IndexerContext>(
+            nameof(Bluesky), indexerContext with {BlueskyOperationId = context.NewGuid()});
         logger.LogInformation("{nameofBluesky} complete. All tasks complete.", nameof(Bluesky));
 
         return indexerContext;

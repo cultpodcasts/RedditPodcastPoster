@@ -146,6 +146,8 @@ az functionapp restart -g AutomatedInfra -n discover-infra
 
 This is what `deploy-function-local.ps1` does in `FlexBlob` mode (default). Proven when OneDeploy paths fail from Windows (`az webapp deploy` / `az functionapp deploy --src-path` can return 502 on these Flex hosts).
 
+Provision of [`functions.bicep`](../Infrastructure/functions.bicep) creates the `discovery-submission-apply-poison` queue (`DiscoverySubmissionApplyQueueMessage.PoisonQueueName`); a package-only deploy does not.
+
 ### Do not change app settings
 
 Local deploy scripts are **code-only**. App settings come from bicep ([`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep)). Never add `az functionapp config appsettings set` to deploy scripts unless the user explicitly requests it.
