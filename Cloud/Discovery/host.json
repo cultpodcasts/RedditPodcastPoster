@@ -8,6 +8,7 @@
       "storageProvider": {
         "partitionCount": 1
       },
+      "maxQueuePollingInterval": "00:00:10",
       "tracing": {
         "distributedTracingEnabled": true,
         "version": "V2"

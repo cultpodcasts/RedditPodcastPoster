@@ -148,6 +148,18 @@ resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
 }
 
+resource storageQueueService 'Microsoft.Storage/storageAccounts/queueServices@2022-05-01' existing = {
+  parent: storage
+  name: 'default'
+}
+
+// The scale controller queries this poison queue on every host start. The apply
+// function only created the primary queue, so GetProperties returned 404.
+resource discoverySubmissionApplyPoisonQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2022-05-01' = {
+  parent: storageQueueService
+  name: 'discovery-submission-apply-poison'
+}
+
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = {
   name: 'ai-${suffix}'
 }
@@ -903,6 +915,7 @@ module discoveryFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
+    durableAlwaysReadyCount: 1
     appSettings: union({
         Logging__LogLevel__Discovery: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
@@ -925,6 +938,7 @@ module indexerFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
+    durableAlwaysReadyCount: 1
     appSettings: union({
         Logging__LogLevel__Indexer: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'

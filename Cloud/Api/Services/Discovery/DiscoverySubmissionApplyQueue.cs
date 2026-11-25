@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Api.Models;
+using Api.Services.Podcasts;
 using Azure.Storage.Queues;
 using Microsoft.Extensions.Logging;
 
@@ -19,6 +20,9 @@ public sealed class DiscoverySubmissionApplyQueue(
     public async Task EnqueueAsync(DiscoverySubmissionApplyQueueMessage message, CancellationToken cancellationToken)
     {
         await queueClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+        await PodcastKindTransferQueueClientFactory
+            .Create(DiscoverySubmissionApplyQueueMessage.PoisonQueueName)
+            .CreateIfNotExistsAsync(cancellationToken: cancellationToken);
         var payload = JsonSerializer.Serialize(message, JsonOptions);
         await queueClient.SendMessageAsync(payload, cancellationToken);
         logger.LogInformation(
