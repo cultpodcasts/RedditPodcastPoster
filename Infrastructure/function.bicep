@@ -46,27 +46,15 @@ param instanceMemoryMB int = 2048
 @minValue(40)
 param maxInstanceCount int = 40
 
-@description('Always-ready instances for the Flex Consumption durable group. Timer triggers schedule orchestrations onto a separate group; with zero that group never starts and instances stay Pending.')
-@minValue(0)
-@maxValue(1)
-param durableAlwaysReadyCount int = 0
-
 @description('User Assigned Identity ID')
 param userAssignedIdentityId string
 
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
-var scaleAndConcurrency = union({
+var scaleAndConcurrency = {
   maximumInstanceCount: maxInstanceCount
   instanceMemoryMB: instanceMemoryMB
-}, durableAlwaysReadyCount > 0 ? {
-  alwaysReady: [
-    {
-      name: 'durable'
-      instanceCount: durableAlwaysReadyCount
-    }
-  ]
-} : {})
+}
 
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {

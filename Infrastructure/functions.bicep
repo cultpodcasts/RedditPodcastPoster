@@ -917,7 +917,6 @@ module discoveryFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
-    durableAlwaysReadyCount: 1
     appSettings: union({
         Logging__LogLevel__Discovery: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
@@ -940,7 +939,6 @@ module indexerFunction 'function.bicep' = {
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
-    durableAlwaysReadyCount: 1
     appSettings: union({
         Logging__LogLevel__Indexer: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
