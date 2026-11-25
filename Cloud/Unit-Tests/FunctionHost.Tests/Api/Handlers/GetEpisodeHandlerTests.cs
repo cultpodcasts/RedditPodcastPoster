@@ -37,7 +37,7 @@ public class GetEpisodeHandlerTests
                 It.IsAny<string[]>(),
                 It.IsAny<string[]>(),
                 It.IsAny<string?>()))
-            .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _) => title);
+            .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _, Guid? _) => title);
         _mocker.GetMock<ITextSanitiser>()
             .Setup(s => s.SanitiseDescription(It.IsAny<string>(), It.IsAny<Regex?>()))
             .Returns((string description, Regex? _) => description);
