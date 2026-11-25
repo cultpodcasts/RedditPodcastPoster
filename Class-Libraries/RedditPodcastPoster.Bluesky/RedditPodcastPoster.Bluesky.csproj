@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>
@@ -16,8 +16,6 @@
          Temporary: remove this pin when idunno.Bluesky is upgraded (8.0.1+ is out) to a version whose idunno.AtProto
          already pulls a patched WebUtilities, then confirm `dotnet restore` reports no NU1903. -->
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="11.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>

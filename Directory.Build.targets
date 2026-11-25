@@ -31,6 +31,61 @@
   </ItemGroup>
 
   <!--
+    The Functions SDK writes obj/azure_functions/azure_functions.g.csproj and restores it with
+    Directory.Build.* imports turned off. That project is capped at net10.0
+    (Azure.Functions.Sdk.Inner.props) and DurableTask pulls Microsoft.AspNetCore.WebUtilities
+    2.3.0 (NU1902, GHSA-6527-9fp8-r4x6, patched in 2.3.14). WebUtilities 11.0.0 cannot restore
+    onto net10.0, so pin the newest 10.0 release, which is outside the advisory.
+  -->
+  <UsingTask TaskName="PinFunctionsExtensionPackage" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <ProjectPath ParameterType="System.String" Required="true" />
+      <PackageId ParameterType="System.String" Required="true" />
+      <PackageVersion ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Linq" />
+      <Using Namespace="System.Xml.Linq" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        if (File.Exists(ProjectPath))
+        {
+          var doc = XDocument.Load(ProjectPath);
+          var ns = doc.Root.Name.Namespace;
+          var group = doc.Descendants(ns + "ItemGroup").FirstOrDefault();
+          if (group != null)
+          {
+            var existing = group.Elements(ns + "PackageReference")
+              .FirstOrDefault(e => (string)e.Attribute("Include") == PackageId);
+            if (existing == null)
+            {
+              group.Add(new XElement(ns + "PackageReference",
+                new XAttribute("Include", PackageId),
+                new XAttribute("Version", PackageVersion)));
+              doc.Save(ProjectPath);
+            }
+            else if ((string)existing.Attribute("Version") != PackageVersion)
+            {
+              existing.SetAttributeValue("Version", PackageVersion);
+              doc.Save(ProjectPath);
+            }
+          }
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="PinFunctionsExtensionWebUtilities"
+          AfterTargets="WriteExtensionProject"
+          BeforeTargets="RestoreExtensionProject"
+          Condition="'$(UsingAzureFunctionsSdk)' == 'true' and '$(_IsExtensionProject)' != 'true'">
+    <PinFunctionsExtensionPackage
+      ProjectPath="$(BaseIntermediateOutputPath)azure_functions\azure_functions.g.csproj"
+      PackageId="Microsoft.AspNetCore.WebUtilities"
+      PackageVersion="10.0.15" />
+  </Target>
+
+  <!--
     Ensure low-level dependency-injection projects are built before other projects to avoid
     CS0006 metadata-not-found errors.
 

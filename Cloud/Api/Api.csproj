@@ -1,4 +1,4 @@
-<Project Sdk="Azure.Functions.Sdk/1.1.0">
+﻿<Project Sdk="Azure.Functions.Sdk/1.1.0">
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -13,11 +13,9 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
-    <PackageReference Include="Azure.Storage.Queues" Version="12.22.0" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" Version="5.5.2" />
+    <PackageReference Include="Azure.Storage.Queues" Version="12.28.2" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" Version="5.5.5" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.3.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="11.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="11.0.0" />
   </ItemGroup>
   <ItemGroup>

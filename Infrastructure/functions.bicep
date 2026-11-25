@@ -132,8 +132,6 @@ param youTubeApiKey11 string
 @secure()
 param youTubeApiKey12 string
 @secure()
-param youTubeApiKey13 string
-@secure()
 param youTubeApiKey14 string
 @secure()
 param youTubeApiKey15 string
