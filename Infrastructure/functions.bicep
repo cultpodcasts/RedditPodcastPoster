@@ -24,7 +24,7 @@ param searchIndexWriterClientId string
 param searchIndexWriterClientSecret string
 @description('D1 search sync (SP-2.1) to the production search index (api Worker POST /search/admin/docs). Off until Jon switches it on.')
 param d1SearchProductionEnabled bool = false
-@description('Branch trial only. Disables discover and indexer timer functions so a host start cannot run schedules.')
+@description('Disables discover and indexer timer functions so a host start cannot run schedules. Production passes false.')
 param disableScheduledFunctions bool = false
 @secure()
 param cloudflareAccountId string
