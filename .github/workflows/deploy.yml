@@ -311,10 +311,12 @@ jobs:
           az functionapp ${{ env.functionState }} --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
 
     # After Cosmos/functions. Must succeed for provision to pass (no continue-on-error).
+    # A new budget cannot use the live budget's April 2026 start date, and that date must
+    # not change. Branch trials skip it; main keeps functions-cost-budget-infra.
     - name: Functions Budget (Deploy Bicep)
       id: bicepfunctionsbudgetdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.run_provision == 'true'
+      if: needs.build.outputs.run_provision == 'true' && github.ref == 'refs/heads/main'
       with:
         type: deployment
         operation: create
