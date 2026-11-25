@@ -300,7 +300,7 @@ public class TwitterOptionsValidatorRules
     }
 
     [Fact(DisplayName =
-        "AddTwitterServices registers TwitterOptions IValidateOptions and IStartupValidator; AddXOAuth2TokenServices alone does not register TwitterOptions validation.")]
+        "AddTwitterServices registers TwitterOptions IValidateOptions and IAsyncStartupValidator; AddXOAuth2TokenServices alone does not register TwitterOptions validation.")]
     public void posting_registration_includes_validator_exchange_does_not()
     {
         // Arrange
@@ -318,12 +318,12 @@ public class TwitterOptionsValidatorRules
         var postingHasValidator = posting.Any(d =>
             d.ServiceType == typeof(IValidateOptions<TwitterOptions>) &&
             d.ImplementationType == typeof(TwitterOptionsValidator));
-        var postingHasStartupValidator = posting.Any(d => d.ServiceType == typeof(IStartupValidator));
+        var postingHasStartupValidator = posting.Any(d => d.ServiceType == typeof(IAsyncStartupValidator));
         var exchangeHasValidator = exchange.Any(d =>
             d.ServiceType == typeof(IValidateOptions<TwitterOptions>));
 
         // Assert
-        // AddHttpClient (used by AddXOAuth2TokenServices) also registers IStartupValidator, so absence of
+        // AddHttpClient (used by AddXOAuth2TokenServices) also registers IAsyncStartupValidator, so absence of
         // that service type alone cannot prove exchange skipped Twitter ValidateOnStart — see the behavioural Fact.
         postingHasValidator.Should().BeTrue();
         postingHasStartupValidator.Should().BeTrue();
@@ -331,8 +331,8 @@ public class TwitterOptionsValidatorRules
     }
 
     [Fact(DisplayName =
-        "When ValidateOnStart is enabled and AuthMode OAuth1 is missing ConsumerKey, IStartupValidator.Validate throws OptionsValidationException naming that config key.")]
-    public void validate_on_start_rejects_incomplete_oauth1_options()
+        "When ValidateOnStart is enabled and AuthMode OAuth1 is missing ConsumerKey, IAsyncStartupValidator.ValidateAsync throws OptionsValidationException naming that config key.")]
+    public async Task validate_on_start_rejects_incomplete_oauth1_options()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -348,20 +348,20 @@ public class TwitterOptionsValidatorRules
         services.AddTwitterOptionsValidation(validateOnStart: true);
 
         using var provider = services.BuildServiceProvider();
-        var startupValidator = provider.GetRequiredService<IStartupValidator>();
+        var startupValidator = provider.GetRequiredService<IAsyncStartupValidator>();
 
         // Act
-        var act = () => startupValidator.Validate();
+        var act = () => startupValidator.ValidateAsync();
 
         // Assert
-        act.Should().Throw<OptionsValidationException>()
+        (await act.Should().ThrowAsync<OptionsValidationException>())
             .Which.Failures.Should().Contain(f =>
                 f.Contains($"{TwitterOptions.SectionName}__{nameof(TwitterOptions.ConsumerKey)}"));
     }
 
     [Fact(DisplayName =
-        "When only AddXOAuth2TokenServices is registered with incomplete twitter credentials, IStartupValidator.Validate does not throw OptionsValidationException for twitter, because exchange consoles skip ValidateOnStart.")]
-    public void exchange_registration_does_not_validate_twitter_options_on_start()
+        "When only AddXOAuth2TokenServices is registered with incomplete twitter credentials, IAsyncStartupValidator.ValidateAsync does not throw OptionsValidationException for twitter, because exchange consoles skip ValidateOnStart.")]
+    public async Task exchange_registration_does_not_validate_twitter_options_on_start()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -376,13 +376,13 @@ public class TwitterOptionsValidatorRules
         services.AddXOAuth2TokenServices();
 
         using var provider = services.BuildServiceProvider();
-        var startupValidator = provider.GetService<IStartupValidator>();
+        var startupValidator = provider.GetService<IAsyncStartupValidator>();
 
         // Act
-        var act = () => startupValidator?.Validate();
+        var act = () => startupValidator?.ValidateAsync() ?? Task.CompletedTask;
 
         // Assert
-        act.Should().NotThrow<OptionsValidationException>();
+        await act.Should().NotThrowAsync<OptionsValidationException>();
     }
 
     [Fact(DisplayName =
