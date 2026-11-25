@@ -3,7 +3,7 @@ using FluentAssertions;
 using Indexer.Activities;
 using Indexer.Models;
 using Indexer.Services;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -39,15 +39,15 @@ public class PosterActivityGateRules
         _mocker.GetMock<IActivityOptionsProvider>()
             .Setup(x => x.RunPoster(out enabledReason))
             .Returns(true);
-        _mocker.GetMock<TaskActivityContext>()
-            .SetupGet(x => x.InstanceId)
+        _mocker.GetMock<FunctionContext>()
+            .SetupGet(x => x.InvocationId)
             .Returns(_fixture.Create<string>());
     }
 
     private Task<IndexerContext> Run(IndexerContext indexerContext) =>
-        _mocker.CreateInstance<Poster>().RunAsync(
-            _mocker.GetMock<TaskActivityContext>().Object,
-            indexerContext);
+        _mocker.CreateInstance<Poster>().Run(
+            indexerContext,
+            _mocker.GetMock<FunctionContext>().Object);
 
     [Fact(DisplayName =
         "When RunPoster is false, Poster returns Success without requiring PosterOperationId, because a disabled " +

@@ -4,7 +4,6 @@ using Discovery.Activities;
 using Discovery.Models;
 using Discovery.Services;
 using FluentAssertions;
-using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -134,9 +133,7 @@ public class DiscoveryUtcRules
         var sut = _mocker.CreateInstance<Discover>();
 
         // Act
-        var outcome = await sut.RunAsync(
-            Mock.Of<TaskActivityContext>(c => c.InstanceId == "test"),
-            new DiscoveryContext(operationId));
+        var outcome = await sut.Run(new DiscoveryContext(operationId));
 
         // Assert
         outcome.Success.Should().BeTrue();

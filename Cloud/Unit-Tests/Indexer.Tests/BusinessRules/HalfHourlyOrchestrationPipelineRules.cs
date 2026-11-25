@@ -45,10 +45,8 @@ public class HalfHourlyOrchestrationPipelineRules
     public async Task activity_order_is_load_poster_publisher_bluesky()
     {
         // Arrange
-        var sut = new HalfHourlyOrchestration();
-
         // Act
-        await sut.RunAsync(_context.Object, new object());
+        await HalfHourlyOrchestration.Run(_context.Object, new object());
 
         // Assert
         _activities.Should().Equal(
@@ -64,10 +62,8 @@ public class HalfHourlyOrchestrationPipelineRules
     public async Task activities_receive_youtube_and_spotify_held_back()
     {
         // Arrange
-        var sut = new HalfHourlyOrchestration();
-
         // Act
-        await sut.RunAsync(_context.Object, new object());
+        await HalfHourlyOrchestration.Run(_context.Object, new object());
 
         // Assert
         foreach (var activityName in new[]

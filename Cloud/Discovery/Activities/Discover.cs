@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure;
@@ -23,7 +23,6 @@ using RedditPodcastPoster.PushSubscriptions.Publishers;
 
 namespace Discovery.Activities;
 
-[DurableTask(nameof(Discover))]
 public class Discover(
     IOptions<DiscoverOptions> discoverOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
@@ -34,20 +33,21 @@ public class Discover(
     INotificationPublisher notificationPublisher,
     IDiscoveryInfoContentPublisher discoveryInfoContentPublisher,
     IActivityMarshaller activityMarshaller,
-    ILogger<Discover> logger) : TaskActivity<DiscoveryContext, DiscoveryContext>
+    ILogger<Discover> logger)
 {
     private readonly DiscoverOptions _discoverOptions =
         discoverOptions.Value ??
         throw new ArgumentException($"Missing {nameof(DiscoverOptions)}.");
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
-    public override async Task<DiscoveryContext> RunAsync(TaskActivityContext context, DiscoveryContext input)
+    [Function(nameof(Discover))]
+    public async Task<DiscoveryContext> Run([ActivityTrigger] DiscoveryContext input)
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Discover));
 
         logger.LogInformation("{method}: discovery-options: {discoverOptions}",
-            nameof(RunAsync), _discoverOptions);
-        logger.LogInformation("{method}: discovery-context: {input}", nameof(RunAsync), input);
+            nameof(Run), _discoverOptions);
+        logger.LogInformation("{method}: discovery-context: {input}", nameof(Run), input);
 
         DiscoveryLookbackResolution lookback;
         try
@@ -76,7 +76,7 @@ public class Discover(
             SkipExpensiveSpotifyQueries: false);
 
         logger.LogInformation("{method}: {indexingContext}",
-            nameof(RunAsync), indexingContext);
+            nameof(Run), indexingContext);
 
         if (DryRun.IsDiscoverDryRun)
         {
@@ -154,7 +154,7 @@ public class Discover(
 
             logger.LogWarning(
                 "{method} complete. {nameofDiscoveryBegan}='{discoveryBegan:O}' document-id='{discoveryResultsDocumentId}' results-count='{discoveryResultsCount}' operation-id='{operationId}'.",
-                nameof(RunAsync),
+                nameof(Run),
                 nameof(discoveryBegan),
                 discoveryBegan,
                 discoveryResultsDocument.Id,
@@ -171,7 +171,7 @@ public class Discover(
         catch (Exception ex)
         {
             memoryProbe.End(false, ex.GetType().Name);
-            logger.LogError(ex, "{method} did not complete.", nameof(RunAsync));
+            logger.LogError(ex, "{method} did not complete.", nameof(Run));
             throw new DiscoveryOrchestrationIncompleteException(
                 $"Discover activity did not complete (operation-id='{input.DiscoveryOperationId}').",
                 ex);

@@ -65,10 +65,8 @@ public class HourlyOrchestrationStaleRunRules
         // Arrange
         var scheduledAtUtc = HourlyOrchestrationCatchUpEvaluator.GetUtcHourStart(_now).AddHours(-1).UtcDateTime;
         var input = new HourlyOrchestrationRunInput(scheduledAtUtc);
-        var sut = new HourlyOrchestration();
-
         // Act
-        var result = await sut.RunAsync(_context.Object, input);
+        var result = await HourlyOrchestration.Run(_context.Object, input);
 
         // Assert
         result.Success.Should().BeTrue();
@@ -81,10 +79,8 @@ public class HourlyOrchestrationStaleRunRules
     public async Task null_input_still_runs_the_pipeline()
     {
         // Arrange
-        var sut = new HourlyOrchestration();
-
         // Act
-        var result = await sut.RunAsync(_context.Object, null);
+        var result = await HourlyOrchestration.Run(_context.Object, null);
 
         // Assert
         result.Should().NotBeNull();

@@ -2,7 +2,7 @@ using Azure.Diagnostics;
 using FluentAssertions;
 using Indexer.Activities;
 using Indexer.Services;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -39,15 +39,15 @@ public class BlueskyActivityGateRules
                 It.IsAny<bool>(),
                 It.IsAny<IReadOnlyList<PodcastEpisode>?>()))
             .Returns(Task.CompletedTask);
-        _mocker.GetMock<TaskActivityContext>()
-            .SetupGet(x => x.InstanceId)
+        _mocker.GetMock<FunctionContext>()
+            .SetupGet(x => x.InvocationId)
             .Returns(_fixture.Create<string>());
     }
 
     private Task<IndexerContext> Run(IndexerContext indexerContext) =>
-        _mocker.CreateInstance<Bluesky>().RunAsync(
-            _mocker.GetMock<TaskActivityContext>().Object,
-            indexerContext);
+        _mocker.CreateInstance<Bluesky>().Run(
+            indexerContext,
+            _mocker.GetMock<FunctionContext>().Object);
 
     [Fact(DisplayName =
         "When RunBluesky is false, Bluesky returns Success and does not call IBlueskyPostManager, because a disabled " +

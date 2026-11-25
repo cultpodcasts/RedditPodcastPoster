@@ -1,7 +1,7 @@
 using Azure.Diagnostics;
 using FluentAssertions;
 using Indexer.Activities;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -38,15 +38,15 @@ public class LoadRecentCandidatesActivityRules
         _mocker.GetMock<IRecentEpisodeCandidatesProvider>()
             .Setup(x => x.GetRecentActiveEpisodes(It.IsAny<DateTime>()))
             .ReturnsAsync(() => _loadedCandidates);
-        _mocker.GetMock<TaskActivityContext>()
-            .SetupGet(x => x.InstanceId)
+        _mocker.GetMock<FunctionContext>()
+            .SetupGet(x => x.InvocationId)
             .Returns(_fixture.Create<string>());
     }
 
     private Task<IndexerContext> Run(IndexerContext indexerContext) =>
-        _mocker.CreateInstance<LoadRecentCandidates>().RunAsync(
-            _mocker.GetMock<TaskActivityContext>().Object,
-            indexerContext);
+        _mocker.CreateInstance<LoadRecentCandidates>().Run(
+            indexerContext,
+            _mocker.GetMock<FunctionContext>().Object);
 
     [Fact(DisplayName =
         "When RecentEpisodeCandidates is already set, LoadRecentCandidates returns the context unchanged without " +

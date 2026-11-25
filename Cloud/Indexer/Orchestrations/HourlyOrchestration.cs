@@ -1,3 +1,4 @@
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Indexer.Activities;
@@ -5,17 +6,17 @@ using Indexer.Models;
 
 namespace Indexer.Orchestrations;
 
-[DurableTask(nameof(HourlyOrchestration))]
-public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?, IndexerContext>
+public class HourlyOrchestration
 {
-    public override async Task<IndexerContext> RunAsync(
-        TaskOrchestrationContext context,
+    [Function(nameof(HourlyOrchestration))]
+    public static async Task<IndexerContext> Run(
+        [OrchestrationTrigger] TaskOrchestrationContext context,
         HourlyOrchestrationRunInput? input)
     {
         var logger = context.CreateReplaySafeLogger<HourlyOrchestration>();
         logger.LogInformation(
-            "{nameofHourlyOrchestration}.{nameofRunAsync} initiated. Instance-id: '{contextInstanceId}'.",
-            nameof(HourlyOrchestration), nameof(RunAsync), context.InstanceId);
+            "{nameofHourlyOrchestration}.{nameofRun} initiated. Instance-id: '{contextInstanceId}'.",
+            nameof(HourlyOrchestration), nameof(Run), context.InstanceId);
 
         // Stale-run guard: an instance scheduled for an earlier UTC hour (e.g. a Pending backlog
         // draining after a broken host was fixed) must no-op instead of re-running the pipeline
@@ -33,7 +34,8 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
         const int indexPasses = 4;
         var indexPassOperationIs = Enumerable.Range(1, indexPasses).Select(_ => context.NewGuid()).ToArray();
 
-        var indexIds = await context.CallIndexIdProviderAsync(new IndexIdProviderRequest(indexPasses));
+        var indexIds = await context.CallActivityAsync<IndexIdProviderResponse>(
+            nameof(IndexIdProvider), new IndexIdProviderRequest(indexPasses));
         logger.LogInformation("{nameofIndexIdProvider} complete.", nameof(IndexIdProvider));
 
         var hourUtc = context.CurrentUtcDateTime.Hour;
@@ -55,7 +57,8 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
         {
             try
             {
-                indexerContext = await context.CallIndexerAsync(new IndexerContextWrapper(indexerContext, pass));
+                indexerContext = await context.CallActivityAsync<IndexerContext>(
+                    nameof(global::Indexer.Activities.Indexer), new IndexerContextWrapper(indexerContext, pass));
             }
             catch (TaskFailedException ex)
             {
@@ -88,7 +91,7 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
                     indexerContext.SkipYouTubeUrlResolving, indexerContext.YouTubeError);
             }
 
-            logger.LogInformation("{nameofIndexer} complete - Pass {pass}.", nameof(Indexer), pass);
+            logger.LogInformation("{nameofIndexer} complete - Pass {pass}.", nameof(global::Indexer.Activities.Indexer), pass);
         }
 
         if (failedPasses.Count > 0)
@@ -96,14 +99,14 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
             indexerContext = WithPostingHeldBack(indexerContext);
         }
 
-        indexerContext = await context.CallLoadRecentCandidatesAsync(indexerContext);
+        indexerContext = await context.CallActivityAsync<IndexerContext>(nameof(LoadRecentCandidates), indexerContext);
         logger.LogInformation("{nameofLoadRecentCandidates} complete.", nameof(LoadRecentCandidates));
 
-        indexerContext =
-            await context.CallCategoriserAsync(indexerContext with {CategoriserOperationId = context.NewGuid()});
+        indexerContext = await context.CallActivityAsync<IndexerContext>(
+            nameof(Categoriser), indexerContext with {CategoriserOperationId = context.NewGuid()});
         logger.LogInformation("{nameofCategoriser} complete.", nameof(Categoriser));
 
-        indexerContext = await context.CallYouTubeThumbnailRecheckAsync(indexerContext);
+        indexerContext = await context.CallActivityAsync<IndexerContext>(nameof(YouTubeThumbnailRecheck), indexerContext);
         logger.LogInformation("{nameofYouTubeThumbnailRecheck} complete.", nameof(YouTubeThumbnailRecheck));
 
         var postingSkipped = failedPasses.Count > 0;
@@ -119,21 +122,23 @@ public class HourlyOrchestration : TaskOrchestrator<HourlyOrchestrationRunInput?
         }
         else
         {
-            indexerContext = await context.CallPosterAsync(indexerContext with {PosterOperationId = context.NewGuid()});
+            indexerContext = await context.CallActivityAsync<IndexerContext>(
+                nameof(Poster), indexerContext with {PosterOperationId = context.NewGuid()});
             logger.LogInformation("{nameofPoster} complete.", nameof(Poster));
         }
 
-        indexerContext =
-            await context.CallPublisherAsync(indexerContext with {PublisherOperationId = context.NewGuid()});
+        indexerContext = await context.CallActivityAsync<IndexerContext>(
+            nameof(Publisher), indexerContext with {PublisherOperationId = context.NewGuid()});
         logger.LogInformation("{nameofPublisher} complete.", nameof(Publisher));
 
         if (!postingSkipped)
         {
-            indexerContext = await context.CallTweetAsync(indexerContext with {TweetOperationId = context.NewGuid()});
+            indexerContext = await context.CallActivityAsync<IndexerContext>(
+                nameof(Tweet), indexerContext with {TweetOperationId = context.NewGuid()});
             logger.LogInformation("{nameofTweet} complete.", nameof(Tweet));
 
-            indexerContext =
-                await context.CallBlueskyAsync(indexerContext with {BlueskyOperationId = context.NewGuid()});
+            indexerContext = await context.CallActivityAsync<IndexerContext>(
+                nameof(Bluesky), indexerContext with {BlueskyOperationId = context.NewGuid()});
             logger.LogInformation("{nameofBluesky} complete. All tasks complete.", nameof(Bluesky));
         }
 

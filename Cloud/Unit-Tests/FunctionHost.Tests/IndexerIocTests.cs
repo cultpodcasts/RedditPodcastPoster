@@ -11,6 +11,11 @@ namespace FunctionHost.Tests;
 
 public class IndexerIocTests
 {
+    /// <summary>
+    /// Activities and triggers with constructor DI. Static orchestrations (<see cref="HourlyOrchestration"/>,
+    /// <see cref="HalfHourlyOrchestration"/>) are parameterless [Function] entry points and are not resolved from DI;
+    /// their names are indexed into functions.metadata for the worker.
+    /// </summary>
     public static IEnumerable<object[]> EntryPoints =>
     [
         [typeof(global::Indexer.Activities.Indexer)],
@@ -21,14 +26,13 @@ public class IndexerIocTests
         [typeof(Publisher)],
         [typeof(LoadRecentCandidates)],
         [typeof(IndexIdProvider)],
-        [typeof(HourlyOrchestration)],
-        [typeof(HalfHourlyOrchestration)],
+        [typeof(YouTubeThumbnailRecheck)],
         [typeof(OrchestrationTrigger)],
         [typeof(D1SearchReconcileTrigger)],
     ];
 
     [Theory(DisplayName =
-        "Indexer host: every activity, orchestration and trigger resolves from Ioc.ConfigureServices, because a missing " +
+        "Indexer host: every activity and trigger resolves from Ioc.ConfigureServices, because a missing " +
         "registration fails the function at its first run.")]
     [MemberData(nameof(EntryPoints))]
     public async Task Indexer_host_resolves_entry_point(Type entryPointType)
@@ -41,5 +45,15 @@ public class IndexerIocTests
 
         // Assert
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact(DisplayName =
+        "Indexer host: HourlyOrchestration and HalfHourlyOrchestration keep stable function names for Durable " +
+        "scheduling, because ScheduleNewOrchestrationInstanceAsync uses nameof and worker indexing must list them.")]
+    public void Indexer_orchestrations_keep_stable_function_names()
+    {
+        // Arrange / Act / Assert
+        nameof(HourlyOrchestration).Should().Be("HourlyOrchestration");
+        nameof(HalfHourlyOrchestration).Should().Be("HalfHourlyOrchestration");
     }
 }

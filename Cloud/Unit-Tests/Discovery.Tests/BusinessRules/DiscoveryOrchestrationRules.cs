@@ -56,10 +56,8 @@ public class DiscoveryOrchestrationRules
             SlotStartUtc: priorSlot.SlotStartUtc,
             SlotId: priorSlot.SlotId,
             RunTimesUk: RunTimesUk);
-        var sut = new Orchestration();
-
         // Act
-        var result = await sut.RunAsync(_context.Object, input);
+        var result = await Orchestration.Run(_context.Object, input);
 
         // Assert
         result.Success.Should().BeTrue();
@@ -74,10 +72,8 @@ public class DiscoveryOrchestrationRules
         // Arrange
         var operationId = _fixture.Create<Guid>();
         _discoverResult = new DiscoveryContext(operationId, Success: true);
-        var sut = new Orchestration();
-
         // Act
-        var result = await sut.RunAsync(_context.Object, null);
+        var result = await Orchestration.Run(_context.Object, null);
 
         // Assert
         result.Should().BeEquivalentTo(_discoverResult);
@@ -91,10 +87,8 @@ public class DiscoveryOrchestrationRules
     {
         // Arrange
         _discoverResult = new DiscoveryContext(_fixture.Create<Guid>(), Success: false, DuplicateDiscoveryOperation: false);
-        var sut = new Orchestration();
-
         // Act
-        var act = () => sut.RunAsync(_context.Object, null);
+        var act = () => Orchestration.Run(_context.Object, null);
 
         // Assert
         await act.Should().ThrowAsync<DiscoveryOrchestrationIncompleteException>();
