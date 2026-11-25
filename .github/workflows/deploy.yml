@@ -14,6 +14,10 @@ on:
         description: 'Break-glass only: allow *-deploy this run while PROVISION_LATCH is set. Does NOT clear the latch. Agents must never set this without explicit user approval in the current conversation.'
         type: boolean
         default: false
+      trial_resource_group:
+        description: 'Branch only. New resource group for storage, insights, and the three function apps. Refuses AutomatedInfra, Management, and the Cosmos resource group. Does not deploy Cosmos (apps use the existing account via Key Vault). Ignored on main.'
+        type: string
+        default: ''
 
 permissions:
   id-token: write
@@ -21,22 +25,31 @@ permissions:
   # PROVISION_LATCH set/clear uses secrets.RPP_VARIABLES_TOKEN (not a GITHUB_TOKEN permission).
 
 env:  
-  DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
+  # main → production AutomatedInfra. Any other ref → trial group (input, else rpp-net11-trial).
+  # The input is optional so a dispatch still works before this file is on main: GitHub
+  # validates workflow_dispatch inputs against the default branch.
+  DEPLOYMENT_RESOURCEGROUP_NAME: ${{ github.ref == 'refs/heads/main' && 'AutomatedInfra' || (inputs.trial_resource_group != '' && inputs.trial_resource_group || 'rpp-net11-trial') }}
   DATABASE_RESOURCEGROUP_NAME: ${{ secrets.DATABASE_RESOURCEGROUP_NAME }}
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
   BUDGET_ALERT_EMAIL: ${{ secrets.BUDGET_ALERT_EMAIL }}
   MONTHLY_FUNCTIONS_BUDGET_AMOUNT: '3'
-  storageName: cultpodcastsstg
-  suffix: infra
+  # Distinct names so a branch trial cannot take the production storage account or api-infra.
+  storageName: ${{ github.ref == 'refs/heads/main' && 'cultpodcastsstg' || 'cultpodnet11t' }}
+  # cultpodcastsstg stays kind Storage (one-way upgrade). New trial accounts reject Storage.
+  storageKind: ${{ github.ref == 'refs/heads/main' && 'Storage' || 'StorageV2' }}
+  suffix: ${{ github.ref == 'refs/heads/main' && 'infra' || 'net11t' }}
   location: uksouth
-  functionState: start
-  ALLOW_NON_MAIN_DEPLOY: 'true'
+  functionState: ${{ github.ref == 'refs/heads/main' && 'start' || 'stop' }}
+  # JSON boolean for functions.bicep. Kept here so the parameters string has no nested quotes (those break the workflow parser).
+  d1SearchProductionEnabled: ${{ github.ref == 'refs/heads/main' }}
+  # Trial hosts must not run discover or indexer timers, even if a package deploy starts the process.
+  disableScheduledFunctions: ${{ github.ref != 'refs/heads/main' }}
   COSMOS_DEPLOYMENT_NAME: infra-cosmos
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
-  DOTNET_VERSION: '10.0.x' 
+  DOTNET_VERSION: '11.0.x' 
   buildConfiguration: 'Release'
   TARGET_RUNTIME: 'linux-x64'
   outputApi: 'output/api'
@@ -51,9 +64,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      # Paths-filter hit, or manual "Run workflow" on main with run_provision=true.
+      # Paths-filter hit, manual run_provision, or a branch trial (new resource group always needs bicep).
       # Authoritative gate for provision steps / archive-infrastructure (do not re-export the raw filter).
-      run_provision: ${{ steps.changes.outputs.infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_provision == 'true') }}
+      run_provision: ${{ steps.changes.outputs.infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_provision == 'true') || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main') }}
     strategy:
       matrix:
         project:
@@ -83,7 +96,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore /p:Configuration=Release -r ${{ env.TARGET_RUNTIME }}
-    # Shared Class-Libraries write the same bin/Release/net10.0/*.deps.json. Parallel
+    # Shared Class-Libraries write the same bin/Release/net11.0/*.deps.json. Parallel
     # MSBuild nodes race on GenerateDepsFile (MSB4018, run 42713443340 attempt 1 on api).
     # EnsureDependencyInjectionBuilt is skipped when RuntimeIdentifier is set (-r), so the
     # deploy path has no serialize target. Build once single-node, then publish --no-build.
@@ -172,7 +185,7 @@ jobs:
   provision:
     runs-on: ubuntu-latest
     needs: [build, test, archive-infrastructure]
-    if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')
     continue-on-error: false
     permissions:
       id-token: write
@@ -184,6 +197,25 @@ jobs:
       # Same-run gate for *-deploy (vars context may not refresh after we clear the latch).
       deploy_allowed: ${{ steps.provision_latch.outputs.deploy_allowed }}
     steps:
+    - name: Trial resource group guard
+      if: github.ref != 'refs/heads/main'
+      run: |
+        set -euo pipefail
+        # Read the group name from the process environment. Pasting it into this script would still run command substitution inside double quotes.
+        RG="$DEPLOYMENT_RESOURCEGROUP_NAME"
+        DB="${DATABASE_RESOURCEGROUP_NAME:-}"
+        MGMT="${MANAGEMENT_RESOURCEGROUP_NAME:-}"
+        rg_lc="${RG,,}"
+        db_lc="${DB,,}"
+        mgmt_lc="${MGMT,,}"
+        if [[ ! "$RG" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,89}$ ]] \
+          || [[ "$rg_lc" == "automatedinfra" || "$rg_lc" == "management" || "$rg_lc" == "automateddata" ]] \
+          || [[ -n "$db_lc" && "$rg_lc" == "$db_lc" ]] \
+          || [[ -n "$mgmt_lc" && "$rg_lc" == "$mgmt_lc" ]]; then
+          echo "::error::Branch deploy requires trial_resource_group matching ^[A-Za-z0-9][A-Za-z0-9_-]{0,89}$, and it must not be AutomatedInfra, Management, or the Cosmos resource group."
+          exit 1
+        fi
+        echo "Trial resource group: $RG (suffix ${suffix}, storage ${storageName}). Cosmos bicep is skipped."
     - name: Download bicep artifact
       uses: actions/download-artifact@v8
       if: needs.build.outputs.run_provision == 'true'
@@ -202,12 +234,47 @@ jobs:
         tenant-id: ${{ secrets.AZURE_Tenant_ID }}
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
 
+    - name: Create trial resource group
+      if: github.ref != 'refs/heads/main' && needs.build.outputs.run_provision == 'true'
+      uses: Azure/cli@v3.0.0
+      with:
+        azcliversion: latest
+        inlineScript: |
+          set -euo pipefail
+          az group create --name "$DEPLOYMENT_RESOURCEGROUP_NAME" --location "$location"
+
+    # The workflow identity is subscription Contributor. That can create the group
+    # and cannot grant itself User Access Administrator. The functions template
+    # assigns roles on the new storage account, so this has to already exist.
+    - name: Trial role assignment preflight
+      if: github.ref != 'refs/heads/main' && needs.build.outputs.run_provision == 'true'
+      uses: Azure/cli@v3.0.0
+      with:
+        azcliversion: latest
+        inlineScript: |
+          set -euo pipefail
+          RG="$DEPLOYMENT_RESOURCEGROUP_NAME"
+          SUB="${{ secrets.AZURE_Subscription_ID }}"
+          SCOPE="/subscriptions/${SUB}/resourceGroups/${RG}"
+          PRINCIPAL="$(python3 -c 'import json; print(json.load(open("Infrastructure/deployment-principal.json"))["assigneeObjectId"])')"
+          if [[ ! "$PRINCIPAL" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+            echo "::error::Infrastructure/deployment-principal.json assigneeObjectId is not a GUID."
+            exit 1
+          fi
+          COUNT="$(az role assignment list --assignee "$PRINCIPAL" --role "User Access Administrator" --scope "$SCOPE" --query "length(@)" -o tsv)"
+          if [[ "${COUNT}" == "0" || -z "${COUNT}" ]]; then
+            echo "::error::Deployment cannot assign roles in ${RG}. Signed in as an owner, run: pwsh ./scripts/enable-branch-trial-auth.ps1 -ResourceGroup ${RG} -Branch ${{ github.ref_name }}"
+            exit 1
+          fi
+          echo "User Access Administrator is present on ${SCOPE}."
+
     # Critical resources first. Budget is last: a budget-only failure must not
     # skip Cosmos/functions, but still fails this job so *-deploy does not run.
+    # Branch trials skip Cosmos entirely and keep the existing account (Key Vault secrets).
     - name: Cosmos DB (Deploy Bicep)
       id: bicepcosmosdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.run_provision == 'true'
+      if: needs.build.outputs.run_provision == 'true' && github.ref == 'refs/heads/main'
       with:
         type: deployment
         operation: create
@@ -220,7 +287,7 @@ jobs:
     - name: Cosmos DB diagnostics (Deploy Bicep)
       id: bicepcosmosdiagnosticsdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.run_provision == 'true'
+      if: needs.build.outputs.run_provision == 'true' && github.ref == 'refs/heads/main'
       with:
         type: deployment
         operation: create
@@ -242,7 +309,7 @@ jobs:
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/function-storage.bicep
-        parameters: '{"location":"${{ env.location }}", "storageName":"${{ env.storageName }}"}'
+        parameters: '{"location":"${{ env.location }}", "storageName":"${{ env.storageName }}", "storageKind":"${{ env.storageKind }}"}'
     - name: Application-Insights (Deploy Bicep)
       id: bicepappinsightsdeploy
       uses: azure/bicep-deploy@v2.5.0
@@ -269,7 +336,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}", "d1SearchProductionEnabled": ${{ env.d1SearchProductionEnabled }}, "disableScheduledFunctions": ${{ env.disableScheduledFunctions }}}'
 
     - name: Set Function State
       if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.run_provision == 'true' }}
@@ -277,15 +344,18 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
-          az functionapp ${{ env.functionState }} --name api-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          set -euo pipefail
+          az functionapp "$functionState" --name "api-${suffix}" --resource-group "$DEPLOYMENT_RESOURCEGROUP_NAME"
+          az functionapp "$functionState" --name "indexer-${suffix}" --resource-group "$DEPLOYMENT_RESOURCEGROUP_NAME"
+          az functionapp "$functionState" --name "discover-${suffix}" --resource-group "$DEPLOYMENT_RESOURCEGROUP_NAME"
 
     # After Cosmos/functions. Must succeed for provision to pass (no continue-on-error).
+    # A new budget cannot use the live budget's April 2026 start date, and that date must
+    # not change. Branch trials skip it; main keeps functions-cost-budget-infra.
     - name: Functions Budget (Deploy Bicep)
       id: bicepfunctionsbudgetdeploy
       uses: azure/bicep-deploy@v2.5.0
-      if: needs.build.outputs.run_provision == 'true'
+      if: needs.build.outputs.run_provision == 'true' && github.ref == 'refs/heads/main'
       with:
         type: deployment
         operation: create
@@ -309,9 +379,21 @@ jobs:
         LATCH_VALUE: ${{ vars.PROVISION_LATCH }}
       run: |
         set -euo pipefail
+        JOB_OK="${{ job.status }}"
+        # A branch trial must not set or clear the production latch.
+        if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+          if [[ "${JOB_OK}" == "success" ]]; then
+            echo "deploy_allowed=true" >> "$GITHUB_OUTPUT"
+            echo "Branch trial succeeded. PROVISION_LATCH was not changed. Cosmos was not deployed."
+          else
+            echo "deploy_allowed=false" >> "$GITHUB_OUTPUT"
+            echo "Branch trial failed. PROVISION_LATCH was not changed."
+          fi
+          exit 0
+        fi
+
         REPO="${{ github.repository }}"
         RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        JOB_OK="${{ job.status }}"
 
         if [[ -n "${RPP_VARIABLES_TOKEN:-}" ]]; then
           export GH_TOKEN="$RPP_VARIABLES_TOKEN"
@@ -369,7 +451,7 @@ jobs:
   api-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
+    if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')) && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -393,14 +475,14 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'api-infra'
+          app-name: api-${{ env.suffix }}
           slot-name: 'Production'
           package: ${{ env.outputApi }}
 
   discover-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
+    if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')) && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -424,14 +506,14 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'discover-infra'
+          app-name: discover-${{ env.suffix }}
           slot-name: 'Production'
           package: ${{ env.outputDiscover }}
 
   indexer-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
+    if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main')) && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -455,7 +537,109 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'indexer-infra'
+          app-name: indexer-${{ env.suffix }}
           slot-name: 'Production'
           package: ${{ env.outputIndexer }}
+
+  # functions-action starts the apps. Confirm the isolated worker and the timer-disable
+  # settings, then stop them. A partial success still stops: one started app would hit
+  # the existing Cosmos account and the production social secrets.
+  trial-stop:
+    runs-on: ubuntu-latest
+    needs: [api-deploy, discover-deploy, indexer-deploy]
+    if: ${{ always() && !cancelled() && github.ref != 'refs/heads/main' && (needs.api-deploy.result == 'success' || needs.discover-deploy.result == 'success' || needs.indexer-deploy.result == 'success') }}
+    permissions:
+      id-token: write
+    steps:
+      - name: Login to Azure
+        uses: Azure/login@v3.1.0
+        with:
+          client-id: ${{ secrets.DEPLOYMENT_Client_ID }}
+          tenant-id: ${{ secrets.AZURE_Tenant_ID }}
+          subscription-id: ${{ secrets.AZURE_Subscription_ID }}
+      - name: Confirm .NET 11 worker and disabled timers
+        uses: Azure/cli@v3.0.0
+        with:
+          azcliversion: latest
+          inlineScript: |
+            set -euo pipefail
+            RG="$DEPLOYMENT_RESOURCEGROUP_NAME"
+            SUFFIX="$suffix"
+            # Do not start the apps. functions-action starts them; the next step stops them.
+            # This check must not call az functionapp start or az functionapp function list.
+            check_app() {
+              local app="$1"
+              local runtime_name runtime_version
+              # Current az returns the ARM envelope (properties.*). Older az flattened those fields.
+              runtime_name="$(az functionapp show --resource-group "$RG" --name "$app" --query "properties.functionAppConfig.runtime.name" -o tsv)"
+              runtime_version="$(az functionapp show --resource-group "$RG" --name "$app" --query "properties.functionAppConfig.runtime.version" -o tsv)"
+              if [[ -z "$runtime_name" ]]; then
+                runtime_name="$(az functionapp show --resource-group "$RG" --name "$app" --query "functionAppConfig.runtime.name" -o tsv)"
+                runtime_version="$(az functionapp show --resource-group "$RG" --name "$app" --query "functionAppConfig.runtime.version" -o tsv)"
+              fi
+              echo "$app runtime: ${runtime_name} ${runtime_version}"
+              if [[ "$runtime_name" != "dotnet-isolated" || "$runtime_version" != 11* ]]; then
+                echo "::error::$app runtime is ${runtime_name} ${runtime_version}; expected dotnet-isolated 11."
+                return 1
+              fi
+            }
+            # Dotted AzureWebJobs.<Function>.Disabled is the documented control (functions.bicep
+            # discoverScheduleDisabled / indexerScheduleDisabled). AzureWebJobs_HalfHourly_Disabled
+            # is a different name and does not count.
+            require_disabled() {
+              local app="$1"
+              shift
+              local file
+              file="$(mktemp)"
+              az functionapp config appsettings list --resource-group "$RG" --name "$app" -o json > "$file"
+              python3 - "$file" "$@" <<'PY'
+            import json, sys
+            path, *keys = sys.argv[1:]
+            with open(path, encoding="utf-8") as handle:
+                rows = json.load(handle)
+            found = {row.get("name"): row.get("value") for row in rows}
+            failed = False
+            for key in keys:
+                value = found.get(key)
+                text = "" if value is None else str(value)
+                if text.lower() not in ("true", "1"):
+                    shown = text if text else "unset"
+                    print("::error::%s must be true or 1 (found %r). AzureWebJobs_*_Disabled does not satisfy this check." % (key, shown))
+                    failed = True
+                else:
+                    print("%s=%s" % (key, text))
+            sys.exit(1 if failed else 0)
+            PY
+              local status=$?
+              rm -f "$file"
+              return "$status"
+            }
+            failed=0
+            check_app "api-${SUFFIX}" || failed=1
+            check_app "discover-${SUFFIX}" || failed=1
+            check_app "indexer-${SUFFIX}" || failed=1
+            require_disabled "discover-${SUFFIX}" \
+              "AzureWebJobs.DiscoveryTrigger.Disabled" || failed=1
+            require_disabled "indexer-${SUFFIX}" \
+              "AzureWebJobs.Hourly.Disabled" \
+              "AzureWebJobs.HourlyCatchUp.Disabled" \
+              "AzureWebJobs.HalfHourly.Disabled" \
+              "AzureWebJobs.D1SearchReconcile.Disabled" \
+              "AzureWebJobs.SearchSuggestionsPublish.Disabled" \
+              "AzureWebJobs.YouTubeQuotaReport.Disabled" || failed=1
+            exit "$failed"
+      - name: Stop trial function apps
+        if: always()
+        uses: Azure/cli@v3.0.0
+        with:
+          azcliversion: latest
+          inlineScript: |
+            set -euo pipefail
+            RG="$DEPLOYMENT_RESOURCEGROUP_NAME"
+            SUFFIX="$suffix"
+            failed=0
+            az functionapp stop --name "api-${SUFFIX}" --resource-group "$RG" || failed=1
+            az functionapp stop --name "discover-${SUFFIX}" --resource-group "$RG" || failed=1
+            az functionapp stop --name "indexer-${SUFFIX}" --resource-group "$RG" || failed=1
+            exit "$failed"
 

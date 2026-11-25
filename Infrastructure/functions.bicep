@@ -24,6 +24,8 @@ param searchIndexWriterClientId string
 param searchIndexWriterClientSecret string
 @description('D1 search sync (SP-2.1) to the production search index (api Worker POST /search/admin/docs). Off until Jon switches it on.')
 param d1SearchProductionEnabled bool = false
+@description('Branch trial only. Disables discover and indexer timer functions so a host start cannot run schedules.')
+param disableScheduledFunctions bool = false
 @secure()
 param cloudflareAccountId string
 @secure()
@@ -847,6 +849,18 @@ var applicationInsightsConnectionString = applicationInsights.properties.Connect
 var userAssignedIdentityId = userAssignedIdentity.id
 var userAssignedIdentityClientId = userAssignedIdentity.properties.clientId
 
+var discoverScheduleDisabled = disableScheduledFunctions ? {
+  'AzureWebJobs.DiscoveryTrigger.Disabled': '1'
+} : {}
+var indexerScheduleDisabled = disableScheduledFunctions ? {
+  'AzureWebJobs.Hourly.Disabled': '1'
+  'AzureWebJobs.HourlyCatchUp.Disabled': '1'
+  'AzureWebJobs.HalfHourly.Disabled': '1'
+  'AzureWebJobs.D1SearchReconcile.Disabled': '1'
+  'AzureWebJobs.SearchSuggestionsPublish.Disabled': '1'
+  'AzureWebJobs.YouTubeQuotaReport.Disabled': '1'
+} : {}
+
 var discoverScorer = {
     discover__scorer__Enabled: 'true'
     discover__scorer__BlobStorageAccountName: storageAccountName
@@ -864,7 +878,7 @@ module apiFunction 'function.bicep' = {
     storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}api-deployment'
     runtime: runtime
-    runtimeVersion: '10.0'
+    runtimeVersion: '11.0'
     suffix: suffix
     publicNetworkAccess: true
     instanceMemoryMB: 2048
@@ -887,14 +901,14 @@ module discoveryFunction 'function.bicep' = {
     storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}discovery-deployment'
     runtime: runtime
-    runtimeVersion: '10.0'
+    runtimeVersion: '11.0'
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Discovery: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
-    }, discoverySettings, discoverScorer)
+    }, discoverySettings, discoverScorer, discoverScheduleDisabled)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
   }
@@ -909,14 +923,14 @@ module indexerFunction 'function.bicep' = {
     storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}indexer-deployment'
     runtime: runtime
-    runtimeVersion: '10.0'
+    runtimeVersion: '11.0'
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Indexer: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
-    }, indexerSettings)
+    }, indexerSettings, indexerScheduleDisabled)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
   }  

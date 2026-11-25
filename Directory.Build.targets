@@ -35,7 +35,7 @@
     CS0006 metadata-not-found errors.
 
     Nested &lt;MSBuild&gt; from many parallel parents races on GenerateDepsFile
-    (MSB4018 writing the same bin/Release/net10.0/*.deps.json). Prefer CI/scripts that
+    (MSB4018 writing the same bin/Release/net11.0/*.deps.json). Prefer CI/scripts that
     pre-build these two projects then set SkipEnsureDependencyInjectionBuilt=true
     (see .github/workflows/deploy.yml, dotnet.yml, scripts/publish-console-apps.ps1).
     Skipped when RuntimeIdentifier is set: RID publish/build already had no serialize path

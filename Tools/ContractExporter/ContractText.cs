@@ -26,10 +26,10 @@ public static class ContractText
 
     public static IReadOnlyList<(string RelativePath, string Contents)> Render(ContractDocument document) =>
     [
-        (ContractPaths.TypeScript, RenderTypeScript(document)),
-        (ContractPaths.Zod, RenderZod(document)),
-        (ContractPaths.JsonSchema, RenderJsonSchema(document)),
-        (ContractPaths.Assignability, RenderAssignability(document))
+        (ContractPaths.TypeScript, Normalize(RenderTypeScript(document))),
+        (ContractPaths.Zod, Normalize(RenderZod(document))),
+        (ContractPaths.JsonSchema, Normalize(RenderJsonSchema(document))),
+        (ContractPaths.Assignability, Normalize(RenderAssignability(document)))
     ];
 
     public static void Write(string outputDirectory, ContractDocument document)

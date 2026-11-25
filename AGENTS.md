@@ -133,7 +133,7 @@ Rules:
 ## Cursor Cloud specific instructions
 
 Multi-repo workspace: this repo is at `/agent/repos/redditpodcastposter` alongside `/agent/repos/api`
-and `/agent/repos/website`. Uses the **.NET 10 SDK** (installed at `~/.dotnet`; login shells get it
+and `/agent/repos/website`. Uses the **.NET 11 SDK** (installed at `~/.dotnet`; login shells get it
 from `~/.bashrc`, else prepend `$HOME/.dotnet` and set `DOTNET_ROOT=$HOME/.dotnet`). `pwsh` is
 available for the guardrail scripts.
 

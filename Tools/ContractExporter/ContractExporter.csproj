@@ -1,14 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <RootNamespace>ContractExporter</RootNamespace>
     <!-- Repo-relative contracts directory. Tests and CI pass an output directory argument. -->
     <ContractOutputDir>$(MSBuildThisFileDirectory)..\..\contracts\</ContractOutputDir>
-    <_ContractOutputFull>$([System.IO.Path]::GetFullPath('$(ContractOutputDir)'))</_ContractOutputFull>
+    <!--
+      Trim the trailing separator. On Windows, GetFullPath keeps it (.NET 8+), and a path
+      ending in a backslash escapes the closing quote of the dotnet exec command, so the
+      exporter writes under a directory named contracts-quote.
+    -->
+    <_ContractOutputFull>$([System.IO.Path]::TrimEndingDirectorySeparator($([System.IO.Path]::GetFullPath('$(ContractOutputDir)'))))</_ContractOutputFull>
   </PropertyGroup>
 
   <!--
@@ -17,10 +22,10 @@
     Keep this list aligned with ContractPaths.
   -->
   <ItemGroup>
-    <ContractGenerated Include="$(_ContractOutputFull)src/index.ts" />
-    <ContractGenerated Include="$(_ContractOutputFull)src/zod.ts" />
-    <ContractGenerated Include="$(_ContractOutputFull)schemas/contracts.schema.json" />
-    <ContractGenerated Include="$(_ContractOutputFull)typecheck/assignability.ts" />
+    <ContractGenerated Include="$(_ContractOutputFull)/src/index.ts" />
+    <ContractGenerated Include="$(_ContractOutputFull)/src/zod.ts" />
+    <ContractGenerated Include="$(_ContractOutputFull)/schemas/contracts.schema.json" />
+    <ContractGenerated Include="$(_ContractOutputFull)/typecheck/assignability.ts" />
     <UpToDateCheckOutput Include="@(ContractGenerated)" />
   </ItemGroup>
 
