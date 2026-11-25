@@ -2,7 +2,7 @@ using Azure.Diagnostics;
 using FluentAssertions;
 using Indexer.Activities;
 using Indexer.Services;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
@@ -26,6 +26,9 @@ public class PublisherD1DripRules
         _mocker.GetMock<IMemoryProbeOrchestrator>()
             .Setup(x => x.Start(It.IsAny<string>()))
             .Returns(_mocker.GetMock<IMemoryProbeScope>().Object);
+        _mocker.GetMock<FunctionContext>()
+            .SetupGet(x => x.InvocationId)
+            .Returns(_fixture.Create<string>());
         var reason = "enabled";
         _mocker.GetMock<IActivityOptionsProvider>()
             .Setup(x => x.RunPublisher(out reason))
@@ -36,9 +39,9 @@ public class PublisherD1DripRules
     }
 
     private Task<IndexerContext> Run() =>
-        _mocker.CreateInstance<global::Indexer.Activities.Publisher>().RunAsync(
-            _mocker.GetMock<TaskActivityContext>().Object,
-            new IndexerContext(PublisherOperationId: _fixture.CreateGuid()));
+        _mocker.CreateInstance<global::Indexer.Activities.Publisher>().Run(
+            new IndexerContext(PublisherOperationId: _fixture.CreateGuid()),
+            _mocker.GetMock<FunctionContext>().Object);
 
     [Fact(DisplayName =
         "When the publisher activity runs, then the D1 search drip runs after the Azure indexer and the homepage, " +

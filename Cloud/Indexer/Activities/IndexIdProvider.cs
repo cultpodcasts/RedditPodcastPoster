@@ -1,5 +1,5 @@
 using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure.Diagnostics;
@@ -13,22 +13,24 @@ using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 
 namespace Indexer.Activities;
 
-[DurableTask(nameof(IndexIdProvider))]
 public class IndexIdProvider(
     IPodcastRepository podcastRepository,
     ICatalogueParentsUpdater catalogueParentsUpdater,
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<IndexIdProvider> logger
-) : TaskActivity<IndexIdProviderRequest, IndexIdProviderResponse>
+)
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
-    public override async Task<IndexIdProviderResponse> RunAsync(TaskActivityContext context, IndexIdProviderRequest req)
+    [Function(nameof(IndexIdProvider))]
+    public async Task<IndexIdProviderResponse> Run(
+        [ActivityTrigger] IndexIdProviderRequest req,
+        FunctionContext functionContext)
     {
         logger.LogInformation(
-            "{IndexIdProviderName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.", nameof(IndexIdProvider), context.InstanceId);
+            "{IndexIdProviderName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.", nameof(IndexIdProvider), functionContext.InvocationId);
 
         if (req.IndexPasses < 1)
         {
@@ -73,7 +75,7 @@ public class IndexIdProvider(
         logger.LogInformation(
             "IndexIdProvider catalogue-parent-count='{CatalogueParentCount}'", catalogueParentIds.Length);
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed.");
+        logger.LogInformation($"{nameof(Run)} Completed.");
         return new IndexIdProviderResponse(batches, catalogueParentBatches);
     }
 }

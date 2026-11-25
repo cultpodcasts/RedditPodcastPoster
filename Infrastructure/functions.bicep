@@ -24,7 +24,7 @@ param searchIndexWriterClientId string
 param searchIndexWriterClientSecret string
 @description('D1 search sync (SP-2.1) to the production search index (api Worker POST /search/admin/docs). Off until Jon switches it on.')
 param d1SearchProductionEnabled bool = false
-@description('Branch trial only. Disables discover and indexer timer functions so a host start cannot run schedules.')
+@description('Disables discover and indexer timer functions so a host start cannot run schedules. Production passes false.')
 param disableScheduledFunctions bool = false
 @secure()
 param cloudflareAccountId string
@@ -146,6 +146,20 @@ param alertEmailAddress string = ''
 
 resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
+}
+
+resource storageQueueService 'Microsoft.Storage/storageAccounts/queueServices@2022-05-01' existing = {
+  parent: storage
+  name: 'default'
+}
+
+// The scale controller queries this poison queue on every host start. The apply
+// function only created the primary queue, so GetProperties returned 404.
+// Name is DiscoverySubmissionApplyQueueMessage.PoisonQueueName
+// ("discovery-submission-apply" + "-poison"). Do not drift from that constant.
+resource discoverySubmissionApplyPoisonQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2022-05-01' = {
+  parent: storageQueueService
+  name: 'discovery-submission-apply-poison'
 }
 
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = {

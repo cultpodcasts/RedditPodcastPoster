@@ -47,12 +47,11 @@ public class HourlyOrchestrationIndexerFailureRules
     public async Task failed_indexer_pass_still_publishes()
     {
         // Arrange
-        var sut = new HourlyOrchestration();
         var (firstPass, lastPass) = HourlyIndexingPassSelector.SelectPasses(_now.Hour);
         _failingPasses.Add(firstPass);
 
         // Act
-        var act = () => sut.RunAsync(_context.Object, null);
+        var act = () => HourlyOrchestration.Run(_context.Object, null);
 
         // Assert
         await act.Should().ThrowAsync<IndexerPassesFailedException>();
@@ -67,12 +66,11 @@ public class HourlyOrchestrationIndexerFailureRules
     public async Task failed_indexer_pass_skips_all_posting()
     {
         // Arrange
-        var sut = new HourlyOrchestration();
         var (firstPass, _) = HourlyIndexingPassSelector.SelectPasses(_now.Hour);
         _failingPasses.Add(firstPass);
 
         // Act
-        var act = () => sut.RunAsync(_context.Object, null);
+        var act = () => HourlyOrchestration.Run(_context.Object, null);
 
         // Assert
         await act.Should().ThrowAsync<IndexerPassesFailedException>();
@@ -85,12 +83,11 @@ public class HourlyOrchestrationIndexerFailureRules
     public async Task failed_indexer_pass_flags_youtube_errored_for_the_recheck()
     {
         // Arrange
-        var sut = new HourlyOrchestration();
         var (firstPass, _) = HourlyIndexingPassSelector.SelectPasses(_now.Hour);
         _failingPasses.Add(firstPass);
 
         // Act
-        var act = () => sut.RunAsync(_context.Object, null);
+        var act = () => HourlyOrchestration.Run(_context.Object, null);
 
         // Assert
         await act.Should().ThrowAsync<IndexerPassesFailedException>();
@@ -104,12 +101,11 @@ public class HourlyOrchestrationIndexerFailureRules
     public async Task failed_indexer_pass_still_fails_the_instance()
     {
         // Arrange
-        var sut = new HourlyOrchestration();
         var (firstPass, _) = HourlyIndexingPassSelector.SelectPasses(_now.Hour);
         _failingPasses.Add(firstPass);
 
         // Act
-        var act = () => sut.RunAsync(_context.Object, null);
+        var act = () => HourlyOrchestration.Run(_context.Object, null);
 
         // Assert
         (await act.Should().ThrowAsync<IndexerPassesFailedException>())
@@ -122,10 +118,8 @@ public class HourlyOrchestrationIndexerFailureRules
     public async Task successful_passes_complete_normally()
     {
         // Arrange
-        var sut = new HourlyOrchestration();
-
         // Act
-        var result = await sut.RunAsync(_context.Object, null);
+        var result = await HourlyOrchestration.Run(_context.Object, null);
 
         // Assert
         result.Should().NotBeNull();
