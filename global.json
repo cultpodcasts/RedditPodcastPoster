@@ -2,5 +2,8 @@
   "sdk": {
     "version": "11.0.100",
     "rollForward": "latestFeature"
+  },
+  "msbuild-sdks": {
+    "Azure.Functions.Sdk": "1.1.0"
   }
 }

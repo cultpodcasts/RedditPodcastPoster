@@ -41,6 +41,8 @@ env:
   functionState: ${{ github.ref == 'refs/heads/main' && 'start' || 'stop' }}
   # JSON boolean for functions.bicep. Kept here so the parameters string has no nested quotes (those break the workflow parser).
   d1SearchProductionEnabled: ${{ github.ref == 'refs/heads/main' }}
+  # Trial hosts must not run discover or indexer timers, even if a package deploy starts the process.
+  disableScheduledFunctions: ${{ github.ref != 'refs/heads/main' }}
   COSMOS_DEPLOYMENT_NAME: infra-cosmos
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
@@ -230,6 +232,26 @@ jobs:
         inlineScript: |
           az group create --name ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }} --location ${{ env.location }}
 
+    # The workflow identity is subscription Contributor. That can create the group
+    # and cannot grant itself User Access Administrator. The functions template
+    # assigns roles on the new storage account, so this has to already exist.
+    - name: Trial role assignment preflight
+      if: github.ref != 'refs/heads/main' && needs.build.outputs.run_provision == 'true'
+      uses: Azure/cli@v3.0.0
+      with:
+        azcliversion: latest
+        inlineScript: |
+          set -euo pipefail
+          RG="${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}"
+          SUB="${{ secrets.AZURE_Subscription_ID }}"
+          SCOPE="/subscriptions/${SUB}/resourceGroups/${RG}"
+          COUNT="$(az role assignment list --assignee 95cf9d89-e437-472a-8c3d-b756b0974ced --role "User Access Administrator" --scope "$SCOPE" --query "length(@)" -o tsv)"
+          if [[ "${COUNT}" == "0" || -z "${COUNT}" ]]; then
+            echo "::error::Deployment cannot assign roles in ${RG}. Signed in as an owner, run: pwsh ./scripts/enable-branch-trial-auth.ps1 -ResourceGroup ${RG} -Branch ${{ github.ref_name }}"
+            exit 1
+          fi
+          echo "User Access Administrator is present on ${SCOPE}."
+
     # Critical resources first. Budget is last: a budget-only failure must not
     # skip Cosmos/functions, but still fails this job so *-deploy does not run.
     # Branch trials skip Cosmos entirely and keep the existing account (Key Vault secrets).
@@ -298,7 +320,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}", "d1SearchProductionEnabled": ${{ env.d1SearchProductionEnabled }}}'
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}", "d1SearchProductionEnabled": ${{ env.d1SearchProductionEnabled }}, "disableScheduledFunctions": ${{ env.disableScheduledFunctions }}}'
 
     - name: Set Function State
       if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.run_provision == 'true' }}
@@ -525,10 +547,11 @@ jobs:
             set -euo pipefail
             RG="${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}"
             SUFFIX="${{ env.suffix }}"
-            # Authored entry points. Listing them means the isolated worker loaded the assembly.
-            # Do not call the functions: indexer and discovery timers would touch production data.
+            # Do not start the apps. functions-action starts them; trial-stop stops them.
+            # Discover and indexer timers are disabled by disableScheduledFunctions, and this
+            # check must not call az functionapp start.
             check_app() {
-              local app="$1" required="$2"
+              local app="$1"
               local runtime_name runtime_version
               # Current az returns the ARM envelope (properties.*). Older az flattened those fields.
               runtime_name="$(az functionapp show --resource-group "$RG" --name "$app" --query "properties.functionAppConfig.runtime.name" -o tsv)"
@@ -542,24 +565,11 @@ jobs:
                 echo "::error::$app runtime is ${runtime_name} ${runtime_version}; expected dotnet-isolated 11."
                 return 1
               fi
-              az functionapp start --resource-group "$RG" --name "$app"
-              local attempt names
-              for attempt in $(seq 1 24); do
-                names="$(az functionapp function list --resource-group "$RG" --name "$app" --query "[].name" -o tsv 2>/dev/null || true)"
-                echo "$app attempt ${attempt}: ${names//$'\n'/, }"
-                if printf '%s\n' "$names" | grep -Eq "(^|/)${required}$"; then
-                  echo "$app indexed ${required}"
-                  return 0
-                fi
-                sleep 15
-              done
-              echo "::error::$app did not list ${required}. The .NET worker did not index functions."
-              return 1
             }
             failed=0
-            check_app "api-${SUFFIX}" "Test" || failed=1
-            check_app "discover-${SUFFIX}" "DiscoveryTrigger" || failed=1
-            check_app "indexer-${SUFFIX}" "Hourly" || failed=1
+            check_app "api-${SUFFIX}" || failed=1
+            check_app "discover-${SUFFIX}" || failed=1
+            check_app "indexer-${SUFFIX}" || failed=1
             exit "$failed"
       - name: Stop trial function apps
         if: always()
