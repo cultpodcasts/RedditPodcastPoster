@@ -101,7 +101,7 @@ public class NewsReportFilmMoveService(
             {
                 var (stop, name, admission) = await FilmMoveTarget.PrepareNewFilm(
                     report.Title, report.Release, command.Request, filmRepository, identityEnricher, logger,
-                    cancellationToken);
+                    cancellationToken, report.Length);
                 if (stop is not null)
                 {
                     return stop;
