@@ -22,6 +22,14 @@ public static class EpisodeCosmosFilters
     public static Expression<Func<Episode, bool>> ParentNotRemoved { get; } =
         e => !e.ParentRemoved.IsDefined() || e.ParentRemoved == false || e.ParentRemoved == null;
 
+    /// <summary>
+    /// #1491: approval status is awaiting approval. Cosmos stores the enum name, so this is
+    /// <c>approvalStatus = 'AwaitingApproval'</c> (<see cref="Episode.CosmosAwaitingApprovalSql"/>),
+    /// not removed plus a tweet-skip reason. A rejected split-off and an approved episode are excluded.
+    /// </summary>
+    public static Expression<Func<Episode, bool>> AwaitingApproval { get; } =
+        e => e.ApprovalStatus == ApprovalStatus.AwaitingApproval;
+
     /// <summary>Combines two Episode predicates with AND (parameter-replacing).</summary>
     public static Expression<Func<Episode, bool>> And(
         Expression<Func<Episode, bool>> left,
