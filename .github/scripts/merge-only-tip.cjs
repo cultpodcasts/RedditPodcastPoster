@@ -12,8 +12,8 @@
 //      common, so the merge was textually clean and needed no hand resolution;
 //   4. the merge delta (P1..M) is exactly the base side (merge-base..P2): same files, same
 //      status, same resulting blob SHAs. Anything extra (an "evil merge") or missing fails;
-//   5. no compare listing was truncated (GitHub returns at most 300 files, in a single page),
-//      so a hidden file can never ride along.
+//   5. no compare listing was truncated (GitHub returns at most 300 files per compare, on
+//      page 1 only, and does not page them), so a hidden file can never ride along.
 // Known residual: compare entries carry no file mode or type, so a merge that only flips a mode
 // (100644 -> 100755) or swaps a file for a symlink with the SAME blob, on a file the base side also
 // changed, has an identical key and passes. Blob content is still verified. Accepted: closing it
@@ -25,7 +25,9 @@
 // Mirrored byte-identical across RedditPodcastPoster, Api and website. Tests: merge-only-tip.test.cjs.
 
 const MAX_HOPS = 10;
-// GitHub caps a compare file list at 300 (single page); reaching the cap means it may be truncated.
+// GitHub returns at most 300 files for a compare, on page 1 only: `per_page` and `page` page the
+// commits list, never `files` (page 2 onwards come back with no files). A listing of 300 may
+// therefore be clipped, so it counts as truncated.
 const COMPARE_FILE_CAP = 300;
 const SHA_RE = /^[0-9a-f]{40}$/i;
 const BASE_ANCESTOR_STATUSES = new Set(['behind', 'identical']);
@@ -66,17 +68,15 @@ function deltaMatchesBaseSide(deltaFiles, baseFiles) {
   return a.length === b.length && a.every((k, i) => k === b[i]);
 }
 
-// All files of a compare, or `truncated: true` when the listing may be incomplete.
-// GitHub's compare endpoint is NOT paginated for files: the file list is returned once, on
-// the first page, and is capped at COMPARE_FILE_CAP for the whole comparison (`page` and
-// `per_page` only page the COMMITS; later pages return no files). So make ONE call and treat
-// a list that reached the cap as truncated: files beyond it are invisible to every check.
+// All files of a compare, or `truncated: true` when the listing may be incomplete: it reached
+// GitHub's 300 file cap (a single request, since files are not paged), or it has no files array
+// although the compare is not `identical`. Fails closed: an unknown listing is never complete.
 async function listCompareFiles(github, owner, repo, basehead) {
-  const { data } = await github.rest.repos.compareCommitsWithBasehead({
-    owner, repo, basehead, per_page: 1,
-  });
-  const files = (data && data.files) || [];
-  return { files, truncated: files.length >= COMPARE_FILE_CAP };
+  const { data } = await github.rest.repos.compareCommitsWithBasehead({ owner, repo, basehead });
+  if (!data || !Array.isArray(data.files)) {
+    return { files: [], truncated: !(data && data.status === 'identical') };
+  }
+  return { files: data.files, truncated: data.files.length >= COMPARE_FILE_CAP };
 }
 
 // Assess one merge commit. Resolves { ok: true, firstParent, secondParent, files } or

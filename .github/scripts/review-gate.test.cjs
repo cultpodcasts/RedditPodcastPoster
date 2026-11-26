@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const g = require('./review-gate.cjs');
+const { createRepo } = require('./git-graph-fake.cjs');
 
 const SHA = 'a'.repeat(40);
 const OLD = 'b'.repeat(40);
@@ -182,12 +183,12 @@ test('prNumberFromContext: PR events and PR comments only', () => {
   assert.equal(g.prNumberFromContext({ eventName: 'issue_comment', payload: { issue: { number: 8 } } }), null);
 });
 
-function fakeGithub({ labels = [], comments = [], state = 'open', removeStatus } = {}) {
+function fakeGithub({ labels = [], comments = [], state = 'open', removeStatus, headSha = SHA, graph } = {}) {
   const calls = { statuses: [], removed: [] };
   const github = {
     rest: {
       pulls: {
-        get: async () => ({ data: { state, head: { sha: SHA }, base: { ref: 'main' }, labels: labels.map((name) => ({ name })), html_url: 'u' } }),
+        get: async () => ({ data: { state, head: { sha: headSha }, base: { ref: 'main' }, labels: labels.map((name) => ({ name })), html_url: 'u' } }),
       },
       // The head is a single-parent commit by default, so it is never a merge-only tip.
       git: { getCommit: async () => ({ data: { parents: [{ sha: OLD }] } }) },
@@ -205,6 +206,12 @@ function fakeGithub({ labels = [], comments = [], state = 'open', removeStatus }
       return comments;
     },
   };
+  // A graph (git-graph-fake.cjs) replaces the single-parent default with a real commit graph, so the
+  // real walker runs against GitHub-shaped getCommit / compare responses.
+  if (graph) {
+    github.rest.git = graph.github.rest.git;
+    github.rest.repos.compareCommitsWithBasehead = graph.github.rest.repos.compareCommitsWithBasehead;
+  }
   return { github, calls };
 }
 const core = { info() {} };
@@ -442,6 +449,50 @@ test('run: a carried head never attempts a label removal', async () => {
   assert.deepEqual(calls.removed, []);
 });
 
+// Wiring: review-gate.run + the REAL walkMergeOnlyChain + the label/status outcome, on an in-memory
+// two-parent commit graph (no injected walker). Covers pr.base.ref plumbing and classify casing.
+function carryGraph({ tamper } = {}) {
+  const graph = createRepo();
+  const root = graph.root({ 'src/a.txt': 'a0', 'docs/readme.md': 'r0' });
+  const anchor = graph.commit(root, { 'src/feature.txt': 'f1' });
+  const main1 = graph.commit(root, { 'src/a.txt': 'a1' });
+  graph.branches.main = main1;
+  const head = graph.merge(anchor, main1, tamper);
+  return { graph, anchor, head };
+}
+const realCarry = ({ graph, anchor, head }, comments) => {
+  const { github, calls } = fakeGithub({ labels: LABELLED, comments: comments || [c(ok(anchor.toUpperCase()))], headSha: head, graph });
+  return { github, calls };
+};
+
+test('run (real walker): a clean merge-from-base head over an acceptable anchor keeps the label and passes', async () => {
+  const scenario = carryGraph();
+  const { github, calls } = realCarry(scenario);
+  const r = await g.run({ github, core, context: pushCtx() });
+  assert.equal(r.state, 'success');
+  assert.deepEqual(calls.removed, []);
+  assert.equal(calls.statuses[0].sha, scenario.head);
+  assert.equal(calls.statuses[0].state, 'success');
+  assert.match(calls.statuses[0].description, new RegExp(`Carried acceptable from ${scenario.anchor.slice(0, 7)} across 1 merge-from-base commit`));
+});
+
+test('run (real walker): an evil merge (extra hand-edited file) removes the label and fails', async () => {
+  const scenario = carryGraph({ tamper: { 'src/sneaky.txt': 'x' } });
+  const { github, calls } = realCarry(scenario);
+  const r = await g.run({ github, core, context: pushCtx() });
+  assert.equal(r.state, 'failure');
+  assert.deepEqual(calls.removed, ['review-acceptable']);
+  assert.equal(calls.statuses[0].state, 'failure');
+  assert.match(calls.statuses[0].description, /differ from the base side/);
+});
+
+test('run (real walker): a changes-requested marker on the anchor blocks the carry', async () => {
+  const scenario = carryGraph();
+  const { github, calls } = realCarry(scenario, [c(ok(scenario.anchor)), c(no(scenario.anchor), '2026-11-21T19:00:00Z')]);
+  const r = await g.run({ github, core, context: pushCtx() });
+  assert.equal(r.state, 'failure');
+  assert.deepEqual(calls.removed, ['review-acceptable']);
+});
 // Static guards on the workflow so the P1/P2 fixes can't regress.
 const workflow = fs.readFileSync(path.join(__dirname, '..', 'workflows', 'review-gate.yml'), 'utf8');
 const code = workflow.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
