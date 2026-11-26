@@ -348,10 +348,10 @@ public class EpisodeCosmosFilterTranslationRules
             .QueryText;
 
         // Assert
-        sql.Should().Contain("approvalStatus");
-        sql.Should().Contain("AwaitingApproval");
-        sql.Should().NotContain("tweetSkipReason");
-        sql.Should().NotContain("removed");
-        Episode.CosmosAwaitingApprovalSql.Should().Contain("AwaitingApproval");
+        // The hand-written constant (alias e, single quotes) re-expressed in the translator's form (alias root, double quotes).
+        var handWrittenPredicate = Episode.CosmosAwaitingApprovalSql
+            .Replace("e.approvalStatus", "root[\"approvalStatus\"]")
+            .Replace('\'', '"');
+        sql.Should().Be($"SELECT VALUE root FROM root WHERE ({handWrittenPredicate})");
     }
 }
