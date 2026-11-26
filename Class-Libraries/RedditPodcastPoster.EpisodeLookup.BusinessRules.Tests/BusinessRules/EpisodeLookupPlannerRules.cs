@@ -20,8 +20,8 @@ public class EpisodeLookupPlannerRules
     public static TheoryData<EpisodeLookupFlow, int?, int?, string> Matrix() => new()
     {
         // flow, show size, release days ago (null = undated), expected plan
-        { EpisodeLookupFlow.Index, 50, 1, "full-show-read" },
-        { EpisodeLookupFlow.Index, 200, 400, "full-show-read" },
+        { EpisodeLookupFlow.Index, 50, 1, "full-show-read>title-search" },
+        { EpisodeLookupFlow.Index, 200, 400, "full-show-read>title-search" },
         { EpisodeLookupFlow.Index, 201, 1, "newest-pages" },
         { EpisodeLookupFlow.Index, null, 1, "newest-pages" },
         { EpisodeLookupFlow.Index, null, 400, "newest-pages" },
@@ -40,7 +40,7 @@ public class EpisodeLookupPlannerRules
     };
 
     [Theory(DisplayName =
-        "Plan picks: full read for known shows of <=200 episodes in any flow (outside Index, time-budgeted with a title-search fallback); Index newest pages (no search) for larger/unknown shows; " +
+        "Plan picks: full read for known shows of <=200 episodes in any flow (time-budgeted with a title-search fallback); Index newest pages (no search) for larger/unknown shows; " +
         "other flows newest page then search then bounded walk for releases inside 14 days, else search then bounded walk.")]
     [MemberData(nameof(Matrix))]
     public void Plan_matrix(EpisodeLookupFlow flow, int? showSize, int? releasedDaysAgo, string expected)
@@ -60,14 +60,14 @@ public class EpisodeLookupPlannerRules
     }
 
     [Theory(DisplayName =
-        "Outside Index, a small-show full read carries the FullShowReadBudget so it cannot hold a request for minutes " +
-        "(submission 4a7d8838: The Compendium, Spotify 185 and Apple 159 episodes, ~45 s per platform per item, twice); " +
-        "Index keeps its unbudgeted full read with no fallback.")]
-    [InlineData(EpisodeLookupFlow.Submit, true)]
-    [InlineData(EpisodeLookupFlow.Discovery, true)]
-    [InlineData(EpisodeLookupFlow.Enrich, true)]
-    [InlineData(EpisodeLookupFlow.Index, false)]
-    public void Full_read_budget_per_flow(EpisodeLookupFlow flow, bool budgeted)
+        "A small-show full read carries the FullShowReadBudget in every flow (including Index) so one enrich miss " +
+        "cannot burn the hourly podcast 60 s backstop (Divorcing Religion / Creative Alchemy: Index full-show-read " +
+        "of ~135–179 episodes then Apple pages through abandon grace); title-search follows when the read stops early.")]
+    [InlineData(EpisodeLookupFlow.Submit)]
+    [InlineData(EpisodeLookupFlow.Discovery)]
+    [InlineData(EpisodeLookupFlow.Enrich)]
+    [InlineData(EpisodeLookupFlow.Index)]
+    public void Full_read_budget_per_flow(EpisodeLookupFlow flow)
     {
         // Arrange
         var options = new EpisodeLookupOptions { FullShowReadBudget = TimeSpan.FromSeconds(7) };
@@ -79,10 +79,9 @@ public class EpisodeLookupPlannerRules
 
         // Assert
         var fullRead = plan.Should().ContainSingle(x => x.Strategy == CatalogueLookupStrategy.FullShowRead).Subject;
-        fullRead.Budget.Should().Be(budgeted ? TimeSpan.FromSeconds(7) : null);
-        plan.Select(x => x.Strategy).Should().Equal(budgeted
-            ? [CatalogueLookupStrategy.FullShowRead, CatalogueLookupStrategy.TitleSearch]
-            : [CatalogueLookupStrategy.FullShowRead]);
+        fullRead.Budget.Should().Be(TimeSpan.FromSeconds(7));
+        plan.Select(x => x.Strategy).Should().Equal(
+            CatalogueLookupStrategy.FullShowRead, CatalogueLookupStrategy.TitleSearch);
     }
 
     [Theory(DisplayName =
