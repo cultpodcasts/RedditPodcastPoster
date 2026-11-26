@@ -15,6 +15,7 @@ namespace Api.Controllers;
 public class EpisodeController(
     IGetEpisodeHandler getEpisodeHandler,
     IGetOutgoingEpisodesHandler getOutgoingEpisodesHandler,
+    IGetAwaitingApprovalEpisodesHandler getAwaitingApprovalEpisodesHandler,
     IPostEpisodeHandler postEpisodeHandler,
     IPublishEpisodeHandler publishEpisodeHandler,
     IDeleteEpisodeHandler deleteEpisodeHandler,
@@ -115,6 +116,22 @@ public class EpisodeController(
             req,
             ["curate"],
             getOutgoingEpisodesHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    [Function("AwaitingApprovalEpisodesGet")]
+    public Task<HttpResponseData> GetAwaitingApproval(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "episodes/awaiting-approval")]
+        HttpRequestData req,
+        FunctionContext _,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            getAwaitingApprovalEpisodesHandler.Handle,
             Unauthorised,
             ct);
     }
