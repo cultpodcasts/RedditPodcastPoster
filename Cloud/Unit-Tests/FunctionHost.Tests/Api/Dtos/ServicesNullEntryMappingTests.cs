@@ -24,7 +24,7 @@ public class ServicesNullEntryMappingTests
     {
         _mocker.GetMock<ITextSanitiser>()
             .Setup(x => x.SanitiseTitle(It.IsAny<string>(), It.IsAny<Regex?>(), It.IsAny<string[]>(),
-                It.IsAny<string[]>(), It.IsAny<string?>()))
+                It.IsAny<string[]>(), It.IsAny<string?>(), It.IsAny<Guid?>()))
             .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _, Guid? _) => title);
         _mocker.GetMock<ITextSanitiser>()
             .Setup(x => x.SanitiseDescription(It.IsAny<string>(), It.IsAny<Regex?>()))
