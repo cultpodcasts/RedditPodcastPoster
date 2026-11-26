@@ -134,7 +134,11 @@ counts as missing (a clean miss, never an exception). Caller cancellation is sti
 writes them onto `spotifyEpisodeCount` / `appleEpisodeCount` when they change (no backfill job; historic
 records fill in as the indexer runs).
 
-**Logging.** One line per lookup: `Catalogue episode lookup: platform=… flow=… plan=… stage=… show-episodes=… pages-read=…`.
+**Logging.** One line per lookup: `Catalogue episode lookup: platform=… flow=… plan=… stage=… show-episodes=… pages-read=… candidates=… classified=… classify-ms=…`.
+The last three fields (#1557 step 1) measure classification: `candidates` handed to `ICatalogueSubjectClassifier` (sum over
+steps), `classified` (those that had subjects/guests computed: all of them when enriching a YouTube-discovered episode,
+none otherwise) and `classify-ms` (Stopwatch time inside `ClassifyAsync`). Existing fields keep their order; new fields
+are only ever appended.
 Stage values are `full-show-read`, `newest-pages`, `title-search`, `bounded-walk` and `miss`
 (`CatalogueLookupExecutor.StageMiss`).
 

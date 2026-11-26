@@ -1021,6 +1021,24 @@ AppTraces
 | order by TimeGenerated desc
 ```
 
+### A2. Classification cost per hour (24h, #1557)
+
+`candidates`, `classified` and `classify-ms` are appended after `pages-read`. Compare `classify-ms` with the slow `enrich` seconds from the `IndexerPodcastStage` query in #1557 (same hour buckets).
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(24h)
+| where Message startswith "Catalogue episode lookup:"
+| extend Platform = extract(@"platform='([^']*)'", 1, Message),
+         Flow = extract(@"flow='([^']*)'", 1, Message),
+         Candidates = toint(extract(@"candidates=(\d+)", 1, Message)),
+         Classified = toint(extract(@"classified=(\d+)", 1, Message)),
+         ClassifyMs = tolong(extract(@"classify-ms=(\d+)", 1, Message))
+| where isnotnull(ClassifyMs)
+| summarize Lookups = count(), Candidates = sum(Candidates), Classified = sum(Classified), ClassifySec = round(sum(ClassifyMs) / 1000.0, 0) by hr = hourofday(TimeGenerated), Platform, Flow
+| order by hr asc
+```
+
 ### C. Request guard timeouts (7d)
 
 ```kusto

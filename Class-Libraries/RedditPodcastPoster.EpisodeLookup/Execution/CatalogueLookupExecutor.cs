@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
@@ -55,11 +56,12 @@ public sealed class CatalogueLookupExecutor(
         var steps = planner.Plan(lookup, hasShow, count, source.Platform);
         if (steps.Count == 0)
         {
-            Log(lookup, source, steps, StageSkippedNoShow, count, 0);
+            Log(lookup, source, steps, StageSkippedNoShow, count, 0, new ClassifyTally());
             return new CatalogueLookupResult<TItem>(null, StageSkippedNoShow);
         }
 
         var run = new LookupRun<TItem>(source);
+        var tally = new ClassifyTally();
         var fullReadCompleted = false;
         foreach (var step in steps)
         {
@@ -72,7 +74,7 @@ public sealed class CatalogueLookupExecutor(
             TItem? match;
             if (step.Budget is { } budget)
             {
-                (match, var spent) = await BudgetedFullRead(lookup, source, run, step, budget, reducer, cancellationToken);
+                (match, var spent) = await BudgetedFullRead(lookup, source, run, step, budget, reducer, tally, cancellationToken);
                 if (spent)
                 {
                     LogBudget(lookup, source, step, budget, run.PagesRead);
@@ -83,7 +85,7 @@ public sealed class CatalogueLookupExecutor(
                 var items = step.Strategy == CatalogueLookupStrategy.TitleSearch
                     ? await source.SearchByTitle(cancellationToken) ?? []
                     : await run.ReadPages(step, cancellationToken);
-                match = await MatchStage(lookup, source, run.Untried(items), reducer, cancellationToken);
+                match = await MatchStage(lookup, source, run.Untried(items), reducer, tally, cancellationToken);
             }
 
             if (step.Strategy == CatalogueLookupStrategy.FullShowRead && run.ReadToEnd)
@@ -96,13 +98,13 @@ public sealed class CatalogueLookupExecutor(
             Record(source, run.ReportedTotal);
             if (match != null)
             {
-                Log(lookup, source, steps, step.Stage, count, run.PagesRead);
+                Log(lookup, source, steps, step.Stage, count, run.PagesRead, tally);
                 return new CatalogueLookupResult<TItem>(
                     match, step.Stage, step.Strategy == CatalogueLookupStrategy.TitleSearch);
             }
         }
 
-        Log(lookup, source, steps, StageMiss, count, run.PagesRead);
+        Log(lookup, source, steps, StageMiss, count, run.PagesRead, tally);
         return new CatalogueLookupResult<TItem>(null, StageMiss);
     }
 
@@ -119,6 +121,7 @@ public sealed class CatalogueLookupExecutor(
         ICatalogueCandidateSource<TItem> source,
         IReadOnlyList<TItem> items,
         Func<TItem, bool>? reducer,
+        ClassifyTally tally,
         CancellationToken cancellationToken)
         where TItem : class
     {
@@ -129,7 +132,7 @@ public sealed class CatalogueLookupExecutor(
 
         var byEpisode = Map(source, items);
         var probe = CreateProbe(lookup);
-        var ignoredSubjects = await subjectClassifier.ClassifyAsync(probe, byEpisode.Keys.ToList(), lookup, cancellationToken);
+        var ignoredSubjects = await Classify(probe, byEpisode.Keys.ToList(), lookup, tally, cancellationToken);
         return Match(lookup, probe, byEpisode, ignoredSubjects, reducer);
     }
 
@@ -147,6 +150,7 @@ public sealed class CatalogueLookupExecutor(
         CatalogueLookupStep step,
         TimeSpan budget,
         Func<TItem, bool>? reducer,
+        ClassifyTally tally,
         CancellationToken cancellationToken)
         where TItem : class
     {
@@ -162,7 +166,7 @@ public sealed class CatalogueLookupExecutor(
             var fresh = Map(source, run.Untried(items));
             if (fresh.Count > 0)
             {
-                ignoredSubjects = await subjectClassifier.ClassifyAsync(probe, fresh.Keys.ToList(), lookup, cancellationToken);
+                ignoredSubjects = await Classify(probe, fresh.Keys.ToList(), lookup, tally, cancellationToken);
                 foreach (var (episode, item) in fresh)
                 {
                     byEpisode[episode] = item;
@@ -182,6 +186,35 @@ public sealed class CatalogueLookupExecutor(
         }
 
         return (MatchAll(lookup, probe, byEpisode, ignoredSubjects, reducer), false);
+    }
+
+    /// <summary>
+    /// Runs the classifier and tallies what the lookup line reports: candidates handed over, candidates that had
+    /// subjects/guests computed (only when enriching a YouTube-discovered episode; otherwise the classifier returns the
+    /// ignore list and computes nothing) and the time spent inside the call.
+    /// </summary>
+    private async Task<IReadOnlyList<string>?> Classify(
+        Episode probe,
+        IReadOnlyList<Episode> candidates,
+        CatalogueLookup lookup,
+        ClassifyTally tally,
+        CancellationToken cancellationToken)
+    {
+        tally.Candidates += candidates.Count;
+        if (lookup.EnrichingYouTubeDiscoveredEpisode)
+        {
+            tally.Classified += candidates.Count;
+        }
+
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            return await subjectClassifier.ClassifyAsync(probe, candidates, lookup, cancellationToken);
+        }
+        finally
+        {
+            tally.ClassifyMs += (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+        }
     }
 
     private TItem? MatchAll<TItem>(CatalogueLookup lookup, Episode probe, Dictionary<Episode, TItem> byEpisode,
@@ -239,12 +272,21 @@ public sealed class CatalogueLookupExecutor(
         IReadOnlyList<CatalogueLookupStep> steps,
         string stage,
         int? showEpisodeCount,
-        int pagesRead) =>
+        int pagesRead,
+        ClassifyTally tally) =>
         logger.LogInformation(
             LogMessagePrefix +
-            " platform='{Platform}' flow='{Flow}' podcast='{PodcastName}' episode='{EpisodeTitle}' plan='{Plan}' stage='{Stage}' show-episodes={ShowEpisodeCount} pages-read={PagesRead}.",
+            " platform='{Platform}' flow='{Flow}' podcast='{PodcastName}' episode='{EpisodeTitle}' plan='{Plan}' stage='{Stage}' show-episodes={ShowEpisodeCount} pages-read={PagesRead} candidates={Candidates} classified={Classified} classify-ms={ClassifyMs}.",
             source.Platform, lookup.Flow, lookup.PodcastName, lookup.Title,
-            steps.Count == 0 ? PlanNone : string.Join(">", steps.Select(x => x.Stage)), stage, showEpisodeCount, pagesRead);
+            steps.Count == 0 ? PlanNone : string.Join(">", steps.Select(x => x.Stage)), stage, showEpisodeCount, pagesRead, tally.Candidates, tally.Classified, tally.ClassifyMs);
+
+    /// <summary>Per-lookup classification totals for the lookup line (sum over steps).</summary>
+    private sealed class ClassifyTally
+    {
+        public int Candidates;
+        public int Classified;
+        public long ClassifyMs;
+    }
 
     /// <summary>Per-lookup page reader: pages are read newest-first once and reused across steps.</summary>
     private sealed class LookupRun<TItem>(ICatalogueCandidateSource<TItem> source)
