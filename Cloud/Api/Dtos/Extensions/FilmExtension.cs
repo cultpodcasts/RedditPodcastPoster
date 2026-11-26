@@ -20,7 +20,7 @@ public static class FilmExtension
             Subjects = [.. film.Subjects],
             Guests = film.Guests,
             Services = film.Services.ToDtos(),
-            Image = FilmDisplayImage.PreferIdentityOrTrailer(film),
+            Image = film.Image,
             AlternativeTitles = film.AlternativeTitles is { } titles ? [.. titles] : null,
             Trailers = film.Trailers is { Count: > 0 } trailers
                 ? trailers.Select(trailer => new FilmTrailerDto
