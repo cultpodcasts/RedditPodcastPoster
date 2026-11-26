@@ -29,10 +29,11 @@ public sealed class EpisodeLookupOptions
     public int FullShowReadMaxPages { get; set; } = 20;
 
     /// <summary>
-    /// Time budget for a small-show full read outside the Index flow (default 20 s), covering page reads and subject
-    /// classification, checked between pages (soft cap: may overshoot by one page). When it is spent the lookup falls
-    /// back to a title search. Index full reads are not budgeted.
-    /// Real case: submission 4a7d8838 spent ~45 s per platform per item on The Compendium (185/159 episodes).
+    /// Time budget for a small-show full read in every flow including Index (default 20 s), covering page reads and
+    /// subject classification, checked between pages (soft cap: may overshoot by one page). When it is spent the lookup
+    /// falls back to a title search. Without this on Index, enrich misses on ~135–179 episode shows burned the hourly
+    /// podcast 60 s backstop (Divorcing Religion / Creative Alchemy, Nov 2026).
+    /// Earlier case: submission 4a7d8838 spent ~45 s per platform per item on The Compendium (185/159 episodes).
     /// </summary>
     public TimeSpan FullShowReadBudget { get; set; } = TimeSpan.FromSeconds(20);
 
