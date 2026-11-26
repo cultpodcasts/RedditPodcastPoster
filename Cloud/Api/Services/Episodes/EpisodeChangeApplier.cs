@@ -1,4 +1,5 @@
 using Api.Models;
+using Api.Services;
 using Microsoft.Extensions.Logging;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using RedditPodcastPoster.Models.Episodes;
@@ -363,7 +364,41 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                 : null;
         }
 
+        YouTubeAlternateChangeApplier.Apply(
+            episode, episodeChangeRequest.AdditionalYouTube, episodeChangeRequest.PromoteYouTubeId);
+
         return changeState;
+    }
+
+    /// <summary>
+    /// The primary YouTube id after this change's <c>services</c> or <c>urls.youtube</c> is applied.
+    /// Services win when both are sent, matching <see cref="Apply"/>.
+    /// </summary>
+    internal static string? ResultingYouTubePrimary(Episode episode, EpisodeChangeRequest request)
+    {
+        if (request.Services is not null)
+        {
+            return YouTubeAlternateChangeApplier.ResultingPrimaryYouTubeId(episode, request.Services);
+        }
+
+        if (request.Urls?.YouTube is { } url)
+        {
+            if (url.ToString() == string.Empty)
+            {
+                return null;
+            }
+
+            if (YouTubePodcastServiceMatcher.IsMatch(url))
+            {
+                var id = YouTubeIdResolver.Extract(url);
+                if (!string.IsNullOrWhiteSpace(id))
+                {
+                    return id;
+                }
+            }
+        }
+
+        return YouTubeAlternateChangeApplier.CurrentPrimaryYouTubeId(episode);
     }
 
     private static void TrackImageEdit(string key, Uri? image, List<string> clearedImageKeys, ref bool imageSet)

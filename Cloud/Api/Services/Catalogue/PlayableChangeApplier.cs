@@ -1,8 +1,10 @@
 using System.Globalization;
 using Api.Models;
+using Api.Services;
 using Api.Services.Episodes;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Text.HashTags;
 
 namespace Api.Services.Catalogue;
@@ -13,6 +15,26 @@ namespace Api.Services.Catalogue;
 /// </summary>
 public static class PlayableChangeApplier
 {
+    public static bool TryValidate(Playable playable, PlayableFieldsChange change, out string? error)
+    {
+        if (!TryParseRelease(change.Release, allowYear: false, out _, out error) ||
+            !TryParseDuration(change.Duration, out _, out error) ||
+            (change.Services is not null && !PlayableServicesChangeApplier.TryValidate(change.Services, out error)) ||
+            !YouTubeAlternateChangeApplier.TryValidate(
+                playable,
+                change.AdditionalYouTube,
+                change.PromoteYouTubeId,
+                YouTubeAlternateChangeApplier.ResultingPrimaryYouTubeId(playable, change.Services),
+                YouTubeItemLabel(playable),
+                rejectId: null,
+                out error))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     public static bool TryApply(
         Playable playable,
         PlayableFieldsChange change,
@@ -20,9 +42,9 @@ public static class PlayableChangeApplier
         out string? error)
     {
         postStatus = PostStatusChange.None;
-        if (!TryParseRelease(change.Release, allowYear: false, out var release, out error) ||
-            !TryParseDuration(change.Duration, out var length, out error) ||
-            (change.Services is not null && !PlayableServicesChangeApplier.TryValidate(change.Services, out error)))
+        if (!TryValidate(playable, change, out error) ||
+            !TryParseRelease(change.Release, allowYear: false, out var release, out error) ||
+            !TryParseDuration(change.Duration, out var length, out error))
         {
             return false;
         }
@@ -99,8 +121,13 @@ public static class PlayableChangeApplier
             }
         }
 
+        YouTubeAlternateChangeApplier.Apply(playable, change.AdditionalYouTube, change.PromoteYouTubeId);
+
         return true;
     }
+
+    private static string YouTubeItemLabel(Playable playable) =>
+        playable is TvShowEpisode ? "TV episode" : "news report";
 
     /// <summary>
     /// <c>yyyy-MM-dd</c> → a date release. With <paramref name="allowYear"/> (films), <c>yyyy</c> → a year release.
