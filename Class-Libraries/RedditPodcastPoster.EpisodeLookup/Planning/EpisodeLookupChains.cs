@@ -19,7 +19,8 @@ public enum EpisodeLookupAge
 /// To reorder or add a strategy: edit the row. Either way, add a case to <c>EpisodeLookupPlannerRules</c> first.
 /// Rules that apply before this table (in <see cref="EpisodeLookupPlanner"/>): a known episode id is fetched
 /// directly; no show id means nothing in the Index flow and title search only in every other flow; a known show of at most
-/// <see cref="EpisodeLookupOptions.FullShowReadMaxEpisodes"/> episodes is read in full.
+/// <see cref="EpisodeLookupOptions.FullShowReadMaxEpisodes"/> episodes gets a time-budgeted full read (every flow), then
+/// title-search unless the read completed.
 /// </summary>
 public static class EpisodeLookupChains
 {

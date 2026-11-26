@@ -12,8 +12,8 @@ namespace RedditPodcastPoster.EpisodeLookup;
 /// <list type="number">
 /// <item>No show known for the platform: Index plans nothing (a search cannot succeed and indexing never learns a
 /// show id from it); every other flow searches by title only.</item>
-/// <item>Small show (known count &lt;= <see cref="EpisodeLookupOptions.FullShowReadMaxEpisodes"/>): full read, any flow;
-/// outside Index it is budgeted by <see cref="EpisodeLookupOptions.FullShowReadBudget"/> and followed by a title search
+/// <item>Small show (known count &lt;= <see cref="EpisodeLookupOptions.FullShowReadMaxEpisodes"/>): full read in any
+/// flow, budgeted by <see cref="EpisodeLookupOptions.FullShowReadBudget"/> and followed by a title search
 /// (skipped when the full read completed).</item>
 /// <item>Otherwise the chain declared in <see cref="EpisodeLookupChains.LargeShow"/> for (flow, age).</item>
 /// </list>
@@ -39,16 +39,16 @@ public sealed class EpisodeLookupPlanner(IOptions<EpisodeLookupOptions> options,
 
         if (showEpisodeCount is { } count && count <= _options.FullShowReadMaxEpisodes)
         {
-            // Index reads small shows in full, unbudgeted (it runs in the background). Every other flow serves a
-            // request, so the read is time-budgeted and falls back to one title search.
-            return lookup.Flow == EpisodeLookupFlow.Index
-                ? [new CatalogueLookupStep(CatalogueLookupStrategy.FullShowRead, PageCap: _options.FullShowReadMaxPages)]
-                :
-                [
-                    new CatalogueLookupStep(CatalogueLookupStrategy.FullShowRead, PageCap: _options.FullShowReadMaxPages,
-                        Budget: _options.FullShowReadBudget),
-                    new CatalogueLookupStep(CatalogueLookupStrategy.TitleSearch)
-                ];
+            // Every flow (including Index enrich) time-budgets the full read. Unbudgeted Index walks of ~135–179
+            // episode shows burned the hourly podcast 60 s backstop (Divorcing Religion / Creative Alchemy, Nov 2026)
+            // and left Apple paging through abandon grace. Title-search runs when the read stops early; a completed
+            // full miss still skips search (executor).
+            return
+            [
+                new CatalogueLookupStep(CatalogueLookupStrategy.FullShowRead, PageCap: _options.FullShowReadMaxPages,
+                    Budget: _options.FullShowReadBudget),
+                new CatalogueLookupStep(CatalogueLookupStrategy.TitleSearch)
+            ];
         }
 
         var age = IsRecent(lookup.Released) ? EpisodeLookupAge.Recent : EpisodeLookupAge.OldOrUndated;
