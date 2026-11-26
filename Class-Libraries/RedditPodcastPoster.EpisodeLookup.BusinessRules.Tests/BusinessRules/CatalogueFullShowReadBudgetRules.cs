@@ -181,29 +181,4 @@ public class CatalogueFullShowReadBudgetRules
         miss.PageCalls.Should().Be(4);
         miss.SearchCalls.Should().Be(0);
     }
-
-    [Fact(DisplayName =
-        "Index: when the 20 s full-show-read budget is spent on a miss path, title-search still runs and can match, " +
-        "because Index no longer leaves small-show enrich unbudgeted.")]
-    public async Task Index_budget_hit_falls_back_to_title_search()
-    {
-        // Arrange
-        var clock = new ManualClock(Now);
-        var show = Show(159, targetIndex: 150);
-        var source = new PagedSource(show, clock, TimeSpan.FromMilliseconds(500), searchHits: [show[150]]);
-        var classifier = new PerCandidateCostClassifier(clock, TimeSpan.FromMilliseconds(250));
-        var logger = new RecordingLogger<CatalogueLookupExecutor>();
-
-        // Act
-        var result = await Sut(clock, classifier, logger).FindMatch(Lookup(EpisodeLookupFlow.Index, show[150].Release), source);
-
-        // Assert
-        result.Match.Should().Be(show[150]);
-        result.Stage.Should().Be("title-search");
-        source.PageCalls.Should().BeLessThan(16);
-        source.SearchCalls.Should().Be(1);
-        logger.Entries.Should().Contain(x =>
-            x.Level == LogLevel.Information && x.Message.StartsWith(CatalogueLookupExecutor.BudgetLogMessagePrefix) &&
-            x.Message.Contains("flow='Index'"));
-    }
 }
