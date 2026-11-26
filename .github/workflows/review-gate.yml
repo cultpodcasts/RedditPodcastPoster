@@ -14,8 +14,16 @@
 #       <!-- review-gate: acceptable sha=<full 40-char head sha> -->
 #     (`changes-requested` instead of `acceptable` fails it).
 #   Markers in review bodies are ignored.
-# The label is removed on a new push (synchronize), and on any run where it is present
-# without an acceptable marker for the head SHA.
+# Carry (#1555): a head with no marker of its own also passes when it is a chain of PURE
+# merge-from-base commits (two parents, second parent on the base branch, no PR/base file
+# overlap, merge delta equal to the base side; .github/scripts/merge-only-tip.cjs) on top of a
+# commit whose latest trusted marker is `acceptable` (walked via first parents, at most 10
+# hops; a `changes-requested` marker on the way blocks it). The `review-acceptable` label is
+# kept, so merging main in needs no human re-mark. Rebases, feature commits, overlapping or
+# hand-edited merges and unverifiable listings do not carry. An API error during the walk
+# fails the status but keeps the label, so a re-run can heal it.
+# The label is removed on a new push (synchronize) unless it is carried, and on any run
+# where it is present without an acceptable marker for the head SHA and nothing is carried.
 #
 # Only pull_request_target and issue_comment trigger this; both run this file and the
 # script from the default branch, so a PR cannot edit the gate to change its own result.
@@ -42,8 +50,9 @@
 # This is a process interlock, not a security boundary: every agent and Jon post as the
 # same OWNER account, and anyone with write access can label or post statuses.
 # Not the same thing as RPP's "PR gate / gate" CI check: both should be required.
-# Mirrored byte-identical across RedditPodcastPoster, Api and website.
-# Tests: .github/scripts/review-gate.test.cjs.
+# Mirrored byte-identical across RedditPodcastPoster, Api and website (with review-gate.cjs and
+# merge-only-tip.cjs).
+# Tests: .github/scripts/review-gate.test.cjs, .github/scripts/merge-only-tip.test.cjs.
 
 name: Review gate
 
