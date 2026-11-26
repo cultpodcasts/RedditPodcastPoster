@@ -1,16 +1,21 @@
+using System.Globalization;
 using Api.Dtos;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.Tmdb.Models;
 
 namespace Api.Services.Catalogue;
 
 /// <summary>
 /// Edit-time identity probe: confident → ids; ambiguous → options; no match → message.
 /// Film year from the request is forwarded so a single year match can resolve (same as create-time).
+/// A film match also proposes the TMDB release so the edit form can show it (RPP #1410).
 /// </summary>
 public class CatalogueIdentityLookupService(
     ICatalogueIdentityEnricher enricher,
+    IIdentityMetadataEnricher identityMetadata,
     ILogger<CatalogueIdentityLookupService> logger) : ICatalogueIdentityLookupService
 {
     public async Task<CatalogueIdentityLookupServiceResult> LookupAsync(
@@ -83,10 +88,16 @@ public class CatalogueIdentityLookupService(
 
         if (HasIds(admission.Ids) || HasIds(admission.ParentIds))
         {
+            var ids = ToIdsBody(admission.Ids) ?? new CatalogueIdentityIdsBody();
+            if (kind.Equals("film", StringComparison.OrdinalIgnoreCase))
+            {
+                ids.Release = await ProposeFilmReleaseAsync(ids, cancellationToken).ConfigureAwait(false);
+            }
+
             return new(
                 CatalogueIdentityLookupServiceStatus.Ok,
                 CatalogueIdentityLookupResponse.Matched(
-                    ToIdsBody(admission.Ids) ?? new CatalogueIdentityIdsBody(),
+                    ids,
                     ToIdsBody(admission.ParentIds)));
         }
 
@@ -135,6 +146,45 @@ public class CatalogueIdentityLookupService(
             TmdbId = ids.TmdbId,
             TvdbId = ids.TvdbId
         };
+    }
+
+    private async Task<string?> ProposeFilmReleaseAsync(
+        CatalogueIdentityIdsBody ids,
+        CancellationToken cancellationToken)
+    {
+        TmdbMovieMetadata? metadata;
+        try
+        {
+            metadata = await identityMetadata
+                .FetchFilmAsync(ids.TmdbId, ids.ImdbId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(
+                exception,
+                "Catalogue identity lookup: film release propose failed. tmdbId={TmdbId} imdbId={ImdbId}",
+                ids.TmdbId,
+                ids.ImdbId);
+            return null;
+        }
+
+        if (metadata is null)
+        {
+            return null;
+        }
+
+        if (metadata.ReleaseDate is { } date)
+        {
+            return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        }
+
+        if (metadata.ReleaseYear is int year and > 0)
+        {
+            return year.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return null;
     }
 
     private static SubmitUrlResponse.IdentityDecisionBody ToDecision(CatalogueIdentityHold hold) =>

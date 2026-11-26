@@ -21,15 +21,25 @@ public readonly record struct IdentityFieldSkip(
     bool TmdbId = false);
 
 /// <summary>
-/// Fills a film or TV episode from its identity (TMDB) metadata, only where the field is empty (RPP #1430, #1431).
-/// A value that is already set, by a streaming service or a curator, is never overwritten. A field the curator
-/// cleared or set in the same PATCH is also left alone.
+/// Fills a film or TV episode from its identity (TMDB) metadata (RPP #1430, #1431, #1410).
+/// Empty fields are filled. A film release that looks like a platform upload datetime (stored year more than one
+/// year after the identity year) is replaced by the identity date. Other set values, and fields the curator cleared
+/// or set in the same PATCH, are left alone.
 /// </summary>
 public static class IdentityMetadataFill
 {
     /// <summary>
-    /// True when the film has an empty field that identity metadata can fill: description, release, runtime,
-    /// image (when no streaming service has one either), publisher, or alternative titles (never set; a cleared or
+    /// True when the film's stored release should be replaced by the identity year: missing, or more than one year
+    /// later than the identity (the YouTube-upload case on Move to film / submit). Same-year or earlier curator
+    /// dates are kept (RPP #1410).
+    /// </summary>
+    public static bool ShouldReplaceFilmRelease(CatalogueRelease? stored, int identityYear) =>
+        stored is null || stored.Year > identityYear + 1;
+
+    /// <summary>
+    /// True when the film has an empty field that identity metadata can fill: description, release (missing or a
+    /// platform <see cref="CatalogueReleasePrecision.DateTimeUtc"/> upload datetime), runtime, image (when no
+    /// streaming service has one either), publisher, or alternative titles (never set; a cleared or
     /// "checked, none found" list is kept, unless <paramref name="refillEmptyAlternativeTitles"/> is set because this
     /// PATCH changes the IMDb or TMDB id and does not send alternativeTitles). Fields in <paramref name="skip"/> are
     /// not treated as gaps.
@@ -38,7 +48,7 @@ public static class IdentityMetadataFill
     {
         ArgumentNullException.ThrowIfNull(film);
         return (!skip.Description && string.IsNullOrWhiteSpace(film.Description)) ||
-               (!skip.Release && film.Release is null) ||
+               (!skip.Release && FilmReleaseNeedsIdentity(film.Release)) ||
                (!skip.Length && film.Length <= TimeSpan.Zero) ||
                (!skip.Image && film.Image is null && !HasServiceImage(film.Services)) ||
                (!skip.Publisher && string.IsNullOrWhiteSpace(film.PublisherName)) ||
@@ -87,9 +97,10 @@ public static class IdentityMetadataFill
             changed = true;
         }
 
-        if (!skip.Release && film.Release is null && metadata.ReleaseDate is { } released)
+        if (!skip.Release && TryIdentityFilmRelease(metadata, out var identityRelease) &&
+            ShouldReplaceFilmRelease(film.Release, identityRelease.Year))
         {
-            film.SetRelease(CatalogueRelease.FromDate(released));
+            film.SetRelease(identityRelease);
             changed = true;
         }
 
@@ -195,6 +206,35 @@ public static class IdentityMetadataFill
     private static bool AlternativeTitlesNeedFill(Film film, bool refillEmpty) =>
         film.AlternativeTitles is null ||
         (refillEmpty && film.AlternativeTitles.Count == 0);
+
+    /// <summary>
+    /// Films store a year or calendar date. A <see cref="CatalogueReleasePrecision.DateTimeUtc"/> value is the source
+    /// playable's upload datetime and must be treated as a gap so identity can replace it (RPP #1410).
+    /// </summary>
+    private static bool FilmReleaseNeedsIdentity(CatalogueRelease? release) =>
+        release is null || release.Precision == CatalogueReleasePrecision.DateTimeUtc;
+
+    /// <summary>
+    /// A full <c>yyyy-MM-dd</c> becomes <see cref="CatalogueRelease.FromDate"/>; a year-only identity becomes
+    /// <see cref="CatalogueRelease.FromYear"/> (RPP #1410).
+    /// </summary>
+    private static bool TryIdentityFilmRelease(TmdbMovieMetadata metadata, out CatalogueRelease release)
+    {
+        if (metadata.ReleaseDate is { } date)
+        {
+            release = CatalogueRelease.FromDate(date);
+            return true;
+        }
+
+        if (metadata.ReleaseYear is int year and > 0)
+        {
+            release = CatalogueRelease.FromYear(year);
+            return true;
+        }
+
+        release = null!;
+        return false;
+    }
 
     private static bool HasServiceImage(IReadOnlyDictionary<string, ServiceLink>? services) =>
         services?.Values.Any(link => link?.Image is not null) == true;

@@ -5,7 +5,9 @@ using Moq.AutoMock;
 using Api.Dtos;
 using Api.Services.Catalogue;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Tmdb.Models;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Services.Catalogue;
@@ -15,10 +17,17 @@ public class CatalogueIdentityLookupRules
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private CatalogueIdentityAdmission _admission = CatalogueIdentityAdmission.Proceed();
+    private TmdbMovieMetadata? _filmMetadata;
 
     public CatalogueIdentityLookupRules()
     {
         _mocker.Use(NullLogger<CatalogueIdentityLookupService>.Instance);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(x => x.FetchFilmAsync(
+                It.IsAny<int?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _filmMetadata);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.LookupFilmAsync(
                 It.IsAny<string>(),
@@ -61,15 +70,27 @@ public class CatalogueIdentityLookupRules
     }
 
     [Fact(DisplayName =
-        "Edit-time identity lookup: when authority finds one confident film match, the response is matched with ids so the form can be filled.")]
+        "Edit-time identity lookup: when authority finds one confident film match, the response is matched with ids " +
+        "and the proposed TMDB release so the form can be filled (RPP #1410).")]
     public async Task confident_film_returns_matched_ids()
     {
         // Arrange
         var title = _fixture.CreateTitle();
         var imdbId = _fixture.CreateImdbId();
         var tmdbId = _fixture.CreateTmdbId();
+        var releaseDate = new DateOnly(1981, 10, 4);
         _admission = CatalogueIdentityAdmission.Proceed(
             new CatalogueAuthorityIds(imdbId, tmdbId, null));
+        _filmMetadata = new TmdbMovieMetadata(
+            tmdbId,
+            title,
+            null,
+            null,
+            null,
+            releaseDate,
+            null,
+            [],
+            ReleaseYear: releaseDate.Year);
         var sut = _mocker.CreateInstance<CatalogueIdentityLookupService>();
 
         // Act
@@ -84,6 +105,7 @@ public class CatalogueIdentityLookupRules
         result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Matched);
         result.Response.Ids!.ImdbId.Should().Be(imdbId);
         result.Response.Ids.TmdbId.Should().Be(tmdbId);
+        result.Response.Ids.Release.Should().Be("1981-10-04");
         result.Response.IdentityDecision.Should().BeNull();
     }
 
