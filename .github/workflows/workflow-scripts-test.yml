@@ -6,6 +6,7 @@ on:
       - ".github/scripts/**"
       - ".github/workflows/issue-close-sibling-guard.yml"
       - ".github/workflows/review-gate.yml"
+      - ".github/workflows/pr-gate.yml"
       - ".github/workflows/workflow-scripts-test.yml"
   push:
     branches: [main, master]

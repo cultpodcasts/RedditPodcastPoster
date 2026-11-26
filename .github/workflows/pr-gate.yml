@@ -1,10 +1,19 @@
 # PR gate for main (#1374). One required status check: "PR gate / gate".
 #
 # Fails the PR when any of these fail:
+#   detect   - cheap early job (#1555): decides whether `build` can be skipped (see below). Not a failure source:
+#              any error or uncertainty means "run the full build".
 #   build    - the Build workflow (restore, solution asserts, build, tests, coverage gate, unit-test guardrails, Pester)
 #   actionlint - every .github/workflows/** file; catches invalid workflows such as the unknown
 #                `permissions: variables: write` scope that made every Provision and Deploy run end with 0 jobs (#1309)
 #   bicep    - compiles every Infrastructure/**/*.bicep (no Azure login; .bicepparam needs deploy-time env, so it is not built)
+#
+# Merge-from-main tips (#1555): when the PR tip is a chain of pure merge-from-base commits (two parents, second parent on
+# main, no PR/base file overlap, merge delta equals the main side; .github/scripts/merge-only-tip.cjs) and walking first
+# parents reaches a commit whose `gate` check-run (this workflow, GitHub Actions app) concluded success, `build` is skipped
+# entirely. actionlint and bicep always run. `gate` accepts a skipped `build` only when detect succeeded with
+# skip_heavy=true. Rebases, feature commits, evil/overlapping merges, a red/cancelled/missing prior gate and API errors run
+# the full build. github.event.before is not used (unreliable on pull_request).
 #
 # Provision and Deploy is never part of this gate: it deploys, and runs on push to main / workflow_dispatch only.
 # Branch protection on main must require the check "gate" (shown as "PR gate / gate" in the Checks tab).
@@ -30,7 +39,34 @@ env:
   BICEP_SHA256: '0ab9de90c2493f206f8281bae74f9ee2d5ed3605548dab1adf41fef185e1f7c5'
 
 jobs:
+  # Cheap and early: skip_heavy=true only for a merge-from-base-only tip above a green `gate`. Fails closed (false).
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      skip_heavy: ${{ steps.detect.outputs.skip_heavy }}
+      reason: ${{ steps.detect.outputs.reason }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: .github/scripts
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+    - name: Detect merge-from-base-only tip
+      id: detect
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      with:
+        script: |
+          const { run } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/pr-gate-detect.cjs`);
+          await run({ github, context, core });
+
+  # `!cancelled()` so a failed detect still runs the full build (fail closed); skipped only on skip_heavy == 'true'.
   build:
+    needs: detect
+    if: ${{ !cancelled() && needs.detect.outputs.skip_heavy != 'true' }}
     uses: ./.github/workflows/dotnet.yml
 
   actionlint:
@@ -81,16 +117,24 @@ jobs:
   # instead of leaving it skipped (a skipped required check would not block the merge).
   gate:
     if: always()
-    needs: [ build, actionlint, bicep ]
+    needs: [ detect, build, actionlint, bicep ]
     runs-on: ubuntu-latest
     steps:
     - name: All PR checks passed
       env:
         RESULTS: ${{ toJSON(needs) }}
+        SKIP_HEAVY: ${{ needs.detect.outputs.skip_heavy }}
+        DETECT_RESULT: ${{ needs.detect.result }}
+        DETECT_REASON: ${{ needs.detect.outputs.reason }}
       run: |
         set -euo pipefail
         echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
-        failed=$(echo "$RESULTS" | jq -r '[to_entries[] | select(.value.result != "success") | .key] | join(", ")')
+        echo "detect: skip_heavy=${SKIP_HEAVY:-<unset>} (${DETECT_REASON:-no reason})"
+        # A skipped build is acceptable ONLY when detect succeeded and said skip_heavy=true. detect itself is
+        # not a failure source: if it failed, build ran in full (fail closed) and is judged on its own result.
+        skip_ok=false
+        if [ "$SKIP_HEAVY" = "true" ] && [ "$DETECT_RESULT" = "success" ]; then skip_ok=true; fi
+        failed=$(echo "$RESULTS" | jq -r --arg skip_ok "$skip_ok" '[to_entries[] | select(.key != "detect") | select(.value.result != "success") | select(.key != "build" or .value.result != "skipped" or $skip_ok != "true") | .key] | join(", ")')
         if [ -n "$failed" ]; then
           echo "::error::PR gate failed: ${failed}"
           exit 1

@@ -62,18 +62,117 @@ test('latest marker for the head sha wins', () => {
   assert.equal(reAccepted.state, 'success');
 });
 
-test('a new push always fails, even with label and marker', () => {
+test('a new push fails, even with label and marker, unless a merge-from-base carry is proven', () => {
   const r = g.evaluate({ labels: ['review-acceptable'], headSha: SHA, entries: [e(ok())], pushed: true });
   assert.equal(r.state, 'failure');
   assert.match(r.description, /New commits/);
+  const carried = g.evaluate({ labels: ['review-acceptable'], headSha: SHA, entries: [], pushed: true,
+    carry: { ok: true, anchor: OLD, hops: [{ sha: SHA }] } });
+  assert.equal(carried.state, 'success');
 });
 
 test('descriptions fit the 140 char status limit', () => {
+  const longReason = 'x'.repeat(300);
   for (const args of [
     { labels: [], headSha: SHA, entries: [] },
     { labels: [], headSha: SHA, entries: [], pushed: true },
     { labels: [], headSha: SHA, entries: [e(ok(OLD))] },
+    { labels: [], headSha: SHA, entries: [], pushed: true, carry: { ok: false, reason: longReason, hops: [] } },
+    { labels: ['review-acceptable'], headSha: SHA, entries: [], carry: { ok: true, anchor: OLD, hops: new Array(10).fill({}) } },
+    { labels: [], headSha: SHA, entries: [], carry: { ok: true, anchor: OLD, hops: [{}] } },
+    { labels: [], headSha: SHA, entries: [], carry: { ok: false, apiError: true, reason: longReason, hops: [] } },
   ]) assert.ok(g.evaluate(args).description.length <= 140);
+});
+
+const LABELLED = ['review-acceptable'];
+const carryOk = (hops = 1) => ({ ok: true, anchor: OLD, hops: new Array(hops).fill({ sha: SHA }) });
+
+test('carry: acceptable carried across merge-from-base commits passes with the label', () => {
+  const one = g.evaluate({ labels: LABELLED, headSha: SHA, entries: [e(ok(OLD))], carry: carryOk(1) });
+  assert.equal(one.state, 'success');
+  assert.match(one.description, /Carried acceptable from bbbbbbb across 1 merge-from-base commit$/);
+  const three = g.evaluate({ labels: LABELLED, headSha: SHA, entries: [e(ok(OLD))], carry: carryOk(3) });
+  assert.match(three.description, /across 3 merge-from-base commits$/);
+});
+
+test('carry: a carried acceptance still needs the review-acceptable label', () => {
+  const r = g.evaluate({ labels: [], headSha: SHA, entries: [e(ok(OLD))], carry: carryOk() });
+  assert.equal(r.state, 'failure');
+  assert.match(r.description, /label/);
+});
+
+test('carry: an unverifiable carry (API error) fails the status', () => {
+  const r = g.evaluate({ labels: LABELLED, headSha: SHA, entries: [e(ok(OLD))], pushed: true,
+    carry: { ok: false, apiError: true, reason: 'boom', hops: [] } });
+  assert.equal(r.state, 'failure');
+  assert.match(r.description, /API error/);
+});
+
+test('carry: a failed carry on a push reports why, and never passes', () => {
+  const r = g.evaluate({ labels: LABELLED, headSha: SHA, entries: [e(ok(OLD))], pushed: true,
+    carry: { ok: false, reason: 'not a two-parent merge commit', hops: [] } });
+  assert.equal(r.state, 'failure');
+  assert.match(r.description, /not carried: not a two-parent merge commit/);
+});
+
+test('carry: a failed carry on a non-push run keeps the older-commit failure', () => {
+  const r = g.evaluate({ labels: LABELLED, headSha: SHA, entries: [e(ok(OLD))],
+    carry: { ok: false, reason: 'PR and base changed the same files', hops: [] } });
+  assert.equal(r.state, 'failure');
+  assert.match(r.description, /older commit/);
+});
+
+test('latestVerdictsBySha: latest trusted verdict per sha; untrusted ignored', () => {
+  const m = g.latestVerdictsBySha([
+    e(ok(OLD), '2026-11-21T18:00:00Z'),
+    e(no(OLD), '2026-11-21T19:00:00Z'),
+    e(ok(SHA), '2026-11-21T18:00:00Z'),
+    e(no(SHA), '2026-11-21T19:00:00Z', 'NONE'),
+  ]);
+  assert.equal(m.get(OLD), 'changes-requested');
+  assert.equal(m.get(SHA), 'acceptable');
+  assert.equal(m.size, 2);
+});
+
+test('resolveCarry: only attempted with the label and no marker of its own for the head', async () => {
+  let calls = 0;
+  const walk = async () => { calls++; return carryOk(); };
+  const args = { github: {}, owner: 'o', repo: 'r', baseRef: 'main', headSha: SHA, walk };
+  assert.equal(await g.resolveCarry({ ...args, labels: [], entries: [e(ok(OLD))] }), null);
+  assert.equal(await g.resolveCarry({ ...args, labels: LABELLED, entries: [e(ok())] }), null);
+  assert.equal(await g.resolveCarry({ ...args, labels: LABELLED, entries: [e(no())] }), null);
+  assert.equal(calls, 0);
+  assert.equal((await g.resolveCarry({ ...args, labels: LABELLED, entries: [e(ok(OLD))] })).ok, true);
+  assert.equal(calls, 1);
+});
+
+test('resolveCarry: acceptable markers stop the walk, changes-requested markers block it', async () => {
+  let classify;
+  const walk = async (a) => { classify = a.classify; return carryOk(); };
+  const entries = [e(ok(OLD), '2026-11-21T18:00:00Z'), e(no('c'.repeat(40)), '2026-11-21T18:00:00Z'),
+    e(ok('d'.repeat(40)), '2026-11-21T18:00:00Z'), e(no('d'.repeat(40)), '2026-11-21T19:00:00Z')];
+  await g.resolveCarry({ github: {}, owner: 'o', repo: 'r', baseRef: 'main', headSha: SHA, labels: LABELLED, entries, walk });
+  assert.equal(classify(OLD), 'stop');
+  assert.equal(classify(OLD.toUpperCase()), 'stop');
+  assert.equal(classify('c'.repeat(40)), 'block');
+  assert.equal(classify('d'.repeat(40)), 'block');
+  assert.equal(classify('e'.repeat(40)), null);
+});
+
+test('resolveCarry: untrusted acceptable markers never anchor a carry', async () => {
+  let classify;
+  const walk = async (a) => { classify = a.classify; return { ok: false, reason: 'x', hops: [] }; };
+  await g.resolveCarry({ github: {}, owner: 'o', repo: 'r', baseRef: 'main', headSha: SHA, labels: LABELLED,
+    entries: [e(ok(OLD), undefined, 'CONTRIBUTOR')], walk });
+  assert.equal(classify(OLD), null);
+});
+
+test('shouldRemoveLabel: a carried or unverifiable push keeps the label; a failed carry removes it', () => {
+  const push = { labels: LABELLED, headSha: SHA, entries: [e(ok(OLD))], pushed: true };
+  assert.equal(g.shouldRemoveLabel({ ...push, carry: carryOk() }), false);
+  assert.equal(g.shouldRemoveLabel({ ...push, carry: { ok: false, apiError: true, reason: 'x', hops: [] } }), false);
+  assert.equal(g.shouldRemoveLabel({ ...push, carry: { ok: false, reason: 'x', hops: [] } }), true);
+  assert.equal(g.shouldRemoveLabel({ ...push, carry: null }), true);
 });
 
 test('prNumberFromContext: PR events and PR comments only', () => {
@@ -88,8 +187,10 @@ function fakeGithub({ labels = [], comments = [], state = 'open', removeStatus }
   const github = {
     rest: {
       pulls: {
-        get: async () => ({ data: { state, head: { sha: SHA }, labels: labels.map((name) => ({ name })), html_url: 'u' } }),
+        get: async () => ({ data: { state, head: { sha: SHA }, base: { ref: 'main' }, labels: labels.map((name) => ({ name })), html_url: 'u' } }),
       },
+      // The head is a single-parent commit by default, so it is never a merge-only tip.
+      git: { getCommit: async () => ({ data: { parents: [{ sha: OLD }] } }) },
       issues: {
         listComments: 'listComments',
         removeLabel: async (a) => {
@@ -261,6 +362,84 @@ test('run: a dropped push run self-heals: a later comment run removes the stale 
   const r = await g.run({ github, core, context: ctx('issue_comment', 'edited', { issue: { number: 1, pull_request: {} } }) });
   assert.deepEqual(calls.removed, ['review-acceptable']);
   assert.equal(r.state, 'failure');
+});
+
+const pushCtx = () => ctx('pull_request_target', 'synchronize', { pull_request: { number: 1 } });
+const commentCtx = () => ctx('issue_comment', 'created', { issue: { number: 1, pull_request: {} } });
+const walkOk = async () => carryOk(2);
+const walkFail = async () => ({ ok: false, reason: 'PR and base changed the same files', hops: [] });
+const walkNever = async () => { throw new Error('walk must not run'); };
+
+test('run: a merge-from-base push on an acceptable commit keeps the label and passes', async () => {
+  const { github, calls } = fakeGithub({ labels: LABELLED, comments: [c(ok(OLD))] });
+  const r = await g.run({ github, core, context: pushCtx(), walk: walkOk });
+  assert.equal(r.state, 'success');
+  assert.deepEqual(calls.removed, []);
+  assert.equal(calls.statuses[0].state, 'success');
+  assert.equal(calls.statuses[0].sha, SHA);
+  assert.match(calls.statuses[0].description, /Carried acceptable from bbbbbbb across 2 merge-from-base commits/);
+});
+
+test('run: the carry walk gets the PR base ref, head sha and repo', async () => {
+  const { github } = fakeGithub({ labels: LABELLED, comments: [c(ok(OLD))] });
+  let seen;
+  await g.run({ github, core, context: pushCtx(), walk: async (a) => { seen = a; return carryOk(); } });
+  assert.equal(seen.baseRef, 'main');
+  assert.equal(seen.headSha, SHA);
+  assert.equal(seen.owner, 'o');
+  assert.equal(seen.repo, 'r');
+});
+
+test('run: a later comment or label run on a carried head still passes (stateless)', async () => {
+  const { github, calls } = fakeGithub({ labels: LABELLED, comments: [c(ok(OLD))] });
+  const r = await g.run({ github, core, context: commentCtx(), walk: walkOk });
+  assert.equal(r.state, 'success');
+  assert.deepEqual(calls.removed, []);
+});
+
+test('run: a push that is not merge-from-base only removes the label and fails with the reason', async () => {
+  const { github, calls } = fakeGithub({ labels: LABELLED, comments: [c(ok(OLD))] });
+  const r = await g.run({ github, core, context: pushCtx(), walk: walkFail });
+  assert.equal(r.state, 'failure');
+  assert.deepEqual(calls.removed, ['review-acceptable']);
+  assert.match(calls.statuses[0].description, /PR and base changed the same files/);
+});
+
+test('run: a rebase or feature commit (single parent head, real walker) removes the label and fails', async () => {
+  const { github, calls } = fakeGithub({ labels: LABELLED, comments: [c(ok(OLD))] });
+  const r = await g.run({ github, core, context: pushCtx() });
+  assert.equal(r.state, 'failure');
+  assert.deepEqual(calls.removed, ['review-acceptable']);
+  assert.match(r.description, /not a two-parent merge commit/);
+});
+
+test('run: an API error during the carry keeps the label but fails the status', async () => {
+  const { github, calls } = fakeGithub({ labels: LABELLED, comments: [c(ok(OLD))] });
+  github.rest.git.getCommit = async () => { throw new Error('502'); };
+  const r = await g.run({ github, core, context: pushCtx() });
+  assert.equal(r.state, 'failure');
+  assert.deepEqual(calls.removed, []);
+  assert.match(r.description, /API error/);
+});
+
+test('run: changes-requested on the head never carries', async () => {
+  const { github, calls } = fakeGithub({ labels: LABELLED, comments: [c(ok(OLD)), c(no(), '2026-11-21T19:00:00Z')] });
+  const r = await g.run({ github, core, context: commentCtx(), walk: walkNever });
+  assert.equal(r.state, 'failure');
+  assert.deepEqual(calls.removed, ['review-acceptable']);
+});
+
+test('run: no carry is attempted without the label', async () => {
+  const { github } = fakeGithub({ labels: [], comments: [c(ok(OLD))] });
+  const r = await g.run({ github, core, context: pushCtx(), walk: walkNever });
+  assert.equal(r.state, 'failure');
+});
+
+test('run: a carried head never attempts a label removal', async () => {
+  const { github, calls } = fakeGithub({ labels: LABELLED, comments: [c(ok(OLD))], removeStatus: 403 });
+  const r = await g.run({ github, core, context: pushCtx(), walk: walkOk });
+  assert.equal(r.state, 'success');
+  assert.deepEqual(calls.removed, []);
 });
 
 // Static guards on the workflow so the P1/P2 fixes can't regress.
