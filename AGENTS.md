@@ -101,26 +101,28 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - Azure Functions Flex Consumption `instanceMemoryMB` is 512, 2048, or 4096.
 - Memory probing goes through `IMemoryProbeOrchestrator`: `Start(nameof(Class))` and `End()`. `MemoryProbeOptions` decides whether a session is created.
 
-## Review gate (HARD, cultpodcasts/RedditPodcastPoster#1507)
+## Review gate (HARD, cultpodcasts/RedditPodcastPoster#1507 / #1563)
 
-`.github/workflows/review-gate.yml` publishes the commit status **`review-gate`** on every PR head SHA. It is red until the review-implement-pr reviewer says the **current head commit** is acceptable, so a PR cannot be merged mid-review. It does **not** look at CI: CI must be green separately.
+`.github/workflows/review-gate.yml` publishes the commit status **`review-gate`** on every PR head SHA. It is red until the review-implement-pr reviewer says the **current head commit** is acceptable, so a PR cannot be merged mid-review. It does **not** look at CI: CI must be green separately. When the status is failure the Actions job also fails so the check run matches.
 
-The reviewer's **final step** when its verdict is acceptable:
+**Preferred clear path (no HTML):** with CI green, open the PR → **Review** → **Approve** on the current head. A trusted Approve auto-adds `review-acceptable` and turns `review-gate` green. **Changes requested** on the head turns it red. HTML markers remain an alternate path for agents.
+
+The reviewer's **final step** when its verdict is acceptable (marker path, optional when Approving):
 
 1. Check that every other check for the head SHA has passed (`gh pr checks <n>`). Never mark a SHA while CI is pending or red.
-2. Post a PR **issue comment** (`gh pr comment <n>`) containing the marker for the **full 40-character head SHA** it reviewed. The summary can stay a COMMENT review; the marker goes in a separate one-line comment if needed:
+2. Either **Approve** the PR on the current head, **or** post a PR **issue comment** (`gh pr comment <n>`) containing the marker for the **full 40-character head SHA** it reviewed:
    `<!-- review-gate: acceptable sha=<head sha> -->`
-   Get the SHA with `gh pr view <n> --json headRefOid --jq .headRefOid`. To withdraw a verdict, post `<!-- review-gate: changes-requested sha=<head sha> -->`.
-3. **Then** add the label: `gh pr edit <n> --add-label review-acceptable` (marker first: a label with no acceptable marker for the head SHA and no carried acceptance is removed).
+   Get the SHA with `gh pr view <n> --json headRefOid --jq .headRefOid`. To withdraw a verdict, use **Request changes** or post `<!-- review-gate: changes-requested sha=<head sha> -->`.
+3. On Approve the workflow adds `review-acceptable`. On the marker path, **then** add the label: `gh pr edit <n> --add-label review-acceptable` (a label with no acceptable Approve/marker for the head SHA and no carried acceptance is removed).
 4. Check `review-gate` is green (`gh pr checks <n>`), then move the card to Ready For Review.
 
 Rules:
 
-- Only the reviewer adds the marker and label. The implementor never does.
-- Markers count only in PR issue comments from OWNER, MEMBER or COLLABORATOR accounts. Markers in **review bodies**, on quoted (`>`) lines, inside fenced or indented code blocks, inside inline code spans, or for any other SHA are ignored. Comments are ordered by when they were created, so editing an old comment does not make its marker the latest; within one comment the last marker wins.
-- Any new push removes `review-acceptable` and turns the status red, **except** a head that is only merge-from-base commits on top of a SHA the reviewer already marked acceptable: `.github/scripts/merge-only-tip.cjs` walks first parents (max 10 hops) and the acceptance and label **carry** with no re-mark (cultpodcasts/RedditPodcastPoster#1555). Each hop must be a two-parent merge whose second parent is on the base branch, with no PR/base file overlap and a merge delta equal to the base side, verified from complete compare file listings (GitHub returns at most 300 files per compare and does not page them, so a listing that reaches 300 fails closed). Rebases, feature commits, overlapping or hand-edited merges, a changes-requested marker on the way, or an API error do not carry: the reviewer re-checks and re-marks as before.
-- The workflow runs only on `pull_request_target` and `issue_comment`, which both use the workflow file and script from `main`, so editing the gate in a PR does not change that PR's result. `pull_request_review` is deliberately not a trigger, because it would run the PR's own copy of the workflow.
-- **Process interlock, not a security boundary.** The reviewer, the implementor and Jon all post as `cultpodcasts` (author association OWNER), and anyone with write access can add the label or post a status. "Only the reviewer marks" is enforced by agent rules, not by GitHub. (Possible future hardening: a separate reviewer GitHub App, with markers accepted only from its bot login.)
+- Only the reviewer Approves / adds the marker and label. The implementor never does.
+- Trusted reviews and markers count only from OWNER, MEMBER or COLLABORATOR accounts. Markers in **review bodies** (as HTML text), on quoted (`>`) lines, inside fenced or indented code blocks, inside inline code spans, or for any other SHA are ignored — Approve/Changes Requested use the review *state* and `commit_id`. Comments are ordered by when they were created, so editing an old comment does not make its marker the latest; within one comment the last marker wins.
+- Any new push removes `review-acceptable` and turns the status red, **except** a head that is only merge-from-base commits on top of a SHA the reviewer already marked acceptable: `.github/scripts/merge-only-tip.cjs` walks first parents (max 10 hops) and the acceptance and label **carry** with no re-mark (cultpodcasts/RedditPodcastPoster#1555). Each hop must be a two-parent merge whose second parent is on the base branch, with no PR/base file overlap and a merge delta equal to the base side, verified from complete compare file listings (GitHub returns at most 300 files per compare and does not page them, so a listing that reaches 300 fails closed). Rebases, feature commits, overlapping or hand-edited merges, a changes-requested marker on the way, or an API error do not carry: the reviewer re-checks and Approves or re-marks as before.
+- The workflow runs on `pull_request_target`, `issue_comment`, and `pull_request_review`, always checking out the **default branch** only (`persist-credentials: false`), so editing the gate in a PR does not change that PR's result.
+- **Process interlock, not a security boundary.** The reviewer, the implementor and Jon all post as `cultpodcasts` (author association OWNER), and anyone with write access can label or post a status. "Only the reviewer marks" is enforced by agent rules, not by GitHub. (Possible future hardening: a separate reviewer GitHub App, with markers accepted only from its bot login.)
 - The job is named `publish-status`, not `review-gate`, so the only thing called `review-gate` is the commit status. GitHub would otherwise require a check run and a status of the same name.
 - Follow-on after merge (needs Jon's OK): require `review-gate` on `main`, with its source pinned to **GitHub Actions** (the app that posts the status), not "any source".
 
