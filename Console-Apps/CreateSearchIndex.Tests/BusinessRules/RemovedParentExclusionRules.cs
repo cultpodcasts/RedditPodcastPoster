@@ -36,7 +36,7 @@ public class RemovedParentExclusionRules
 
     [Fact(DisplayName =
         "The episode data source SQL also excludes episodes carrying the retired podcastRemoved key, " +
-        "because the EpisodeWireRewrite rollback writes podcastRemoved: true back and a removed podcast's episodes must stay out of search in either wire state.")]
+        "because the retired GATE 1 wire-rewrite rollback wrote podcastRemoved: true back and a removed podcast's episodes must stay out of search in either wire state.")]
     public void episode_datasource_sql_keeps_legacy_podcastRemoved_guard()
     {
         // Arrange

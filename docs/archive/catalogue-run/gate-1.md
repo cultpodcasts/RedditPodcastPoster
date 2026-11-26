@@ -1,11 +1,11 @@
 # GATE 1 — Episode JSON cutover
 
-**Status:** locked — open only after [build-1.md](./build-1.md) is done.
+**Status (historical):** GATE 1 completed; `EpisodeWireRewrite` / `films-refactor/` was retired in #1406. Do **not** restore or re-run this cutover. This file is the archived runbook.
 
-Build 1 done means: merged to `main` **and** rewrite console app is on `main`.  
-If the rewrite tool is missing, **stop — GATE 1 is blocked** (you may not have opened this file yet; go back to Build 1).
+Build 1 had already landed on `main` (including the rewrite console) before this GATE ran.  
+The rewrite tool is gone by design after #1406 — that is expected history, not a blocker to re-open.
 
-Do not start Build 2 until this GATE is done.
+Build 2 was gated on this GATE finishing; do not treat these steps as current work.
 
 ---
 
@@ -52,7 +52,7 @@ Deploy Build 1 safely against today’s Episode data, then rename Episode fields
 | Indexer | Yes (first) |
 | Discover | Yes (second) |
 | Api | Yes (third) |
-| CLIs | Yes (includes rewrite tool) |
+| CLIs | Yes (historical: included rewrite tool; retired #1406) |
 | Search | Step 8 only — not in this wave |
 | Worker / Site | No |
 
@@ -103,7 +103,7 @@ Open **only** [build-2.md](./build-2.md).
 | Topic | Where |
 |-------|--------|
 | Tool build requirements (already shipped in Build 1) | [build-1-rewrite-console-requirements.md](./build-1-rewrite-console-requirements.md) |
-| **Repair evidence / fixer contract** | [films-refactor/REPAIR.md](../../../films-refactor/REPAIR.md) |
+| **Repair evidence / fixer contract** | [repair.md](./repair.md) (archived from `films-refactor/REPAIR.md`; retired #1406) |
 | Field rename table | Below |
 | Why day-to-day Save is not enough | Cold episodes never get rewritten without the tool |
 | Deploy how-to | [deployment.md](../../deployment.md) |
