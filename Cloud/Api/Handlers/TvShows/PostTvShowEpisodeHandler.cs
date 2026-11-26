@@ -26,6 +26,12 @@ public class PostTvShowEpisodeHandler(
                 await ctx.NotFound(new { id = request.EpisodeId }, c),
             TvShowEpisodeUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, c),
+            TvShowEpisodeUpdateStatus.Conflict =>
+                await ctx.Conflict(new
+                {
+                    message = result.Message,
+                    unexpectedAdditionalYouTubeIds = result.UnexpectedAdditionalYouTubeIds ?? []
+                }, c),
             TvShowEpisodeUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update TV-show episode"), c),
             _ => await LogAndFail(ctx, c)

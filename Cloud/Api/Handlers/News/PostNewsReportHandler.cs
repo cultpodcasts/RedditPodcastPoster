@@ -26,6 +26,12 @@ public class PostNewsReportHandler(
                 await ctx.NotFound(new { id = request.ReportId }, c),
             NewsReportUpdateStatus.BadRequest =>
                 await ctx.BadRequest(new { message = result.Message }, c),
+            NewsReportUpdateStatus.Conflict =>
+                await ctx.Conflict(new
+                {
+                    message = result.Message,
+                    unexpectedAdditionalYouTubeIds = result.UnexpectedAdditionalYouTubeIds ?? []
+                }, c),
             NewsReportUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update news report"), c),
             _ => await LogAndFail(ctx, c)

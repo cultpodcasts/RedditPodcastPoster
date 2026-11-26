@@ -1,4 +1,5 @@
 using Api.Models;
+using Api.Services;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
@@ -6,6 +7,7 @@ using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.TvShows;
 
@@ -15,6 +17,7 @@ public class TvShowEpisodeService(
     CataloguePlayableSearchSync searchSync,
     IPlayableSocialRetraction socialRetraction,
     IIdentityMetadataEnricher identityMetadata,
+    IUrlMembershipLookup urlMembershipLookup,
     ILogger<TvShowEpisodeService> logger) : ITvShowEpisodeService
 {
     public async Task<TvShowEpisodeGetResult> GetAsync(Guid episodeId, CancellationToken cancellationToken)
@@ -47,12 +50,7 @@ public class TvShowEpisodeService(
 
             // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
             var target = SocialPostRemovalTarget.For(episode);
-            var readIds = (episode.ImdbId, episode.TvdbId, episode.TmdbId);
-
-            if (!PlayableChangeApplier.TryApply(episode, request.Change, out var postStatus, out var playableError))
-            {
-                return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, playableError);
-            }
+            var hadAdditionalYouTube = episode.AdditionalYouTube is { Count: > 0 };
 
             if (!CanonicalIdChangeApplier.TryValidate(
                     request.Change.ImdbId,
@@ -63,6 +61,42 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, idError);
             }
 
+            if (request.Change.AdditionalYouTube is not null ||
+                !string.IsNullOrWhiteSpace(request.Change.PromoteYouTubeId))
+            {
+                if (!PlayableChangeApplier.TryValidate(episode, request.Change, out var validateError))
+                {
+                    return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, validateError);
+                }
+
+                var held = await YouTubeConflict(episode, request.Change, cancellationToken);
+                if (held is not null)
+                {
+                    return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Conflict, held);
+                }
+
+                var saved = await SaveAdditionalYouTube(episode, request.Change, target, cancellationToken);
+                if (saved.Result.Status != TvShowEpisodeUpdateStatus.Accepted || saved.Episode is null)
+                {
+                    return saved.Result;
+                }
+
+                var cleared = hadAdditionalYouTube && saved.Episode.AdditionalYouTube is not { Count: > 0 };
+                saved.Result.Outcome!.SearchIndexer = await searchSync.AfterSave(
+                    saved.Episode,
+                    target.Projection,
+                    request.Change.Removed == true,
+                    cancellationToken,
+                    youTubeAlternatesCleared: cleared);
+                return saved.Result;
+            }
+
+            if (!PlayableChangeApplier.TryApply(episode, request.Change, out var postStatus, out var playableError))
+            {
+                return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, playableError);
+            }
+
+            var readIds = (episode.ImdbId, episode.TvdbId, episode.TmdbId);
             CanonicalIdChangeApplier.Apply(
                 episode,
                 request.Change.ImdbId,
@@ -86,8 +120,13 @@ public class TvShowEpisodeService(
 
             // As news reports: removed=true always deletes the search document and the short link (the sibling pull
             // indexer never deletes); any other edit pushes the document now.
+            var youTubeAlternatesCleared = hadAdditionalYouTube && episode.AdditionalYouTube is not { Count: > 0 };
             outcome.SearchIndexer = await searchSync.AfterSave(
-                episode, target.Projection, request.Change.Removed == true, cancellationToken);
+                episode,
+                target.Projection,
+                request.Change.Removed == true,
+                cancellationToken,
+                youTubeAlternatesCleared: youTubeAlternatesCleared);
 
             return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Accepted, Outcome: outcome);
         }
@@ -126,6 +165,137 @@ public class TvShowEpisodeService(
         {
             IdentityMetadataFill.Fill(episode, metadata, skip);
         }
+    }
+
+    private async Task<string?> YouTubeConflict(
+        TvShowEpisode episode,
+        TvShowEpisodeChangeRequest change,
+        CancellationToken cancellationToken) =>
+        await YouTubeAlternateOwnership.ConflictMessageIfHeld(
+            urlMembershipLookup,
+            YouTubeAlternateChangeApplier.NewIds(
+                episode,
+                change.AdditionalYouTube,
+                YouTubeAlternateChangeApplier.ResultingPrimaryYouTubeId(episode, change.Services)),
+            [episode.Id],
+            cancellationToken);
+
+    private readonly record struct TvShowEpisodePersist(TvShowEpisodeUpdateResult Result, TvShowEpisode? Episode);
+
+    private async Task<TvShowEpisodePersist> SaveAdditionalYouTube(
+        TvShowEpisode firstRead,
+        TvShowEpisodeChangeRequest change,
+        SocialPostRemovalTarget target,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; attempt <= FilmDocumentUpdate.MaxAttempts; attempt++)
+        {
+            var latest = await tvShowEpisodeRepository.GetTvShowEpisodeWithETag(firstRead.TvShowId, firstRead.Id);
+            if (latest is null)
+            {
+                logger.LogWarning(
+                    "{method}: TV-show episode '{episodeId}' was deleted during the edit; not saved.",
+                    nameof(SaveAdditionalYouTube), firstRead.Id);
+                return new TvShowEpisodePersist(new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.NotFound), null);
+            }
+
+            if (change.AdditionalYouTube is not null)
+            {
+                var unexpected = YouTubeAlternateChangeApplier.IdsTheClientDidNotList(
+                    latest.Item.AdditionalYouTube, change.ExpectedAdditionalYouTubeIds);
+                if (unexpected.Length > 0)
+                {
+                    logger.LogWarning(
+                        "{method}: TV-show episode '{episodeId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
+                        nameof(SaveAdditionalYouTube), firstRead.Id, unexpected.Length);
+                    return new TvShowEpisodePersist(
+                        new TvShowEpisodeUpdateResult(
+                            TvShowEpisodeUpdateStatus.Conflict,
+                            YouTubeAlternateChangeApplier.StaleMessage("TV episode"),
+                            UnexpectedAdditionalYouTubeIds: unexpected),
+                        null);
+                }
+            }
+
+            var held = await YouTubeConflict(latest.Item, change, cancellationToken);
+            if (held is not null)
+            {
+                return new TvShowEpisodePersist(new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Conflict, held), null);
+            }
+
+            var readIds = (latest.Item.ImdbId, latest.Item.TvdbId, latest.Item.TmdbId);
+            if (!PlayableChangeApplier.TryApply(latest.Item, change, out var postStatus, out var error))
+            {
+                return new TvShowEpisodePersist(new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, error), null);
+            }
+
+            CanonicalIdChangeApplier.Apply(latest.Item, change.ImdbId, change.TmdbId, change.TvdbId);
+            await FillFromIdentity(
+                latest.Item,
+                readIds != (latest.Item.ImdbId, latest.Item.TvdbId, latest.Item.TmdbId),
+                SkipFrom(change),
+                cancellationToken);
+
+            if (!await tvShowEpisodeRepository.TryReplace(latest.Item, latest.ETag))
+            {
+                continue;
+            }
+
+            // Deletes run only after the replace. A later 409 leaves the live posts in place.
+            var outcome = new EpisodeUpdateOutcome
+            {
+                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, latest.Item, target),
+                TweetDeleted = await socialRetraction.RemoveTweet(postStatus, latest.Item, target)
+            };
+            var saved = latest.Item;
+            if (outcome.TweetDeleted == true || outcome.BlueskyPostDeleted == true)
+            {
+                saved = await PersistClearedSocialFlags(saved, outcome) ?? saved;
+            }
+
+            return new TvShowEpisodePersist(
+                new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Accepted, Outcome: outcome),
+                saved);
+        }
+
+        throw new InvalidOperationException(
+            $"TV-show episode '{firstRead.Id}' kept changing during the edit; not saved.");
+    }
+
+    /// <summary>
+    /// Writes cleared tweet and Bluesky flags onto a fresh read, so a field changed during the delete stays.
+    /// </summary>
+    private async Task<TvShowEpisode?> PersistClearedSocialFlags(TvShowEpisode saved, EpisodeUpdateOutcome outcome)
+    {
+        for (var attempt = 1; attempt <= FilmDocumentUpdate.MaxAttempts; attempt++)
+        {
+            var latest = await tvShowEpisodeRepository.GetTvShowEpisodeWithETag(saved.TvShowId, saved.Id);
+            if (latest is null)
+            {
+                logger.LogWarning(
+                    "{method}: TV-show episode '{episodeId}' was deleted while clearing social flags.",
+                    nameof(PersistClearedSocialFlags), saved.Id);
+                return null;
+            }
+
+            if (outcome.TweetDeleted == true)
+            {
+                latest.Item.ClearTweetState();
+            }
+
+            if (outcome.BlueskyPostDeleted == true)
+            {
+                latest.Item.ClearBlueskyPostState();
+            }
+
+            if (await tvShowEpisodeRepository.TryReplace(latest.Item, latest.ETag))
+            {
+                return latest.Item;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"TV-show episode '{saved.Id}' kept changing while clearing social flags; not saved.");
     }
 
     private static IdentityFieldSkip SkipFrom(TvShowEpisodeChangeRequest change) => new(
