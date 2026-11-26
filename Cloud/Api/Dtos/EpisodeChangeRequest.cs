@@ -67,6 +67,28 @@ public class EpisodeChangeRequest
     [JsonPropertyName("services")]
     public Dictionary<string, ServiceLink>? Services { get; set; }
 
+    /// <summary>
+    /// Additional YouTube uploads to keep, in display order (RPP #1526). Existing entries are identified by
+    /// <c>youTubeId</c>; a new entry is added from a YouTube <c>url</c>. Entries left out are removed; [] removes
+    /// all. Send <see cref="ExpectedAdditionalYouTubeIds"/> with this field. A stored id not in that list is a 409.
+    /// </summary>
+    [JsonPropertyName("additionalYouTube")]
+    public YouTubeAlternateChangeRequest[]? AdditionalYouTube { get; set; }
+
+    /// <summary>
+    /// Additional YouTube ids the client last saw. When <see cref="AdditionalYouTube"/> is sent, a stored id that is
+    /// not in this list is a 409 and nothing is saved.
+    /// </summary>
+    [JsonPropertyName("expectedAdditionalYouTubeIds")]
+    public string[]? ExpectedAdditionalYouTubeIds { get; set; }
+
+    /// <summary>
+    /// The YouTube id of an additional upload to swap into <c>services.youtube</c> and <c>ids.youtube</c>
+    /// (RPP #1526). The previous primary becomes an additional upload.
+    /// </summary>
+    [JsonPropertyName("promoteYouTubeId")]
+    public string? PromoteYouTubeId { get; set; }
+
     [JsonPropertyName("subjects")]
     public string[]? Subjects { get; set; }
 

@@ -6,14 +6,15 @@ namespace Api.Services.Catalogue;
 public interface IPlayableSocialRetraction
 {
     /// <summary>
-    /// Call before saving, while the AT URI is still on the item. Clears the Bluesky state only when the post was
-    /// deleted or is already gone. Returns null when nothing was requested.
+    /// Clears the Bluesky state only when the post was deleted or is already gone. Callers on an etag loop do this
+    /// after the replace commits, then patch the flags. Returns null when nothing was requested.
     /// </summary>
     Task<bool?> RemoveBlueskyPost(PostStatusChange change, IPromotable item, SocialPostRemovalTarget target);
 
     /// <summary>
-    /// Call before saving. Clears <c>tweeted</c> only when the tweet was deleted; not found or a failure leaves it set
-    /// so the un-tweet can be retried. Returns null when nothing was requested.
+    /// Clears <c>tweeted</c> only when the tweet was deleted; not found or a failure leaves it set so the un-tweet
+    /// can be retried. Callers on an etag loop do this after the replace commits, then patch the flags.
+    /// Returns null when nothing was requested.
     /// </summary>
     Task<bool?> RemoveTweet(PostStatusChange change, IPromotable item, SocialPostRemovalTarget target);
 }

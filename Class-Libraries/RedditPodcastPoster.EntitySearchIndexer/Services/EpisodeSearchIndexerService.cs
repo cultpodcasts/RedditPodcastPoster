@@ -43,13 +43,21 @@ public class EpisodeSearchIndexerService(
         Podcast podcast,
         Episode episode,
         CancellationToken c) =>
+        IndexEpisode(podcast, episode, c, youTubeAlternatesCleared: false);
+
+    public Task<EntitySearchIndexerResponse> IndexEpisode(
+        Podcast podcast,
+        Episode episode,
+        CancellationToken c,
+        bool youTubeAlternatesCleared) =>
         IndexEpisodeInternal(() => Task.FromResult<PodcastEpisode?>(new PodcastEpisode(podcast, episode)),
-            episode.Id, c);
+            episode.Id, c, youTubeAlternatesCleared);
 
     private async Task<EntitySearchIndexerResponse> IndexEpisodeInternal(
         Func<Task<PodcastEpisode?>> resolvePodcastEpisode,
         Guid episodeId,
-        CancellationToken c)
+        CancellationToken c,
+        bool youTubeAlternatesCleared = false)
     {
         var podcastEpisode = await resolvePodcastEpisode();
         if (podcastEpisode == null)
@@ -58,16 +66,17 @@ public class EpisodeSearchIndexerService(
                 { EpisodeIndexRequestState = EpisodeIndexRequestState.EpisodeNotFound };
         }
 
-        var response = await IndexInAzure(podcastEpisode, episodeId, c);
+        var response = await IndexInAzure(podcastEpisode, episodeId, c, youTubeAlternatesCleared);
         // SP-2.1 (#1321): the D1 index mirrors the same change, whatever Azure answered. The writer never throws.
-        await MirrorToD1([podcastEpisode], c);
+        await MirrorToD1([podcastEpisode], c, youTubeAlternatesCleared);
         return response;
     }
 
     private async Task<EntitySearchIndexerResponse> IndexInAzure(
         PodcastEpisode podcastEpisode,
         Guid episodeId,
-        CancellationToken c)
+        CancellationToken c,
+        bool youTubeAlternatesCleared = false)
     {
         try
         {
@@ -86,6 +95,11 @@ public class EpisodeSearchIndexerService(
             }
 
             var document = podcastEpisode.ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
+            if (youTubeAlternatesCleared && document.YouTubeAlternates is null)
+            {
+                document.YouTubeAlternates = [];
+            }
+
             await searchClient.MergeOrUploadDocumentsAsync([document],
                 new IndexDocumentsOptions { ThrowOnAnyError = true }, c);
             return new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed };
@@ -228,7 +242,10 @@ public class EpisodeSearchIndexerService(
     /// <c>parentRemoved</c> the Azure pull filters on), the full description and guests. A no-op when the D1 sync is
     /// not active; a D1 failure is logged by the writer and never changes the Azure outcome.
     /// </summary>
-    private async Task MirrorToD1(IReadOnlyCollection<PodcastEpisode> podcastEpisodes, CancellationToken c)
+    private async Task MirrorToD1(
+        IReadOnlyCollection<PodcastEpisode> podcastEpisodes,
+        CancellationToken c,
+        bool youTubeAlternatesCleared = false)
     {
         if (!d1Search.IsActive || podcastEpisodes.Count == 0)
         {
@@ -247,7 +264,13 @@ public class EpisodeSearchIndexerService(
 
             try
             {
-                upserts.Add(D1SearchDocuments.For(podcastEpisode.Podcast, podcastEpisode.Episode));
+                var document = D1SearchDocuments.For(podcastEpisode.Podcast, podcastEpisode.Episode);
+                if (youTubeAlternatesCleared && document.YouTubeAlternates is null)
+                {
+                    document.YouTubeAlternates = [];
+                }
+
+                upserts.Add(document);
             }
             catch (Exception ex)
             {
