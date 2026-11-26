@@ -94,6 +94,86 @@ public class IdentitySearchDocumentRules
     }
 
     [Fact(DisplayName =
+        "Plain English rule: when a film has an identity image and a trailer thumbnail but no service image, " +
+        "the search document uses the identity image, because trailer art must not replace the TMDB image.")]
+    public void identity_image_wins_over_trailer_thumbnail()
+    {
+        // Arrange
+        var youTubeId = _fixture.CreateYouTubeId();
+        var identityImage = _fixture.Create<Uri>();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Image = identityImage,
+            Trailers = [TrailerWithImage(_fixture.DefaultYouTubeImage(youTubeId), youTubeId)]
+        };
+
+        // Act
+        var record = CataloguePlayableSearchDocument.For(film);
+
+        // Assert
+        record.Image.Should().Be(identityImage.ToString());
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a film has a service image and a trailer thumbnail but no identity image, " +
+        "the search document uses the service image, because a streaming image wins over a trailer thumbnail.")]
+    public void service_image_wins_over_trailer_thumbnail_when_identity_image_is_absent()
+    {
+        // Arrange
+        var serviceYouTubeId = _fixture.CreateYouTubeId();
+        var trailerYouTubeId = _fixture.CreateYouTubeId();
+        var serviceImage = _fixture.Create<Uri>();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Services = new Dictionary<string, ServiceLink>
+            {
+                ["youtube"] = new()
+                {
+                    Url = _fixture.DefaultYouTubeUrl(serviceYouTubeId),
+                    Image = serviceImage
+                }
+            },
+            Trailers = [TrailerWithImage(_fixture.Create<Uri>(), trailerYouTubeId)]
+        };
+
+        // Act
+        var record = CataloguePlayableSearchDocument.For(film);
+
+        // Assert
+        record.Image.Should().Be(serviceImage.ToString());
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a film has a service image, an identity image, and a trailer thumbnail, " +
+        "the search document uses the service image, because the service image is chosen before identity or trailer art.")]
+    public void service_image_wins_over_identity_image_and_trailer_thumbnail()
+    {
+        // Arrange
+        var serviceYouTubeId = _fixture.CreateYouTubeId();
+        var trailerYouTubeId = _fixture.CreateYouTubeId();
+        var serviceImage = _fixture.Create<Uri>();
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Image = _fixture.Create<Uri>(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                ["youtube"] = new()
+                {
+                    Url = _fixture.DefaultYouTubeUrl(serviceYouTubeId),
+                    Image = serviceImage
+                }
+            },
+            Trailers = [TrailerWithImage(_fixture.Create<Uri>(), trailerYouTubeId)]
+        };
+
+        // Act
+        var record = CataloguePlayableSearchDocument.For(film);
+
+        // Assert
+        record.Image.Should().Be(serviceImage.ToString());
+    }
+
+    [Fact(DisplayName =
         "A TV episode with no service image uses its identity still on the push document and in the pull SQL.")]
     public void tv_episode_without_service_image_uses_still()
     {
@@ -179,4 +259,13 @@ public class IdentitySearchDocumentRules
         withoutIdsRecord.SeriesTmdbId.Should().BeNull();
         withoutIdsRecord.SeriesTvdbId.Should().BeNull();
     }
+
+    private FilmTrailer TrailerWithImage(Uri image, string youTubeId) =>
+        new()
+        {
+            Id = _fixture.CreateGuid(),
+            Title = _fixture.CreateTitle(),
+            Url = _fixture.DefaultYouTubeUrl(youTubeId),
+            Image = image
+        };
 }
