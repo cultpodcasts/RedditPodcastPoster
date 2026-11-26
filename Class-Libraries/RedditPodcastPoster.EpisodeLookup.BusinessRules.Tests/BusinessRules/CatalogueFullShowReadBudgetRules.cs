@@ -23,18 +23,10 @@ public class CatalogueFullShowReadBudgetRules
 
     public sealed record Item(string Id, string Title, DateTime Release);
 
-    /// <summary>Clock the fakes advance, so the budget is deterministic.</summary>
-    private sealed class ManualClock(DateTime start) : TimeProvider
-    {
-        private DateTimeOffset _now = new(DateTime.SpecifyKind(start, DateTimeKind.Utc), TimeSpan.Zero);
-        public void Advance(TimeSpan by) => _now += by;
-        public override DateTimeOffset GetUtcNow() => _now;
-    }
-
     /// <summary>Apple-like show: newest first, pages of 10; each page costs <paramref name="perPage"/>.</summary>
     private sealed class PagedSource(
         IReadOnlyList<Item> newestFirst,
-        ManualClock clock,
+        ManualTimeProvider clock,
         TimeSpan perPage,
         IReadOnlyList<Item>? searchHits = null,
         TimeSpan? length = null) : ICatalogueCandidateSource<Item>
@@ -70,7 +62,7 @@ public class CatalogueFullShowReadBudgetRules
     }
 
     /// <summary>Classifier whose cost is per candidate (the real one runs every subject's terms over each).</summary>
-    private sealed class PerCandidateCostClassifier(ManualClock clock, TimeSpan perCandidate) : ICatalogueSubjectClassifier
+    private sealed class PerCandidateCostClassifier(ManualTimeProvider clock, TimeSpan perCandidate) : ICatalogueSubjectClassifier
     {
         public int Classified { get; private set; }
 
@@ -97,7 +89,7 @@ public class CatalogueFullShowReadBudgetRules
             ShowEpisodeCount = 159
         };
 
-    private static CatalogueLookupExecutor Sut(ManualClock clock, ICatalogueSubjectClassifier classifier,
+    private static CatalogueLookupExecutor Sut(ManualTimeProvider clock, ICatalogueSubjectClassifier classifier,
         ILogger<CatalogueLookupExecutor>? logger = null, TimeSpan? budget = null) =>
         CatalogueTestServices.CreateExecutor(
             subjectClassifier: classifier,
@@ -116,7 +108,7 @@ public class CatalogueFullShowReadBudgetRules
     public async Task Budget_hit_falls_back_to_title_search(EpisodeLookupFlow flow)
     {
         // Arrange
-        var clock = new ManualClock(Now);
+        var clock = new ManualTimeProvider(Now);
         var show = Show(159, targetIndex: 150);
         var source = new PagedSource(show, clock, TimeSpan.FromMilliseconds(500), searchHits: [show[150]]);
         var classifier = new PerCandidateCostClassifier(clock, TimeSpan.FromMilliseconds(250));
@@ -142,7 +134,7 @@ public class CatalogueFullShowReadBudgetRules
     public async Task Budget_hit_then_search_miss_is_clean_miss()
     {
         // Arrange
-        var clock = new ManualClock(Now);
+        var clock = new ManualTimeProvider(Now);
         var source = new PagedSource(Show(159, targetIndex: 150), clock, TimeSpan.FromMilliseconds(500));
         var classifier = new PerCandidateCostClassifier(clock, TimeSpan.FromMilliseconds(250));
 
@@ -160,7 +152,7 @@ public class CatalogueFullShowReadBudgetRules
     public async Task Completed_full_read_skips_search()
     {
         // Arrange
-        var clock = new ManualClock(Now);
+        var clock = new ManualTimeProvider(Now);
         var show = Show(38, targetIndex: 30);
         var hit = new PagedSource(show, clock, TimeSpan.FromMilliseconds(100));
         // Same release day and disjoint titles. Near-exact length would still match (#1133);
@@ -180,5 +172,30 @@ public class CatalogueFullShowReadBudgetRules
         missed.Stage.Should().Be(CatalogueLookupExecutor.StageMiss);
         miss.PageCalls.Should().Be(4);
         miss.SearchCalls.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
+        "A budgeted full read that classifies several pages reports on the lookup line the sum of candidates, " +
+        "classified and classify-ms over every page it read, not just the last, so step 2 is judged on the whole cost.")]
+    public async Task Budgeted_full_read_sums_candidates_classified_and_classify_ms_over_pages()
+    {
+        // Arrange
+        var clock = new ManualTimeProvider(Now);
+        var show = Show(159, targetIndex: 150);
+        var source = new PagedSource(show, clock, TimeSpan.FromMilliseconds(500));
+        var perCandidate = TimeSpan.FromMilliseconds(250);
+        var classifier = new PerCandidateCostClassifier(clock, perCandidate);
+        var logger = new RecordingLogger<CatalogueLookupExecutor>();
+
+        // Act
+        await Sut(clock, classifier, logger).FindMatch(Lookup(EpisodeLookupFlow.Index, Now.AddDays(-400)), source);
+
+        // Assert
+        classifier.Classified.Should().BeGreaterThan(ApplePageSize, "the budget let more than one page be classified");
+        var classifyMs = (long)(perCandidate * classifier.Classified).TotalMilliseconds;
+        logger.Entries.Should().ContainSingle(x =>
+            x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix) &&
+            x.Message.EndsWith(
+                $"candidates={classifier.Classified} classified={classifier.Classified} classify-ms={classifyMs}."));
     }
 }
