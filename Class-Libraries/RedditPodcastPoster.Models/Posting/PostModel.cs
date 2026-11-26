@@ -14,7 +14,8 @@ public class PostModel
         Service? podcastPrimaryPostService,
         string[] podcastKnownTerms,
         string[] subjectKnownTerms,
-        string? language = null)
+        string? language = null,
+        Guid? podcastId = null)
     {
         var firstEpisode = episodes.First();
 
@@ -37,6 +38,7 @@ public class PostModel
         PodcastKnownTerms = podcastKnownTerms;
         SubjectKnownTerms = subjectKnownTerms;
         Language = language;
+        PodcastId = podcastId;
 
         TitleRegex = Podcast.CreateTitleRegex(podcastTitleRegex);
 
@@ -57,6 +59,7 @@ public class PostModel
                 }
                 catch (RegexMatchTimeoutException)
                 {
+                    TitleRegexMatchTimedOut = true;
                     continue;
                 }
 
@@ -91,6 +94,14 @@ public class PostModel
     public DateTime Published { get; init; }
     public IEnumerable<EpisodePost> Episodes { get; set; }
     public bool IsBundledPost { get; init; }
+    public Guid? PodcastId { get; init; }
+
+    /// <summary>
+    /// A bundled-part scan hit <see cref="RegexMatchTimeoutException"/>. The sanitiser logs that once; this model
+    /// has no logger.
+    /// </summary>
+    public bool TitleRegexMatchTimedOut { get; private set; }
+
     public Regex? TitleRegex { get; init; }
     public Regex? DescriptionRegex { get; init; }
     public bool HasYouTubeUrl { get; init; }

@@ -30,8 +30,17 @@ public partial class TextSanitiser(
 
     public async Task<string> SanitiseTitle(PostModel postModel)
     {
+        if (postModel.TitleRegexMatchTimedOut && postModel.TitleRegex != null)
+        {
+            logger.LogWarning(
+                "Title regex match timed out after {MatchTimeout}. ParentId {ParentId}. Pattern length {PatternLength}. Title left unchanged.",
+                postModel.TitleRegex.MatchTimeout,
+                postModel.PodcastId,
+                postModel.TitleRegex.ToString().Length);
+        }
+
         return await SanitiseTitle(postModel.EpisodeTitle, postModel.TitleRegex, postModel.PodcastKnownTerms,
-            postModel.SubjectKnownTerms, postModel.Language);
+            postModel.SubjectKnownTerms, postModel.Language, postModel.PodcastId);
     }
 
     public string SanitisePodcastName(PostModel postModel)

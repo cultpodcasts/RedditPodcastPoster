@@ -152,7 +152,8 @@ public class HomepagePublisher(
         Subjects = item.Subjects.Count > 0 ? item.Subjects.ToArray() : null,
         Images = item.Images,
         KnownTerms = item.KnownTerms,
-        Language = item.Language
+        Language = item.Language,
+        ParentId = item.ParentId ?? Guid.Empty
     };
 
     /// <summary>

@@ -72,11 +72,12 @@ public class TitleRegexTimeoutRules
 
     [Fact(DisplayName =
         "Plain English rule: when a post is built from a title regex that cannot finish matching, then posting " +
-        "still produces the raw title, because a timeout must not fail the post.")]
+        "still produces the raw title and the warning names the podcast, because a timeout must not fail the post.")]
     public async Task posting_keeps_the_raw_title_when_the_title_regex_times_out()
     {
         // Arrange
-        var title = new string('x', 30);
+        var title = new string('x', 80);
+        var podcastId = _fixture.Create<Guid>();
         var episode = new EpisodePost(
             title,
             null,
@@ -97,7 +98,8 @@ public class TitleRegexTimeoutRules
             [episode],
             null,
             [],
-            []);
+            [],
+            podcastId: podcastId);
 
         // Act
         var result = await Sut.SanitiseTitle(postModel);
@@ -105,6 +107,16 @@ public class TitleRegexTimeoutRules
         // Assert
         result.Should().Be("X" + title[1..]);
         postModel.BundledPartNumbers.Should().BeEmpty();
+        postModel.TitleRegexMatchTimedOut.Should().BeTrue();
+        _mocker.GetMock<ILogger<TextSanitiser>>().Verify(x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) =>
+                    WarningNamesParentAndLength(v.ToString(), podcastId, CatastrophicPattern.Length) &&
+                    !v.ToString()!.Contains("(x+x+)+y", StringComparison.Ordinal)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
     }
 
     private static bool WarningNamesParentAndLength(string? message, Guid parentId, int patternLength) =>
