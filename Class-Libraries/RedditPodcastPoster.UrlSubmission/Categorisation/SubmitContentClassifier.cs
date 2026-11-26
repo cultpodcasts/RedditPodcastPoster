@@ -89,10 +89,11 @@ public static class SubmitContentClassifier
         if (IsNetflixTitleHub(signals.Url) && !IsStandaloneFilm(signals))
         {
             return new SubmitClassification(
-                SubmitClassification.Episode,
+                SubmitClassification.TvShowEpisode,
                 HasParent: false,
                 Reject: true,
-                RequiresCurator: false);
+                RequiresCurator: false,
+                RejectionMessage: NetflixSeriesHubSubmitRejection.Message);
         }
 
         if (IsBbcNews(signals.Url) || signals.YouTubeNewsStation || signals.News)

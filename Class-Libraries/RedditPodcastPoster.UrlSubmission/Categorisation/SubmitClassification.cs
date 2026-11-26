@@ -8,7 +8,8 @@ public sealed record SubmitClassification(
     string ContentKind,
     bool HasParent,
     bool Reject,
-    bool RequiresCurator)
+    bool RequiresCurator,
+    string? RejectionMessage = null)
 {
     public const string Episode = "Episode";
     public const string TvShowEpisode = "TvShowEpisode";

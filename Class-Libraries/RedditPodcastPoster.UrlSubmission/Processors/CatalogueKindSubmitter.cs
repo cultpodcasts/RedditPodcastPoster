@@ -56,7 +56,8 @@ public class CatalogueKindSubmitter(
                 SubmitResultState.None,
                 ContentKind: classified.ContentKind,
                 Rejected: classified.Reject,
-                RequiresCurator: classified.RequiresCurator);
+                RequiresCurator: classified.RequiresCurator,
+                RejectionMessage: classified.RejectionMessage);
         }
 
         if (classified.ContentKind == SubmitClassification.Episode)
