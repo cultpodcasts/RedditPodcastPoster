@@ -73,8 +73,8 @@ public class CatalogueParentIndexService(
             }
 
             logger.LogInformation("Index {kind} '{name}' ({id}).", kind, entity.Name, entity.Id);
-            // The entity just resolved is indexed (no second lookup, so the route's kind is the kind indexed). It runs
-            // under the bounded on-demand budget (its own token).
+            // The entity just resolved is indexed as the route's kind (the updater re-reads that kind only, under the
+            // indexing lease, #1402). It runs under the bounded on-demand budget (its own token).
             var result = await catalogueParentsUpdater.IndexParent(
                 entity, CuratorIndexingContext.Create(indexerOptions.Value));
             switch (result.Status)
@@ -83,6 +83,11 @@ public class CatalogueParentIndexService(
                     var search = await searchSync.AfterIndex(entity, result.Changed, cancellationToken);
                     return new CatalogueIndexResult(CatalogueIndexStatus.Ok,
                         result.Changed.Select(x => x.Id).ToArray(), search, EnrichOnly: result.EnrichOnly);
+                case CatalogueParentIndexStatus.NotFound:
+                    // Deleted between resolve and the indexing lease (#1402): nothing saved, nothing to push.
+                    logger.LogWarning("Index {kind}: '{name}' ({id}) was deleted before it could be indexed.", kind,
+                        entity.Name, entity.Id);
+                    return new CatalogueIndexResult(CatalogueIndexStatus.NotFound);
                 case CatalogueParentIndexStatus.NotIndexable:
                     return new CatalogueIndexResult(CatalogueIndexStatus.NotIndexable,
                         NotIndexableReason: result.NotIndexableReason);
