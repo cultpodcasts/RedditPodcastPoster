@@ -90,8 +90,7 @@ probe: Spotify reads page 0 (needed by most plans anyway) and takes `Paging.Tota
 |-----------|------|---------|------|
 | no show id (for that platform) | `Index` | any | nothing: no API call; logged `plan='none' stage='skipped-no-show'` (a search can't succeed and indexing never learns a show id from it) |
 | no show id | Submit / Discovery / Enrich | any | `title-search` |
-| known ≤ 200 (`FullShowReadMaxEpisodes`) | `Index` | any | `full-show-read` (unbudgeted) |
-| known ≤ 200 | Submit / Discovery / Enrich | any | `full-show-read` within `FullShowReadBudget` (20 s, reading + subject classification) → `title-search` (skipped when the full read completed) |
+| known ≤ 200 (`FullShowReadMaxEpisodes`) | any flow (incl. `Index`) | any | `full-show-read` within `FullShowReadBudget` (20 s, reading + subject classification) → `title-search` (skipped when the full read completed). Index was unbudgeted until Nov 2026; enrich misses on ~135–179 episode shows burned the podcast 60 s backstop |
 | > 200 or unknown | `Index` | any | `newest-pages` until a page is older than min(window start, release − 14 d), cap `IndexMaxPages` (20); **no search** (1 page when neither date is known) |
 | > 200 or unknown | Submit / Discovery / Enrich | within `RecentWindow` (14 d) | `newest-pages` (1 page) → `title-search` → `bounded-walk` |
 | > 200 or unknown | Submit / Discovery / Enrich | older or undated | `title-search` → `bounded-walk` |
@@ -105,7 +104,7 @@ probe: Spotify reads page 0 (needed by most plans anyway) and takes `Paging.Tota
   Apple hits are hydrated through amp-api `GetEpisode` when possible.
 - Pages are read once per lookup and reused across steps, ids are tried once, and pages are pass-cached
   (`SpotifyShowEpisodePages`, `AppleShowEpisodePages`; both `IPodcastPassApiCacheSource`). Failed pages are not cached.
-- **Full-read budget** (non-Index): checked after each page is read and its new candidates are classified (a soft
+- **Full-read budget** (all flows, including Index): checked after each page is read and its new candidates are classified (a soft
   cap: it can overshoot by one page, e.g. ~12 s for 50 YouTube-discovered Spotify candidates). When it is
   spent the candidates already classified are still matched, then the plan moves to `title-search`, else a clean
   `miss`. Logged at Information as `Catalogue episode lookup budget spent: platform=… flow=… stage='full-show-read'
