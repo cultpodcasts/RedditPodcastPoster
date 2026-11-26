@@ -75,8 +75,8 @@ public class EpisodeYouTubeAlternateUpdateRules
             .ReturnsAsync((CatalogueServiceUrlOwner?)null);
         _mocker.GetMock<ITextSanitiser>()
             .Setup(x => x.SanitiseTitle(It.IsAny<string>(), It.IsAny<Regex?>(), It.IsAny<string[]>(),
-                It.IsAny<string[]>(), It.IsAny<string?>()))
-            .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _) => title);
+                It.IsAny<string[]>(), It.IsAny<string?>(), It.IsAny<Guid?>()))
+            .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _, Guid? _) => title);
         _mocker.GetMock<ITextSanitiser>()
             .Setup(x => x.SanitiseDescription(It.IsAny<string>(), It.IsAny<Regex?>()))
             .Returns((string description, Regex? _) => description);
