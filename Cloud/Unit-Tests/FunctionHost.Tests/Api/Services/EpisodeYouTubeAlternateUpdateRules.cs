@@ -173,7 +173,7 @@ public class EpisodeYouTubeAlternateUpdateRules
 
         // Assert
         result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
-        _saved!.Ids.YouTube.Should().Be(alternate.YouTubeId);
+        _saved!.Ids!.YouTube.Should().Be(alternate.YouTubeId);
         _saved.Services!["youtube"].Url.Should().Be(alternate.Url);
         _saved.AdditionalYouTube.Should().ContainSingle().Which.YouTubeId.Should().Be(primaryId);
     }
@@ -264,7 +264,7 @@ public class EpisodeYouTubeAlternateUpdateRules
         kept[0].YouTubeId.Should().Be(primaryId);
         kept[0].Url.Should().Be(_fixture.DefaultYouTubeUrl(primaryId));
         unparseableResult.Status.Should().Be(EpisodeUpdateStatus.Accepted);
-        _saved!.Ids.YouTube.Should().Be(alternate.YouTubeId);
+        _saved!.Ids!.YouTube.Should().Be(alternate.YouTubeId);
         _saved.AdditionalYouTube!.First().YouTubeId.Should().Be(primaryId);
         _saved.AdditionalYouTube!.First().Url.Should().Be(_fixture.DefaultYouTubeUrl(primaryId));
     }
