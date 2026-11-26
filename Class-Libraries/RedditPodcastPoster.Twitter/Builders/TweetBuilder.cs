@@ -28,9 +28,7 @@ public class TweetBuilder(
     IPostModelFactory postModelFactory,
     IPersonGuestHandleResolver personGuestHandleResolver,
     IOptions<TwitterOptions> twitterOptions,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<TweetBuilder> logger)
-#pragma warning restore CS9113 // Parameter is unread.
     : ITweetBuilder
 {
     private const int MinTitleLength = 10;
@@ -155,9 +153,13 @@ public class TweetBuilder(
         // reserve (gated by ShortUrlOnlyWhenShareImage).
         // #1500: a curator removed the episode's image, so link only the site short URL. X builds its card from the
         // linked page, and a YouTube / Spotify link would bring the removed art back.
+        // #1503: when that short link was not created, link the full site episode URL instead of the platform URL.
+        var imageRemoved = podcastEpisode.Episode.IsImageRemoved();
+        var imageRemovedWithoutShortUrl = imageRemoved && shortUrl == null;
         var shortUrlOnly = (hasShareImage && _twitterOptions.ShortUrlOnlyWhenShareImage) ||
-                           (podcastEpisode.Episode.IsImageRemoved() && shortUrl != null);
+                           (imageRemoved && shortUrl != null);
         var reserveSecondUrl = !shortUrlOnly
+            && !imageRemovedWithoutShortUrl
             && _twitterOptions.WithEpisodeUrl
             && (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||
                 podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
@@ -182,6 +184,15 @@ public class TweetBuilder(
         if (shortUrlOnly && shortUrl != null)
         {
             tweetBuilder.Append(shortUrl.AbsoluteUri);
+            return tweetBuilder.ToString();
+        }
+
+        if (imageRemovedWithoutShortUrl)
+        {
+            logger.LogWarning(
+                "Short link missing for image-removed episode '{EpisodeId}'; linking the site episode URL so X does not card the removed platform art.",
+                podcastEpisode.Episode.Id);
+            tweetBuilder.Append(podcastEpisode.ToEpisodeUrl());
             return tweetBuilder.ToString();
         }
 
