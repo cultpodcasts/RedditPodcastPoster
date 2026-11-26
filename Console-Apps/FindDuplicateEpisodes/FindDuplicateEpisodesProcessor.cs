@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -21,11 +22,19 @@ public class FindDuplicateEpisodesProcessor(
     ILogger<FindDuplicateEpisodesProcessor> logger)
 {
     /// <summary>
-    /// Live episodes for duplicate detection: parent not removed and the episode itself not removed
-    /// (<see cref="Playable.CosmosNotRemovedSql"/> — absent, null or false).
+    /// Cosmos SQL: episode is not held for approval (<c>approvalStatus</c> absent or null). Alias <c>e</c>.
+    /// Any stored value is held (<see cref="Episode.IsHeldForApproval"/>). #1490.
+    /// </summary>
+    internal const string NotHeldForApprovalSql =
+        "(NOT IS_DEFINED(e.approvalStatus) OR IS_NULL(e.approvalStatus))";
+
+    /// <summary>
+    /// Live episodes for duplicate detection: parent not removed, the episode itself not removed
+    /// (<see cref="Playable.CosmosNotRemovedSql"/> — absent, null or false), and not held for approval
+    /// (<see cref="NotHeldForApprovalSql"/>). A held split-off must not be a duplicate candidate (#1490).
     /// </summary>
     internal const string ActiveEpisodesFilter =
-        $"{Playable.CosmosParentNotRemovedSql} and {Playable.CosmosNotRemovedSql}";
+        $"{Playable.CosmosParentNotRemovedSql} and {Playable.CosmosNotRemovedSql} and {NotHeldForApprovalSql}";
 
     private static readonly HashSet<string> ExcludedComparisonFields =
         new(StringComparer.Ordinal) { "id", "_rid", "_self", "_etag", "_attachments", "_ts", "posted", "tweeted", "tweetId", "tweetPost", "bluesky", "blueskyPost", "description" };
@@ -159,6 +168,14 @@ public class FindDuplicateEpisodesProcessor(
         {
             logger.LogWarning("Pair {FirstId}/{SecondId}: could not load one or both episodes.",
                 firstSample.Id, secondSample.Id);
+            return null;
+        }
+
+        if (ShouldSkipDuplicatePair(firstEpisode, secondEpisode))
+        {
+            logger.LogWarning(
+                "Pair {FirstId}/{SecondId}: skipping duplicate handling; one episode is held for approval or is the split-off of the other, so links are not merged and Removed is left unchanged.",
+                firstEpisode.Id, secondEpisode.Id);
             return null;
         }
 
@@ -696,6 +713,26 @@ public class FindDuplicateEpisodesProcessor(
 
         return null;
     }
+
+    /// <summary>
+    /// #1490: do not dedupe a pair when either episode is held for approval, or when one is the split-off of the
+    /// other. A split-off is recorded as <see cref="EpisodeServiceLinks.SplitOffId"/> of its source (a name-based id
+    /// of the source id and the Spotify and Apple links that were split). While an overwrite is only partly saved,
+    /// the source still carries those links, so the ids match and the two episodes share a service-id fingerprint.
+    /// Skipping leaves <c>Removed</c> and <c>approvalStatus</c> untouched.
+    /// </summary>
+    internal static bool ShouldSkipDuplicatePair(Episode first, Episode second)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(second);
+        return first.IsHeldForApproval()
+               || second.IsHeldForApproval()
+               || IsSplitOffOf(first, second)
+               || IsSplitOffOf(second, first);
+    }
+
+    private static bool IsSplitOffOf(Episode candidate, Episode source) =>
+        candidate.Id == EpisodeServiceLinks.SplitOffId(source);
 
     private static string? CreateDuplicateFingerprint(EpisodeDuplicateSample item)
     {
