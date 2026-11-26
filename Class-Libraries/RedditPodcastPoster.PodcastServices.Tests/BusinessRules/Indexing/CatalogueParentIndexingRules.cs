@@ -924,8 +924,8 @@ public class CatalogueParentIndexingRules
     }
 
     [Fact(DisplayName =
-        "On-demand parent index: the resolved parent is indexed without reading it again, so a news organisation " +
-        "that shares its id with a TV show indexes the news organisation, because the route's kind is the kind indexed.")]
+        "On-demand parent index: a news organisation that shares its id with a TV show is indexed as news by the " +
+        "route kind, and the post-lease re-read is of that kind only (#1402), never a TV-show lookup.")]
     public async Task index_parent_indexes_the_given_kind_without_a_second_lookup()
     {
         // Arrange
@@ -941,7 +941,8 @@ public class CatalogueParentIndexingRules
         _savedReports.Should().ContainSingle().Which.NewsOrganisationId.Should().Be(organisation.Id);
         _savedTvEpisodes.Should().BeEmpty();
         _mocker.GetMock<ITvShowRepository>().Verify(x => x.GetTvShow(It.IsAny<Guid>()), Times.Never);
-        _mocker.GetMock<INewsOrganisationRepository>().Verify(x => x.GetNewsOrganisation(It.IsAny<Guid>()), Times.Never);
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Verify(x => x.GetNewsOrganisation(organisation.Id), Times.Once);
     }
 
     [Fact(DisplayName =
@@ -1056,5 +1057,39 @@ public class CatalogueParentIndexingRules
         _showPatches.Should().BeEmpty();
         _savedReports.Should().ContainSingle().Which.Id.Should().Be(discovered.Id);
         _organisationPatches.Should().ContainSingle().Which.Id.Should().Be(indexable.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation is deleted between the initial read and taking the " +
+        "indexing lease, then nothing is indexed or saved, because the lease must not index a stale in-memory parent " +
+        "into an orphaned partition (#1402).")]
+    public async Task news_organisation_deleted_between_read_and_lease_is_skipped()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        _discovered =
+        [
+            _fixture.CreateYouTubeCatalogueEpisode(b =>
+                b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))
+        ];
+        var fetches = 0;
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Setup(x => x.GetNewsOrganisation(It.IsAny<Guid>()))
+            .ReturnsAsync((Guid id) =>
+            {
+                fetches++;
+                return fetches >= 2 ? null : _organisations.GetValueOrDefault(id);
+            });
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+        _mocker.GetMock<IEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
+            Times.Never);
     }
 }
