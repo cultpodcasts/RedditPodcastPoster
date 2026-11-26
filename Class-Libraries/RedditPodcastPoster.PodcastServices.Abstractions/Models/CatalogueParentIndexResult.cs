@@ -41,7 +41,13 @@ public enum CatalogueParentIndexStatus
     /// finish (a lookup threw, the time budget stopped them, or Spotify was skipped / rate-limited) and nothing was
     /// saved. Retryable, unlike <see cref="NothingToEnrich"/>.
     /// </summary>
-    EnrichFailed
+    EnrichFailed,
+
+    /// <summary>
+    /// The parent was deleted after the caller read it but before the indexing lease was taken (#1402). Nothing was
+    /// indexed or saved, so there is nothing to push to search.
+    /// </summary>
+    NotFound
 }
 
 /// <summary>Why a parent is <see cref="CatalogueParentIndexStatus.NotIndexable"/>.</summary>

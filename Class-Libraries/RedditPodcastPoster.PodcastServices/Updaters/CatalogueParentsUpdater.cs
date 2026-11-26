@@ -200,8 +200,8 @@ public class CatalogueParentsUpdater(
                 {
                     if (IsIndexable(tvShow) && !await SourcePodcastStillExists("TvShow", tvShow))
                     {
-                        var run = await IndexWithinBudget("TvShow", tvShow,
-                            context => IndexTvShow(tvShow, context), indexingContext, expensivePass);
+                        var run = await IndexWithinBudget("TvShow", tvShow, tvShowRepository.GetTvShow,
+                            (context, live) => IndexTvShow(live, context), indexingContext, expensivePass);
                         if (run.Status == ParentIndexRunStatus.TimedOut)
                         {
                             success = false;
@@ -216,7 +216,8 @@ public class CatalogueParentsUpdater(
                     !await SourcePodcastStillExists("NewsOrganisation", organisation))
                 {
                     var run = await IndexWithinBudget("NewsOrganisation", organisation,
-                        context => IndexNewsOrganisation(organisation, context), indexingContext, expensivePass);
+                        newsOrganisationRepository.GetNewsOrganisation,
+                        (context, live) => IndexNewsOrganisation(live, context), indexingContext, expensivePass);
                     if (run.Status == ParentIndexRunStatus.TimedOut)
                     {
                         success = false;
@@ -249,10 +250,12 @@ public class CatalogueParentsUpdater(
         {
             return parent switch
             {
-                TvShow tvShow => await IndexOnDemand("TvShow", tvShow,
-                    (context, enrichOnly, report) => IndexTvShow(tvShow, context, enrichOnly, report), indexingContext),
+                TvShow tvShow => await IndexOnDemand("TvShow", tvShow, tvShowRepository.GetTvShow,
+                    (live, context, enrichOnly, report) => IndexTvShow(live, context, enrichOnly, report),
+                    indexingContext),
                 NewsOrganisation organisation => await IndexOnDemand("NewsOrganisation", organisation,
-                    (context, enrichOnly, report) => IndexNewsOrganisation(organisation, context, enrichOnly, report),
+                    newsOrganisationRepository.GetNewsOrganisation,
+                    (live, context, enrichOnly, report) => IndexNewsOrganisation(live, context, enrichOnly, report),
                     indexingContext),
                 _ => throw new ArgumentException(
                     $"Only a TV show or a news organisation can be indexed, not '{parent.GetType().Name}'.",
@@ -275,11 +278,12 @@ public class CatalogueParentsUpdater(
     /// <see cref="CatalogueParentIndexStatus.NothingToEnrich"/>. Without a Spotify or Apple id nothing can be done
     /// (<c>NotAutoIndexed</c>).
     /// </summary>
-    private async Task<CatalogueParentIndexResult> IndexOnDemand(
+    private async Task<CatalogueParentIndexResult> IndexOnDemand<TParent>(
         string kind,
-        Publisher parent,
-        Func<IndexingContext, bool, AudioCatchUpReport, Task<IReadOnlyList<Playable>>> index,
-        IndexingContext indexingContext)
+        TParent parent,
+        Func<Guid, Task<TParent?>> reload,
+        Func<TParent, IndexingContext, bool, AudioCatchUpReport, Task<IReadOnlyList<Playable>>> index,
+        IndexingContext indexingContext) where TParent : Publisher
     {
         if (parent.IsRemoved())
         {
@@ -316,7 +320,9 @@ public class CatalogueParentsUpdater(
 
         var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
         var catchUp = new AudioCatchUpReport();
-        var run = await IndexWithinBudget(kind, parent, context => index(context, enrichOnly, catchUp), indexingContext,
+        var run = await IndexWithinBudget(kind, parent, reload,
+            (context, live) => index(live, context, enrichOnly, catchUp),
+            indexingContext,
             expensivePass,
             new BudgetPlan(_budget.OnDemandBudget, _budget.OnDemandAbandonGrace, _budget.OnDemandAbandonDrain),
             ParentIndexingLock.SourceOnDemand);
@@ -326,6 +332,14 @@ public class CatalogueParentsUpdater(
                 new CatalogueParentIndexResult(CatalogueParentIndexStatus.AlreadyRunning),
             ParentIndexRunStatus.TimedOut =>
                 new CatalogueParentIndexResult(CatalogueParentIndexStatus.TimedOut),
+            // Deleted or removed after the pre-lease checks (#1402): nothing was indexed, so never answer Indexed
+            // (the API would then push a vanished parent to search). Removed matches the pre-lease answer.
+            ParentIndexRunStatus.ParentDeleted =>
+                new CatalogueParentIndexResult(CatalogueParentIndexStatus.NotFound),
+            ParentIndexRunStatus.ParentRemoved =>
+                new CatalogueParentIndexResult(
+                    CatalogueParentIndexStatus.NotIndexable,
+                    NotIndexableReason: CatalogueParentNotIndexableReason.Removed),
             // A catch-up that threw, was cut off by its budget or had Spotify skipped / rate-limited did not finish
             // its lookups, so saving nothing does not mean nothing could be filled: that is retryable (EnrichFailed).
             _ when enrichOnly && run.Changed is not { Count: > 0 } && catchUp.Incomplete =>
@@ -340,14 +354,15 @@ public class CatalogueParentsUpdater(
     /// Runs one parent's index under its time budget and a per-parent indexing lease. The hourly pass uses
     /// <see cref="HourlyPlan"/>; an on-demand index passes its own, always-bounded plan.
     /// </summary>
-    private async Task<ParentIndexRun> IndexWithinBudget(
+    private async Task<ParentIndexRun> IndexWithinBudget<TParent>(
         string kind,
-        Publisher parent,
-        Func<IndexingContext, Task<IReadOnlyList<Playable>>> index,
+        TParent parent,
+        Func<Guid, Task<TParent?>> reload,
+        Func<IndexingContext, TParent, Task<IReadOnlyList<Playable>>> index,
         IndexingContext indexingContext,
         bool expensivePass,
         BudgetPlan? plan = null,
-        string source = ParentIndexingLock.SourceHourly)
+        string source = ParentIndexingLock.SourceHourly) where TParent : Publisher
     {
         plan ??= HourlyPlan(expensivePass);
         var budget = plan.Budget;
@@ -378,13 +393,28 @@ public class CatalogueParentsUpdater(
 
         try
         {
+            // DELETE can finish between the caller's read and this lease (#1402). Re-read under the lease and
+            // index that document (or skip) so we never save into a partition that no longer exists.
+            // Known residual (not #1402): only deleted / removed is re-checked. The callers' IsIndexable /
+            // enrichOnly / SourcePodcastStillExists decisions were made on the pre-lease document, so a curator edit
+            // to auto-indexing or the Spotify / Apple id in the same window is indexed under the earlier decision.
+            var live = await reload(parent.Id);
+            if (live is null || live.IsRemoved())
+            {
+                var deleted = live is null;
+                logger.LogWarning(
+                    "Catalogue parent indexing: kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}' was {Reason} after the indexing lease was taken; skipping.",
+                    kind, parent.Id, parent.Name, deleted ? "deleted" : "removed");
+                return deleted ? ParentIndexRun.ParentDeleted() : ParentIndexRun.ParentRemoved();
+            }
+
             stageLog.Stage("start", $"catalogue-parent-kind={kind}");
             var parentContext = indexingContext.ForPodcastUpdate();
             // The run scope (budget token + stage log) belongs to this parent only: the update captures it when it
             // starts, and leaving the block restores the loop's scope before the next parent.
             using (PodcastRunScope.Enter(new PodcastRunScope(budgetCts.Token, stageLog)))
             {
-                updateTask = index(parentContext);
+                updateTask = index(parentContext, live);
             }
 
             var changed = budget.HasValue
@@ -426,7 +456,13 @@ public class CatalogueParentsUpdater(
     {
         Completed,
         TimedOut,
-        AlreadyRunning
+        AlreadyRunning,
+
+        /// <summary>Hard-deleted between the caller's read and the lease (#1402); nothing was indexed.</summary>
+        ParentDeleted,
+
+        /// <summary>Flagged removed between the caller's read and the lease (#1402); nothing was indexed.</summary>
+        ParentRemoved
     }
 
     private sealed record ParentIndexRun(ParentIndexRunStatus Status, IReadOnlyList<Playable>? Changed = null)
@@ -437,6 +473,10 @@ public class CatalogueParentsUpdater(
         public static ParentIndexRun TimedOut() => new(ParentIndexRunStatus.TimedOut);
 
         public static ParentIndexRun AlreadyRunning() => new(ParentIndexRunStatus.AlreadyRunning);
+
+        public static ParentIndexRun ParentDeleted() => new(ParentIndexRunStatus.ParentDeleted);
+
+        public static ParentIndexRun ParentRemoved() => new(ParentIndexRunStatus.ParentRemoved);
     }
 
     /// <summary>
