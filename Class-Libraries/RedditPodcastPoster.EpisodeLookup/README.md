@@ -32,8 +32,13 @@ They contain no strategy logic.
    otherwise the chain declared in **`Planning/EpisodeLookupChains.cs`** for (use case, release age).
 4. The executor runs the steps (pages read once and reused, ids tried once, each read bounded by date and/or cap)
    and logs one line per lookup:
-   `Catalogue episode lookup: platform=… flow=… plan=… stage=… show-episodes=… pages-read=…`
-   (`stage` is the strategy that found the episode, `miss`, or `skipped-no-show`).
+   `Catalogue episode lookup: platform=… flow=… plan=… stage=… show-episodes=… pages-read=… candidates=… classified=… classify-ms=…`
+   (`stage` is the strategy that found the episode, `miss`, or `skipped-no-show`; `candidates` is what the executor handed
+   the subject classifier, summed over steps; `classified` is how many were handed to subject/guest classification — all of
+   them when enriching a YouTube-discovered episode, none otherwise; the classifier may serve some from its per-scope memo;
+   `classify-ms` is the time spent inside `ClassifyAsync`, measured with the injected `TimeProvider`, and includes the
+   ignore-list lookup for `classified=0` lookups; the line is not logged if the classifier throws).
+   The three trailing fields are the measure for #1557: they show how much of a slow `enrich` is classification.
 5. Every HTTP call is wrapped by `CatalogueRequestGuard` (`RequestTimeout`, default 10 s); when it fires it logs
    `Catalogue request timeout guard fired:` and the lookup moves on (clean miss, never an exception).
 

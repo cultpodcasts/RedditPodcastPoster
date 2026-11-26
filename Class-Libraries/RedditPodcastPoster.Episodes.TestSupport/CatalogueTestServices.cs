@@ -42,6 +42,26 @@ public sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
 }
 
 /// <summary>
+/// Clock the fakes advance, so budgets and measured durations are deterministic. <see cref="Advance"/> moves both the
+/// wall clock (<see cref="GetUtcNow"/>) and the timestamp (<see cref="GetTimestamp"/>, 1 tick = 100 ns) together.
+/// </summary>
+public sealed class ManualTimeProvider(DateTime start) : TimeProvider
+{
+    private DateTimeOffset _now = new(DateTime.SpecifyKind(start, DateTimeKind.Utc), TimeSpan.Zero);
+    private long _timestamp;
+
+    public void Advance(TimeSpan by)
+    {
+        _now += by;
+        _timestamp += by.Ticks;
+    }
+
+    public override DateTimeOffset GetUtcNow() => _now;
+    public override long GetTimestamp() => _timestamp;
+    public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+}
+
+/// <summary>
 /// Subject classifier stub: when enriching a YouTube-discovered episode, any episode whose title contains a key
 /// gets that key's subjects. Mirrors the real classifier's contract without the subject repository.
 /// </summary>
