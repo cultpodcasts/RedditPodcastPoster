@@ -41,11 +41,11 @@ const base = { owner: 'o', repo: 'r', baseRef: 'main', headSha: HEAD };
 
 test('decide: merge-only tip above a green gate skips the heavy build', async () => {
   let classify;
-  const walk = async (a) => { classify = a.classify; return { ok: true, anchor: PRIOR, hops: [{}, {}] }; };
+  const walk = async (a) => { classify = a.classify; return { ok: true, anchor: PRIOR, hops: [{ paths: ['docs/a.md'] }, { paths: [] }] }; };
   const github = githubWith({ [PRIOR]: [checkRun()] });
   const r = await d.decide({ ...base, github, walk });
   assert.equal(r.skip, true);
-  assert.match(r.reason, /merge-from-base only \(2 commits\) above bbbbbbb with a green gate/);
+  assert.match(r.reason, /merge-from-base only \(2 commits, non-build files only\) above bbbbbbb with a green gate/);
   assert.equal(await classify(PRIOR), 'stop');
   assert.equal(await classify(HEAD), null);
 });
@@ -66,10 +66,46 @@ test('decide: a feature commit, rebase, evil merge or overlap runs the full buil
   }
 });
 
+test('isNonBuildPath: docs, markdown, .cursor and workflow scripts are non-build; code, workflows and contracts are not', () => {
+  for (const p of ['docs/deployment.md', 'docs/adr/0001.txt', 'README.md', 'Cloud/Api/architecture.md', 'AGENTS.md', '.cursor/rules/x.mdc',
+    '.github/scripts/review-gate.cjs', '.github/ISSUE_TEMPLATE/bug.yml']) {
+    assert.equal(d.isNonBuildPath(p), true, p);
+  }
+  for (const p of ['Cloud/Api/Program.cs', 'RedditPodcastPoster.slnx', 'Directory.Packages.props', 'scripts/assert-slnf.ps1',
+    '.github/workflows/dotnet.yml', '.github/workflows/pr-gate.yml', 'docs/contracts/streaming-submit.json',
+    'docs/contracts/notes.md', 'contracts/package.json', 'Infrastructure/main.bicep', '', undefined, null]) {
+    assert.equal(d.isNonBuildPath(p), false, String(p));
+  }
+});
+
+test('buildAffectingPaths: lists only non-allowlisted paths, and a hop without paths is unknown (fail closed)', () => {
+  assert.deepEqual(d.buildAffectingPaths([]), []);
+  assert.deepEqual(d.buildAffectingPaths([{ paths: ['docs/a.md', 'src/b.cs'] }, { paths: ['src/b.cs', 'a.csproj'] }]), ['a.csproj', 'src/b.cs']);
+  assert.deepEqual(d.buildAffectingPaths([{ paths: [] }, {}]), ['<unknown paths>']);
+});
+
+test('decide: a merge-only tip above a green gate whose merged-in main touches code runs the full build', async () => {
+  const walk = async () => ({ ok: true, anchor: PRIOR, hops: [{ paths: ['docs/a.md', 'Cloud/Api/Foo.cs'] }] });
+  const r = await d.decide({ ...base, github: githubWith({}), walk });
+  assert.equal(r.skip, false);
+  assert.match(r.reason, /build-affecting files \(Cloud\/Api\/Foo\.cs\)/);
+});
+
+test('decide: any hop in the chain touching a build file runs the full build; a long list is summarised', async () => {
+  const walk = async () => ({ ok: true, anchor: PRIOR, hops: [{ paths: ['docs/a.md'] }, { paths: ['a.cs', 'b.cs', 'c.cs', 'd.cs'] }] });
+  const r = await d.decide({ ...base, github: githubWith({}), walk });
+  assert.equal(r.skip, false);
+  assert.match(r.reason, /\(a\.cs, b\.cs, c\.cs and 1 more\)/);
+});
+
+test('decide: an empty merge (no files) above a green gate still skips', async () => {
+  const walk = async () => ({ ok: true, anchor: PRIOR, hops: [{ paths: [] }] });
+  assert.equal((await d.decide({ ...base, github: githubWith({}), walk })).skip, true);
+});
 test('decide: a failing, cancelled or missing prior gate (real classify) runs the full build', async () => {
   // Walk that asks classify about the prior commit, as the real walker does after one hop.
   const walk = async (a) => ((await a.classify(PRIOR)) === 'stop'
-    ? { ok: true, anchor: PRIOR, hops: [{}] }
+    ? { ok: true, anchor: PRIOR, hops: [{ paths: ['README.md'] }] }
     : { ok: false, reason: 'no anchor within 10 merge-from-base commits', hops: [] });
   for (const runs of [[], [checkRun({ conclusion: 'failure' })], [checkRun({ conclusion: 'cancelled' })]]) {
     const r = await d.decide({ ...base, github: githubWith({ [PRIOR]: runs }), walk });
@@ -80,7 +116,7 @@ test('decide: a failing, cancelled or missing prior gate (real classify) runs th
 });
 
 test('decide: an API error from the checks lookup fails closed (full build)', async () => {
-  const walk = async (a) => ((await a.classify(PRIOR)) === 'stop' ? { ok: true, anchor: PRIOR, hops: [] } : { ok: false, reason: 'x', hops: [] });
+  const walk = async (a) => ((await a.classify(PRIOR)) === 'stop' ? { ok: true, anchor: PRIOR, hops: [{ paths: [] }] } : { ok: false, reason: 'x', hops: [] });
   const r = await d.decide({ ...base, github: githubWith({}, true), walk });
   assert.equal(r.skip, false);
   assert.match(r.reason, /checks 500/);
@@ -113,11 +149,11 @@ const prCtx = () => ({ repo: { owner: 'o', repo: 'r' }, payload: { pull_request:
 test('run: publishes skip_heavy=true and a reason for a green-gate merge-only tip', async () => {
   const core = fakeCore();
   let seen;
-  const walk = async (a) => { seen = a; return { ok: true, anchor: PRIOR, hops: [{}] }; };
+  const walk = async (a) => { seen = a; return { ok: true, anchor: PRIOR, hops: [{ paths: ['README.md'] }] }; };
   const r = await d.run({ github: githubWith({}), context: prCtx(), core, walk });
   assert.equal(r.skip, true);
   assert.equal(core.outputs.skip_heavy, 'true');
-  assert.match(core.outputs.reason, /merge-from-base only \(1 commit\)/);
+  assert.match(core.outputs.reason, /merge-from-base only \(1 commit, non-build files only\)/);
   assert.equal(seen.headSha, HEAD);
   assert.equal(seen.baseRef, 'main');
 });
@@ -141,12 +177,16 @@ const code = workflow.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
 
 test('workflow: build needs detect and is skipped only when skip_heavy is exactly true', () => {
   assert.match(code, /^  build:\s*\n    needs: detect\s*\n    if: .*needs\.detect\.outputs\.skip_heavy != 'true'/m);
+  // `!cancelled()` is what lets a FAILED detect still run the full build (fail closed).
+  assert.match(code, /^  build:\s*\n    needs: detect\s*\n    if: \$\{\{ !cancelled\(\) && needs\.detect\.outputs\.skip_heavy != 'true' \}\}/m);
 });
 
 test('workflow: gate waits for detect and accepts a skipped build only when skip_heavy=true', () => {
   assert.match(code, /needs: \[ detect, build, actionlint, bicep \]/);
   assert.match(code, /SKIP_HEAVY: \$\{\{ needs\.detect\.outputs\.skip_heavy \}\}/);
-  assert.match(code, /\$SKIP_HEAVY" = "true"/);
+  assert.match(code, /DETECT_RESULT: \$\{\{ needs\.detect\.result \}\}/);
+  // The verdict logic is unit tested in pr-gate-verdict.test.cjs; the workflow must call it, not re-implement it.
+  assert.match(code, /run: node \.github\/scripts\/pr-gate-verdict\.cjs/);
 });
 
 test('workflow: actionlint and bicep never depend on detect, so they run on every tip', () => {

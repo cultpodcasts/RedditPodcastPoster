@@ -111,7 +111,7 @@ The reviewer's **final step** when its verdict is acceptable:
 2. Post a PR **issue comment** (`gh pr comment <n>`) containing the marker for the **full 40-character head SHA** it reviewed. The summary can stay a COMMENT review; the marker goes in a separate one-line comment if needed:
    `<!-- review-gate: acceptable sha=<head sha> -->`
    Get the SHA with `gh pr view <n> --json headRefOid --jq .headRefOid`. To withdraw a verdict, post `<!-- review-gate: changes-requested sha=<head sha> -->`.
-3. **Then** add the label: `gh pr edit <n> --add-label review-acceptable` (marker first: a label without an acceptable marker for the head SHA is removed).
+3. **Then** add the label: `gh pr edit <n> --add-label review-acceptable` (marker first: a label with no acceptable marker for the head SHA and no carried acceptance is removed).
 4. Check `review-gate` is green (`gh pr checks <n>`), then move the card to Ready For Review.
 
 Rules:

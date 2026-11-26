@@ -9,11 +9,16 @@
 #   bicep    - compiles every Infrastructure/**/*.bicep (no Azure login; .bicepparam needs deploy-time env, so it is not built)
 #
 # Merge-from-main tips (#1555): when the PR tip is a chain of pure merge-from-base commits (two parents, second parent on
-# main, no PR/base file overlap, merge delta equals the main side; .github/scripts/merge-only-tip.cjs) and walking first
-# parents reaches a commit whose `gate` check-run (this workflow, GitHub Actions app) concluded success, `build` is skipped
-# entirely. actionlint and bicep always run. `gate` accepts a skipped `build` only when detect succeeded with
-# skip_heavy=true. Rebases, feature commits, evil/overlapping merges, a red/cancelled/missing prior gate and API errors run
+# main, no PR/base file overlap, merge delta equals the main side; .github/scripts/merge-only-tip.cjs), walking first
+# parents reaches a commit whose `gate` check-run (this workflow, GitHub Actions app) concluded success, AND every file
+# the merged-in main side touched is on the non-build allowlist (docs, markdown, .cursor, workflow scripts;
+# .github/scripts/pr-gate-detect.cjs), `build` is skipped entirely. Merged-in code, project, workflow or contract
+# changes run the full build: main's own CI does not cover PR + main together. actionlint and bicep always run.
+# `gate` accepts a skipped `build` only when detect succeeded with skip_heavy=true (.github/scripts/pr-gate-verdict.cjs,
+# unit tested). Rebases, feature commits, evil/overlapping merges, a red/cancelled/missing prior gate and API errors run
 # the full build. github.event.before is not used (unreliable on pull_request).
+# Trust: on `pull_request` these scripts and this file come from the PR's own merge ref, so the skip decision is only
+# as strong as "gate is required on main" (docs/deployment.md § PR gate).
 #
 # Provision and Deploy is never part of this gate: it deploys, and runs on push to main / workflow_dispatch only.
 # Branch protection on main must require the check "gate" (shown as "PR gate / gate" in the Checks tab).
@@ -115,27 +120,25 @@ jobs:
 
   # The single required check. `always()` so a failed or cancelled dependency turns this red
   # instead of leaving it skipped (a skipped required check would not block the merge).
+  # The verdict is .github/scripts/pr-gate-verdict.cjs (unit tested): a skipped `build` is acceptable ONLY when
+  # detect succeeded and said skip_heavy=true. detect itself is not a failure source: if it failed, build ran in
+  # full (fail closed) and is judged on its own result.
   gate:
     if: always()
     needs: [ detect, build, actionlint, bicep ]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        sparse-checkout: .github/scripts
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
     - name: All PR checks passed
       env:
         RESULTS: ${{ toJSON(needs) }}
         SKIP_HEAVY: ${{ needs.detect.outputs.skip_heavy }}
         DETECT_RESULT: ${{ needs.detect.result }}
         DETECT_REASON: ${{ needs.detect.outputs.reason }}
-      run: |
-        set -euo pipefail
-        echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
-        echo "detect: skip_heavy=${SKIP_HEAVY:-<unset>} (${DETECT_REASON:-no reason})"
-        # A skipped build is acceptable ONLY when detect succeeded and said skip_heavy=true. detect itself is
-        # not a failure source: if it failed, build ran in full (fail closed) and is judged on its own result.
-        skip_ok=false
-        if [ "$SKIP_HEAVY" = "true" ] && [ "$DETECT_RESULT" = "success" ]; then skip_ok=true; fi
-        failed=$(echo "$RESULTS" | jq -r --arg skip_ok "$skip_ok" '[to_entries[] | select(.key != "detect") | select(.value.result != "success") | select(.key != "build" or .value.result != "skipped" or $skip_ok != "true") | .key] | join(", ")')
-        if [ -n "$failed" ]; then
-          echo "::error::PR gate failed: ${failed}"
-          exit 1
-        fi
+      run: node .github/scripts/pr-gate-verdict.cjs

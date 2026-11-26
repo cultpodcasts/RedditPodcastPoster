@@ -1,10 +1,19 @@
 'use strict';
 // pr-gate-detect (cultpodcasts/RedditPodcastPoster#1555): decide whether PR gate can skip the
-// heavy `build` job (dotnet.yml). It can only when the PR tip is a chain of PURE merge-from-base
-// commits (see merge-only-tip.cjs) on top of a first-parent commit whose required check-run
-// `gate` (PR gate workflow, GitHub Actions app) already concluded `success`. That earlier gate
-// built and tested the PR's own code; the merge only added base-branch content that main's own
-// CI covers. actionlint and bicep still run on every tip.
+// heavy `build` job (dotnet.yml). It can only when ALL of these hold:
+//   1. the PR tip is a chain of PURE merge-from-base commits (see merge-only-tip.cjs);
+//   2. the chain sits on top of a first-parent commit whose required check-run `gate` (PR gate
+//      workflow, GitHub Actions app) already concluded `success` (that gate built and tested the
+//      PR's own code); and
+//   3. every file the merged-in base side touched is on the NON-BUILD allowlist below (docs,
+//      markdown, .cursor, workflow scripts). Textual non-overlap does not imply the combination
+//      compiles (main can rename an API in file B while the PR calls it from file A), and main's
+//      own CI covers main's content alone, not PR + main together. So any base-side file that
+//      could affect the build or tests means the full build runs.
+// actionlint and bicep still run on every tip.
+// Trust: this runs on `pull_request` from the PR's own merge ref, so a PR author controls these
+// scripts and pr-gate.yml. The skip decision is only as strong as "PR gate is required on main"
+// (docs/deployment.md § PR gate); it is not a security boundary.
 // `github.event.before` is NOT used: it is unreliable on `pull_request`. The first-parent
 // chain is walked instead, at most MAX_HOPS commits.
 // Fails closed: any other shape, an unverifiable listing or an API error yields
@@ -14,6 +23,35 @@
 const { walkMergeOnlyChain } = require('./merge-only-tip.cjs');
 
 const GATE_CHECK_NAME = 'gate';
+
+// Paths that cannot change what the build, tests, coverage gate or unit-test guardrails see.
+// Deny first: docs/contracts/** is compared against a generated copy by the build.
+const DENY_PATTERNS = [/^docs\/contracts\//];
+const NON_BUILD_PATTERNS = [
+  /^docs\//,
+  /^\.cursor\//,
+  /^\.github\/scripts\//,
+  /^\.github\/ISSUE_TEMPLATE\//,
+  /\.md$/i,
+];
+
+// True when changing `path` cannot affect the heavy build.
+function isNonBuildPath(path) {
+  const p = String(path || '');
+  if (!p || DENY_PATTERNS.some((re) => re.test(p))) return false;
+  return NON_BUILD_PATTERNS.some((re) => re.test(p));
+}
+
+// Paths from the walked hops that are NOT on the allowlist. A hop with no `paths` array is
+// unknown, so it counts as build-affecting (fail closed).
+function buildAffectingPaths(hops) {
+  const out = new Set();
+  for (const hop of hops || []) {
+    if (!Array.isArray(hop && hop.paths)) { out.add('<unknown paths>'); continue; }
+    for (const p of hop.paths) if (!isNonBuildPath(p)) out.add(p);
+  }
+  return [...out].sort();
+}
 const GATE_APP_SLUG = 'github-actions';
 
 // True when `sha` has a completed, successful `gate` check-run posted by GitHub Actions.
@@ -41,9 +79,15 @@ async function decide({ github, owner, repo, baseRef, headSha, walk = walkMergeO
   }
   if (result && result.ok) {
     const n = result.hops.length;
+    const affecting = buildAffectingPaths(result.hops);
+    if (affecting.length) {
+      const shown = affecting.slice(0, 3).join(', ');
+      const more = affecting.length > 3 ? ` and ${affecting.length - 3} more` : '';
+      return { skip: false, reason: `merged-in main changes build-affecting files (${shown}${more}); full build runs` };
+    }
     return {
       skip: true,
-      reason: `merge-from-base only (${n} commit${n === 1 ? '' : 's'}) above ${String(result.anchor).slice(0, 7)} with a green gate`,
+      reason: `merge-from-base only (${n} commit${n === 1 ? '' : 's'}, non-build files only) above ${String(result.anchor).slice(0, 7)} with a green gate`,
     };
   }
   return { skip: false, reason: (result && result.reason) || 'tip is not merge-from-base only' };
@@ -66,4 +110,6 @@ async function run({ github, context, core, walk, green }) {
   return { skip, reason };
 }
 
-module.exports = { GATE_CHECK_NAME, GATE_APP_SLUG, hasGreenGate, decide, run };
+module.exports = {
+  GATE_CHECK_NAME, GATE_APP_SLUG, isNonBuildPath, buildAffectingPaths, hasGreenGate, decide, run,
+};

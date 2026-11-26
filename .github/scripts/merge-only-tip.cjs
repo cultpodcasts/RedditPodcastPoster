@@ -12,8 +12,12 @@
 //      common, so the merge was textually clean and needed no hand resolution;
 //   4. the merge delta (P1..M) is exactly the base side (merge-base..P2): same files, same
 //      status, same resulting blob SHAs. Anything extra (an "evil merge") or missing fails;
-//   5. no compare listing was truncated (GitHub caps compare file lists), so a hidden file
-//      can never ride along.
+//   5. no compare listing was truncated (GitHub returns at most 300 files, in a single page),
+//      so a hidden file can never ride along.
+// Known residual: compare entries carry no file mode or type, so a merge that only flips a mode
+// (100644 -> 100755) or swaps a file for a symlink with the SAME blob, on a file the base side also
+// changed, has an identical key and passes. Blob content is still verified. Accepted: closing it
+// needs a tree read per hop (git.getTree, comparing mode as well as sha) and would complicate the mirror.
 // A chain is a run of such hops following FIRST parents, at most MAX_HOPS long, ending at a
 // commit the caller classifies as an anchor (a reviewed or already-green commit).
 // Everything fails closed: an unexpected shape or an API error is "not merge-only".
@@ -21,9 +25,8 @@
 // Mirrored byte-identical across RedditPodcastPoster, Api and website. Tests: merge-only-tip.test.cjs.
 
 const MAX_HOPS = 10;
-const COMPARE_PAGE_SIZE = 100;
-// GitHub caps a compare file list at 300; reaching the cap means the list may be truncated.
-const COMPARE_MAX_PAGES = 3;
+// GitHub caps a compare file list at 300 (single page); reaching the cap means it may be truncated.
+const COMPARE_FILE_CAP = 300;
 const SHA_RE = /^[0-9a-f]{40}$/i;
 const BASE_ANCESTOR_STATUSES = new Set(['behind', 'identical']);
 
@@ -63,24 +66,17 @@ function deltaMatchesBaseSide(deltaFiles, baseFiles) {
   return a.length === b.length && a.every((k, i) => k === b[i]);
 }
 
-// All files of a compare, or `truncated: true` when the listing may be incomplete (page cap
-// reached, or the API ignored paging and repeated entries).
+// All files of a compare, or `truncated: true` when the listing may be incomplete.
+// GitHub's compare endpoint is NOT paginated for files: the file list is returned once, on
+// the first page, and is capped at COMPARE_FILE_CAP for the whole comparison (`page` and
+// `per_page` only page the COMMITS; later pages return no files). So make ONE call and treat
+// a list that reached the cap as truncated: files beyond it are invisible to every check.
 async function listCompareFiles(github, owner, repo, basehead) {
-  const files = [];
-  const seen = new Set();
-  for (let page = 1; page <= COMPARE_MAX_PAGES; page++) {
-    const { data } = await github.rest.repos.compareCommitsWithBasehead({
-      owner, repo, basehead, per_page: COMPARE_PAGE_SIZE, page,
-    });
-    const batch = (data && data.files) || [];
-    for (const f of batch) {
-      if (seen.has(f.filename)) return { files, truncated: true };
-      seen.add(f.filename);
-      files.push(f);
-    }
-    if (batch.length < COMPARE_PAGE_SIZE) return { files, truncated: false };
-  }
-  return { files, truncated: true };
+  const { data } = await github.rest.repos.compareCommitsWithBasehead({
+    owner, repo, basehead, per_page: 1,
+  });
+  const files = (data && data.files) || [];
+  return { files, truncated: files.length >= COMPARE_FILE_CAP };
 }
 
 // Assess one merge commit. Resolves { ok: true, firstParent, secondParent, files } or
@@ -114,7 +110,10 @@ async function assessMergeOnlyHop({ github, owner, repo, baseRef, sha }) {
   if (!deltaMatchesBaseSide(delta.files, baseSide.files)) {
     return notMergeOnly('merge changes differ from the base side');
   }
-  return { ok: true, firstParent: first, secondParent: second, files: delta.files.length };
+  return {
+    ok: true, firstParent: first, secondParent: second, files: delta.files.length,
+    paths: [...touchedPaths(delta.files)].sort(),
+  };
 }
 
 // Walk first-parent merge-only hops from headSha until `classify(sha)` returns 'stop'
@@ -132,7 +131,7 @@ async function walkMergeOnlyChain({ github, owner, repo, baseRef, headSha, class
       return { ok: false, apiError: true, reason: `API error while checking merge-only tip: ${err.message || err}`, hops };
     }
     if (!hop.ok) return { ok: false, reason: hop.reason, hops };
-    hops.push({ sha: current, firstParent: hop.firstParent, secondParent: hop.secondParent });
+    hops.push({ sha: current, firstParent: hop.firstParent, secondParent: hop.secondParent, paths: hop.paths });
     current = hop.firstParent;
     let verdict;
     try {
@@ -147,6 +146,6 @@ async function walkMergeOnlyChain({ github, owner, repo, baseRef, headSha, class
 }
 
 module.exports = {
-  MAX_HOPS, COMPARE_PAGE_SIZE, COMPARE_MAX_PAGES, touchedPaths, filesOverlap, fileKeys,
+  MAX_HOPS, COMPARE_FILE_CAP, touchedPaths, filesOverlap, fileKeys,
   deltaMatchesBaseSide, listCompareFiles, assessMergeOnlyHop, walkMergeOnlyChain,
 };
