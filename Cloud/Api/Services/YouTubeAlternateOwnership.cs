@@ -6,7 +6,6 @@ using RedditPodcastPoster.Models.YouTube;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 using Api.Models;
-using Api.Services.Films;
 using YouTubeIdResolver = RedditPodcastPoster.Models.YouTube.YouTubeIdResolver;
 
 namespace Api.Services;
@@ -91,44 +90,11 @@ internal static class YouTubeAlternateOwnership
         return ids.Distinct(StringComparer.Ordinal).ToArray();
     }
 
-    public static IReadOnlyList<string> NewFilmAlternateIds(Film film, FilmChangeRequest change)
-    {
-        if (change.AdditionalYouTube is null)
-        {
-            return [];
-        }
-
-        var resultingPrimary = FilmLinkChangeApplier.ResultingPrimaryYouTubeId(film, change);
-        var ids = new List<string>();
-        foreach (var entry in change.AdditionalYouTube)
-        {
-            var id = entry.YouTubeId;
-            if (string.IsNullOrWhiteSpace(id) &&
-                Uri.TryCreate(entry.Url, UriKind.Absolute, out var url))
-            {
-                id = YouTubeIdResolver.Extract(url);
-            }
-
-            if (string.IsNullOrWhiteSpace(id))
-            {
-                continue;
-            }
-
-            if (string.Equals(id, resultingPrimary, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            if (YouTubeAlternates.Holds(film.AdditionalYouTube, id))
-            {
-                continue;
-            }
-
-            ids.Add(id);
-        }
-
-        return ids.Distinct(StringComparer.Ordinal).ToArray();
-    }
+    public static IReadOnlyList<string> NewFilmAlternateIds(Film film, FilmChangeRequest change) =>
+        YouTubeAlternateChangeApplier.NewIds(
+            film,
+            change.AdditionalYouTube,
+            YouTubeAlternateChangeApplier.ResultingPrimaryYouTubeId(film, change.Services));
 
     public static async Task<string?> ConflictMessageIfHeld(
         IUrlMembershipLookup lookup,

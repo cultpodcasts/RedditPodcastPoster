@@ -71,4 +71,9 @@ public abstract class PlayableFieldsDto : IPlayableGuestFieldsDto
 
     [JsonPropertyName("services")]
     public Dictionary<string, ServiceLinkDto>? Services { get; set; }
+
+    /// <summary>Extra YouTube uploads, in display order; omitted when the item has none (RPP #1526).</summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public YouTubeAlternateDto[]? AdditionalYouTube { get; set; }
 }

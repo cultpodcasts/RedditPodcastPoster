@@ -74,6 +74,7 @@ public class EpisodeDtoMapper(
             Urls = EpisodeServicePresence.ToServiceUrls(episode).ToDto(),
             Images = EpisodeServicePresence.ToEpisodeImages(episode).ToDto(),
             Services = episode.Services.ToDtos(),
+            AdditionalYouTube = YouTubeAlternateDtoMapping.ToDtos(episode.AdditionalYouTube),
             Subjects = episode.Subjects,
             RemovedSubjects = episode.RemovedSubjects,
             Matches = episode.Matches.ToDtos() ?? [],

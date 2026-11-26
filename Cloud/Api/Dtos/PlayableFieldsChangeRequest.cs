@@ -85,4 +85,27 @@ public abstract class PlayableFieldsChangeRequest
     /// </summary>
     [JsonPropertyName("services")]
     public Dictionary<string, ServiceLink>? Services { get; set; }
+
+    /// <summary>
+    /// Additional YouTube uploads to keep, in display order (RPP #1526). Existing entries are identified by
+    /// <c>youTubeId</c>; a new entry is added from a YouTube <c>url</c>. Entries left out are removed; [] removes
+    /// all. Send <see cref="ExpectedAdditionalYouTubeIds"/> with this field. A stored id not in that list is a 409.
+    /// </summary>
+    [JsonPropertyName("additionalYouTube")]
+    public YouTubeAlternateChangeRequest[]? AdditionalYouTube { get; set; }
+
+    /// <summary>
+    /// Additional YouTube ids the client last saw. When <see cref="AdditionalYouTube"/> is sent, a stored id that is
+    /// not in this list is a 409 and nothing is saved.
+    /// </summary>
+    [JsonPropertyName("expectedAdditionalYouTubeIds")]
+    public string[]? ExpectedAdditionalYouTubeIds { get; set; }
+
+    /// <summary>
+    /// The YouTube id of an additional upload to swap into the primary <c>services.youtube</c> (RPP #1526). The
+    /// previous primary becomes an additional upload. The id must be in <see cref="AdditionalYouTube"/> when that
+    /// field is sent, otherwise it must already be on the item. Unknown id is a 400.
+    /// </summary>
+    [JsonPropertyName("promoteYouTubeId")]
+    public string? PromoteYouTubeId { get; set; }
 }
