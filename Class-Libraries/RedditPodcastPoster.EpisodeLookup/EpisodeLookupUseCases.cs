@@ -12,8 +12,9 @@ namespace RedditPodcastPoster.EpisodeLookup;
 public static class EpisodeLookupUseCases
 {
     /// <summary>
-    /// Indexer (<c>PodcastUpdater</c>: Cloud indexer, Api index, Index CLI). Newest pages only, never a title search;
-    /// a platform with no show id on the podcast is skipped.
+    /// Indexer (<c>PodcastUpdater</c>: Cloud indexer, Api index, Index CLI). No show id → skip (no search).
+    /// Known show ≤ <see cref="EpisodeLookupOptions.FullShowReadMaxEpisodes"/> → time-budgeted full read, then
+    /// title-search unless the read completed. Large or unknown size → newest pages only, never a title search.
     /// </summary>
     public static IndexingContext ForIndex(IndexingContext context) => Mark(context, EpisodeLookupFlow.Index);
 
