@@ -13,7 +13,7 @@ namespace RedditPodcastPoster.EpisodeLookup.Tests.Unit;
 /// <summary>Planner tunables are validated at startup, so a bad configuration fails fast instead of at the first lookup.</summary>
 public class EpisodeLookupOptionsTests
 {
-    [Fact(DisplayName = "Defaults are valid: full read <=200 episodes, 14-day recent window, Index cap 20 pages, walks Spotify 4 / Apple 5 pages, 10 s timeout, 20 s non-Index full-read budget.")]
+    [Fact(DisplayName = "Defaults are valid: full read <=200 episodes, 14-day recent window, Index cap 20 pages, walks Spotify 4 / Apple 5 pages, 10 s timeout, 20 s full-read budget (all flows).")]
     public void Defaults_are_valid()
     {
         // Arrange
