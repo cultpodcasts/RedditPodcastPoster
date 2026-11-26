@@ -1120,8 +1120,8 @@ public class CatalogueKindSubmitRules
     }
 
     [Fact(DisplayName =
-        "When the submit content-type flag is on, a Netflix catalogue /title/ URL is a reject " +
-        "and writes neither a Film nor a TvShow episode.")]
+        "When the submit content-type flag is on, a Netflix catalogue /title/ URL is rejected as a TvShow episode " +
+        "with a series-page message and writes neither a Film nor a TvShow episode.")]
     public async Task netflix_title_hub_is_a_reject_and_writes_nothing()
     {
         // Arrange
@@ -1140,7 +1140,8 @@ public class CatalogueKindSubmitRules
         result.Should().NotBeNull();
         result!.Rejected.Should().BeTrue();
         result.RequiresCurator.Should().BeFalse();
-        result.ContentKind.Should().Be(SubmitClassification.Episode);
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.RejectionMessage.Should().Be(NetflixSeriesHubSubmitRejection.Message);
         result.PlayableId.Should().BeNull();
         _films.Should().BeEmpty();
         _episodes.Should().BeEmpty();

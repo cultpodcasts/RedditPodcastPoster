@@ -13,8 +13,8 @@ public class SubmitContentClassifierRules
     private readonly DomainTestFixture _fixture = new();
 
     [Fact(DisplayName =
-        "A Netflix catalogue /title/ URL is rejected and is not stored as a TvShow stub, " +
-        "because submit needs an episode or watch URL.")]
+        "A Netflix catalogue /title/ URL is rejected as a TvShow episode with a series-page message, " +
+        "because submit needs an episode or watch URL and must not store a TvShow stub.")]
     public void netflix_title_hub_is_rejected()
     {
         // Arrange
@@ -26,6 +26,9 @@ public class SubmitContentClassifierRules
         // Assert
         result.Reject.Should().BeTrue();
         result.RequiresCurator.Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.HasParent.Should().BeFalse();
+        result.RejectionMessage.Should().Be(NetflixSeriesHubSubmitRejection.Message);
     }
 
     [Fact(DisplayName =
@@ -66,7 +69,7 @@ public class SubmitContentClassifierRules
     }
 
     [Fact(DisplayName =
-        "A Netflix /title/ URL for a series is still rejected, " +
+        "A Netflix /title/ URL for a series is rejected as a TvShow episode with a series-page message, " +
         "because a series catalogue hub must not become a TvShow stub (CLS-002).")]
     public void netflix_title_series_hub_is_still_rejected()
     {
@@ -78,6 +81,8 @@ public class SubmitContentClassifierRules
 
         // Assert
         result.Reject.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.RejectionMessage.Should().Be(NetflixSeriesHubSubmitRejection.Message);
     }
 
     [Fact(DisplayName =
@@ -101,7 +106,7 @@ public class SubmitContentClassifierRules
     }
 
     [Fact(DisplayName =
-        "A Netflix /title/ docuseries scraped with a show name is still rejected from the submission, " +
+        "A Netflix /title/ docuseries scraped with a show name is rejected as a TvShow episode with a series-page message, " +
         "because a series hub must not become a TvShow stub (CLS-002).")]
     public void netflix_title_docuseries_submission_is_rejected()
     {
@@ -118,6 +123,8 @@ public class SubmitContentClassifierRules
 
         // Assert
         result.Reject.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.RejectionMessage.Should().Be(NetflixSeriesHubSubmitRejection.Message);
     }
 
     [Fact(DisplayName =
