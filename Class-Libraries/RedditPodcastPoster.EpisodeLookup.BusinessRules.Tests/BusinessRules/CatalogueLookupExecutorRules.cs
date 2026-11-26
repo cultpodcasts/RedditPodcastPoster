@@ -277,16 +277,21 @@ public class CatalogueLookupExecutorRules
             x.Message.Contains("pages-read=1"));
     }
 
-    /// <summary>Classifier that costs a fixed delay per call, so the lookup line's classify-ms is observable.</summary>
-    private sealed class SlowClassifier(TimeSpan delay) : ICatalogueSubjectClassifier
+    /// <summary>Classifier whose cost is per candidate, charged to the manual clock so classify-ms is deterministic.</summary>
+    private sealed class PerCandidateCostClassifier(ManualTimeProvider clock, TimeSpan perCandidate)
+        : ICatalogueSubjectClassifier
     {
-        public async Task<IReadOnlyList<string>?> ClassifyAsync(Episode probe, IReadOnlyList<Episode> candidates,
+        public Task<IReadOnlyList<string>?> ClassifyAsync(Episode probe, IReadOnlyList<Episode> candidates,
             CatalogueLookup lookup, CancellationToken cancellationToken)
         {
-            await Task.Delay(delay, cancellationToken);
-            return lookup.IgnoredSubjects;
+            clock.Advance(perCandidate * candidates.Count);
+            return Task.FromResult(lookup.IgnoredSubjects);
         }
     }
+
+    private static CatalogueLookupExecutor SutWithClock(
+        ManualTimeProvider clock, RecordingLogger<CatalogueLookupExecutor> logger, ICatalogueSubjectClassifier? classifier = null) =>
+        CatalogueTestServices.CreateExecutor(subjectClassifier: classifier, timeProvider: clock, logger: logger);
 
     [Fact(DisplayName =
         "The lookup line reports candidates handed to the classifier, how many were classified and the classify-ms " +
@@ -296,38 +301,68 @@ public class CatalogueLookupExecutorRules
         // Arrange
         var logger = new RecordingLogger<CatalogueLookupExecutor>();
         var source = new FakeSource(Show(600, targetIndex: 3));
-        var classifier = new SlowClassifier(TimeSpan.FromMilliseconds(60));
+        var clock = new ManualTimeProvider(Now);
+        var perCandidate = TimeSpan.FromMilliseconds(2);
+        var classifier = new PerCandidateCostClassifier(clock, perCandidate);
         var lookup = Lookup(EpisodeLookupFlow.Index, 3, storedCount: 600) with { EnrichingYouTubeDiscoveredEpisode = true };
-        var sut = CatalogueTestServices.CreateExecutor(
-            subjectClassifier: classifier, timeProvider: new FixedTimeProvider(Now), logger: logger);
 
         // Act
-        await sut.FindMatch(lookup, source);
+        await SutWithClock(clock, logger, classifier).FindMatch(lookup, source);
 
         // Assert
-        var message = logger.Entries.Should().ContainSingle(x =>
-            x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix)).Subject.Message;
-        message.Should().MatchRegex(@"pages-read=1 candidates=50 classified=50 classify-ms=\d+\.$");
-        var classifyMs = int.Parse(System.Text.RegularExpressions.Regex.Match(message, @"classify-ms=(\d+)").Groups[1].Value);
-        classifyMs.Should().BeGreaterThanOrEqualTo(40, "the classifier took 60 ms and the stopwatch wraps it");
+        logger.Entries.Should().ContainSingle(x =>
+            x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix) &&
+            x.Message.EndsWith("pages-read=1 candidates=50 classified=50 classify-ms=100."));
     }
 
     [Fact(DisplayName =
         "A lookup that is not enriching a YouTube-discovered episode reports candidates but classified=0, because the " +
-        "classifier computes no subjects or guests for it.")]
+        "classifier does no subject or guest work for it.")]
     public async Task Logs_zero_classified_when_not_enriching_youtube_discovered_episode()
     {
         // Arrange
         var logger = new RecordingLogger<CatalogueLookupExecutor>();
         var source = new FakeSource(Show(600, targetIndex: 3));
+        var clock = new ManualTimeProvider(Now);
 
         // Act
-        await Sut(logger: logger).FindMatch(Lookup(EpisodeLookupFlow.Index, 3, storedCount: 600), source);
+        await SutWithClock(clock, logger).FindMatch(Lookup(EpisodeLookupFlow.Index, 3, storedCount: 600), source);
 
         // Assert
         logger.Entries.Should().ContainSingle(x =>
             x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix) &&
-            x.Message.Contains("pages-read=1 candidates=50 classified=0 classify-ms="));
+            x.Message.EndsWith("pages-read=1 candidates=50 classified=0 classify-ms=0."));
+    }
+
+    [Fact(DisplayName =
+        "When a lookup misses across several steps (newest page, then title search), the lookup line reports candidates, " +
+        "classified and classify-ms summed over every step, because the tally is per lookup and not reset between steps.")]
+    public async Task Logs_candidates_classified_and_classify_ms_summed_across_steps()
+    {
+        // Arrange
+        var logger = new RecordingLogger<CatalogueLookupExecutor>();
+        var searchHits = new List<Item>
+        {
+            new("hit-a", "Unrelated Search Result A About Paper Lanterns", Now.Date.AddDays(-300)),
+            new("hit-b", "Unrelated Search Result B About Paper Lanterns", Now.Date.AddDays(-301))
+        };
+        // Every page candidate is released days away from the lookup, so release and duration cannot match it.
+        var olderShow = Show(600).Select(x => x with { Release = x.Release.AddDays(-10) }).ToList();
+        var source = new FakeSource(olderShow, searchHits: searchHits);
+        var clock = new ManualTimeProvider(Now);
+        var perCandidate = TimeSpan.FromMilliseconds(2);
+        var classifier = new PerCandidateCostClassifier(clock, perCandidate);
+        var lookup = Lookup(EpisodeLookupFlow.Submit, 2, storedCount: 600) with { EnrichingYouTubeDiscoveredEpisode = true };
+
+        // Act
+        var result = await SutWithClock(clock, logger, classifier).FindMatch(lookup, source);
+
+        // Assert
+        result.Match.Should().BeNull();
+        source.SearchCalls.Should().Be(1, "the title search is the second step that classifies candidates");
+        logger.Entries.Should().ContainSingle(x =>
+            x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix) &&
+            x.Message.EndsWith("pages-read=1 candidates=52 classified=52 classify-ms=104."));
     }
 
     [Fact(DisplayName =

@@ -136,9 +136,11 @@ records fill in as the indexer runs).
 
 **Logging.** One line per lookup: `Catalogue episode lookup: platform=… flow=… plan=… stage=… show-episodes=… pages-read=… candidates=… classified=… classify-ms=…`.
 The last three fields (#1557 step 1) measure classification: `candidates` handed to `ICatalogueSubjectClassifier` (sum over
-steps), `classified` (those that had subjects/guests computed: all of them when enriching a YouTube-discovered episode,
-none otherwise) and `classify-ms` (Stopwatch time inside `ClassifyAsync`). Existing fields keep their order; new fields
-are only ever appended.
+steps, including budgeted full-read pages), `classified` (those handed to subject/guest classification: all of them when
+enriching a YouTube-discovered episode, none otherwise; some may be served from the classifier's per-scope memo) and
+`classify-ms` (time inside `ClassifyAsync`, measured with the injected `TimeProvider`; for `classified=0` lookups it is
+only the ignore-list lookup). If the classifier throws, no lookup line is logged. Existing fields keep their order; new
+fields are only ever appended.
 Stage values are `full-show-read`, `newest-pages`, `title-search`, `bounded-walk` and `miss`
 (`CatalogueLookupExecutor.StageMiss`).
 

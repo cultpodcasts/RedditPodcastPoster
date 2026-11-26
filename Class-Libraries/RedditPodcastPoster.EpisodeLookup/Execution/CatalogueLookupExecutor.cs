@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Episodes;
@@ -189,9 +188,12 @@ public sealed class CatalogueLookupExecutor(
     }
 
     /// <summary>
-    /// Runs the classifier and tallies what the lookup line reports: candidates handed over, candidates that had
-    /// subjects/guests computed (only when enriching a YouTube-discovered episode; otherwise the classifier returns the
-    /// ignore list and computes nothing) and the time spent inside the call.
+    /// Runs the classifier and tallies what the lookup line reports: candidates handed over, candidates handed to
+    /// subject/guest classification (only when enriching a YouTube-discovered episode; otherwise the classifier returns
+    /// the ignore list and does no subject/guest work; a candidate served from the classifier's per-scope memo still
+    /// counts) and the time spent inside the call, measured with the injected <see cref="TimeProvider"/>.
+    /// The tally is only logged when the lookup completes: if the classifier throws, the exception propagates and no
+    /// lookup line (and so no tally) is written.
     /// </summary>
     private async Task<IReadOnlyList<string>?> Classify(
         Episode probe,
@@ -201,20 +203,16 @@ public sealed class CatalogueLookupExecutor(
         CancellationToken cancellationToken)
     {
         tally.Candidates += candidates.Count;
+        // This condition must match the one in CatalogueSubjectClassifier.ClassifyAsync, so step 2 does not drift from it.
         if (lookup.EnrichingYouTubeDiscoveredEpisode)
         {
             tally.Classified += candidates.Count;
         }
 
-        var started = Stopwatch.GetTimestamp();
-        try
-        {
-            return await subjectClassifier.ClassifyAsync(probe, candidates, lookup, cancellationToken);
-        }
-        finally
-        {
-            tally.ClassifyMs += (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
-        }
+        var started = timeProvider.GetTimestamp();
+        var ignoredSubjects = await subjectClassifier.ClassifyAsync(probe, candidates, lookup, cancellationToken);
+        tally.ClassifyMs += (long)timeProvider.GetElapsedTime(started).TotalMilliseconds;
+        return ignoredSubjects;
     }
 
     private TItem? MatchAll<TItem>(CatalogueLookup lookup, Episode probe, Dictionary<Episode, TItem> byEpisode,
