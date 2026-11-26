@@ -1,10 +1,12 @@
 using Api.Models;
+using Api.Services;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.News;
 
@@ -19,6 +21,7 @@ public class NewsReportService(
     INewsReportRepository newsReportRepository,
     CataloguePlayableSearchSync searchSync,
     IPlayableSocialRetraction socialRetraction,
+    IUrlMembershipLookup urlMembershipLookup,
     ILogger<NewsReportService> logger) : INewsReportService
 {
     public async Task<NewsReportGetResult> GetAsync(Guid reportId, CancellationToken cancellationToken)
@@ -51,6 +54,36 @@ public class NewsReportService(
 
             // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
             var target = SocialPostRemovalTarget.For(report);
+            var hadAdditionalYouTube = report.AdditionalYouTube is { Count: > 0 };
+
+            if (request.Change.AdditionalYouTube is not null)
+            {
+                if (!PlayableChangeApplier.TryValidate(report, request.Change, out var validateError))
+                {
+                    return new NewsReportUpdateResult(NewsReportUpdateStatus.BadRequest, validateError);
+                }
+
+                var held = await YouTubeConflict(report, request.Change, cancellationToken);
+                if (held is not null)
+                {
+                    return new NewsReportUpdateResult(NewsReportUpdateStatus.Conflict, held);
+                }
+
+                var saved = await SaveAdditionalYouTube(report, request.Change, target, cancellationToken);
+                if (saved.Result.Status != NewsReportUpdateStatus.Accepted || saved.Report is null)
+                {
+                    return saved.Result;
+                }
+
+                var cleared = hadAdditionalYouTube && saved.Report.AdditionalYouTube is not { Count: > 0 };
+                saved.Result.Outcome!.SearchIndexer = await searchSync.AfterSave(
+                    saved.Report,
+                    target.Projection,
+                    request.Change.Removed == true,
+                    cancellationToken,
+                    youTubeAlternatesCleared: cleared);
+                return saved.Result;
+            }
 
             if (!PlayableChangeApplier.TryApply(report, request.Change, out var postStatus, out var error))
             {
@@ -68,8 +101,13 @@ public class NewsReportService(
 
             // As the episode API: removed=true always deletes the search document and the short link (the newsreport
             // pull indexer never deletes), so a retry finishes the job; any other edit pushes the document now.
+            var youTubeAlternatesCleared = hadAdditionalYouTube && report.AdditionalYouTube is not { Count: > 0 };
             outcome.SearchIndexer = await searchSync.AfterSave(
-                report, target.Projection, request.Change.Removed == true, cancellationToken);
+                report,
+                target.Projection,
+                request.Change.Removed == true,
+                cancellationToken,
+                youTubeAlternatesCleared: youTubeAlternatesCleared);
 
             return new NewsReportUpdateResult(NewsReportUpdateStatus.Accepted, Outcome: outcome);
         }
@@ -79,6 +117,86 @@ public class NewsReportService(
                 request.ReportId);
             return new NewsReportUpdateResult(NewsReportUpdateStatus.Failed);
         }
+    }
+
+    private async Task<string?> YouTubeConflict(
+        NewsReport report,
+        NewsReportChangeRequest change,
+        CancellationToken cancellationToken) =>
+        await YouTubeAlternateOwnership.ConflictMessageIfHeld(
+            urlMembershipLookup,
+            YouTubeAlternateChangeApplier.NewIds(
+                report,
+                change.AdditionalYouTube,
+                YouTubeAlternateChangeApplier.ResultingPrimaryYouTubeId(report, change.Services)),
+            [report.Id],
+            cancellationToken);
+
+    private readonly record struct NewsReportPersist(NewsReportUpdateResult Result, NewsReport? Report);
+
+    /// <summary>
+    /// Re-reads the report and applies this request onto that instance, then replaces it with that instance's ETag.
+    /// A keep-list is a 409, before the apply, when that read has an additional YouTube id the client did not list.
+    /// </summary>
+    private async Task<NewsReportPersist> SaveAdditionalYouTube(
+        NewsReport firstRead,
+        NewsReportChangeRequest change,
+        SocialPostRemovalTarget target,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; attempt <= FilmDocumentUpdate.MaxAttempts; attempt++)
+        {
+            var latest = await newsReportRepository.GetNewsReportWithETag(
+                firstRead.NewsOrganisationId, firstRead.Id);
+            if (latest is null)
+            {
+                logger.LogWarning(
+                    "{method}: News report '{reportId}' was deleted during the edit; not saved.",
+                    nameof(SaveAdditionalYouTube), firstRead.Id);
+                return new NewsReportPersist(new NewsReportUpdateResult(NewsReportUpdateStatus.NotFound), null);
+            }
+
+            var unexpected = YouTubeAlternateChangeApplier.IdsTheClientDidNotList(
+                latest.Item.AdditionalYouTube, change.ExpectedAdditionalYouTubeIds);
+            if (unexpected.Length > 0)
+            {
+                logger.LogWarning(
+                    "{method}: News report '{reportId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
+                    nameof(SaveAdditionalYouTube), firstRead.Id, unexpected.Length);
+                return new NewsReportPersist(
+                    new NewsReportUpdateResult(
+                        NewsReportUpdateStatus.Conflict,
+                        YouTubeAlternateChangeApplier.StaleMessage("news report"),
+                        UnexpectedAdditionalYouTubeIds: unexpected),
+                    null);
+            }
+
+            var held = await YouTubeConflict(latest.Item, change, cancellationToken);
+            if (held is not null)
+            {
+                return new NewsReportPersist(new NewsReportUpdateResult(NewsReportUpdateStatus.Conflict, held), null);
+            }
+
+            if (!PlayableChangeApplier.TryApply(latest.Item, change, out var postStatus, out var error))
+            {
+                return new NewsReportPersist(new NewsReportUpdateResult(NewsReportUpdateStatus.BadRequest, error), null);
+            }
+
+            var outcome = new EpisodeUpdateOutcome
+            {
+                BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, latest.Item, target),
+                TweetDeleted = await socialRetraction.RemoveTweet(postStatus, latest.Item, target)
+            };
+            if (await newsReportRepository.TryReplace(latest.Item, latest.ETag))
+            {
+                return new NewsReportPersist(
+                    new NewsReportUpdateResult(NewsReportUpdateStatus.Accepted, Outcome: outcome),
+                    latest.Item);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"News report '{firstRead.Id}' kept changing during the edit; not saved.");
     }
 
     public async Task<EpisodeDeleteResult> DeleteAsync(Guid reportId, CancellationToken cancellationToken)

@@ -45,6 +45,12 @@ public class EpisodeChangeRequest
 
     public Dictionary<string, ServiceLink>? Services { get; set; }
 
+    public YouTubeAlternateChange[]? AdditionalYouTube { get; set; }
+
+    public string[]? ExpectedAdditionalYouTubeIds { get; set; }
+
+    public string? PromoteYouTubeId { get; set; }
+
     public string[]? Subjects { get; set; }
 
     public string? SearchTerms { get; set; }
@@ -71,6 +77,8 @@ public class EpisodeChangeRequest
         Urls != null ||
         Images != null ||
         Services != null ||
+        AdditionalYouTube != null ||
+        PromoteYouTubeId != null ||
         Subjects != null ||
         SearchTerms != null ||
         HashTag != null ||

@@ -33,19 +33,22 @@ episode row is gone is a 404.
 
 ## PATCH
 
-`PATCH` on a film (and the same field on other playable kinds' documents) accepts:
+`PATCH` on a film, news report, TV episode or podcast episode accepts:
 
 - `additionalYouTube`: the entries to keep, in display order. Existing entries are identified by `youTubeId`; a
   new entry is added from a YouTube `url`. Omitted entries are removed; `[]` removes all.
-- `expectedAdditionalYouTubeIds`: the ids the client last saw. A stored id not in this list is a 409.
+- `expectedAdditionalYouTubeIds`: the ids the client last saw. A stored id not in this list is a 409
+  (`unexpectedAdditionalYouTubeIds`) and nothing is saved.
 - `promoteYouTubeId`: swap that alternate into `services.youtube`. The previous primary becomes an additional
-  upload (it is placed first).
+  upload (it is placed first). On a podcast episode the swap also writes `ids.youtube`, the same way a services
+  YouTube edit does. On a film, news report or TV episode it syncs the compact `youTubeId`.
 
-Edit Film can add or remove additional YouTube links through this PATCH.
+A new id that already belongs to another catalogue item is a 409 naming the holder. An id that is the item's
+primary (including the primary a `services` change in the same PATCH would produce) is a 400. A film also rejects
+an id that is one of its trailers. Curator GETs return `additionalYouTube` for each of these kinds.
 
-PATCH of `additionalYouTube` on news reports, TV episodes and podcast episodes is deferred to
-[#1526](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1526). Those kinds already store
-and display the list, and accept an attach / merge; only the Edit-item PATCH body is a follow-up.
+Edit Film, Edit news report, Edit TV episode and Edit podcast episode can add or remove additional YouTube links
+through this PATCH (RPP #1526).
 
 ## Indexer, discovery and paste-a-link
 

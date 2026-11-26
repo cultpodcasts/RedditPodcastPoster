@@ -30,6 +30,9 @@ public static class RequestModelExtensions
         Urls = request.Urls,
         Images = request.Images,
         Services = request.Services,
+        AdditionalYouTube = ToYouTubeAlternateChanges(request.AdditionalYouTube),
+        ExpectedAdditionalYouTubeIds = request.ExpectedAdditionalYouTubeIds,
+        PromoteYouTubeId = request.PromoteYouTubeId,
         Subjects = request.Subjects,
         SearchTerms = request.SearchTerms,
         HashTag = request.HashTag,
@@ -108,8 +111,7 @@ public static class RequestModelExtensions
             Services = request.Services,
             Trailers = request.Trailers?.Select(trailer => new Models.FilmTrailerChange(trailer.Id, trailer.Title)).ToArray(),
             ExpectedTrailerIds = request.ExpectedTrailerIds,
-            AdditionalYouTube = request.AdditionalYouTube?.Select(item =>
-                new Models.YouTubeAlternateChange(item.YouTubeId, item.Url, item.Title, item.ChannelName)).ToArray(),
+            AdditionalYouTube = ToYouTubeAlternateChanges(request.AdditionalYouTube),
             ExpectedAdditionalYouTubeIds = request.ExpectedAdditionalYouTubeIds,
             PromoteYouTubeId = request.PromoteYouTubeId,
             Release = request.Release,
@@ -218,8 +220,16 @@ public static class RequestModelExtensions
         model.Language = request.Language;
         model.Guests = request.Guests;
         model.Services = request.Services;
+        model.AdditionalYouTube = ToYouTubeAlternateChanges(request.AdditionalYouTube);
+        model.ExpectedAdditionalYouTubeIds = request.ExpectedAdditionalYouTubeIds;
+        model.PromoteYouTubeId = request.PromoteYouTubeId;
         return model;
     }
+
+    private static Models.YouTubeAlternateChange[]? ToYouTubeAlternateChanges(
+        YouTubeAlternateChangeRequest[]? items) =>
+        items?.Select(item =>
+            new Models.YouTubeAlternateChange(item.YouTubeId, item.Url, item.Title, item.ChannelName)).ToArray();
 
     public static Models.DiscoverySubmitRequest ToModel(this DiscoverySubmitRequest request) => new()
     {

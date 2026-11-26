@@ -163,6 +163,12 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyOrder(151)]
     public Dictionary<string, ServiceLinkDto>? Services { get; set; }
 
+    /// <summary>Extra YouTube uploads, in display order; omitted when the episode has none (RPP #1526).</summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonPropertyOrder(153)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public YouTubeAlternateDto[]? AdditionalYouTube { get; set; }
+
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
     public string[]? Guests { get; set; }

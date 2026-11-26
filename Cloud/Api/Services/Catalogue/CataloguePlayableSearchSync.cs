@@ -41,7 +41,8 @@ public class CataloguePlayableSearchSync(
         NewsReport report,
         PodcastEpisode shortLinkTarget,
         bool removedByChange,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool youTubeAlternatesCleared = false)
     {
         var organisation = await newsOrganisationRepository.GetNewsOrganisation(report.NewsOrganisationId);
         bool excluded;
@@ -64,7 +65,16 @@ public class CataloguePlayableSearchSync(
             report.NewsOrganisationName ?? string.Empty,
             removedByChange,
             excluded,
-            () => CataloguePlayableSearchDocument.For(report),
+            () =>
+            {
+                var document = CataloguePlayableSearchDocument.For(report);
+                if (youTubeAlternatesCleared && document.YouTubeAlternates is null)
+                {
+                    document.YouTubeAlternates = [];
+                }
+
+                return document;
+            },
             shortLinkTarget,
             cancellationToken);
     }
@@ -73,7 +83,8 @@ public class CataloguePlayableSearchSync(
         TvShowEpisode episode,
         PodcastEpisode shortLinkTarget,
         bool removedByChange,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool youTubeAlternatesCleared = false)
     {
         var show = await tvShowRepository.GetTvShow(episode.TvShowId);
         bool excluded;
@@ -94,7 +105,16 @@ public class CataloguePlayableSearchSync(
             episode.TvShowName ?? string.Empty,
             removedByChange,
             excluded,
-            () => CataloguePlayableSearchDocument.For(episode),
+            () =>
+            {
+                var document = CataloguePlayableSearchDocument.For(episode);
+                if (youTubeAlternatesCleared && document.YouTubeAlternates is null)
+                {
+                    document.YouTubeAlternates = [];
+                }
+
+                return document;
+            },
             shortLinkTarget,
             cancellationToken);
     }
