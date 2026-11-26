@@ -11,16 +11,28 @@
 // YAML), as are markers on quoted (`>`) lines, inside fenced or indented code blocks, or
 // inside inline code spans. Comments are ordered by created_at, so editing an old comment
 // does not make its marker the latest.
-// The label is removed on a new push (`synchronize`) and on ANY run where it is present but
-// the latest marker for the head SHA is not `acceptable` (so a dropped push run self-heals;
+// The label is removed on a new push (`synchronize`, unless carried: see CARRY below) and on
+// ANY run where it is present but the latest marker for the head SHA is not `acceptable` and
+// nothing is carried (so a dropped push run self-heals;
 // the reviewer posts the marker first, then adds the label). Removing a PR label needs
 // `pull-requests: write`. A non-404 failure (e.g. 403) is logged as a warning and is not
 // fatal: the status is still published, and is never success when the label is stale or
 // the marker is missing (cultpodcasts/RedditPodcastPoster#1519).
+// CARRY (cultpodcasts/RedditPodcastPoster#1555): a head with no marker of its own still passes
+// when it is a chain of PURE merge-from-base commits (see merge-only-tip.cjs) on top of a commit
+// whose latest trusted marker is `acceptable`. The walk follows first parents, at most
+// MAX_HOPS hops, and stops at the nearest commit with a trusted marker: `acceptable` carries,
+// `changes-requested` blocks. The label is kept in that case (no human re-mark). Rebases,
+// feature commits, overlapping or hand-edited merges, an unverifiable listing or an API error
+// do not carry: the label is removed on a push as before (an API error keeps the label but
+// fails the status, so a re-run can heal it). The chain is recomputed from live PR state on
+// every run; no extra marker is written.
 // Comment bodies are only matched against MARKER_RE here; they are never passed to a shell
 // or a workflow expression. This is a process interlock, not a security boundary: every
 // agent and Jon post as the same OWNER account.
 // Mirrored across RedditPodcastPoster, Api and website. Tests: review-gate.test.cjs.
+
+const { walkMergeOnlyChain } = require('./merge-only-tip.cjs');
 
 const LABEL = 'review-acceptable';
 const STATUS_CONTEXT = 'review-gate';
@@ -101,20 +113,54 @@ function latestVerdict(entries, headSha) {
   return { verdict, staleMarker };
 }
 
+// Latest trusted verdict per SHA (same ordering and parsing as latestVerdict), as a Map.
+function latestVerdictsBySha(entries) {
+  const trusted = (entries || [])
+    .filter((e) => TRUSTED_ASSOCIATIONS.has(String(e.association || '').toUpperCase()))
+    .map((e, i) => ({ ...e, i, t: Date.parse(e.at) || 0 }))
+    .sort((a, b) => a.t - b.t || a.i - b.i);
+  const bySha = new Map();
+  for (const e of trusted) {
+    for (const m of parseMarkers(e.body)) bySha.set(m.sha, m.verdict);
+  }
+  return bySha;
+}
+
 function truncate(s) {
   return s.length <= MAX_DESCRIPTION ? s : `${s.slice(0, MAX_DESCRIPTION - 1)}…`;
 }
 
 // Pure decision. labels: string[]; pushed: true when this run is for a new push.
-function evaluate({ labels, headSha, entries, pushed }) {
+// carry: result of the merge-from-base chain walk (see resolveCarry), or null when not attempted.
+function evaluate({ labels, headSha, entries, pushed, carry }) {
   const short = String(headSha || '').slice(0, 7);
+  const hasLabel = (labels || []).includes(LABEL);
+  if (carry && carry.ok) {
+    const anchor = String(carry.anchor || '').slice(0, 7);
+    const n = (carry.hops || []).length;
+    if (hasLabel) {
+      return {
+        state: 'success',
+        description: truncate(`Carried acceptable from ${anchor} across ${n} merge-from-base commit${n === 1 ? '' : 's'}`),
+      };
+    }
+    return { state: 'failure', description: truncate(`${short} carries acceptable from ${anchor} but label ${LABEL} is missing`) };
+  }
+  if (carry && carry.apiError) {
+    return { state: 'failure', description: truncate(`Could not verify merge-from-base carry for ${short} (API error); re-run`) };
+  }
   if (pushed) {
+    if (carry && carry.reason) {
+      return {
+        state: 'failure',
+        description: truncate(`New commits (${short}) not carried: ${carry.reason}; reviewer must re-mark and re-add ${LABEL}`),
+      };
+    }
     return {
       state: 'failure',
       description: truncate(`New commits (${short}): review needed; reviewer must re-mark this SHA acceptable and re-add ${LABEL}`),
     };
   }
-  const hasLabel = (labels || []).includes(LABEL);
   const { verdict, staleMarker } = latestVerdict(entries, headSha);
   if (verdict === 'acceptable' && hasLabel) {
     return { state: 'success', description: truncate(`Reviewer marked ${short} acceptable`) };
@@ -141,10 +187,29 @@ function commentEntries(comments) {
 
 // Remove the label on a new push, or whenever it is present without an `acceptable` marker for
 // the current head SHA. State-based, so a push run replaced in the concurrency queue self-heals.
-function shouldRemoveLabel({ labels, headSha, entries, pushed }) {
+// A carried acceptance keeps the label; so does an unverifiable carry (API error), which fails
+// the status instead so a re-run can heal it.
+function shouldRemoveLabel({ labels, headSha, entries, pushed, carry }) {
   if (!(labels || []).includes(LABEL)) return false;
+  if (carry && (carry.ok || carry.apiError)) return false;
   if (pushed) return true;
   return latestVerdict(entries, headSha).verdict !== 'acceptable';
+}
+
+// Walk merge-from-base hops from the head to the nearest commit with a trusted marker.
+// Only attempted when the head has no marker of its own and the label is present (without
+// the label there is nothing to carry). Resolves the walk result, or null when not attempted.
+async function resolveCarry({ github, owner, repo, baseRef, headSha, labels, entries, walk = walkMergeOnlyChain }) {
+  if (!(labels || []).includes(LABEL)) return null;
+  if (latestVerdict(entries, headSha).verdict !== null) return null;
+  const bySha = latestVerdictsBySha(entries);
+  const classify = (sha) => {
+    const v = bySha.get(String(sha).toLowerCase());
+    if (v === 'acceptable') return 'stop';
+    if (v === 'changes-requested') return 'block';
+    return null;
+  };
+  return walk({ github, owner, repo, baseRef, headSha, classify });
 }
 
 function prNumberFromContext(context) {
@@ -158,7 +223,7 @@ function prNumberFromContext(context) {
   return null;
 }
 
-async function run({ github, context, core }) {
+async function run({ github, context, core, walk }) {
   const number = prNumberFromContext(context);
   if (!number) {
     core.info('Not a pull request event; nothing to do.');
@@ -179,8 +244,17 @@ async function run({ github, context, core }) {
   });
   const entries = commentEntries(comments);
 
+  const carry = await resolveCarry({
+    github, owner, repo, baseRef: pr.base && pr.base.ref, headSha, labels, entries, walk,
+  });
+  if (carry) {
+    core.info(carry.ok
+      ? `Carry: ${headSha} is ${carry.hops.length} merge-from-base commit(s) above acceptable ${carry.anchor}.`
+      : `Carry: not carried (${carry.reason}).`);
+  }
+
   let removalFailed = false;
-  if (shouldRemoveLabel({ labels, headSha, entries, pushed })) {
+  if (shouldRemoveLabel({ labels, headSha, entries, pushed, carry })) {
     try {
       await github.rest.issues.removeLabel({ owner, repo, issue_number: number, name: LABEL });
       core.info(`Removed ${LABEL}: ${pushed ? 'new push' : 'no acceptable marker'} for ${headSha}.`);
@@ -198,7 +272,7 @@ async function run({ github, context, core }) {
     }
   }
 
-  let result = evaluate({ labels, headSha, entries, pushed });
+  let result = evaluate({ labels, headSha, entries, pushed, carry });
   // A failed removal must never pass the gate: the label is still stale, or the
   // marker is missing. evaluate() already fails in those cases; this is a guard.
   if (removalFailed && result.state === 'success') {
@@ -225,6 +299,6 @@ async function run({ github, context, core }) {
 }
 
 module.exports = {
-  LABEL, STATUS_CONTEXT, MARKER_RE, stripQuotedAndFenced, parseMarkers, latestVerdict, evaluate,
-  commentEntries, shouldRemoveLabel, prNumberFromContext, run,
+  LABEL, STATUS_CONTEXT, MARKER_RE, stripQuotedAndFenced, parseMarkers, latestVerdict, latestVerdictsBySha,
+  evaluate, commentEntries, shouldRemoveLabel, resolveCarry, prNumberFromContext, run,
 };
