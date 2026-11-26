@@ -1,9 +1,10 @@
 # Build 1 — Schema & persistence
 
-**Status:** ready to merge — rewrite tool + #988 code done; land on `main` to finish Build 1  
+**Status (historical):** Build 1 and GATE 1 completed; `films-refactor/` was retired in #1406. Do **not** restore that folder to re-run cutover. This file is the archived Build 1 checklist.
+
 **PR:** [#988](https://github.com/cultpodcasts/RedditPodcastPoster/pull/988)
 
-Ignore GATE 1 and everything after until this file is done.
+GATE 1 and later steps were out of scope until this Build finished — that sequence is complete history now.
 
 ---
 
@@ -12,28 +13,28 @@ Ignore GATE 1 and everything after until this file is done.
 | | |
 |--|--|
 | Build work | **Done** (models, dual-key, rewrite CLI + tests — `films-refactor/` since retired in #1406) |
-| **Next action** | **Merge to `main`** (historical: included `films-refactor/`) |
-| After that | Open [gate-1.md](./gate-1.md) only — that is when you deploy / run the tool |
+| **Outcome** | **Merged to `main`** (historical: included `films-refactor/`) |
+| After that | Opened [gate-1.md](./gate-1.md) — deploy / run the tool happened there (completed; do not re-run) |
 
-### When is the rewrite app used?
+### When was the rewrite app used?
 
 | When | What you do with it |
 |------|---------------------|
-| **Build 1 (now)** | **Ship it** — do **not** run against production yet |
-| **GATE 1 step 4** | Run **dry-run** (journal + affected ids; no writes) |
-| **GATE 1 step 6** | Run **`--apply`** (explicit approval; after backup + pause) |
-| **If apply goes wrong** | Run **`--rollback --journal … --apply`** |
+| **Build 1 (then)** | **Shipped it** — did **not** run against production yet |
+| **GATE 1 step 4** | Ran **dry-run** (journal + affected ids; no writes) |
+| **GATE 1 step 6** | Ran **`--apply`** (explicit approval; after backup + pause) |
+| **If apply went wrong** | Would run **`--rollback --journal … --apply`** |
 
-So: **have it now · run it in GATE 1 only.**
+So: **had it for Build 1 · ran it in GATE 1 only** (tooling since retired in #1406).
 
 ---
 
 ## Done when
 
-1. Code is **merged to `main`** and CI is green, **and**
+1. Code was **merged to `main`** and CI was green, **and**
 2. `films-refactor/EpisodeWireRewrite` was on `main` (not in `.slnx`; folder retired in #1406 after GATE 1).
 
-An open PR is not done.
+An open PR was not done — that bar was met.
 
 ---
 
@@ -53,7 +54,7 @@ No public Film / TV / News UI yet.
 - [~] Repos + DI for five new Cosmos containers
 - [~] Tests
 - [x] Rewrite console app in `films-refactor/` (not in `.slnx`; progress + journal + rollback; retired #1406)
-- [ ] Merge to `main`
+- [x] Merge to `main`
 
 Parked (not required for Build 1 done): [#989](https://github.com/cultpodcasts/RedditPodcastPoster/issues/989) DRY Cosmos helper.
 
@@ -62,8 +63,8 @@ Parked (not required for Build 1 done): [#989](https://github.com/cultpodcasts/R
 ## When Build 1 is done
 
 1. Merge complete.
-2. Open **only** [gate-1.md](./gate-1.md).
-3. Do not open build-2 until GATE 1 says you may.
+2. Opened **only** [gate-1.md](./gate-1.md).
+3. Did not open build-2 until GATE 1 said you may.
 
 ---
 
@@ -73,7 +74,7 @@ Parked (not required for Build 1 done): [#989](https://github.com/cultpodcasts/R
 |-------|--------|
 | **Rewrite console requirements** | [build-1-rewrite-console-requirements.md](./build-1-rewrite-console-requirements.md) |
 | Tool README | Historical: lived at `films-refactor/README.md` (retired #1406) |
-| **Repair if rollback fails** | Historical: lived at `films-refactor/REPAIR.md` (retired #1406) |
+| **Repair if rollback fails** | [repair.md](./repair.md) (archived from `films-refactor/REPAIR.md`; retired #1406) |
 | Why dual-key / field renames | Epic § Episode JSON cutover |
 | What ships in the PR | PR #988 description |
 | Deploy scripts (used in GATE 1, not now) | [deployment.md](../../deployment.md) |
