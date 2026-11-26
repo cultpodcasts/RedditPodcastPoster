@@ -110,7 +110,7 @@ public static class IdentityMetadataFill
             changed = true;
         }
 
-        if (!skip.Image && film.Image is null && metadata.Image is { } image)
+        if (!skip.Image && film.Image is null && !HasServiceImage(film.Services) && metadata.Image is { } image)
         {
             film.Image = image;
             changed = true;
