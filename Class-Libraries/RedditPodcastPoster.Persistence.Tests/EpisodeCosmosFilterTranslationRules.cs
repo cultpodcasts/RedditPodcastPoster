@@ -332,4 +332,26 @@ public class EpisodeCosmosFilterTranslationRules
         act.Should().Throw<ArgumentException>()
             .WithMessage("*lookUpSpotify*lookUpApple*");
     }
+
+    [Fact(DisplayName =
+        "When episodes awaiting approval are queried, then the Cosmos SQL compares approvalStatus to the enum name AwaitingApproval, because a curator list of split-offs must follow the approval status and not removed plus a tweet-skip reason (#1491).")]
+    public void awaiting_approval_translates_to_approval_status_enum_name()
+    {
+        // Arrange
+        using var client = CreateClient();
+        var container = client.GetContainer("db", "episodes");
+
+        // Act
+        var sql = container.GetItemLinqQueryable<Episode>()
+            .Where(EpisodeCosmosFilters.AwaitingApproval)
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        // The hand-written constant (alias e, single quotes) re-expressed in the translator's form (alias root, double quotes).
+        var handWrittenPredicate = Episode.CosmosAwaitingApprovalSql
+            .Replace("e.approvalStatus", "root[\"approvalStatus\"]")
+            .Replace('\'', '"');
+        sql.Should().Be($"SELECT VALUE root FROM root WHERE ({handWrittenPredicate})");
+    }
 }
