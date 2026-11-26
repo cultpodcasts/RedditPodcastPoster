@@ -14,6 +14,10 @@ public sealed record HomepageCataloguePlayable
     /// <summary><c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c> (<see cref="Models.ContentKinds.ContentKind"/>).</summary>
     public required string ContentKind { get; init; }
     public required Guid Id { get; init; }
+
+    /// <summary>News organisation or TV show id. A film has no parent, so this stays null.</summary>
+    public Guid? ParentId { get; init; }
+
     public required string ParentName { get; init; }
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;

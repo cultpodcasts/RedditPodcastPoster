@@ -34,7 +34,8 @@ public class PostModelFactory(
             preferYouTube ? Service.YouTube : podcastEpisodes.Podcast.PrimaryPostService,
             podcastEpisodes.Podcast.KnownTerms ?? [],
             subjectKnownTerms,
-            firstEpisode.Language
+            firstEpisode.Language,
+            podcastEpisodes.Podcast.Id
         );
         return postModel;
     }
