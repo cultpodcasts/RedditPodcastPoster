@@ -573,7 +573,8 @@ public class CatalogueKindSubmitter(
             RequiredTitle(source),
             source.Release?.Year,
             options.IdentityChoice,
-            options.SelectedIdentityKey).ConfigureAwait(false);
+            options.SelectedIdentityKey,
+            length: source.Duration).ConfigureAwait(false);
         return IdentityStop(admission, contentKind);
     }
 

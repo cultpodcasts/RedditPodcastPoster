@@ -126,7 +126,7 @@ public class EpisodeTrailerAttachServiceRules
                 It.IsAny<int?>(),
                 It.IsAny<CatalogueIdentityChoice>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         var search = _mocker.GetMock<IPlayableSearchDocumentSwap>();
         search
@@ -705,7 +705,7 @@ public class EpisodeTrailerAttachServiceRules
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
             e => e.ResolveFilmAsync(
                 It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CatalogueIdentityChoice>(), It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()),
+                It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()),
             Times.Never);
     }
 
@@ -746,7 +746,7 @@ public class EpisodeTrailerAttachServiceRules
             ]);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                filmName, null, CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+                filmName, null, CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.NeedsPrompt(hold));
 
         // Act
@@ -771,7 +771,7 @@ public class EpisodeTrailerAttachServiceRules
         var ids = new CatalogueAuthorityIds("tt0000303", 303, null);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                filmName, null, CatalogueIdentityChoice.Select, key, It.IsAny<CancellationToken>()))
+                filmName, null, CatalogueIdentityChoice.Select, key, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed(ids));
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ApplyMissing(It.IsAny<Film>(), ids))
@@ -820,7 +820,7 @@ public class EpisodeTrailerAttachServiceRules
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
             e => e.ResolveFilmAsync(
                 It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CatalogueIdentityChoice>(), It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()),
+                It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()),
             Times.Never);
     }
 

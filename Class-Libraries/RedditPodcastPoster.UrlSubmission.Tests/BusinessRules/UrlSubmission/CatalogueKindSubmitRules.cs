@@ -63,7 +63,7 @@ public class CatalogueKindSubmitRules
                 It.IsAny<int?>(),
                 It.IsAny<CatalogueIdentityChoice>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.ResolveTvShowEpisodeAsync(

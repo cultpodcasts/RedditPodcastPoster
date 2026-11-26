@@ -44,7 +44,7 @@ public class CatalogueIdentityLookupService(
         {
             admission = kind.ToLowerInvariant() switch
             {
-                "film" => await enricher.ResolveFilmAsync(
+                "film" => await enricher.LookupFilmAsync(
                     title,
                     request.Year,
                     choice,
