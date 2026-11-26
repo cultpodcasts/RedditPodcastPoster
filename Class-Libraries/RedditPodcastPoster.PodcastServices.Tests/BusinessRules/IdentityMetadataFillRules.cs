@@ -113,10 +113,11 @@ public class IdentityMetadataFillRules
 
     [Fact(DisplayName =
         "A film whose streaming service has an image has no image gap, because the service image wins in search; " +
-        "the identity image is still stored when the film has none of its own.")]
+        "Fill does not store a TMDB image over that service art (RPP #1497).")]
     public void service_image_closes_the_image_gap()
     {
         // Arrange
+        var serviceImage = new Uri($"https://i.ytimg.com/vi/{_fixture.CreateYouTubeId()}/hqdefault.jpg");
         var film = new Film(_fixture.CreateTitle())
         {
             Description = _fixture.CreateTitle(),
@@ -125,16 +126,19 @@ public class IdentityMetadataFillRules
             PublisherName = "A24",
             Services = new Dictionary<string, ServiceLink>
             {
-                ["youtube"] = new() { Image = new Uri($"https://i.ytimg.com/vi/{_fixture.CreateYouTubeId()}/hqdefault.jpg") }
+                ["youtube"] = new() { Image = serviceImage }
             }
         };
         film.SetRelease(CatalogueRelease.FromYear(2001));
+        var metadata = Movie(film.Name);
 
         // Act
         var gaps = IdentityMetadataFill.HasGaps(film);
+        IdentityMetadataFill.Fill(film, metadata);
 
         // Assert
         gaps.Should().BeFalse();
+        film.Image.Should().BeNull();
     }
 
     [Fact(DisplayName =

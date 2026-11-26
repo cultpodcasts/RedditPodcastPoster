@@ -9,6 +9,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Fixtures;
+using RedditPodcastPoster.Tmdb.Clients;
 using RedditPodcastPoster.Tmdb.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules;
@@ -119,7 +120,8 @@ public class CatalogueIdentityEnricherRules
     }
 
     [Fact(DisplayName =
-        "When several film matches share a year and the create has that year, the single year match is applied without a prompt.")]
+        "When several film matches share a year and the create has that year and a runtime that agrees with TMDB, " +
+        "the single year match is applied without a prompt.")]
     public async Task ambiguous_film_narrowed_by_year_is_unique()
     {
         // Arrange
@@ -128,6 +130,7 @@ public class CatalogueIdentityEnricherRules
         var matchingId = CreateTmdbId();
         var otherId = CreateDistinctTmdbId(matchingId);
         var imdbId = ImdbId();
+        var length = TimeSpan.FromMinutes(81);
         var candidates = new[]
         {
             new CatalogueAuthorityCandidate(
@@ -161,6 +164,9 @@ public class CatalogueIdentityEnricherRules
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(x => x.CollectFilmAsync(matchingId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CatalogueAuthorityIds(imdbId, matchingId, null));
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(x => x.GetMovieMetadataAsync(matchingId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TmdbMovieMetadata(matchingId, title, null, null, 80, null, null, []));
         var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
 
         // Act
@@ -168,12 +174,109 @@ public class CatalogueIdentityEnricherRules
             title,
             year,
             CatalogueIdentityChoice.Unset,
-            selectedKey: null);
+            selectedKey: null,
+            length: length);
 
         // Assert
         admission.Hold.Should().BeFalse();
         admission.Ids!.TmdbId.Should().Be(matchingId);
         admission.Ids.ImdbId.Should().Be(imdbId);
+    }
+
+    [Fact(DisplayName =
+        "When several film matches share a year but the year match's TMDB runtime is far outside the source length " +
+        "band, create offers the picker instead of auto-applying the short wrong title (RPP #1497).")]
+    public async Task year_narrowed_film_with_disagreeing_runtime_holds_candidates()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var year = DomainTestFixture.UtcToday.Year - 5;
+        var matchingId = CreateTmdbId();
+        var otherId = CreateDistinctTmdbId(matchingId);
+        var candidates = new[]
+        {
+            new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TmdbKey(matchingId),
+                title,
+                year,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                matchingId,
+                TvdbId: null),
+            new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TmdbKey(otherId),
+                title,
+                year - 1,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                otherId,
+                TvdbId: null)
+        };
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewFilmAsync(title, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                title,
+                HitCount: 2,
+                ImdbId: null,
+                TmdbId: null,
+                TvdbId: null,
+                [title, title],
+                Resolution: CatalogueAuthorityResolution.SeveralProgrammes,
+                Candidates: candidates));
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(x => x.GetMovieMetadataAsync(matchingId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TmdbMovieMetadata(matchingId, title, null, null, 11, null, null, []));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.ResolveFilmAsync(
+            title,
+            year,
+            CatalogueIdentityChoice.Unset,
+            selectedKey: null,
+            length: TimeSpan.FromMinutes(81));
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        admission.Prompt!.Candidates.Should().HaveCount(2);
+        _mocker.GetMock<ICatalogueAuthorityLookup>().Verify(
+            x => x.CollectFilmAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Edit-time film Look up offers a unique TMDB match as a single-candidate picker so the curator confirms " +
+        "before blank identity fields are filled (RPP #1497).")]
+    public async Task lookup_film_unique_match_requires_confirmation()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var tmdbId = CreateTmdbId();
+        var imdbId = ImdbId();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewFilmAsync(title, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                title,
+                HitCount: 1,
+                imdbId,
+                tmdbId,
+                TvdbId: null,
+                [title],
+                Resolution: CatalogueAuthorityResolution.Unique));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupFilmAsync(
+            title,
+            year: null,
+            CatalogueIdentityChoice.Unset,
+            selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        admission.Prompt!.Candidates.Should().ContainSingle(c => c.TmdbId == tmdbId);
     }
 
     [Fact(DisplayName =

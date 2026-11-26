@@ -77,7 +77,7 @@ public class EpisodeFilmMoveServiceRules
                 It.IsAny<int?>(),
                 It.IsAny<CatalogueIdentityChoice>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ApplyMissing(It.IsAny<Film>(), It.IsAny<CatalogueAuthorityIds?>()))
@@ -221,7 +221,7 @@ public class EpisodeFilmMoveServiceRules
         var ids = new CatalogueAuthorityIds(imdb, tmdb, TvdbId: null);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed(ids));
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ApplyMissing(It.IsAny<Film>(), ids))
@@ -275,7 +275,7 @@ public class EpisodeFilmMoveServiceRules
             ]);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.NeedsPrompt(hold));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
@@ -315,7 +315,7 @@ public class EpisodeFilmMoveServiceRules
         var ids = new CatalogueAuthorityIds(imdb, tmdb, TvdbId: null);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Select, selectedKey, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Select, selectedKey, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed(ids));
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ApplyMissing(It.IsAny<Film>(), ids))
@@ -357,7 +357,7 @@ public class EpisodeFilmMoveServiceRules
         episode.Title = title;
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Continue, null, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Continue, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
@@ -398,7 +398,7 @@ public class EpisodeFilmMoveServiceRules
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
             e => e.ResolveFilmAsync(
                 It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CatalogueIdentityChoice>(),
-                It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+                It.IsAny<string?>(), It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()),
             Times.Never);
         _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
             m => m.MaterialiseAsync(
@@ -419,7 +419,7 @@ public class EpisodeFilmMoveServiceRules
         episode.Title = title;
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);

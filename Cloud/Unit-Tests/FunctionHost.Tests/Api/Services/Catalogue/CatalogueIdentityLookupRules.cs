@@ -20,12 +20,21 @@ public class CatalogueIdentityLookupRules
     {
         _mocker.Use(NullLogger<CatalogueIdentityLookupService>.Instance);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
-            .Setup(x => x.ResolveFilmAsync(
+            .Setup(x => x.LookupFilmAsync(
                 It.IsAny<string>(),
                 It.IsAny<int?>(),
                 It.IsAny<CatalogueIdentityChoice>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _admission);
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.ResolveFilmAsync(
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<TimeSpan?>()))
             .ReturnsAsync(() => _admission);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.ResolveTvShowAsync(
@@ -155,7 +164,7 @@ public class CatalogueIdentityLookupRules
         result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Matched);
         result.Response.Ids!.TmdbId.Should().Be(tmdbId);
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
-            x => x.ResolveFilmAsync(
+            x => x.LookupFilmAsync(
                 title,
                 null,
                 CatalogueIdentityChoice.Select,
@@ -165,8 +174,8 @@ public class CatalogueIdentityLookupRules
     }
 
     [Fact(DisplayName =
-        "Edit-time identity lookup: when the request includes a film year, resolve is called with that year " +
-        "so a single year match can auto-narrow (same as create-time).")]
+        "Edit-time identity lookup: when the request includes a film year, LookupFilmAsync is called with that year " +
+        "(edit-time never auto-applies; the curator confirms via the picker — RPP #1497).")]
     public async Task film_year_is_forwarded_to_resolve()
     {
         // Arrange
@@ -189,7 +198,7 @@ public class CatalogueIdentityLookupRules
         result.Status.Should().Be(CatalogueIdentityLookupServiceStatus.Ok);
         result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Matched);
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
-            x => x.ResolveFilmAsync(
+            x => x.LookupFilmAsync(
                 title,
                 year,
                 CatalogueIdentityChoice.Unset,

@@ -6,6 +6,7 @@ using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.TheTvdb.Clients;
 using RedditPodcastPoster.TheTvdb.Models;
+using RedditPodcastPoster.Tmdb.Clients;
 
 namespace RedditPodcastPoster.Catalogue.Authority;
 
@@ -13,14 +14,22 @@ public sealed class CatalogueIdentityEnricher(
     ICatalogueAuthorityPreviewer previewer,
     ICatalogueAuthorityLookup lookup,
     ITheTvdbClient theTvdb,
+    ITmdbClient tmdb,
     ILogger<CatalogueIdentityEnricher> logger) : ICatalogueIdentityEnricher
 {
+    /// <summary>Same floor as <c>CatalogueMatchScorer.DurationBandFloor</c> (five minutes).</summary>
+    private static readonly TimeSpan DurationBandFloor = TimeSpan.FromMinutes(5);
+
+    /// <summary>Same proportion as <c>CatalogueMatchScorer.DurationBandProportionOfShorter</c>.</summary>
+    private const double DurationBandProportionOfShorter = 0.10;
+
     public async Task<CatalogueIdentityAdmission> ResolveFilmAsync(
         string title,
         int? year,
         CatalogueIdentityChoice choice,
         string? selectedKey,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        TimeSpan? length = null)
     {
         if (choice == CatalogueIdentityChoice.Cancel)
         {
@@ -59,6 +68,60 @@ public sealed class CatalogueIdentityEnricher(
                 CatalogueAuthorityCandidate.FilmKind,
                 title,
                 year,
+                length,
+                confirmBeforeApply: false,
+                preview,
+                CollectFilmFromCandidate,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<CatalogueIdentityAdmission> LookupFilmAsync(
+        string title,
+        int? year,
+        CatalogueIdentityChoice choice,
+        string? selectedKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (choice == CatalogueIdentityChoice.Cancel)
+        {
+            return CatalogueIdentityAdmission.NeedsPrompt(
+                new CatalogueIdentityHold(CatalogueAuthorityCandidate.FilmKind, title?.Trim() ?? string.Empty, []));
+        }
+
+        if (choice == CatalogueIdentityChoice.Continue)
+        {
+            logger.LogInformation(
+                "Catalogue identity film lookup left unchanged by curator. query={Query}",
+                title);
+            return CatalogueIdentityAdmission.Proceed();
+        }
+
+        if (choice == CatalogueIdentityChoice.Select)
+        {
+            return await SelectFilmAsync(title, selectedKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        CatalogueAuthorityPreview preview;
+        try
+        {
+            preview = await previewer.PreviewFilmAsync(title, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Catalogue identity film lookup failed. query={Query}",
+                title);
+            return CatalogueIdentityAdmission.Proceed();
+        }
+
+        return await FromPreviewAsync(
+                CatalogueAuthorityCandidate.FilmKind,
+                title,
+                year,
+                length: null,
+                confirmBeforeApply: true,
                 preview,
                 CollectFilmFromCandidate,
                 cancellationToken)
@@ -175,6 +238,8 @@ public sealed class CatalogueIdentityEnricher(
                 CatalogueAuthorityCandidate.TvShowKind,
                 name,
                 year: null,
+                length: null,
+                confirmBeforeApply: false,
                 preview,
                 CollectTvShowFromCandidate,
                 cancellationToken);
@@ -313,6 +378,8 @@ public sealed class CatalogueIdentityEnricher(
         string target,
         string query,
         int? year,
+        TimeSpan? length,
+        bool confirmBeforeApply,
         CatalogueAuthorityPreview preview,
         Func<CatalogueAuthorityCandidate, CancellationToken, Task<CatalogueAuthorityIds>> collect,
         CancellationToken cancellationToken)
@@ -328,6 +395,20 @@ public sealed class CatalogueIdentityEnricher(
 
         if (preview.Resolution == CatalogueAuthorityResolution.Unique)
         {
+            if (confirmBeforeApply && target == CatalogueAuthorityCandidate.FilmKind)
+            {
+                var uniqueCandidate = ToUniqueFilmCandidate(query, preview);
+                if (uniqueCandidate is not null)
+                {
+                    logger.LogInformation(
+                        "Catalogue identity film unique offered for confirmation. query={Query} tmdbId={TmdbId}",
+                        query,
+                        preview.TmdbId);
+                    return CatalogueIdentityAdmission.NeedsPrompt(
+                        new CatalogueIdentityHold(target, query.Trim(), [uniqueCandidate]));
+                }
+            }
+
             var ids = new CatalogueAuthorityIds(
                 preview.ImdbId,
                 preview.TmdbId,
@@ -345,7 +426,7 @@ public sealed class CatalogueIdentityEnricher(
         if (preview.Resolution == CatalogueAuthorityResolution.SeveralProgrammes &&
             preview.Candidates is { Count: > 0 } candidates)
         {
-            if (year is int knownYear)
+            if (!confirmBeforeApply && year is int knownYear)
             {
                 var yearMatches = candidates.Where(c => c.Year == knownYear).ToList();
                 if (yearMatches.Count == 1)
@@ -355,6 +436,19 @@ public sealed class CatalogueIdentityEnricher(
                     {
                         logger.LogWarning(
                             "Catalogue identity film year match lacks TMDB id; re-prompting. query={Query} year={Year} key={Key}",
+                            query,
+                            knownYear,
+                            yearMatch.Key);
+                        return CatalogueIdentityAdmission.NeedsPrompt(
+                            new CatalogueIdentityHold(target, query.Trim(), candidates));
+                    }
+
+                    if (target == CatalogueAuthorityCandidate.FilmKind &&
+                        yearMatch.TmdbId is int yearTmdbId &&
+                        !await FilmRuntimeAgreesAsync(length, yearTmdbId, cancellationToken).ConfigureAwait(false))
+                    {
+                        logger.LogInformation(
+                            "Catalogue identity film year match runtime disagrees; offering picker. query={Query} year={Year} key={Key}",
                             query,
                             knownYear,
                             yearMatch.Key);
@@ -621,5 +715,65 @@ public sealed class CatalogueIdentityEnricher(
         }
 
         return false;
+    }
+
+    private static CatalogueAuthorityCandidate? ToUniqueFilmCandidate(string query, CatalogueAuthorityPreview preview)
+    {
+        if (preview.TmdbId is not int tmdbId || tmdbId <= 0)
+        {
+            return null;
+        }
+
+        return new CatalogueAuthorityCandidate(
+            CatalogueAuthorityCandidate.TmdbKey(tmdbId),
+            string.IsNullOrWhiteSpace(preview.HitLabels.FirstOrDefault()) ? query.Trim() : preview.HitLabels[0],
+            Year: null,
+            CatalogueAuthorityCandidate.FilmKind,
+            CatalogueAuthorityCandidate.TmdbSource,
+            tmdbId,
+            TvdbId: null);
+    }
+
+    /// <summary>
+    /// Same band as <c>DiscoveryKindSuggester.DurationAgrees</c>: when both lengths are known they must sit inside
+    /// five minutes or 10% of the shorter; when either side lacks a length, year alone is still enough (RPP #1497).
+    /// </summary>
+    private async Task<bool> FilmRuntimeAgreesAsync(
+        TimeSpan? sourceLength,
+        int tmdbId,
+        CancellationToken cancellationToken)
+    {
+        if (sourceLength is not { } length || length <= TimeSpan.Zero)
+        {
+            return true;
+        }
+
+        try
+        {
+            var metadata = await tmdb.GetMovieMetadataAsync(tmdbId, cancellationToken).ConfigureAwait(false);
+            if (metadata?.RuntimeMinutes is not int minutes || minutes <= 0)
+            {
+                return true;
+            }
+
+            return DurationAgrees(length, TimeSpan.FromMinutes(minutes));
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(
+                exception,
+                "Catalogue identity film runtime check failed; treating as agree. tmdbId={TmdbId}",
+                tmdbId);
+            return true;
+        }
+    }
+
+    private static bool DurationAgrees(TimeSpan left, TimeSpan right)
+    {
+        var delta = left > right ? left - right : right - left;
+        var shorter = left <= right ? left : right;
+        var proportional = TimeSpan.FromTicks((long)(shorter.Ticks * DurationBandProportionOfShorter));
+        var band = proportional > DurationBandFloor ? proportional : DurationBandFloor;
+        return delta < band;
     }
 }
