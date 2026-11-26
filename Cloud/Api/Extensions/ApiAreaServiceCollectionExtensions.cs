@@ -58,6 +58,7 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IEpisodeDeleteService, EpisodeDeleteService>()
             .AddScoped<IEpisodeGetService, EpisodeGetService>()
             .AddScoped<IEpisodeOutgoingService, EpisodeOutgoingService>()
+            .AddScoped<IEpisodeAwaitingApprovalService, EpisodeAwaitingApprovalService>()
             .AddScoped<EpisodeUpdateService>()
             .AddScoped<IEpisodeUpdateService>(sp =>
             {
@@ -83,6 +84,7 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IDeleteEpisodeHandler, DeleteEpisodeHandler>()
             .AddScoped<IGetEpisodeHandler, GetEpisodeHandler>()
             .AddScoped<IGetOutgoingEpisodesHandler, GetOutgoingEpisodesHandler>()
+            .AddScoped<IGetAwaitingApprovalEpisodesHandler, GetAwaitingApprovalEpisodesHandler>()
             .AddScoped<IPostEpisodeHandler, PostEpisodeHandler>()
             .AddScoped<IPublishEpisodeHandler, PublishEpisodeHandler>()
             .AddTimeProviderIfMissing();
