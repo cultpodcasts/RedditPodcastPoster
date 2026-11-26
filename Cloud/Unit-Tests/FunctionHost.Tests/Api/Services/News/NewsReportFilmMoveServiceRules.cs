@@ -116,7 +116,7 @@ public class NewsReportFilmMoveServiceRules
                 It.IsAny<int?>(),
                 It.IsAny<CatalogueIdentityChoice>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ApplyMissing(It.IsAny<Film>(), It.IsAny<CatalogueAuthorityIds?>()))
@@ -406,7 +406,7 @@ public class NewsReportFilmMoveServiceRules
             ]);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.NeedsPrompt(hold));
 
         // Act
@@ -435,7 +435,7 @@ public class NewsReportFilmMoveServiceRules
         var ids = new CatalogueAuthorityIds(imdb, tmdb, TvdbId: null);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Select, selectedKey, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Select, selectedKey, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed(ids));
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ApplyMissing(It.IsAny<Film>(), ids))

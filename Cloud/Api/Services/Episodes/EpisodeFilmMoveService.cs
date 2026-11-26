@@ -114,7 +114,7 @@ public class EpisodeFilmMoveService(
             {
                 var (stop, name, admission) = await FilmMoveTarget.PrepareNewFilm(
                     episode.Title, episode.Release, command.Request, filmRepository, identityEnricher, logger,
-                    cancellationToken);
+                    cancellationToken, episode.Length);
                 if (stop is not null)
                 {
                     return stop;

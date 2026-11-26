@@ -59,7 +59,7 @@ public class DiscoveryKindClassificationRules
             .ReturnsAsync(new EpisodeUrlRoute(null, null, null));
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.ResolveFilmAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CatalogueIdentityChoice>(),
-                It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string?>(), It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.ResolveTvShowEpisodeAsync(It.IsAny<TvShow>(), It.IsAny<string>(),

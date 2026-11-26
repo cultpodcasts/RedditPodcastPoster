@@ -30,7 +30,8 @@ public static class FilmMoveTarget
         IFilmRepository filmRepository,
         ICatalogueIdentityEnricher identityEnricher,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan? length = null)
     {
         var name = string.IsNullOrWhiteSpace(request.Title)
             ? sourceTitle?.Trim() ?? string.Empty
@@ -64,11 +65,11 @@ public static class FilmMoveTarget
                 "A film with this name already exists"), name, null);
         }
 
-        // Identity gate first (name + release year only) so IdentityDecisionRequired never spends
+        // Identity gate first (name + release year + length) so IdentityDecisionRequired never spends
         // Spotify / Apple / YouTube quota; the curator's select / continue re-POST materialises once.
         var year = release is { } value ? value.Year : (int?)null;
         var (identityStop, admission) = await TryResolveNewFilmIdentity(
-            name, year, choice, request.SelectedIdentityKey, identityEnricher, logger, cancellationToken);
+            name, year, choice, request.SelectedIdentityKey, identityEnricher, logger, cancellationToken, length);
         return (identityStop, name, admission);
     }
 
@@ -125,7 +126,8 @@ public static class FilmMoveTarget
         string? selectedIdentityKey,
         ICatalogueIdentityEnricher identityEnricher,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan? length = null)
     {
         CatalogueIdentityAdmission admission;
         try
@@ -135,7 +137,8 @@ public static class FilmMoveTarget
                 year,
                 choice,
                 selectedIdentityKey,
-                cancellationToken);
+                cancellationToken,
+                length);
         }
         catch (Exception ex)
         {
