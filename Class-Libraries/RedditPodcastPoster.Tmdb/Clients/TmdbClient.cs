@@ -116,16 +116,18 @@ public sealed class TmdbClient(
             Add(translation.Data?.Title ?? translation.Data?.Name);
         }
 
+        var releaseDate = DateOf(details.ReleaseDate);
         return new TmdbMovieMetadata(
             details.Id,
             title,
             Clean(details.OriginalTitle),
             Clean(details.Overview),
             details.Runtime is > 0 ? details.Runtime : null,
-            DateOf(details.ReleaseDate),
+            releaseDate,
             TmdbImage.Backdrop(details.BackdropPath) ?? TmdbImage.Poster(details.PosterPath),
             otherTitles,
-            FirstNamed(details.ProductionCompanies));
+            FirstNamed(details.ProductionCompanies),
+            ReleaseYear: releaseDate?.Year ?? YearOf(details.ReleaseDate));
     }
 
     public async Task<TmdbShowMetadata?> GetTvShowMetadataAsync(
