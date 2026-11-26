@@ -8,6 +8,7 @@ using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
@@ -80,6 +81,7 @@ public class CatalogueIndexHandlerTests
         "A refused index is a 400 whose body says why, so the hub page can say it is not indexable.")]
     [InlineData(CatalogueIndexStatus.NotIndexable, CatalogueIndexRejection.NotAutoIndexed)]
     [InlineData(CatalogueIndexStatus.SourcePodcastStillExists, CatalogueIndexRejection.SourcePodcastStillExists)]
+    [InlineData(CatalogueIndexStatus.NothingToEnrich, CatalogueIndexRejection.NothingToEnrich)]
     public async Task refused_is_400_with_reason(CatalogueIndexStatus status, string reason)
     {
         // Arrange
@@ -91,6 +93,86 @@ public class CatalogueIndexHandlerTests
         // Assert
         _ctx.Verify(x => x.BadRequest(
             It.Is<CatalogueIndexRejection>(r => r.Reason == reason), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory(DisplayName =
+        "A not-indexable parent is a 400 whose reason and message match why: Removed, or NotAutoIndexed (no Spotify " +
+        "or Apple id to enrich from), because the hub page shows the message (#1400).")]
+    [InlineData(CatalogueParentNotIndexableReason.Removed, CatalogueIndexRejection.Removed, CatalogueIndexRejection.RemovedMessage)]
+    [InlineData(CatalogueParentNotIndexableReason.NotAutoIndexed, CatalogueIndexRejection.NotAutoIndexed, CatalogueIndexRejection.NotAutoIndexedMessage)]
+    public async Task not_indexable_is_400_with_reason_and_message(
+        CatalogueParentNotIndexableReason notIndexableReason, string reason, string message)
+    {
+        // Arrange
+        _result = new CatalogueIndexResult(CatalogueIndexStatus.NotIndexable, NotIndexableReason: notIndexableReason);
+
+        // Act
+        await Handle("news");
+
+        // Assert
+        _ctx.Verify(x => x.BadRequest(
+            It.Is<CatalogueIndexRejection>(r => r.Reason == reason && r.Message == message),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "NothingToEnrich is a 400 with a message saying only Spotify and Apple links were looked up, because the " +
+        "curator must know the outlet is not auto-indexed (#1400).")]
+    public async Task nothing_to_enrich_is_400_with_message()
+    {
+        // Arrange
+        _result = new CatalogueIndexResult(CatalogueIndexStatus.NothingToEnrich);
+
+        // Act
+        await Handle("news");
+
+        // Assert
+        _ctx.Verify(x => x.BadRequest(
+            It.Is<CatalogueIndexRejection>(r =>
+                r.Reason == CatalogueIndexRejection.NothingToEnrich &&
+                r.Message == CatalogueIndexRejection.NothingToEnrichMessage),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "EnrichFailed is a 503 (retryable) with a message saying the Spotify / Apple lookup failed or was " +
+        "rate-limited, so the curator tries again instead of being told nothing could be filled (#1400).")]
+    public async Task enrich_failed_is_503_with_message()
+    {
+        // Arrange
+        _result = new CatalogueIndexResult(CatalogueIndexStatus.EnrichFailed);
+
+        // Act
+        await Handle("news");
+
+        // Assert
+        _ctx.Verify(x => x.Json(HttpStatusCode.ServiceUnavailable,
+            It.Is<CatalogueIndexRejection>(r =>
+                r.Reason == CatalogueIndexRejection.EnrichFailed &&
+                r.Message == CatalogueIndexRejection.EnrichFailedMessage),
+            It.IsAny<CancellationToken>()), Times.Once);
+        CatalogueIndexRejection.EnrichFailedMessage.Should().Contain("Try again");
+    }
+
+    [Theory(DisplayName =
+        "An enrich-only index is a 200 with enrichOnly true and the enriched item ids, so the hub page can say how " +
+        "many links were filled (#1400).")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ok_carries_enrich_only(bool enrichOnly)
+    {
+        // Arrange
+        var ids = new[] { _fixture.CreateGuid() };
+        _result = new CatalogueIndexResult(CatalogueIndexStatus.Ok, ids,
+            new EntitySearchIndexerResponse { IndexerState = IndexerState.Executed }, EnrichOnly: enrichOnly);
+
+        // Act
+        await Handle("news");
+
+        // Assert
+        _ctx.Verify(x => x.Ok(
+            It.Is<CatalogueIndexResponse>(r => r.EnrichOnly == enrichOnly && r.IndexedItemIds.SequenceEqual(ids)),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "An ambiguous name is a 409 whose body is the candidate ids, like rename.")]

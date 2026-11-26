@@ -292,6 +292,40 @@ public class CataloguePlayableSearchSyncRules
     }
 
     [Fact(DisplayName =
+        "When a trailer-only film has no service image and no identity image, the search document uses the first " +
+        "trailer thumbnail so the film hero and cards are not blank (RPP #1422).")]
+    public async Task trailer_only_film_search_uses_trailer_thumbnail()
+    {
+        // Arrange
+        var youTubeId = _fixture.CreateYouTubeId();
+        var trailerImage = new Uri($"https://i.ytimg.com/vi/{youTubeId}/hqdefault.jpg");
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Length = _fixture.CreateDuration(),
+            Description = string.Empty,
+            Trailers =
+            [
+                new FilmTrailer
+                {
+                    Id = _fixture.CreateGuid(),
+                    Title = _fixture.CreateTitle(),
+                    Url = new Uri($"https://www.youtube.com/watch?v={youTubeId}"),
+                    Image = trailerImage
+                }
+            ]
+        };
+
+        // Act
+        await Sut.AfterSave(film, SocialPostRemovalTarget.For(film).Projection,
+            removedByChange: false, CancellationToken.None);
+
+        // Assert
+        var document = _uploaded.Should().ContainSingle().Subject;
+        document.Image.Should().Be(trailerImage.ToString());
+    }
+
+    [Fact(DisplayName =
         "Plain English rule: after an on-demand index, the saved TV episodes are pushed to search in one batch and no short link is touched, because the hourly indexer does not touch short links either.")]
     public async Task after_index_pushes_changed_items_in_one_batch()
     {
@@ -386,5 +420,22 @@ public class CataloguePlayableSearchSyncRules
 
         // Assert
         response.IndexerState.Should().Be(IndexerState.Failure);
+    }
+
+
+    [Fact(DisplayName =
+        "When AfterSave is told the last additional YouTube upload was cleared, the pushed document sends youTubeAlternates as an empty array so Azure merge-or-upload drops the stale list (RPP #1411).")]
+    public async Task youtube_alternates_cleared_sends_empty_array()
+    {
+        // Arrange
+        var film = new Film(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Length = _fixture.CreateDuration() };
+
+        // Act
+        await Sut.AfterSave(film, SocialPostRemovalTarget.For(film).Projection,
+            removedByChange: false, CancellationToken.None, youTubeAlternatesCleared: true);
+
+        // Assert
+        var document = _uploaded.Should().ContainSingle().Subject;
+        document.YouTubeAlternates.Should().BeEmpty();
     }
 }

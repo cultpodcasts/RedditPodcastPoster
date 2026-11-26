@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.YouTube;
 
 namespace RedditPodcastPoster.Models.Catalogue;
 
@@ -38,6 +39,12 @@ public interface IPlayable
     string[]? Guests { get; set; }
 
     Dictionary<string, ServiceLink>? Services { get; set; }
+
+    /// <summary>
+    /// Extra YouTube uploads of this item (RPP #1411), in display order. The primary upload stays on
+    /// <c>services.youtube</c>. Omitted when there are none.
+    /// </summary>
+    List<YouTubeAlternate>? AdditionalYouTube { get; set; }
 
     /// <summary>Sets <see cref="Release"/> and syncs <see cref="ReleaseSort"/>.</summary>
     void SetRelease(CatalogueRelease? release);

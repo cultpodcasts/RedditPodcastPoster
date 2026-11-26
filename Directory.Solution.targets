@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    Azure.Functions.Sdk generates the host extension project in a post-restore hook that
+    runs only when the function csproj itself is restored. Solution restore (dotnet restore
+    RedditPodcastPoster.slnx) does not invoke that hook (AZFW0108). Walk project references
+    and call GenerateFunctionsExtensionProject where the SDK defines it.
+    https://learn.microsoft.com/azure/azure-functions/errors-diagnostics/msbuild-sdk-rules/azfw0108
+  -->
+  <Target Name="_RecursiveGenerateFunctionsExtensionProject" AfterTargets="Restore">
+    <MSBuild Projects="@(ProjectReference)"
+             Targets="_RecursiveGenerateFunctionsExtensionProject"
+             SkipNonexistentProjects="true"
+             SkipNonexistentTargets="true" />
+    <MSBuild Projects="@(ProjectReference)"
+             Targets="GenerateFunctionsExtensionProject"
+             SkipNonexistentProjects="true"
+             SkipNonexistentTargets="true" />
+  </Target>
+</Project>

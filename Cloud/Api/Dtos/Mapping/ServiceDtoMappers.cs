@@ -5,7 +5,7 @@ using RedditPodcastPoster.Models.Services;
 
 namespace Api.Dtos.Mapping;
 
-/// <summary>Maps service/platform domain models to their API DTOs, preserving null.</summary>
+/// <summary>Maps service/platform domain models to their API DTOs, preserving null (except null entries in a services map, which are dropped).</summary>
 public static class ServiceDtoMappers
 {
     public static EpisodeIdsDto? ToDto(this EpisodeIds? ids) =>
@@ -43,8 +43,15 @@ public static class ServiceDtoMappers
     public static ServiceLinkDto ToDto(this ServiceLink link) =>
         new() { Url = link.Url, Image = link.Image, Language = link.Language };
 
+    /// <summary>
+    /// Maps a stored services map. A null entry (stored <c>"key": null</c>) is not a usable link and is
+    /// left out, matching the contract's <c>Record&lt;string, ServiceLinkDto&gt;</c> (values never null)
+    /// instead of throwing (#1508).
+    /// </summary>
     public static Dictionary<string, ServiceLinkDto>? ToDtos(this IDictionary<string, ServiceLink>? services) =>
-        services?.ToDictionary(kv => kv.Key, kv => kv.Value.ToDto());
+        services?
+            .Where(kv => kv.Value is not null)
+            .ToDictionary(kv => kv.Key, kv => kv.Value.ToDto());
 
     public static DiscoveryResultUrlsDto ToDto(this DiscoveryResultUrls urls) =>
         new() { Spotify = urls.Spotify, Apple = urls.Apple, YouTube = urls.YouTube };

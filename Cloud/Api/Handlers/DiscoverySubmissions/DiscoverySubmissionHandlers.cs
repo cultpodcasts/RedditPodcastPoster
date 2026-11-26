@@ -91,11 +91,13 @@ internal static class SupervisionCallerFactory
         DiscoverySubmissionCommandResult result, HttpStatusCode okStatus, CancellationToken c) => result.Status switch
     {
         DiscoverySubmissionCommandStatus.Ok => ctx.Json(okStatus, result.ToDto(submissionId), c),
+        DiscoverySubmissionCommandStatus.Accepted => ctx.Json(HttpStatusCode.Accepted, result.ToDto(submissionId), c),
         DiscoverySubmissionCommandStatus.NotFound => ctx.NotFound(new DiscoveryErrorResponse { Message = "Not found" }, c),
         DiscoverySubmissionCommandStatus.Forbidden => Forbidden(ctx, c),
         DiscoverySubmissionCommandStatus.Conflict => ctx.Conflict(result.ToDto(submissionId), c),
         DiscoverySubmissionCommandStatus.Invalid => ctx.BadRequest(result.ToDto(submissionId), c),
         DiscoverySubmissionCommandStatus.LanguageDecisionRequired => ctx.Ok(result.ToDto(submissionId), c),
+        DiscoverySubmissionCommandStatus.KindDecisionRequired => ctx.Ok(result.ToDto(submissionId), c),
         DiscoverySubmissionCommandStatus.IdentityDecisionRequired => ctx.Ok(result.ToDto(submissionId), c),
         _ => ctx.InternalError(result.ToDto(submissionId), c)
     };

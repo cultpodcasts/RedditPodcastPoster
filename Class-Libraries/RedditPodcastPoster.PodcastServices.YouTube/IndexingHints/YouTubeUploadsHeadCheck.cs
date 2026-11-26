@@ -139,7 +139,7 @@ public class YouTubeUploadsHeadCheck(
                 return YouTubeUploadsHeadResult.Fallback(MembershipUnknown, checkedCount);
             }
 
-            indexingContext.CancellationToken.ThrowIfCancellationRequested();
+            PodcastRunScope.Current.CancellationToken.ThrowIfCancellationRequested();
             var isMember = await playlistMembership.Contains(youTubeService, playlistId.PlaylistId, videoId);
             checkedCount++;
             if (isMember == null)

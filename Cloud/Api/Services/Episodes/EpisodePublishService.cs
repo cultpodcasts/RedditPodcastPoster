@@ -25,6 +25,10 @@ public class EpisodePublishService(
     IShortnerService shortnerService,
     ILogger<EpisodePublishService> logger) : IEpisodePublishService
 {
+    /// <summary>#1484: why a held episode is not published.</summary>
+    internal const string HeldForApprovalMessage =
+        "This episode is awaiting approval or rejected: approve it first, then post it.";
+
     public async Task<EpisodePublishResult> PublishAsync(
         EpisodePublishRequestWrapper publishRequest,
         CancellationToken cancellationToken)
@@ -39,6 +43,17 @@ public class EpisodePublishService(
 
             var podcastEpisode = resolveOutcome.Value!.Value.PodcastEpisode;
             var outcome = new EpisodePublishOutcome(resolveOutcome.Value.Value.OutcomePodcastId);
+
+            // #1484: an episode held for curator approval (a split-off awaiting approval or rejected) is never posted,
+            // shortened or un-removed from here; it must be approved first (episode edit, approvalDecision: Approve).
+            if (podcastEpisode.Episode.IsHeldForApproval())
+            {
+                logger.LogWarning(
+                    "Refusing to publish episode '{EpisodeId}': approval status is '{ApprovalStatus}'.",
+                    podcastEpisode.Episode.Id, podcastEpisode.Episode.ApprovalStatus);
+                outcome.Message = HeldForApprovalMessage;
+                return new EpisodePublishResult(EpisodePublishStatus.BadRequest, outcome);
+            }
 
             if (publishRequest.EpisodePublishRequest.Post)
             {

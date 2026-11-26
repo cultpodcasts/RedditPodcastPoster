@@ -28,12 +28,32 @@ public class TweetBuilder(
     IPostModelFactory postModelFactory,
     IPersonGuestHandleResolver personGuestHandleResolver,
     IOptions<TwitterOptions> twitterOptions,
-#pragma warning disable CS9113 // Parameter is unread.
     ILogger<TweetBuilder> logger)
-#pragma warning restore CS9113 // Parameter is unread.
     : ITweetBuilder
 {
     private const int MinTitleLength = 10;
+
+    /// <summary>X's published tweet character limit.</summary>
+    public const int XTweetCharacterLimit = 280;
+
+    /// <summary>X counts each http(s) URL as this many characters (t.co wrapping).</summary>
+    public const int TcoUrlCharacterWeight = 23;
+
+    /// <summary>
+    /// Soft character budget for the tweet body before the primary platform URL is appended.
+    /// Each http(s) link is counted as a <see cref="TcoUrlCharacterWeight"/>-character t.co URL, so
+    /// <see cref="XTweetCharacterLimit"/> − that weight leaves room for one link. When a second
+    /// (short) site URL will also be appended, reserve another <see cref="SecondUrlReserve"/> characters.
+    /// </summary>
+    public const int CharacterBudgetBeforePrimaryUrl = XTweetCharacterLimit - TcoUrlCharacterWeight;
+
+    /// <summary>
+    /// Extra reserve when a short URL will follow the primary link: one t.co
+    /// (<see cref="TcoUrlCharacterWeight"/>) plus a small separator allowance for the newline
+    /// before the short URL (kept at 26 to match the long-standing title-trim budget).
+    /// </summary>
+    public const int SecondUrlReserve = TcoUrlCharacterWeight + 3;
+
     public const string LengthFormat = @"\[h\:mm\:ss\]";
     public const string? ReleaseFormat = "d MMM yyyy";
     private readonly TwitterOptions _twitterOptions = twitterOptions.Value;
@@ -134,14 +154,23 @@ public class TweetBuilder(
             tweetBuilder.AppendLine(endHashTags);
         }
 
-        // 257 already budgets one t.co URL. Extra 26 only when a second (short) URL will also be appended.
-        // Share-image short-URL-only posts need no second-URL reserve (gated by ShortUrlOnlyWhenShareImage).
-        var shortUrlOnly = hasShareImage && _twitterOptions.ShortUrlOnlyWhenShareImage;
+        // CharacterBudgetBeforePrimaryUrl already budgets one t.co URL. SecondUrlReserve only when a
+        // second (short) URL will also be appended. Share-image short-URL-only posts need no second-URL
+        // reserve (gated by ShortUrlOnlyWhenShareImage).
+        // #1500: a curator removed the episode's image, so link only the site short URL. X builds its card from the
+        // linked page, and a YouTube / Spotify link would bring the removed art back.
+        // #1503: when that short link was not created, link the full site episode URL instead of the platform URL.
+        var imageRemoved = podcastEpisode.Episode.IsImageRemoved();
+        var imageRemovedWithoutShortUrl = imageRemoved && shortUrl == null;
+        var shortUrlOnly = (hasShareImage && _twitterOptions.ShortUrlOnlyWhenShareImage) ||
+                           (imageRemoved && shortUrl != null);
         var reserveSecondUrl = !shortUrlOnly
+            && !imageRemovedWithoutShortUrl
             && _twitterOptions.WithEpisodeUrl
             && (SocialPostKindTemplate.AlwaysLinksSite(podcastEpisode) ||
                 podcastEpisode.HasMultipleServices() || podcastEpisode.Episode.Subjects.Any());
-        var permittedTitleLength = 257 - (tweetBuilder.Length + (reserveSecondUrl ? 26 : 0));
+        var permittedTitleLength = CharacterBudgetBeforePrimaryUrl -
+                                   (tweetBuilder.Length + (reserveSecondUrl ? SecondUrlReserve : 0));
 
         if (episodeTitle.Length > permittedTitleLength)
         {
@@ -161,6 +190,15 @@ public class TweetBuilder(
         if (shortUrlOnly && shortUrl != null)
         {
             tweetBuilder.Append(shortUrl.AbsoluteUri);
+            return tweetBuilder.ToString();
+        }
+
+        if (imageRemovedWithoutShortUrl)
+        {
+            logger.LogWarning(
+                "Short link missing for image-removed episode '{EpisodeId}'; linking the site episode URL so X does not card the removed platform art.",
+                podcastEpisode.Episode.Id);
+            tweetBuilder.Append(podcastEpisode.ToEpisodeUrl());
             return tweetBuilder.ToString();
         }
 

@@ -25,6 +25,9 @@ public class CategorisedItemMissingEpisodeRules
         _mocker.GetMock<IPodcastProcessor>()
             .Setup(x => x.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()))
             .ReturnsAsync(new SubmitResult(SubmitResultState.Created, SubmitResultState.None));
+        _mocker.GetMock<IServiceLinkConflictGate>()
+            .Setup(x => x.Evaluate(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()))
+            .Returns(ServiceLinkConflictOutcome.Proceed);
         var processor = _mocker.CreateInstance<CategorisedItemProcessor>();
         var categorisedItem = new CategorisedItem(
             podcast,

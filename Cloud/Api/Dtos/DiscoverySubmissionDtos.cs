@@ -282,6 +282,12 @@ public class DiscoverySubmissionRetryRequestDto
 
     [JsonPropertyName("selectedIdentityKeys")]
     public Dictionary<Guid, string>? SelectedIdentityKeys { get; set; }
+
+    [JsonPropertyName("kindDecisions")]
+    public Dictionary<Guid, string>? KindDecisions { get; set; }
+
+    [JsonPropertyName("selectedKindKeys")]
+    public Dictionary<Guid, string>? SelectedKindKeys { get; set; }
 }
 
 /// <summary>POST DiscoverySubmissions/{id}/release.</summary>
@@ -415,6 +421,12 @@ public class DiscoverySubmissionApplyRequestDto
 
     [JsonPropertyName("selectedIdentityKeys")]
     public Dictionary<Guid, string>? SelectedIdentityKeys { get; set; }
+
+    [JsonPropertyName("kindDecisions")]
+    public Dictionary<Guid, string>? KindDecisions { get; set; }
+
+    [JsonPropertyName("selectedKindKeys")]
+    public Dictionary<Guid, string>? SelectedKindKeys { get; set; }
 }
 
 /// <summary>Command outcome for review save / apply. Not the submission read model — GET it to rebind.</summary>

@@ -4,6 +4,8 @@ namespace RedditPodcastPoster.Catalogue.Authority;
 /// Dry-run view of a title search. Ids are set only for <see cref="CatalogueAuthorityResolution.Unique"/>.
 /// Several programmes, a different title, or no hit are finished decisions: they are not one show.
 /// When several programmes match, <see cref="Candidates"/> lists the options a curator may pick.
+/// A film under a different title (for example its original-language or IMDb alternative title)
+/// also carries <see cref="Candidates"/>: low-confidence options a curator may accept, never applied unasked.
 /// </summary>
 public sealed record CatalogueAuthorityPreview(
     string Query,

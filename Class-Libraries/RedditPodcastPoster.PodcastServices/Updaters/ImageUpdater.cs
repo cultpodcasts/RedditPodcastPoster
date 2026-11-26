@@ -30,6 +30,16 @@ public class ImageUpdater(
     public async Task<bool> UpdateImages(Podcast podcast, Episode episode, EpisodeImageUpdateRequest updateRequest,
         IndexingContext indexingContext)
     {
+        if (episode.IsImageRemoved())
+        {
+            // #1500: a curator removed this episode's image. Never refill it; only a curator setting an image clears
+            // the removal.
+            logger.LogInformation(
+                "Skipping image update for episode with id '{episodeId}': a curator removed its image.",
+                episode.Id);
+            return false;
+        }
+
         var updated = false;
         if (updateRequest.UpdateSpotifyImage == true &&
             !string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)))

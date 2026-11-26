@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.YouTube;
 
 namespace RedditPodcastPoster.Models.Films;
 
@@ -176,9 +177,37 @@ public sealed class Film : Publisher, IPlayable, ICatalogueYouTubeItem, IPromota
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<FilmTrailer>? Trailers { get; set; }
 
+    /// <summary>
+    /// Extra YouTube uploads of this film (RPP #1411), in display order. The primary upload stays on
+    /// <c>services.youtube</c> / <see cref="YouTubeId"/>. Omitted when there are none.
+    /// </summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonPropertyOrder(154)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<YouTubeAlternate>? AdditionalYouTube { get; set; }
+
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
     public string[]? Guests { get; set; }
+
+    /// <summary>
+    /// Image from the film's identity (TMDB backdrop, else poster). Omitted when unknown. The search document uses it
+    /// only when no streaming service has an image (RPP #1430).
+    /// </summary>
+    [JsonPropertyName("image")]
+    [JsonPropertyOrder(161)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Uri? Image { get; set; }
+
+    /// <summary>
+    /// Other titles the film is known by (original, alternative and translated titles), searchable in site search.
+    /// Filled from TMDB when never set (null); a curator may edit them. [] means a curator cleared them or TMDB had none, and is not filled again, unless a later PATCH changes the IMDb or TMDB id and does not send alternativeTitles.
+    /// Omitted when never set (RPP #1431).
+    /// </summary>
+    [JsonPropertyName("alternativeTitles")]
+    [JsonPropertyOrder(162)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? AlternativeTitles { get; set; }
 
     public void SetRelease(CatalogueRelease? release) => Release = release;
 

@@ -20,6 +20,15 @@ namespace RedditPodcastPoster.UrlSubmission.Models;
 /// News organisation / TV show submits only: the URL may enrich (or match) a stored news report / TV episode but never
 /// creates one. Discovery sets it for a result's extra URLs once its item exists, so one discovered episode is one item.
 /// </param>
+/// <param name="ServiceLinkConflict">
+/// What a Spotify / Apple submit does when it matches a stored episode that already carries a different id for that
+/// service (#1416). Defaults to <see cref="ServiceLinkConflictChoice.CreateNew"/>, the behaviour before #1416, for
+/// callers with no curator prompt; the curator Submit URL API asks with <see cref="ServiceLinkConflictChoice.Prompt"/>.
+/// </param>
+/// <param name="ServiceLinkConflictEpisodeId">
+/// With <see cref="ServiceLinkConflictChoice.Overwrite"/>: the held episode the curator answered for. An answer for any
+/// other episode is asked again.
+/// </param>
 public record SubmitOptions(
     Guid? PodcastId,
     bool MatchOtherServices,
@@ -37,4 +46,11 @@ public record SubmitOptions(
     CatalogueLanguageChoice LanguageChoice = CatalogueLanguageChoice.Unset,
     bool LanguageProbe = false,
     CatalogueIdentityChoice IdentityChoice = CatalogueIdentityChoice.Unset,
-    string? SelectedIdentityKey = null);
+    string? SelectedIdentityKey = null,
+    DiscoveryKindChoice KindChoice = DiscoveryKindChoice.Unset,
+    string? SelectedKindKey = null,
+    Guid? TargetFilmId = null,
+    Guid? TargetNewsOrganisationId = null,
+    Guid? TargetNewsReportId = null,
+    ServiceLinkConflictChoice ServiceLinkConflict = ServiceLinkConflictChoice.CreateNew,
+    Guid? ServiceLinkConflictEpisodeId = null);

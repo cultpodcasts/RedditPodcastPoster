@@ -95,5 +95,14 @@ public enum ModelType
     ParentKindTransferJob = 30,
 
     [JsonPropertyName(nameof(FileKeyClaim))]
-    FileKeyClaim = 31
+    FileKeyClaim = 31,
+
+    [JsonPropertyName(nameof(XApiRateLimitState))]
+    XApiRateLimitState = 32,
+
+    [JsonPropertyName(nameof(FilmTrailerClaim))]
+    FilmTrailerClaim = 33,
+
+    [JsonPropertyName(nameof(D1SearchReconcileWatermark))]
+    D1SearchReconcileWatermark = 34
 }

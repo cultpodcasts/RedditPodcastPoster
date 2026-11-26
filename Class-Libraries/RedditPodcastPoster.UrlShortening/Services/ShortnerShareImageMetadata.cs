@@ -28,6 +28,12 @@ public static class ShortnerShareImageMetadata
 
     public static void Apply(MetaData metadata, Episode episode)
     {
+        if (episode.IsImageRemoved())
+        {
+            // #1500: a curator removed the image, so the short link carries no share image.
+            return;
+        }
+
         var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(episode);
         var coalesced = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder);
         var image = coalesced is null ? null : Compact(coalesced.ToString(), youTubeId) ?? coalesced.ToString();

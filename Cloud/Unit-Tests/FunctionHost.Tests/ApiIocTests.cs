@@ -37,6 +37,7 @@ public class ApiIocTests
         [typeof(ICatalogueRenameHandler)],
         [typeof(IGetEpisodeHandler)],
         [typeof(IGetOutgoingEpisodesHandler)],
+        [typeof(IGetAwaitingApprovalEpisodesHandler)],
         [typeof(IPostEpisodeHandler)],
         [typeof(IPublishEpisodeHandler)],
         [typeof(IDeleteEpisodeHandler)],

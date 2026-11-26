@@ -41,7 +41,8 @@ public class CataloguePlayableSearchSync(
         NewsReport report,
         PodcastEpisode shortLinkTarget,
         bool removedByChange,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool youTubeAlternatesCleared = false)
     {
         var organisation = await newsOrganisationRepository.GetNewsOrganisation(report.NewsOrganisationId);
         bool excluded;
@@ -64,7 +65,16 @@ public class CataloguePlayableSearchSync(
             report.NewsOrganisationName ?? string.Empty,
             removedByChange,
             excluded,
-            () => CataloguePlayableSearchDocument.For(report),
+            () =>
+            {
+                var document = CataloguePlayableSearchDocument.For(report);
+                if (youTubeAlternatesCleared && document.YouTubeAlternates is null)
+                {
+                    document.YouTubeAlternates = [];
+                }
+
+                return document;
+            },
             shortLinkTarget,
             cancellationToken);
     }
@@ -73,7 +83,8 @@ public class CataloguePlayableSearchSync(
         TvShowEpisode episode,
         PodcastEpisode shortLinkTarget,
         bool removedByChange,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool youTubeAlternatesCleared = false)
     {
         var show = await tvShowRepository.GetTvShow(episode.TvShowId);
         bool excluded;
@@ -94,7 +105,16 @@ public class CataloguePlayableSearchSync(
             episode.TvShowName ?? string.Empty,
             removedByChange,
             excluded,
-            () => CataloguePlayableSearchDocument.For(episode),
+            () =>
+            {
+                var document = CataloguePlayableSearchDocument.For(episode);
+                if (youTubeAlternatesCleared && document.YouTubeAlternates is null)
+                {
+                    document.YouTubeAlternates = [];
+                }
+
+                return document;
+            },
             shortLinkTarget,
             cancellationToken);
     }
@@ -104,12 +124,17 @@ public class CataloguePlayableSearchSync(
     /// keep pushing before the index has the field), and merge-or-upload ignores an omitted field, so this sends
     /// <c>[]</c> to clear the stale list.
     /// </param>
+    /// <param name="youTubeAlternatesCleared">
+    /// True when the edit removed the film's last additional YouTube upload. Same merge-or-upload rule as
+    /// <paramref name="trailersCleared"/>: send <c>[]</c> so the stale list is cleared (RPP #1411).
+    /// </param>
     public Task<EntitySearchIndexerResponse?> AfterSave(
         Film film,
         PodcastEpisode shortLinkTarget,
         bool removedByChange,
         CancellationToken cancellationToken,
-        bool trailersCleared = false) =>
+        bool trailersCleared = false,
+        bool youTubeAlternatesCleared = false) =>
         AfterSave(
             film.Id,
             film.Name,
@@ -121,6 +146,11 @@ public class CataloguePlayableSearchSync(
                 if (trailersCleared && document.Trailers is null)
                 {
                     document.Trailers = [];
+                }
+
+                if (youTubeAlternatesCleared && document.YouTubeAlternates is null)
+                {
+                    document.YouTubeAlternates = [];
                 }
 
                 return document;

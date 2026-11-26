@@ -20,8 +20,8 @@ param storageAccountName string
 param userAssignedIdentityClientId string
 
 @description('Target language version used by the function app.')
-@allowed([ '8.0', '9.0', '10.0'])
-param runtimeVersion string = '10.0' 
+@allowed([ '8.0', '9.0', '10.0', '11.0'])
+param runtimeVersion string = '11.0' 
 
 @description('Storage-container-blob-endpoint for this Function')
 param storageUrl string
@@ -51,6 +51,10 @@ param userAssignedIdentityId string
 
 var functionAppName = '${name}-${suffix}'
 var hostingPlanName = '${name}-plan-${suffix}'
+var scaleAndConcurrency = {
+  maximumInstanceCount: maxInstanceCount
+  instanceMemoryMB: instanceMemoryMB
+}
 
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
@@ -91,10 +95,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           }
         }
       }
-      scaleAndConcurrency: {
-        maximumInstanceCount: maxInstanceCount
-        instanceMemoryMB: instanceMemoryMB
-      }
+      scaleAndConcurrency: scaleAndConcurrency
       runtime: { 
         name: runtime
         version: runtimeVersion

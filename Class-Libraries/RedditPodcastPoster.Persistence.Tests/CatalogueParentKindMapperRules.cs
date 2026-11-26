@@ -116,14 +116,13 @@ public class CatalogueParentKindMapperRules
     }
 
     [Fact(DisplayName =
-        "Mapping a curator TV publisher uses the canonical show name as the TvShow name and file key, " +
-        "because the public hub is the programme, not the channel we found it on.")]
-    public void tv_show_uses_canonical_programme_name()
+        "Mapping a podcast to a TV show names the show and its file key after the podcast's own trimmed name, " +
+        "because no curator rename list applies once the migration-era lists are retired.")]
+    public void tv_show_keeps_podcast_name()
     {
         // Arrange
-        var publisherName = CatalogueTvShowCanonicalNames.PublisherNames.First();
-        var showName = CatalogueTvShowCanonicalNames.ShowNameFor(publisherName);
-        var podcast = _fixture.CreatePodcast(p => p.Name = publisherName);
+        var name = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p => p.Name = $"  {name}  ");
 
         // Act
         var show = CatalogueParentKindMapper.ToTvShow(podcast);
@@ -131,10 +130,9 @@ public class CatalogueParentKindMapperRules
         var playable = CatalogueParentKindMapper.ToTvShowEpisode(episode, show);
 
         // Assert
-        show.Name.Should().Be(showName);
-        show.FileKey.Should().Be(FileKeyFactory.GetTvShowFileKey(showName));
-        playable.TvShowName.Should().Be(showName);
-        playable.Services.Should().NotBeNull();
+        show.Name.Should().Be(name);
+        show.FileKey.Should().Be(FileKeyFactory.GetTvShowFileKey(name));
+        playable.TvShowName.Should().Be(name);
     }
 
     [Fact(DisplayName =
@@ -155,14 +153,13 @@ public class CatalogueParentKindMapperRules
     }
 
     [Fact(DisplayName =
-        "Mapping an extra YouTube channel of a news organisation uses the canonical organisation name, " +
-        "because one outlet can have several YouTube channels and must not mint a second parent name.")]
-    public void extra_news_channel_uses_canonical_organisation_name()
+        "Mapping a podcast to a news organisation names the organisation and its file key after the podcast's own " +
+        "trimmed name, because no curator channel-alias list applies once the migration-era lists are retired.")]
+    public void news_organisation_keeps_podcast_name()
     {
         // Arrange
-        var channelName = CatalogueNewsOrganisationChannelAliases.ExtraChannelPublisherNames.First();
-        var organisationName = CatalogueNewsOrganisationChannelAliases.OrganisationNameFor(channelName);
-        var podcast = _fixture.CreatePodcast(p => p.Name = channelName);
+        var name = _fixture.CreateTitle();
+        var podcast = _fixture.CreatePodcast(p => p.Name = $"  {name}  ");
 
         // Act
         var organisation = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
@@ -171,10 +168,9 @@ public class CatalogueParentKindMapperRules
 
         // Assert
         organisation.Id.Should().Be(podcast.Id);
-        organisation.Name.Should().Be(organisationName);
-        organisation.FileKey.Should().Be(FileKeyFactory.GetNewsOrganisationFileKey(organisationName));
-        report.Id.Should().Be(episode.Id);
-        report.NewsOrganisationName.Should().Be(organisationName);
+        organisation.Name.Should().Be(name);
+        organisation.FileKey.Should().Be(FileKeyFactory.GetNewsOrganisationFileKey(name));
+        report.NewsOrganisationName.Should().Be(name);
     }
 
     [Fact(DisplayName =
@@ -382,5 +378,68 @@ public class CatalogueParentKindMapperRules
         transient.Name.Should().Be(show.Name);
         transient.YouTubeChannelId.Should().Be(podcast.YouTubeChannelId);
         transient.IndexAllEpisodes.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Mapping a news report to a TV episode keeps the report id, title, release, services, YouTube id and posted state and takes the show's id and name (#1368).")]
+    public void news_report_to_tv_episode_keeps_report_fields()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var organisation = new RedditPodcastPoster.Models.News.NewsOrganisation(_fixture.CreateTitle())
+            { Id = _fixture.CreateGuid() };
+        var report = CatalogueParentKindMapper.ToNewsReport(
+            _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast), organisation);
+        report.Posted = true;
+        report.YouTubeId = _fixture.CreateYouTubeId();
+        var show = new RedditPodcastPoster.Models.TvShows.TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+
+        // Act
+        var episode = CatalogueParentKindMapper.ToTvShowEpisode(report, show);
+
+        // Assert
+        episode.Id.Should().Be(report.Id);
+        episode.ModelType.Should().Be(ModelType.TvShowEpisode);
+        episode.TvShowId.Should().Be(show.Id);
+        episode.TvShowName.Should().Be(show.Name);
+        episode.Title.Should().Be(report.Title);
+        episode.Release.Should().Be(report.Release);
+        episode.Posted.Should().BeTrue();
+        episode.YouTubeId.Should().Be(report.YouTubeId);
+        episode.Services.Should().BeEquivalentTo(report.Services);
+        episode.Services.Should().NotBeSameAs(report.Services);
+    }
+
+    [Fact(DisplayName =
+        "Mapping a news report to a film keeps the report id, title, release, services and YouTube id, and takes publisher social fields from the news organisation (#1368).")]
+    public void news_report_to_film_keeps_report_fields_and_organisation_publisher()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var organisation = new RedditPodcastPoster.Models.News.NewsOrganisation(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            PublisherName = _fixture.Create<string>(),
+            TwitterHandle = _fixture.Create<string>(),
+            HashTag = _fixture.Create<string>()
+        };
+        var report = CatalogueParentKindMapper.ToNewsReport(
+            _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast), organisation);
+        report.YouTubeId = _fixture.CreateYouTubeId();
+        report.HashTag = null;
+
+        // Act
+        var film = CatalogueParentKindMapper.ToFilm(organisation, report);
+
+        // Assert
+        film.Id.Should().Be(report.Id);
+        film.ModelType.Should().Be(ModelType.Film);
+        film.Name.Should().Be(report.Title);
+        film.Release.Should().Be(report.Release);
+        film.YouTubeId.Should().Be(report.YouTubeId);
+        film.Services.Should().BeEquivalentTo(report.Services);
+        film.PublisherName.Should().Be(organisation.PublisherName);
+        film.TwitterHandle.Should().Be(organisation.TwitterHandle);
+        film.HashTag.Should().Be(organisation.HashTag);
     }
 }

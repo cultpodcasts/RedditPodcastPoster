@@ -11,23 +11,53 @@ Production deploys are defined by:
 | [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | Build, test, provision (bicep), deploy all three function apps |
 | [`Infrastructure/function.bicep`](../Infrastructure/function.bicep) | Flex Consumption hosting, blob-container deployment target, app settings |
 | [`Infrastructure/functions.bicep`](../Infrastructure/functions.bicep) | Per-app settings and module wiring |
-| [`global.json`](../global.json) | Pins **stable .NET SDK 10.0.x** for local CLI (`rollForward: latestFeature`). Never publish Functions with a preview SDK (e.g. .NET 11 preview). |
+| [`global.json`](../global.json) | Pins **stable .NET SDK 11.0.x** for local CLI (`rollForward: latestFeature`). Never publish Functions with a preview SDK. |
 
 **CI does not use local PowerShell scripts.** Agents must not replace or extend the CI mechanism without explicit user approval.
 
-Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-discover.ps1` / `deploy-indexer.ps1`) **refuses** to publish if `dotnet --version` is not stable `10.x` (preview/RC or other majors fail fast).
+Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-discover.ps1` / `deploy-indexer.ps1`) **refuses** to publish if `dotnet --version` is not stable `11.x` (preview/RC or other majors fail fast).
 
 ## CI vs local (1:1)
 
 | Step | CI (`deploy.yml`) | Local (`deploy-*.ps1` → `deploy-function-local.ps1`) |
 |------|-------------------|-------------------------------------|
-| Publish | `dotnet publish -c Release -r linux-x64 <Cloud/...> -o output/<name>` | Same (`-c Release -r linux-x64` → `scripts/.deploy-local/<name>`) |
+| Publish | `dotnet build -m:1` then `dotnet publish --no-build` (`-c Release -r linux-x64`, `SkipEnsureDependencyInjectionBuilt`) — avoids MSB4018 deps.json races on shared Class-Libraries | Same (`-c Release -r linux-x64` → `scripts/.deploy-local/<name>`; optional `-SingleNodeMsBuild`) |
 | Package | Folder artifact (Linux paths; `include-hidden-files: true` for `.azurefunctions/`) | `New-LinuxFunctionAppZip` — forward-slash zip (Windows and Linux) |
-| Deploy | `Azure/functions-action@v1` → `package: output/<name>` → `*-infra` | Upload `released-package.zip` to bicep deployment container → `az functionapp restart` |
+| Deploy | `Azure/functions-action@v1` → `package: output/<name>` → `api-infra` / `discover-infra` / `indexer-infra` | Upload `released-package.zip` to bicep deployment container → `az functionapp restart` |
 | App settings | Bicep only | **Never changed** by deploy scripts |
 | Provision | Bicep when `Infrastructure/**` changes **or** manual `workflow_dispatch` with `run_provision=true`; Cosmos/functions before subscription budget; `*-deploy` requires `needs.provision.result == 'success'` **and** `needs.provision.outputs.deploy_allowed == 'true'` (latch + same-run gate; no package deploy on provision failure) | Not run locally — and local package upload **does not** honour `PROVISION_LATCH` (see § Provision latch) |
 
-**Manual run (main):** Actions → **Provision and Deploy** → **Run workflow** → branch `main`. Set **run_provision** to create/update Cosmos containers and function app settings even when this commit did not touch `Infrastructure/**` (e.g. retry after a failed provision). Leave it off to redeploy packages only. Provision failure still blocks `*-deploy`.
+**Manual run:** Actions → **Provision and Deploy** → **Run workflow** → branch `main`. Set **run_provision** to create/update Cosmos containers and function app settings even when this commit did not touch `Infrastructure/**` (e.g. retry after a failed provision). Leave it off to redeploy packages only. Provision failure still blocks `*-deploy`. A dispatch from any other branch does not provision or deploy.
+
+**Storage account kind:** [`function-storage.bicep`](../Infrastructure/function-storage.bicep) takes `storageKind`. The workflow passes `Storage` for `cultpodcastsstg`. The module also forces kind `Storage` when the account name is `cultpodcastsstg`, so a provision does not upgrade that account to `StorageV2`. The upgrade is one-way and is a separate change. Azure rejects kind `Storage` on a new account (`AccountKindNotSupported`).
+
+### PR gate (required check for `main`, #1374)
+
+Every pull request into `main` runs **PR gate** (`.github/workflows/pr-gate.yml`). Its final job **`gate`** is the one check branch protection requires (shown as `PR gate / gate`). It is red when any of these fail:
+
+| Job | What it checks |
+|-----|----------------|
+| `build` | The **Build** workflow (`dotnet.yml`, called via `workflow_call`): restore, slnx/slnf asserts, build, all tests, coverage gate, unit-test guardrails, Pester |
+| `actionlint` | Pinned actionlint over `.github/workflows/**` (shellcheck/pyflakes off). Catches invalid workflows such as the unknown `permissions: variables: write` scope from #1309, which GitHub rejected before any job ran |
+| `bicep` | Pinned Bicep CLI `bicep build` of every `Infrastructure/**/*.bicep` (no Azure login). `functions.bicepparam` is not built: it reads deploy-time environment variables |
+
+PRs into other branches still run **Build** directly. **Provision and Deploy** is never part of the gate.
+
+**Merge-from-main tips (#1555).** An early `detect` job (`.github/scripts/pr-gate-detect.cjs`) sets `skip_heavy=true`, and then the whole `build` job is skipped, only when **all** of these hold:
+
+1. The PR tip is a chain of pure merge-from-base commits (two parents, second parent on `main`, no PR/base file overlap, merge delta equal to the `main` side, at most 10 hops; `.github/scripts/merge-only-tip.cjs`). The compare API lists at most 300 files in a single page, so any listing that reaches 300 is treated as truncated and fails closed.
+2. Walking first parents reaches a commit whose `gate` check-run (GitHub Actions app) concluded `success`. That run built and tested the PR's own code.
+3. Every file the merged-in `main` side touched is on a **non-build allowlist**: `docs/**` (not `docs/contracts/**`), any `*.md`, `.cursor/**`, `.github/scripts/**` and `.github/ISSUE_TEMPLATE/**`. Textual non-overlap does not imply the combination compiles: `main` can rename an API in one file while the PR calls it from another. `main`'s own CI covers `main`'s content on its own, **not** PR plus `main` together, so any merged-in change to code, projects, workflows, scripts or contracts runs the full build.
+
+`actionlint` and `bicep` still run on every tip. The `gate` job accepts a skipped `build` only when `detect` succeeded with `skip_heavy=true`; that verdict lives in `.github/scripts/pr-gate-verdict.cjs` and is unit tested (a failed `detect` still runs the full `build`, a missing required job fails the gate). Rebases, feature commits, evil or overlapping merges, a red, cancelled or missing prior gate, a build-affecting merged-in file and any API error run the full build (`github.event.before` is not used: it is unreliable on `pull_request`).
+
+**Trust.** `PR gate` runs on `pull_request`, so `detect`, `merge-only-tip.cjs`, `pr-gate-verdict.cjs` and `pr-gate.yml` come from the PR's own merge ref: the skip decision runs PR-supplied code. It is only as strong as the existing "`gate` is required on `main`" model, where a PR author already controls the rest of the gate. Unlike `review-gate`, it does not run `main`'s copy.
+
+Branch protection for `main` (set by Jon, after the gate has one green PR run): require status checks → `gate`, and require branches to be up to date before merging.
+
+### Review gate (`review-gate` status, #1507)
+
+**Review gate** (`.github/workflows/review-gate.yml`, job `publish-status`) is not part of PR gate and does not look at CI. It publishes a commit status `review-gate` on the PR head SHA. That status is green when the PR has the label `review-acceptable` **and** either a trusted GitHub **Approve** on the current head (#1563; the workflow auto-adds the label) **or** the latest trusted issue-comment marker for the head is `<!-- review-gate: acceptable sha=<head sha> -->`. A trusted **Changes requested** review for the head fails it. A new push removes the label and turns it red, **except** a head that is only merge-from-base commits on top of a SHA already marked acceptable: the acceptance and label carry across it with no re-mark (#1555; `.github/scripts/merge-only-tip.cjs`, same checks as above, first-parent walk to the nearest trusted marker, changes-requested blocks, API errors fail the status but keep the label). When the status is failure the Actions job also fails so the check run matches. CI must be green separately. It is a process interlock, not a security boundary: every agent posts as the same OWNER account. The reviewer's steps are in `AGENTS.md` § Review gate. Once it is merged, branch protection on `main` should require both `gate` and `review-gate`, with `review-gate`'s source pinned to GitHub Actions (that change needs Jon's OK).
 
 ### Provision latch (`PROVISION_LATCH`) — HARD for agents
 
@@ -48,6 +78,8 @@ Local `scripts/deploy-function-local.ps1` (used by `deploy-api.ps1` / `deploy-di
 
 1. Actions → Run workflow → enable **`bypass_provision_latch`** (allows `*-deploy` **this run only**; next package-only run is still blocked until provision succeeds or the variable is deleted).
 2. Or delete the variable: `gh variable delete PROVISION_LATCH --repo cultpodcasts/RedditPodcastPoster`
+
+**Token for set/clear:** repo Actions secret **`RPP_VARIABLES_TOKEN`** — classic PAT with access to this repo that can manage Actions variables, or a fine-grained token with **Variables: Read and write** on `cultpodcasts/RedditPodcastPoster`. `GITHUB_TOKEN` cannot use a `variables: write` permission (invalid scope; broke all deploys after #1309 — see #1373). Without `RPP_VARIABLES_TOKEN`, the latch step still gates `deploy_allowed` for the current run but cannot persist/clear `PROVISION_LATCH` across runs.
 
 **Agents (HARD):**
 
@@ -86,7 +118,7 @@ az login
 
 Each wrapper resolves Azure target details (resource group, app name, storage account, deployment container) then forwards to `deploy-function-local.ps1` with the matching `-FunctionName`. Other parameters (`-SkipPackaging`, `-NoRestore`, `-DeploymentMode`, etc.) pass through unchanged.
 
-Publish uses parallel MSBuild by default (normal `dotnet publish` speed) and retries up to 3 times on failure, which covers occasional CS2012 locks on shared `Class-Libraries/*/obj/Release` from the ProjectReference graph. Pass `-SingleNodeMsBuild` on `deploy-function-local.ps1` if locks persist.
+Publish uses parallel MSBuild by default (normal `dotnet publish` speed) and retries up to 3 times on failure, which covers occasional CS2012 / MSB4018 (`GenerateDepsFile` deps.json) locks on shared `Class-Libraries/*/bin|obj/Release` from the ProjectReference graph. Pass `-SingleNodeMsBuild` on `deploy-function-local.ps1` if locks persist. Actions CI avoids the race with single-node `dotnet build` then `publish --no-build` (see table above).
 
 ### Saved JSON config (per app)
 
@@ -123,6 +155,8 @@ az functionapp restart -g AutomatedInfra -n discover-infra
 ```
 
 This is what `deploy-function-local.ps1` does in `FlexBlob` mode (default). Proven when OneDeploy paths fail from Windows (`az webapp deploy` / `az functionapp deploy --src-path` can return 502 on these Flex hosts).
+
+Provision of [`functions.bicep`](../Infrastructure/functions.bicep) creates the `discovery-submission-apply-poison` queue (`DiscoverySubmissionApplyQueueMessage.PoisonQueueName`); a package-only deploy does not.
 
 ### Do not change app settings
 
@@ -172,12 +206,16 @@ Phase 1 renames several Episode denorm wire names and adds `releaseSort`. **Dese
    CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcasts-ds --all-playables # episode + TV/news sibling datasources (sibling WHERE changed too)
    ```
    The second command is a superset of the first: it updates `cultpodcasts-ds`, then the siblings. `--update-existing` always adds any missing `EpisodeSearchRecord` index fields first. `--all-playables` also runs CreateOrUpdate on the sibling **indexers**, which rewrites their schedule, and deletes a leftover Film pull datasource and indexer (films are pushed by FilmSearchPusher). Neither is harmful, but know they happen.
-   Run it between :15 and :55 past the hour. That keeps it clear of the app Indexer's `Hourly` (:03) and `HourlyCatchUp` (:08) starts (see `CatalogueMigrateIndexerWindow`). The new query takes effect at the next Azure Search pull run, which happens at about :15 and :45.
+   Run it between :15 and :55 past the hour. That keeps it clear of the app Indexer's `Hourly` (:03) and `HourlyCatchUp` (:08) starts. The new query takes effect at the next Azure Search pull run, which happens at about :15 and :45.
    Whether an indexer reset is needed depends on which way the WHERE clause changed. The datasources use `HighWaterMarkChangeDetectionPolicy("_ts")` and have **no deletion-detection policy**:
    - **Stricter clause** (e.g. restoring the `podcastRemoved` guard): no reset is needed for future pulls. But documents **already in the index** that the new clause excludes are **not removed**; the indexer just stops sending them. Count them first with a read-only search query. Then delete them from the index separately, as the Api does on removal, or with a targeted delete. That delete is a production write and needs Jon's explicit OK. Re-check the count afterwards.
    - **Looser clause** (e.g. the `parentRemoved: null` = not-removed arm, or a newly included kind): documents whose `_ts` is older than the high-water mark are never pulled, so a reset **is** needed. Add `--reset-indexer --indexer <episode indexer name>` (`--reset-indexer` requires `--indexer`; the command throws without it). With `--all-playables` the sibling indexers are reset too. Touching (re-saving) the affected documents also works.
    Worked example: on 30 Oct 2026 the live `cultpodcasts-ds` was rewritten with #1152's SQL (`parentRemoved` only, no `podcastRemoved` arm). After #1174 restored the guard in code, the live datasource was updated on 31 Oct 2026 at 07:07 GMT with the post-#1172 SQL (guard included). A follow-up check found 0 removed-parent episodes left in the index. It was updated again at 19:13 GMT the same day for CBC Gem.
    After each such deploy, compare the live datasource's query (read-only, e.g. the Azure portal's data source JSON) with `EpisodeDataSourceQuery()`. Update it if the WHERE clause differs.
+   **#1500 (curator-removed episode image) also changes the datasource SELECT, so the same update applies.** `EpisodeDataSourceQuery()` now projects `image` as `IIF(IS_DEFINED(e.imageRemoved) AND e.imageRemoved = true, "-", …)`. Order matters:
+   - Publish CreateSearchIndex from `main`, then run `CreateSearchIndex --update-existing --index cultpodcasts --datasource cultpodcasts-ds` **straight after the merge, before the Provision and Deploy workflow's Functions deploy finishes** (still inside the :15–:55 window). Once the new `api` app is live, a curator removing an image writes `imageRemoved: true` and the edit pushes `-` to search. That edit also bumps `_ts`, so until the datasource is updated the next scheduled pull (`cultpodcasts-indexer`) runs the old SELECT and writes `""` over the `-`, and clients fill an empty image with the YouTube thumbnail. Updating the datasource later does not repair those episodes, because the high-water mark has already passed them. D1 is not affected (it is built from `SearchEpisodeImage.From`).
+   - Running it early is safe: the old apps never write `imageRemoved`, so the new `IIF` is a no-op for every existing document. No indexer reset is needed (the WHERE clause is unchanged, and each flagged episode gets a fresh `_ts` when it is saved).
+   - **Closing check, after both the datasource update and the Functions deploy:** list the flagged episodes (read-only Cosmos `SELECT e.id, e.podcastName FROM e WHERE e.imageRemoved = true` on the Episodes container), then look each id up in the `cultpodcasts` index (read-only search query) and confirm `image` is `"-"`. Any that don't match (flagged inside the window) need a targeted re-push of just those ids, not a full indexer reset. That re-push is a production write and needs Jon's explicit OK. Re-run the check afterwards.
 4. No app settings were added for the bridges, so none need removing.
 
 **Result for #1151/#1152 (30 Oct 2026):** the read-only production audit at 14:41 GMT returned `0` on the Episodes container (with and without the `type` filter) and `0` on the TV-show-episode and news-report containers. DoD § F step F checks 1–5 passed; the PublicDatabase `update.ps1` preview ran clean 15:54–16:00 GMT (preview only, nothing published).

@@ -29,7 +29,7 @@ public static class EpisodeServicePresence
     public static readonly string[] SocialPostUrlOrder = ServiceCatalog.IndexIdImageOrder;
 
     /// <summary>
-    /// Drop the retired <c>other</c> catalog key, rename legacy unknown-host
+    /// Drop the retired <c>other</c> catalog key and any null-valued entry, rename legacy unknown-host
     /// <c>iviewabcnetau</c> → <c>abcIview</c>, and keep nested ids aligned.
     /// Does not copy leftover Cosmos JSON onto the catalog (typed <see cref="Episode"/>
     /// has no leftover members).
@@ -41,6 +41,12 @@ public static class EpisodeServicePresence
         {
             var map = new Dictionary<string, ServiceLink>(episode.Services, StringComparer.Ordinal);
             map.Remove("other");
+            // A stored "key": null entry is not a link; dropping it here lets any normal save heal the document (#1508).
+            foreach (var nullKey in map.Where(pair => pair.Value is null).Select(pair => pair.Key).ToList())
+            {
+                map.Remove(nullKey);
+            }
+
             MigrateLegacyAbcIviewKey(map);
             episode.Services = map.Count == 0 ? null : map;
         }
@@ -134,7 +140,7 @@ public static class EpisodeServicePresence
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         if (episode.Services is { Count: > 0 } &&
             episode.Services.TryGetValue(key, out var link) &&
-            link.Url is not null)
+            link?.Url is not null)
         {
             return link.Url;
         }
@@ -151,7 +157,7 @@ public static class EpisodeServicePresence
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         if (episode.Services is { Count: > 0 } &&
             episode.Services.TryGetValue(key, out var link) &&
-            link.Image is not null)
+            link?.Image is not null)
         {
             return link.Image;
         }
@@ -266,7 +272,7 @@ public static class EpisodeServicePresence
     {
         if (services is null ||
             !services.TryGetValue(ServiceKeys.YouTube, out var link) ||
-            link.Url is null ||
+            link?.Url is null ||
             string.IsNullOrWhiteSpace(link.Url.ToString()))
         {
             return null;
@@ -428,7 +434,7 @@ public static class EpisodeServicePresence
         var seen = new HashSet<string>(keyOrder, StringComparer.Ordinal);
         foreach (var (key, link) in episode.Services ?? [])
         {
-            if (link.Url is null || !seen.Add(key))
+            if (link?.Url is null || !seen.Add(key))
             {
                 continue;
             }
@@ -479,7 +485,7 @@ public static class EpisodeServicePresence
 
         foreach (var (key, link) in episode.Services)
         {
-            if (!seen.Add(key) || link.Url is null)
+            if (!seen.Add(key) || link?.Url is null)
             {
                 continue;
             }
@@ -554,7 +560,8 @@ public static class EpisodeServicePresence
 
         foreach (var key in keyOrder)
         {
-            if (services.TryGetValue(key, out var link) && link.Image is not null)
+            // A stored "key": null entry has no art; skip it rather than throw (#1508).
+            if (services.TryGetValue(key, out var link) && link?.Image is not null)
             {
                 return link.Image;
             }
@@ -562,7 +569,7 @@ public static class EpisodeServicePresence
 
         foreach (var link in services.Values)
         {
-            if (link.Image is not null)
+            if (link?.Image is not null)
             {
                 return link.Image;
             }
@@ -588,7 +595,7 @@ public static class EpisodeServicePresence
             return;
         }
 
-        if (!episode.Services.TryGetValue(key, out var link))
+        if (!episode.Services.TryGetValue(key, out var link) || link is null)
         {
             link = new ServiceLink();
             episode.Services[key] = link;
@@ -624,7 +631,7 @@ public static class EpisodeServicePresence
         }
 
         episode.Services ??= new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
-        if (!episode.Services.TryGetValue(key, out var link))
+        if (!episode.Services.TryGetValue(key, out var link) || link is null)
         {
             link = new ServiceLink();
             episode.Services[key] = link;

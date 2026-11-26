@@ -1,5 +1,6 @@
 using System.Net;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -8,6 +9,7 @@ using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Twitter.Builders;
+using RedditPodcastPoster.Twitter.Configuration;
 using RedditPodcastPoster.Twitter.Clients;
 using RedditPodcastPoster.Twitter.Models;
 using RedditPodcastPoster.Twitter.Posters;
@@ -23,6 +25,11 @@ public class TweetRunStopRules
 {
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+
+    public TweetRunStopRules()
+    {
+        _mocker.Use(Options.Create(new TwitterOptions()));
+    }
 
     private (PodcastEpisode First, PodcastEpisode Second) ArrangeTwoCandidates(TweetSendStatus firstStatus)
     {

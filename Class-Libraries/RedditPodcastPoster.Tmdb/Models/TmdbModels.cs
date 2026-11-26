@@ -89,13 +89,18 @@ public sealed partial record CatalogueCanonicalId(string Id, CatalogueCanonicalS
 }
 
 /// <summary>A TMDB search hit. Canonical ids come from the detail calls, which load external ids.</summary>
+/// <param name="OriginalName">
+/// TMDB <c>original_title</c> (films) or <c>original_name</c> (TV) when it differs from <see cref="Name"/>.
+/// A Danish film listed as "Father's House" keeps "Faderhuset" here.
+/// </param>
 public sealed record TmdbSearchHit(
     int Id,
     string Name,
     TmdbTitleKind Kind,
     int? Year,
     string? PosterPath = null,
-    string? Overview = null);
+    string? Overview = null,
+    string? OriginalName = null);
 
 /// <summary>
 /// A TMDB movie, series, or episode with both external ids when TMDB has them.
@@ -114,3 +119,63 @@ public sealed record TmdbTitle(
     Uri? ImdbUrl,
     Uri? TvdbUrl,
     CatalogueCanonicalId? Canonical);
+
+/// <summary>
+/// A TMDB movie's own metadata (RPP #1430 / #1431 / #1436). <see cref="Image"/> is the landscape backdrop when TMDB
+/// has one, else the poster. <see cref="OtherTitles"/> is every other title the film is known by, distinct and
+/// trimmed: the original title, TMDB's alternative titles and its translated titles, never <see cref="Title"/> itself.
+/// <see cref="Publisher"/> is the first named production company, when TMDB has one.
+/// </summary>
+public sealed record TmdbMovieMetadata(
+    int Id,
+    string Title,
+    string? OriginalTitle,
+    string? Overview,
+    int? RuntimeMinutes,
+    DateOnly? ReleaseDate,
+    Uri? Image,
+    IReadOnlyList<string> OtherTitles,
+    string? Publisher = null,
+    /// <summary>Year when TMDB only has a year (no full <c>yyyy-MM-dd</c>). Prefer <see cref="ReleaseDate"/> when set.</summary>
+    int? ReleaseYear = null);
+
+/// <summary>
+/// A TMDB TV series' own publisher metadata (RPP #1436). <see cref="Publisher"/> is the first named network, else the
+/// first named production company.
+/// </summary>
+public sealed record TmdbShowMetadata(int Id, string? Publisher);
+
+/// <summary>A TMDB TV episode's own metadata (RPP #1430). <see cref="Still"/> is the episode still.</summary>
+public sealed record TmdbEpisodeMetadata(
+    int Id,
+    string? Name,
+    string? Overview,
+    int? RuntimeMinutes,
+    DateOnly? AirDate,
+    Uri? Still);
+
+/// <summary>Where a TV episode sits on TMDB: its series id, season and episode number.</summary>
+public sealed record TmdbEpisodeReference(int SeriesId, int SeasonNumber, int EpisodeNumber);
+
+/// <summary>TMDB image URLs for the paths in a details payload.</summary>
+public static class TmdbImage
+{
+    private const string Base = "https://image.tmdb.org/t/p/";
+
+    public static Uri? Backdrop(string? path) => Build("w1280", path);
+
+    public static Uri? Poster(string? path) => Build("w780", path);
+
+    public static Uri? Still(string? path) => Build("w780", path);
+
+    private static Uri? Build(string size, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        var trimmed = path.Trim();
+        return new Uri(Base + size + (trimmed.StartsWith('/') ? trimmed : "/" + trimmed));
+    }
+}

@@ -17,6 +17,16 @@ param apiEndpoint string
 @secure()
 param blueskyPassword string
 @secure()
+@description('Auth0 search-index-writer M2M client id, prod tenant (RPP #1460). Key Vault SearchIndex-Writer-ClientId.')
+param searchIndexWriterClientId string
+@secure()
+@description('Auth0 search-index-writer M2M client secret, prod tenant (RPP #1460). Key Vault SearchIndex-Writer-ClientSecret.')
+param searchIndexWriterClientSecret string
+@description('D1 search sync (SP-2.1) to the production search index (api Worker POST /search/admin/docs). Off until Jon switches it on.')
+param d1SearchProductionEnabled bool = false
+@description('Disables discover and indexer timer functions so a host start cannot run schedules. Production passes false.')
+param disableScheduledFunctions bool = false
+@secure()
 param cloudflareAccountId string
 @secure()
 param cloudflareKVApiToken string
@@ -68,14 +78,19 @@ param thetvdbApiKey string
 param textanalyticsApiKey string
 @secure()
 param textanalyticsEndPoint string
+@description('X OAuth 1.0a access token. Deploy-time Key Vault secret Twitter-AccessToken via functions.bicepparam az.getSecret (literal app setting at runtime — same pattern as other secrets).')
 @secure()
 param twitterAccessToken string
+@description('X OAuth 1.0a access token secret. Key Vault secret Twitter-AccessTokenSecret.')
 @secure()
 param twitterAccessTokenSecret string
+@description('X OAuth 1.0a API key (consumer key). Key Vault secret Twitter-ConsumerKey.')
 @secure()
 param twitterConsumerKey string
+@description('X OAuth 1.0a API key secret (consumer secret). Key Vault secret Twitter-ConsumerSecret.')
 @secure()
 param twitterConsumerSecret string
+@description('X user id for timeline reads. Key Vault secret Twitter-TwitterId.')
 @secure()
 param twitterTwitterId string
 @description('X auth. functions.bicepparam sets OAuth2. The default OAuth1 remains if that param is omitted. Set OAuth2 only after XOAuth2Authorize --execute has saved a token pair (issue #1201).')
@@ -117,8 +132,6 @@ param youTubeApiKey11 string
 @secure()
 param youTubeApiKey12 string
 @secure()
-param youTubeApiKey13 string
-@secure()
 param youTubeApiKey14 string
 @secure()
 param youTubeApiKey15 string
@@ -133,6 +146,20 @@ param alertEmailAddress string = ''
 
 resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
   name: storageName
+}
+
+resource storageQueueService 'Microsoft.Storage/storageAccounts/queueServices@2022-05-01' existing = {
+  parent: storage
+  name: 'default'
+}
+
+// The scale controller queries this poison queue on every host start. The apply
+// function only created the primary queue, so GetProperties returned 404.
+// Name is DiscoverySubmissionApplyQueueMessage.PoisonQueueName
+// ("discovery-submission-apply" + "-poison"). Do not drift from that constant.
+resource discoverySubmissionApplyPoisonQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2022-05-01' = {
+  parent: storageQueueService
+  name: 'discovery-submission-apply-poison'
 }
 
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing = {
@@ -199,6 +226,18 @@ var auth0Client= {
     auth0client__ClientId: auth0ClientId
     auth0client__ClientSecret: auth0ClientSecret
     auth0client__Domain: auth0Domain
+}
+
+// D1 search sync (epic #1312 SP-2.1 / SP-2.5): the Functions mirror search writes to the production D1 index
+// through the api Worker's POST /search/admin/docs with the prod-tenant Auth0 search-index-writer M2M token.
+// The host, Auth0 domain and audience are the existing api__Endpoint (the Bot Fight bypass host, Key Vault
+// Api-Endpoint), auth0client__Domain and auth0client__Audience. There are only production Functions, so there
+// is no preview target. Off until Jon switches d1SearchProductionEnabled on. The client id/secret come from
+// Key Vault (SearchIndex-Writer-ClientId / -ClientSecret) like the other Auth0 secrets.
+var d1Search= {
+    d1Search__Enabled: string(d1SearchProductionEnabled)
+    d1Search__ClientId: searchIndexWriterClientId
+    d1Search__ClientSecret: searchIndexWriterClientSecret
 }
 
 var bluesky= {
@@ -424,6 +463,8 @@ var twitter= {
     twitter__AuthMode: twitterAuthMode
     twitter__OAuth2ClientId: twitterOAuth2ClientId
     twitter__OAuth2ClientSecret: twitterOAuth2ClientSecret
+    twitter__MaxPosts: 2
+    twitter__MaxFailures: 5
 }
 
 var youtube= {
@@ -531,6 +572,7 @@ var coreSettings= union(
 var apiSettings= union(
     coreSettings,
     auth0,
+    d1Search,
     indexer,
     postingCriteria,
     youtubeChannel
@@ -545,6 +587,7 @@ var discoverySettings= union(
 
 var indexerSettings= union(
     coreSettings,
+    d1Search,
     indexer,
     poster,
     postingCriteria,
@@ -819,6 +862,18 @@ var applicationInsightsConnectionString = applicationInsights.properties.Connect
 var userAssignedIdentityId = userAssignedIdentity.id
 var userAssignedIdentityClientId = userAssignedIdentity.properties.clientId
 
+var discoverScheduleDisabled = disableScheduledFunctions ? {
+  'AzureWebJobs.DiscoveryTrigger.Disabled': '1'
+} : {}
+var indexerScheduleDisabled = disableScheduledFunctions ? {
+  'AzureWebJobs.Hourly.Disabled': '1'
+  'AzureWebJobs.HourlyCatchUp.Disabled': '1'
+  'AzureWebJobs.HalfHourly.Disabled': '1'
+  'AzureWebJobs.D1SearchReconcile.Disabled': '1'
+  'AzureWebJobs.SearchSuggestionsPublish.Disabled': '1'
+  'AzureWebJobs.YouTubeQuotaReport.Disabled': '1'
+} : {}
+
 var discoverScorer = {
     discover__scorer__Enabled: 'true'
     discover__scorer__BlobStorageAccountName: storageAccountName
@@ -836,7 +891,7 @@ module apiFunction 'function.bicep' = {
     storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}api-deployment'
     runtime: runtime
-    runtimeVersion: '10.0'
+    runtimeVersion: '11.0'
     suffix: suffix
     publicNetworkAccess: true
     instanceMemoryMB: 2048
@@ -859,14 +914,14 @@ module discoveryFunction 'function.bicep' = {
     storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}discovery-deployment'
     runtime: runtime
-    runtimeVersion: '10.0'
+    runtimeVersion: '11.0'
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Discovery: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
-    }, discoverySettings, discoverScorer)
+    }, discoverySettings, discoverScorer, discoverScheduleDisabled)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
   }
@@ -881,14 +936,14 @@ module indexerFunction 'function.bicep' = {
     storageAccountName: storageAccountName
     storageUrl: '${storage.properties.primaryEndpoints.blob}indexer-deployment'
     runtime: runtime
-    runtimeVersion: '10.0'
+    runtimeVersion: '11.0'
     suffix: suffix
     publicNetworkAccess: false
     instanceMemoryMB: 2048
     appSettings: union({
         Logging__LogLevel__Indexer: 'Information'
         cosmosdb__TitleCasingRulesContainer: 'TitleCasingRules'
-    }, indexerSettings)
+    }, indexerSettings, indexerScheduleDisabled)
     userAssignedIdentityId: userAssignedIdentityId
     userAssignedIdentityClientId: userAssignedIdentityClientId
   }  

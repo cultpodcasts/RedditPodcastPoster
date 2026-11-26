@@ -61,7 +61,8 @@ public class HomepagePublisher(
     {
         ct.ThrowIfCancellationRequested();
 
-        var recentCutoff = DateTime.UtcNow.AddDays(-7);
+        var now = DateTime.UtcNow;
+        var recentCutoff = now.AddDays(-7);
 
         var recentPodcastsTask = podcastRepository
             .GetAllBy(
@@ -77,8 +78,8 @@ public class HomepagePublisher(
             .ToListAsync(ct)
             .AsTask();
 
-        var recentEpisodesTask = GetRecentEpisodes(recentPodcastsTask, recentCutoff, ct);
-        var recentCatalogueTask = cataloguePlayables.GetRecent(recentCutoff, ct);
+        var recentEpisodesTask = GetRecentEpisodes(recentPodcastsTask, recentCutoff, now, ct);
+        var recentCatalogueTask = cataloguePlayables.GetRecent(recentCutoff, now, ct);
 
         var homePageCache = await ResolveHomePageCache(Task.WhenAll(recentEpisodesTask, recentCatalogueTask), ct);
         var activeEpisodeCount = homePageCache.ActiveEpisodeCount ?? 0;
@@ -87,7 +88,9 @@ public class HomepagePublisher(
         // While a catalogue migration unit is mid-flight (or stopped after writing its destination), the same
         // playable GUID can be in Episodes and in its new container. Keep the catalogue row only.
         var catalogueIds = recentCatalogue.Select(x => x.Id).ToHashSet();
-        var recentEpisodes = recentEpisodesTask.Result.Where(x => !catalogueIds.Contains(x.EpisodeId)).ToList();
+        var recentEpisodes = recentEpisodesTask.Result
+            .Where(x => !catalogueIds.Contains(x.EpisodeId) && IncludeInHomepageWindow(x.Release, now))
+            .ToList();
         var podcasts = recentPodcastsTask.Result.ToDictionary(x => x.Id);
 
         var orderedPodcasts = recentEpisodes
@@ -96,6 +99,7 @@ public class HomepagePublisher(
                 podcasts.TryGetValue(episode.PodcastId, out var podcast);
                 return new PodcastResult
                 {
+                    ParentId = episode.PodcastId,
                     PodcastName = episode.PodcastName ?? podcast?.Name ?? string.Empty,
                     TitleRegex = podcast?.TitleRegex ?? string.Empty,
                     DescriptionRegex = podcast?.DescriptionRegex ?? string.Empty,
@@ -108,6 +112,7 @@ public class HomepagePublisher(
                     Length = episode.Length,
                     Subjects = episode.Subjects.Count > 0 ? episode.Subjects.ToArray() : null,
                     Images = episode.Images,
+                    ImageRemoved = episode.ImageRemoved,
                     KnownTerms = podcast?.KnownTerms,
                     Language = episode.Language
                 };
@@ -147,22 +152,32 @@ public class HomepagePublisher(
         Subjects = item.Subjects.Count > 0 ? item.Subjects.ToArray() : null,
         Images = item.Images,
         KnownTerms = item.KnownTerms,
-        Language = item.Language
+        Language = item.Language,
+        ParentId = item.ParentId ?? Guid.Empty
     };
+
+    /// <summary>
+    /// An item belongs on the homepage once <paramref name="now"/> is on or after its release instant.
+    /// Future-dated items are hidden until that moment so they cannot create a day group of their own.
+    /// </summary>
+    internal static bool IncludeInHomepageWindow(DateTime release, DateTime now) =>
+        release <= now;
 
     private async Task<List<RecentEpisodeEntry>> GetRecentEpisodes(
         Task<List<PodcastEntry>> recentPodcastsTask,
         DateTime recentCutoff,
+        DateTime until,
         CancellationToken ct)
     {
         var podcasts = await recentPodcastsTask;
-        var episodeLists = await Task.WhenAll(podcasts.Select(podcast => LoadRecentEpisodes(podcast, recentCutoff, ct)));
+        var episodeLists = await Task.WhenAll(podcasts.Select(podcast => LoadRecentEpisodes(podcast, recentCutoff, until, ct)));
         return episodeLists.SelectMany(x => x).ToList();
     }
 
     private async Task<List<RecentEpisodeEntry>> LoadRecentEpisodes(
         PodcastEntry podcast,
         DateTime recentCutoff,
+        DateTime until,
         CancellationToken ct)
     {
         var recentEpisodes = new List<RecentEpisodeEntry>();
@@ -170,10 +185,17 @@ public class HomepagePublisher(
         await foreach (var episode in episodeRepository.GetByPodcastId(
                            podcast.Id,
                            EpisodeCosmosFilters.And(
-                               EpisodeCosmosFilters.ReleasedOnOrAfter(recentCutoff),
+                               EpisodeCosmosFilters.And(
+                                   EpisodeCosmosFilters.ReleasedOnOrAfter(recentCutoff),
+                                   x => x.ReleaseSort <= until),
                                x => !x.Ignored && !x.Removed)))
         {
             ct.ThrowIfCancellationRequested();
+            if (!IncludeInHomepageWindow(episode.ReleaseUtc, until))
+            {
+                continue;
+            }
+
             EpisodeServicePresence.NormalizeCatalog(episode);
 
             recentEpisodes.Add(new RecentEpisodeEntry
@@ -189,6 +211,7 @@ public class HomepagePublisher(
                 Length = episode.Length,
                 Subjects = episode.Subjects,
                 Images = EpisodeServicePresence.ToEpisodeImages(episode),
+                ImageRemoved = episode.IsImageRemoved(),
                 Language = episode.Language
             });
         }
@@ -279,7 +302,12 @@ public class HomepagePublisher(
             Services = x.Services,
             Length = TimeSpan.FromSeconds(Math.Round(x.Length.TotalSeconds)),
             Subjects = x.Subjects != null && x.Subjects.Any() ? x.Subjects : null,
-            Image = EpisodeServicePresence.CoalescedImage(x.Services, StreamingServiceCatalog.ImageCoalesceOrder),
+            // #1500: a curator-removed image publishes no image plus imageRemoved, so the site shows no art
+            // instead of synthesizing the YouTube thumbnail.
+            Image = x.ImageRemoved
+                ? null
+                : EpisodeServicePresence.CoalescedImage(x.Services, StreamingServiceCatalog.ImageCoalesceOrder),
+            ImageRemoved = x.ImageRemoved ? true : null,
             Language = NormaliseHomepageLanguage(x.Language)
         };
     }
@@ -307,11 +335,9 @@ public class HomepagePublisher(
     private async Task<PodcastResult> Sanitise(PodcastResult podcastResult)
     {
         var rawEpisodeTitle = podcastResult.EpisodeTitle;
-        Regex? titleRegex = null;
-        if (!string.IsNullOrWhiteSpace(podcastResult.TitleRegex))
-        {
-            titleRegex = new Regex(podcastResult.TitleRegex);
-        }
+        // Case-insensitive like every other title-regex site (Podcast.TitleFlags), so a news organisation's
+        // "\| 7NEWS" suffix pattern still strips "| 7News" (#1378).
+        var titleRegex = Podcast.CreateTitleRegex(podcastResult.TitleRegex);
 
         var subjectKnownTerms = (podcastResult.Subjects ?? [])
             .Select(x => _subjects.SingleOrDefault(y => y.Name == x))
@@ -323,7 +349,8 @@ public class HomepagePublisher(
             titleRegex,
             podcastResult.KnownTerms ?? [],
             subjectKnownTerms,
-            podcastResult.Language);
+            podcastResult.Language,
+            podcastResult.ParentId == Guid.Empty ? null : podcastResult.ParentId);
 
         podcastResult.EpisodeDescription = SanitiseDescription(podcastResult, rawEpisodeTitle, textSanitiser);
         return podcastResult;
@@ -332,7 +359,7 @@ public class HomepagePublisher(
     /// <summary>
     /// Sanitises a homepage episode's description. The description regex tokens
     /// (<c>{episode-title}</c>, <c>{podcast-name}</c>) are resolved from <paramref name="rawEpisodeTitle" />, the title
-    /// captured before <see cref="ITextSanitiser.SanitiseTitle(string, Regex?, string[], string[], string?)" />
+    /// captured before <see cref="ITextSanitiser.SanitiseTitle(string, Regex?, string[], string[], string?, Guid?)" />
     /// rewrites it, because the raw title is what the feed description starts with.
     /// </summary>
     internal static string SanitiseDescription(
@@ -396,6 +423,7 @@ public class HomepagePublisher(
         public TimeSpan Length { get; init; }
         public List<string> Subjects { get; init; } = [];
         public EpisodeImages? Images { get; init; }
+        public bool ImageRemoved { get; init; }
         public string? Language { get; init; }
     }
 }

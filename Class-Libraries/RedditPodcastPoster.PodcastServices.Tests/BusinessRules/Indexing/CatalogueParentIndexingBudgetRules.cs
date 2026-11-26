@@ -42,10 +42,10 @@ public class CatalogueParentIndexingBudgetRules
     private readonly Dictionary<Guid, NewsOrganisation> _organisations = [];
     private readonly List<NewsReport> _savedReports = [];
     private readonly List<(Guid Id, CatalogueParentIndexerPatch Patch)> _patches = [];
-    private readonly Dictionary<Guid, IndexingContext> _contexts = [];
+    private readonly Dictionary<Guid, PodcastRunScope> _scopes = [];
     private readonly NewsOrganisation _slowOrganisation;
     private readonly NewsOrganisation _healthyOrganisation;
-    private Func<IndexingContext, Task<IList<Episode>>> _slowDiscovery;
+    private Func<PodcastRunScope, Task<IList<Episode>>> _slowDiscovery;
     private IList<Episode> _discovered = [];
 
     public CatalogueParentIndexingBudgetRules()
@@ -80,11 +80,13 @@ public class CatalogueParentIndexingBudgetRules
 
         _mocker.GetMock<IEpisodeProvider>()
             .Setup(x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
-            .Returns((Podcast podcast, IEnumerable<Episode> _, IndexingContext context) =>
+            .Returns((Podcast podcast, IEnumerable<Episode> _, IndexingContext _) =>
             {
-                _contexts[podcast.Id] = context;
+                // Discovery runs several awaits into the parent's update; the run scope flows down to it.
+                var scope = PodcastRunScope.Current;
+                _scopes[podcast.Id] = scope;
                 return podcast.Id == _slowOrganisation.Id
-                    ? _slowDiscovery(context)
+                    ? _slowDiscovery(scope)
                     : Task.FromResult<IList<Episode>>(_discovered.ToList());
             });
         _mocker.GetMock<IEpisodeMerger>()
@@ -112,10 +114,10 @@ public class CatalogueParentIndexingBudgetRules
     public async Task slow_news_organisation_is_cut_and_the_next_parent_is_indexed()
     {
         // Arrange
-        _slowDiscovery = async context =>
+        _slowDiscovery = async scope =>
         {
-            context.ReportStage("youtube-playlist-page", "page=2");
-            await Task.Delay(Timeout.Infinite, context.CancellationToken);
+            scope.ReportStage("youtube-playlist-page", "page=2");
+            await Task.Delay(Timeout.Infinite, scope.CancellationToken);
             return [];
         };
         _discovered = [NewVideo()];
@@ -187,9 +189,9 @@ public class CatalogueParentIndexingBudgetRules
 
         // Assert
         success.Should().BeTrue();
-        var context = _contexts[_healthyOrganisation.Id];
-        context.CancellationToken.CanBeCanceled.Should().BeTrue();
-        context.StageReporter.Should().BeOfType<PodcastIndexingStageLog>();
+        var scope = _scopes[_healthyOrganisation.Id];
+        scope.CancellationToken.CanBeCanceled.Should().BeTrue();
+        scope.StageReporter.Should().BeOfType<PodcastIndexingStageLog>();
         var stages = _logger.Entries
             .Where(entry => entry.Message.StartsWith(PodcastIndexingStageLog.MessagePrefix) &&
                             entry.Message.Contains($"podcast-id='{_healthyOrganisation.Id}'"))
@@ -235,9 +237,9 @@ public class CatalogueParentIndexingBudgetRules
         // Arrange
         _budget.PerPodcastBudgetSeconds = perPodcastSeconds;
         _budget.ExpensivePassBudgetMultiplier = expensiveMultiplier;
-        _slowDiscovery = async context =>
+        _slowDiscovery = async scope =>
         {
-            await Task.Delay(Timeout.Infinite, context.CancellationToken);
+            await Task.Delay(Timeout.Infinite, scope.CancellationToken);
             return [];
         };
         var sut = _mocker.CreateInstance<CatalogueParentsUpdater>();

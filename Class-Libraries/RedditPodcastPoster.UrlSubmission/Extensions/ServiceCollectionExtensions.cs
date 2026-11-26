@@ -75,12 +75,14 @@ public static class ServiceCollectionExtensions
             .AddScoped<ICatalogueParentLookup, CatalogueParentLookup>()
             .AddScoped<IEpisodeUrlRouter, EpisodeUrlRouter>()
             .AddScoped<ICatalogueParentSubmitter, CatalogueParentSubmitter>()
+            .AddSingleton<IServiceLinkConflictGate, ServiceLinkConflictGate>()
             .AddScoped<ICategorisedItemProcessor, CategorisedItemProcessor>()
             .AddScoped<ICatalogueOwnershipGuard, CatalogueOwnershipGuard>()
             .AddScoped<DiscoveryUrlSubmitter>()
             // Discovery submits pass the catalogue ownership guard first (#1089).
             .AddScoped<IDiscoveryUrlSubmitter>(sp => ActivatorUtilities.CreateInstance<CatalogueOwnedDiscoveryUrlSubmitter>(
                 sp, sp.GetRequiredService<DiscoveryUrlSubmitter>()))
+            .AddScoped<IDiscoveryKindSuggester, DiscoveryKindSuggester>()
             .AddScoped<IDiscoveryResultProcessor, DiscoveryResultProcessor>()
             .AddSingleton<ISubmitResultAdaptor, SubmitResultAdaptor>();
     }

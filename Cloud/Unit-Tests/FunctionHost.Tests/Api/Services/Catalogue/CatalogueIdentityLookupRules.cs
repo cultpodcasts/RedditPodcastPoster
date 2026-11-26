@@ -5,7 +5,9 @@ using Moq.AutoMock;
 using Api.Dtos;
 using Api.Services.Catalogue;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Tmdb.Models;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Services.Catalogue;
@@ -15,12 +17,19 @@ public class CatalogueIdentityLookupRules
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
     private CatalogueIdentityAdmission _admission = CatalogueIdentityAdmission.Proceed();
+    private TmdbMovieMetadata? _filmMetadata;
 
     public CatalogueIdentityLookupRules()
     {
         _mocker.Use(NullLogger<CatalogueIdentityLookupService>.Instance);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(x => x.FetchFilmAsync(
+                It.IsAny<int?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _filmMetadata);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
-            .Setup(x => x.ResolveFilmAsync(
+            .Setup(x => x.LookupFilmAsync(
                 It.IsAny<string>(),
                 It.IsAny<int?>(),
                 It.IsAny<CatalogueIdentityChoice>(),
@@ -28,7 +37,23 @@ public class CatalogueIdentityLookupRules
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _admission);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.ResolveFilmAsync(
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<TimeSpan?>()))
+            .ReturnsAsync(() => _admission);
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.ResolveTvShowAsync(
+                It.IsAny<string>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => _admission);
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.LookupTvShowAsync(
                 It.IsAny<string>(),
                 It.IsAny<CatalogueIdentityChoice>(),
                 It.IsAny<string?>(),
@@ -45,15 +70,27 @@ public class CatalogueIdentityLookupRules
     }
 
     [Fact(DisplayName =
-        "Edit-time identity lookup: when authority finds one confident film match, the response is matched with ids so the form can be filled.")]
+        "Edit-time identity lookup: when authority finds one confident film match, the response is matched with ids " +
+        "and the proposed TMDB release so the form can be filled (RPP #1410).")]
     public async Task confident_film_returns_matched_ids()
     {
         // Arrange
         var title = _fixture.CreateTitle();
         var imdbId = _fixture.CreateImdbId();
         var tmdbId = _fixture.CreateTmdbId();
+        var releaseDate = new DateOnly(1981, 10, 4);
         _admission = CatalogueIdentityAdmission.Proceed(
             new CatalogueAuthorityIds(imdbId, tmdbId, null));
+        _filmMetadata = new TmdbMovieMetadata(
+            tmdbId,
+            title,
+            null,
+            null,
+            null,
+            releaseDate,
+            null,
+            [],
+            ReleaseYear: releaseDate.Year);
         var sut = _mocker.CreateInstance<CatalogueIdentityLookupService>();
 
         // Act
@@ -68,6 +105,7 @@ public class CatalogueIdentityLookupRules
         result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Matched);
         result.Response.Ids!.ImdbId.Should().Be(imdbId);
         result.Response.Ids.TmdbId.Should().Be(tmdbId);
+        result.Response.Ids.Release.Should().Be("1981-10-04");
         result.Response.IdentityDecision.Should().BeNull();
     }
 
@@ -148,7 +186,7 @@ public class CatalogueIdentityLookupRules
         result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Matched);
         result.Response.Ids!.TmdbId.Should().Be(tmdbId);
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
-            x => x.ResolveFilmAsync(
+            x => x.LookupFilmAsync(
                 title,
                 null,
                 CatalogueIdentityChoice.Select,
@@ -158,8 +196,8 @@ public class CatalogueIdentityLookupRules
     }
 
     [Fact(DisplayName =
-        "Edit-time identity lookup: when the request includes a film year, resolve is called with that year " +
-        "so a single year match can auto-narrow (same as create-time).")]
+        "Edit-time identity lookup: when the request includes a film year, LookupFilmAsync is called with that year " +
+        "(edit-time never auto-applies; the curator confirms via the picker — RPP #1497).")]
     public async Task film_year_is_forwarded_to_resolve()
     {
         // Arrange
@@ -182,7 +220,7 @@ public class CatalogueIdentityLookupRules
         result.Status.Should().Be(CatalogueIdentityLookupServiceStatus.Ok);
         result.Response!.Status.Should().Be(CatalogueIdentityLookupStatus.Matched);
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
-            x => x.ResolveFilmAsync(
+            x => x.LookupFilmAsync(
                 title,
                 year,
                 CatalogueIdentityChoice.Unset,
@@ -257,6 +295,35 @@ public class CatalogueIdentityLookupRules
         result.Response.Ids.Should().BeNull();
         result.Response.Message.Should().NotBeNullOrWhiteSpace();
         result.Response.IdentityDecision.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Edit-time identity lookup for a TV show uses the edit-time TV lookup, which can offer film/documentary " +
+        "candidates, not the create-time resolve (#1387).")]
+    public async Task tv_show_lookup_uses_edit_time_lookup()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var sut = _mocker.CreateInstance<CatalogueIdentityLookupService>();
+
+        // Act
+        await sut.LookupAsync(new CatalogueIdentityLookupRequest
+        {
+            Kind = "TvShow",
+            Title = title
+        });
+
+        // Assert
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            x => x.LookupTvShowAsync(title, CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
+            x => x.ResolveTvShowAsync(
+                It.IsAny<string>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact(DisplayName =

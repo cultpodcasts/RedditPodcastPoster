@@ -42,7 +42,7 @@ public static class TweetResponseReader
     {
         var problem = XApiProblem.Parse(body);
 
-        if (statusCode == HttpStatusCode.TooManyRequests || problem.IsRateOrUsageLimited)
+        if (problem.IsLimitOrUsageResponse(statusCode))
         {
             return DeleteTweetState.TooManyRequests;
         }

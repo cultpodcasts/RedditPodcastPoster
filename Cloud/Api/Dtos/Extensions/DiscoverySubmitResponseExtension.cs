@@ -55,6 +55,27 @@ public static class DiscoverySubmitResponseExtension
                         Description = c.Description
                     }).ToArray()
                 }).ToArray()
+                : null,
+            KindDecisionsRequired = outcome.KindDecisionsRequired is { Count: > 0 } kindHolds
+                ? kindHolds.Select(x => new DiscoverySubmitResponse.IdentityDecision
+                {
+                    DiscoveryItemId = x.DiscoveryItemId ?? Guid.Empty,
+                    Target = x.Target,
+                    Query = x.Query,
+                    Candidates = x.Candidates.Select(c => new DiscoverySubmitResponse.IdentityCandidate
+                    {
+                        Key = c.Key,
+                        Title = c.Title,
+                        Year = c.Year,
+                        Kind = c.Kind,
+                        Source = c.Source,
+                        TmdbId = c.TmdbId,
+                        TvdbId = c.TvdbId,
+                        PageUrl = c.PageUrl?.ToString(),
+                        ThumbnailUrl = c.ThumbnailUrl?.ToString(),
+                        Description = c.Description
+                    }).ToArray()
+                }).ToArray()
                 : null
         };
     }

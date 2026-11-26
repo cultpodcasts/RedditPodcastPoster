@@ -133,6 +133,10 @@ public static class ServiceCollectionExtensions
                     new ParentKindTransferLockStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
                         s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ParentKindTransferLockStore>>()))
+                .AddSingleton<IFilmTrailerClaimStore>(s =>
+                    new FilmTrailerClaimStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FilmTrailerClaimStore>>()))
                 .AddSingleton<IParentIndexingLockStore>(s =>
                     new ParentIndexingLockStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
@@ -144,10 +148,16 @@ public static class ServiceCollectionExtensions
                 .AddSingleton<IFilmSearchPushWatermarkStore>(s =>
                     new FilmSearchPushWatermarkStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))
+                .AddSingleton<ID1SearchReconcileWatermarkStore>(s =>
+                    new D1SearchReconcileWatermarkStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))
                 .AddSingleton<IXOAuth2TokenStore>(s =>
                     new XOAuth2TokenStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
                         s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<XOAuth2TokenStore>>()))
+                .AddSingleton<IXApiRateLimitStore>(s =>
+                    new XApiRateLimitStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer()))
                 .BindConfiguration<CosmosDbSettings>("cosmosdb")
                 .AddSingleton<IValidateOptions<CosmosDbSettings>, CosmosDbSettingsValidator>();
             services.AddOptions<CosmosDbSettings>().ValidateOnStart();

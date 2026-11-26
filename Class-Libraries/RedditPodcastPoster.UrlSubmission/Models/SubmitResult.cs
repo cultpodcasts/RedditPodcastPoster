@@ -21,7 +21,13 @@ public record SubmitResult(
     CatalogueLanguageHold? LanguageHold = null,
     CatalogueIdentityHold? IdentityHold = null,
     // Set when a film was saved: the host uploads its search document now, not on the next pull index.
-    Film? FilmSearchSource = null
+    Film? FilmSearchSource = null,
+    // Why the URL was rejected, shown to the submitter. Null when not rejected or when no reason is given.
+    string? RejectionMessage = null,
+    // #1416: nothing was written; the curator must choose overwrite or create-new for this stored episode.
+    ServiceLinkConflictHold? ServiceLinkConflict = null,
+    // #1416 overwrite: the new episode now holding the stored episode's old links. Saved; the host indexes it.
+    Episode? SplitOffEpisode = null
 )
 {
     public override string ToString()
@@ -57,9 +63,25 @@ public record SubmitResult(
             results.Add("rejected: 'True'");
         }
 
+        if (RejectionMessage != null)
+        {
+            results.Add($"rejection-message: '{RejectionMessage}'");
+        }
+
         if (RequiresCurator)
         {
             results.Add("requires-curator: 'True'");
+        }
+
+        if (ServiceLinkConflict != null)
+        {
+            results.Add(
+                $"service-link-conflict: episode-id '{ServiceLinkConflict.EpisodeId}', services '{string.Join("', '", ServiceLinkConflict.Links.Select(x => x.Service))}'");
+        }
+
+        if (SplitOffEpisode != null)
+        {
+            results.Add($"split-off-episode-id: '{SplitOffEpisode.Id}'");
         }
 
         if (SubmitEpisodeDetails != null)

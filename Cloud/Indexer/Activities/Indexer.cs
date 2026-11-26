@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure;
@@ -13,7 +13,6 @@ using RedditPodcastPoster.PodcastServices.YouTube.Quota;
 
 namespace Indexer.Activities;
 
-[DurableTask(nameof(Indexer))]
 public class Indexer(
     IPodcastsUpdater podcastsUpdater,
     ICatalogueParentsUpdater catalogueParentsUpdater,
@@ -24,13 +23,14 @@ public class Indexer(
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
     ILogger<Indexer> logger)
-    : TaskActivity<IndexerContextWrapper, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
-    public override async Task<IndexerContext> RunAsync(
-        TaskActivityContext context, IndexerContextWrapper indexerContextWrapper)
+    [Function(nameof(Indexer))]
+    public async Task<IndexerContext> Run(
+        [ActivityTrigger] IndexerContextWrapper indexerContextWrapper,
+        FunctionContext functionContext)
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Indexer));
         ActivityStatus initiatedStatus = ActivityStatus.Unknown;
@@ -40,7 +40,7 @@ public class Indexer(
 
         logger.LogInformation(
             "{nameofIndexer} initiated. task-activity-context-instance-id: '{contextInstanceId}'. Pass: {indexerContextWrapperPass}.",
-            nameof(Indexer), context.InstanceId, indexerContextWrapper.Pass);
+            nameof(Indexer), functionContext.InvocationId, indexerContextWrapper.Pass);
         var indexerContext = indexerContextWrapper.IndexerContext;
 
         if (indexerContext.IndexIds == null)
@@ -104,7 +104,7 @@ public class Indexer(
 
         logger.LogWarning(
             "IndexerPassStart instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' youtube-enabled-pass='{YouTubeEnabledPass}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' skip-expensive-spotify='{SkipExpensiveSpotify}'",
-            context.InstanceId,
+            functionContext.InvocationId,
             indexerContextWrapper.Pass,
             indexerOperationId,
             idsToIndexCount,
@@ -185,7 +185,7 @@ public class Indexer(
 
             logger.LogWarning(
                 "IndexerCostProbe.Update instance-id='{InstanceId}' pass='{Pass}' update-ms='{UpdateMs}'.",
-                context.InstanceId,
+                functionContext.InvocationId,
                 indexerContextWrapper.Pass,
                 updateMs);
         }
@@ -238,7 +238,7 @@ public class Indexer(
 
         logger.LogWarning(
             "IndexerPassComplete instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' success='{Success}' skip-youtube='{SkipYouTube}' youtube-error='{YouTubeError}' skip-spotify='{SkipSpotify}' spotify-error='{SpotifyError}' update-ms='{UpdateMs}'",
-            context.InstanceId,
+            functionContext.InvocationId,
             indexerContextWrapper.Pass,
             indexerOperationId,
             idsToIndexCount,
@@ -249,8 +249,8 @@ public class Indexer(
             result.SpotifyError,
             updateMs);
 
-        logger.LogInformation("{nameofRunAsync} Completed. Pass: {indexerContextWrapperPass}. Result: {result}",
-            nameof(RunAsync), indexerContextWrapper.Pass, result);
+        logger.LogInformation("{nameofRun} Completed. Pass: {indexerContextWrapperPass}. Result: {result}",
+            nameof(Run), indexerContextWrapper.Pass, result);
 
         return result;
     }

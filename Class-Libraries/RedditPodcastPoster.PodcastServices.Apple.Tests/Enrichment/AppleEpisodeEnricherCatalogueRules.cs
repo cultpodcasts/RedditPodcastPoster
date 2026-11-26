@@ -205,9 +205,9 @@ public class AppleEpisodeEnricherCatalogueRules
     }
 
     [Fact(DisplayName =
-        "When a YouTube-authority podcast is still inside the delayed audio window, Apple enrichment " +
-        "is bypassed and does not query the catalogue.")]
-    public async Task enrich_is_bypassed_for_youtube_authority_inside_delayed_audio_window()
+        "When a YouTube-authority podcast has a positive YouTube publishing delay and the episode is inside that window, " +
+        "Apple enrichment still queries the catalogue because the audio was released before YouTube (#1375).")]
+    public async Task enrich_queries_catalogue_for_youtube_authority_inside_positive_delay_window()
     {
         // Arrange
         var publishingDelay = TimeSpan.FromDays(1);
@@ -236,8 +236,7 @@ public class AppleEpisodeEnricherCatalogueRules
             enrichmentContext);
 
         // Assert
-        resolver.FindEpisodeInvoked.Should().BeFalse();
-        enrichmentContext.AppleUrlUpdated.Should().BeFalse();
+        resolver.FindEpisodeInvoked.Should().BeTrue();
     }
 
     [Fact(DisplayName =

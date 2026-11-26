@@ -5,6 +5,7 @@ using Api.Models;
 using Api.Services.Episodes;
 using Moq;
 using Moq.AutoMock;
+using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
 using EpisodeTrailerAttachRequest = Api.Models.EpisodeTrailerAttachRequest;
@@ -26,6 +27,67 @@ public class PostEpisodeTrailerAttachHandlerRules
         _ctx = _mocker.GetMock<IHandlerContext>();
         _ctx.Setup(c => c.Conflict(It.IsAny<object>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((object _, CancellationToken _) => null!);
+        _ctx.Setup(c => c.Ok(It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((object _, CancellationToken _) => null!);
+    }
+
+    [Fact(DisplayName =
+        "#1418: PostEpisodeTrailerAttachHandler: when createFilm needs an identity decision, then Handle responds 200 with the candidates and no film id, because nothing was written.")]
+    public async Task trailer_attach_identity_decision_returns_200_with_candidates()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var hold = new CatalogueIdentityHold(
+            CatalogueAuthorityCandidate.FilmKind,
+            name,
+            [
+                new CatalogueAuthorityCandidate(CatalogueAuthorityCandidate.TmdbKey(11), name, 2026,
+                    CatalogueAuthorityCandidate.FilmKind, CatalogueAuthorityCandidate.TmdbSource, 11, null)
+            ]);
+        _mocker.GetMock<IEpisodeTrailerAttachService>()
+            .Setup(s => s.AttachAsync(It.IsAny<EpisodeTrailerAttachCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeTrailerAttachResult(
+                EpisodeTrailerAttachStatus.IdentityDecisionRequired,
+                IdentityHold: hold));
+        var command = new EpisodeTrailerAttachCommand(
+            _fixture.CreateGuid(),
+            _fixture.CreateGuid(),
+            new EpisodeTrailerAttachRequest { CreateFilm = true, FilmName = name });
+        var sut = _mocker.CreateInstance<PostEpisodeTrailerAttachHandler>();
+
+        // Act
+        await sut.Handle(_ctx.Object, command, CancellationToken.None);
+
+        // Assert
+        _ctx.Verify(x => x.Ok(
+            It.Is<EpisodeTrailerAttachResponse>(r =>
+                r.FilmId == null &&
+                r.IdentityDecision != null &&
+                r.IdentityDecision.Candidates.Single().Key == "tmdb:11"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "#1418: PostEpisodeTrailerAttachHandler: when createFilm is cancelled, then Handle responds 200 with cancelled true.")]
+    public async Task trailer_attach_cancelled_returns_200_cancelled()
+    {
+        // Arrange
+        _mocker.GetMock<IEpisodeTrailerAttachService>()
+            .Setup(s => s.AttachAsync(It.IsAny<EpisodeTrailerAttachCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EpisodeTrailerAttachResult(EpisodeTrailerAttachStatus.Cancelled));
+        var command = new EpisodeTrailerAttachCommand(
+            _fixture.CreateGuid(),
+            _fixture.CreateGuid(),
+            new EpisodeTrailerAttachRequest { CreateFilm = true, FilmName = _fixture.CreateTitle() });
+        var sut = _mocker.CreateInstance<PostEpisodeTrailerAttachHandler>();
+
+        // Act
+        await sut.Handle(_ctx.Object, command, CancellationToken.None);
+
+        // Assert
+        _ctx.Verify(x => x.Ok(
+            It.Is<EpisodeTrailerAttachResponse>(r => r.Cancelled),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName =

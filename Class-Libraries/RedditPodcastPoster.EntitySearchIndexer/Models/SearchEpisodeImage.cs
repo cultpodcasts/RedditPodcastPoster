@@ -58,6 +58,12 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Models;
 ///         previously-indexed image on incremental (high-water-mark) merge (e.g. a stale Spotify
 ///         cover left behind before a YouTube video was merged onto the episode).
 ///     </para>
+///     <para>
+///         <b>Curator-removed image (#1500).</b> When <see cref="Episode.ImageRemoved" /> is set the image is
+///         <see cref="Episode.ImageRemovedSearchToken" /> (<c>-</c>), not <see cref="string.Empty" />, so clients
+///         show no art instead of synthesizing the YouTube thumbnail from <c>youtubeId</c>. <c>-</c> is neither a URL
+///         nor a token sigil, so <see cref="Expand" /> and older clients' <c>expandImage()</c> treat it as no image.
+///     </para>
 /// </summary>
 public readonly record struct SearchEpisodeImage(string Image)
 {
@@ -80,6 +86,12 @@ public readonly record struct SearchEpisodeImage(string Image)
     public static SearchEpisodeImage From(Episode episode)
     {
         ArgumentNullException.ThrowIfNull(episode);
+        if (episode.IsImageRemoved())
+        {
+            // #1500: a curator removed the image. "" would let clients fall back to the YouTube thumbnail.
+            return new SearchEpisodeImage(Episode.ImageRemovedSearchToken);
+        }
+
         var image = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder);
         if (image is null)
         {

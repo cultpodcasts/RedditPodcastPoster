@@ -15,6 +15,9 @@ public class FilmChangeRequest : PublisherFieldsChange
     /// both mean the client listed none.
     /// </summary>
     public Guid[]? ExpectedTrailerIds { get; set; }
+    public YouTubeAlternateChange[]? AdditionalYouTube { get; set; }
+    public string[]? ExpectedAdditionalYouTubeIds { get; set; }
+    public string? PromoteYouTubeId { get; set; }
     public string? Release { get; set; }
     public string? Duration { get; set; }
     public bool? Explicit { get; set; }
@@ -25,4 +28,10 @@ public class FilmChangeRequest : PublisherFieldsChange
     public bool? UnBluesky { get; set; }
     public string[]? Subjects { get; set; }
     public string[]? Guests { get; set; }
+    public string[]? AlternativeTitles { get; set; }
+
+    /// <summary>
+    /// The film's identity image URL (RPP #1435). Null = unchanged; <c>""</c> clears; otherwise an absolute http(s) URL.
+    /// </summary>
+    public string? Image { get; set; }
 }

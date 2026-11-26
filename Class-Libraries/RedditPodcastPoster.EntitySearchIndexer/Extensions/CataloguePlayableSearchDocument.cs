@@ -17,8 +17,9 @@ namespace RedditPodcastPoster.EntitySearchIndexer.Extensions;
 /// (none for a film) and <c>episodeSearchTerms</c> is the item's own terms. Used by the curator edit to push the
 /// document straight away instead of waiting for the pull indexer's next <c>_ts</c> run. <c>spotifyId</c>,
 /// <c>appleId</c> and <c>podcastAppleId</c> come from the <c>services</c> URLs through
-/// <see cref="PlayableServiceSearchIds"/>, the same rules the pull SQL uses: the push is a merge-upload, so a null
-/// here would blank the ids the pull wrote.
+/// <see cref="PlayableServiceSearchIds"/>, the same rules the pull SQL uses. TV and news are
+/// merge-or-uploaded, so a null here is omitted and the ids the pull wrote stay. Films are
+/// uploaded (replaced), so a null field is cleared (RPP #1428).
 /// </summary>
 public static class CataloguePlayableSearchDocument
 {
@@ -34,7 +35,15 @@ public static class CataloguePlayableSearchDocument
         record.SeriesName = episode.TvShowName?.Trim() ?? string.Empty;
         record.PublisherSearchTerms = episode.PublisherSearchTerms ?? string.Empty;
         PreferCatalogueYouTubeId(record, episode.YouTubeId);
+        record.YouTubeAlternates = YouTubeAlternateSearchToken.For(episode);
         ApplyServiceIds(record, episode.Services);
+        UseIdentityImageWhenNoServiceImage(record, episode.Image);
+        record.ImdbId = string.IsNullOrWhiteSpace(episode.ImdbId) ? null : episode.ImdbId;
+        record.TmdbId = episode.TmdbId;
+        record.TvdbId = episode.TvdbId;
+        record.SeriesImdbId = string.IsNullOrWhiteSpace(episode.SeriesImdbId) ? null : episode.SeriesImdbId;
+        record.SeriesTmdbId = episode.SeriesTmdbId;
+        record.SeriesTvdbId = episode.SeriesTvdbId;
         return record;
     }
 
@@ -51,6 +60,7 @@ public static class CataloguePlayableSearchDocument
         record.SeriesName = report.NewsOrganisationName?.Trim() ?? string.Empty;
         record.PublisherSearchTerms = report.PublisherSearchTerms ?? string.Empty;
         PreferCatalogueYouTubeId(record, report.YouTubeId);
+        record.YouTubeAlternates = YouTubeAlternateSearchToken.For(report);
         ApplyServiceIds(record, report.Services);
         return record;
     }
@@ -62,11 +72,33 @@ public static class CataloguePlayableSearchDocument
             .ToEpisodeSearchRecord(includeUnifiedPlayableFields: true);
         record.ContentKind = SearchContentKind.Film;
         record.SeriesName = null;
+        record.PodcastName = null;
         record.PublisherSearchTerms = string.Empty;
         record.Trailers = FilmTrailerSearchToken.For(film);
+        // [] clears titles already in the index. Null (never set) is omitted from the JSON; on a
+        // film Upload (replace) that also clears the index field, unlike a merge (RPP #1428).
+        record.AlternativeTitles = film.AlternativeTitles is { } titles ? [.. titles] : null;
+        record.ImdbId = string.IsNullOrWhiteSpace(film.ImdbId) ? null : film.ImdbId;
+        record.TmdbId = film.TmdbId;
         PreferCatalogueYouTubeId(record, film.YouTubeId);
+        record.YouTubeAlternates = YouTubeAlternateSearchToken.For(film);
         ApplyServiceIds(record, film.Services);
+        // Service image wins; then identity (TMDB); then the first trailer thumbnail (RPP #1430 / #1422).
+        UseIdentityImageWhenNoServiceImage(record, FilmDisplayImage.PreferIdentityOrTrailer(film));
         return record;
+    }
+
+    /// <summary>
+    /// RPP #1430 / #1422: a streaming service's image wins; the identity image (TMDB backdrop, poster or still) or
+    /// a trailer thumbnail is used only when no service has one. Same order as the pull SQL for services + identity
+    /// (<c>PlayableSearchSql.SiblingQuery</c>); trailer fallback is push-path for films with no Services row.
+    /// </summary>
+    private static void UseIdentityImageWhenNoServiceImage(EpisodeSearchRecord record, Uri? identityImage)
+    {
+        if (string.IsNullOrEmpty(record.Image) && identityImage is not null)
+        {
+            record.Image = identityImage.ToString();
+        }
     }
 
     /// <summary>

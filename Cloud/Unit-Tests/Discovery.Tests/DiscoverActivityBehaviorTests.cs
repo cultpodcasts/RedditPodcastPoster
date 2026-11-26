@@ -5,7 +5,6 @@ using Discovery.Models;
 using Discovery.Orchestrations;
 using Discovery.Services;
 using FluentAssertions;
-using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -39,14 +38,12 @@ public class DiscoverActivityBehaviorTests
     private readonly Mock<IDiscoveryResultsRepository> _repo = new(MockBehavior.Strict);
     private readonly Mock<IDiscoveryInfoContentPublisher> _publisher = new(MockBehavior.Strict);
     private readonly Mock<INotificationPublisher> _notifications = new(MockBehavior.Strict);
+    private readonly Mock<IMemoryProbeOrchestrator> _memory = new();
     private readonly Discover _sut;
-    private readonly TaskActivityContext _activityContext =
-        Mock.Of<TaskActivityContext>(c => c.InstanceId == "test");
 
     public DiscoverActivityBehaviorTests()
     {
-        var memory = new Mock<IMemoryProbeOrchestrator>();
-        memory.Setup(m => m.Start(It.IsAny<string>())).Returns(Mock.Of<IMemoryProbeScope>());
+        _memory.Setup(m => m.Start(It.IsAny<string>())).Returns(Mock.Of<IMemoryProbeScope>());
 
         _sut = new Discover(
             Options.Create(new DiscoverOptions
@@ -54,7 +51,7 @@ public class DiscoverActivityBehaviorTests
                 IncludeYouTube = true,
                 DynamicLookbackOverlap = TimeSpan.FromMinutes(10)
             }),
-            memory.Object,
+            _memory.Object,
             _lookback.Object,
             _configProvider.Object,
             _discoveryService.Object,
@@ -69,6 +66,7 @@ public class DiscoverActivityBehaviorTests
         "Discover happy path: lookback since drives discovery service and results are saved once")]
     public async Task Discover_happy_path_uses_lookback_calls_service_and_saves()
     {
+        // Arrange
         ArrangeSuccessfulLookback();
         ArrangeMarshallerInitiated();
         ArrangeDiscoveryConfig();
@@ -82,8 +80,10 @@ public class DiscoverActivityBehaviorTests
         _publisher.Setup(p => p.PublishUnprocessedSummaryAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DiscoveryInfo { DocumentCount = 0 });
 
-        var outcome = await _sut.RunAsync(_activityContext, new DiscoveryContext(_operationId));
+        // Act
+        var outcome = await _sut.Run(new DiscoveryContext(_operationId));
 
+        // Assert
         outcome.Success.Should().BeTrue();
         outcome.DuplicateDiscoveryOperation.Should().BeNull();
         saved.Should().NotBeNull();
@@ -99,11 +99,14 @@ public class DiscoverActivityBehaviorTests
         "Discover fail-closed: lookback unavailable skips providers and persist")]
     public async Task Discover_lookback_unavailable_fails_closed_without_providers_or_save()
     {
+        // Arrange
         _lookback.Setup(r => r.ResolveAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DiscoveryLookbackUnavailableException("fail-closed"));
 
-        var act = async () => await _sut.RunAsync(_activityContext, new DiscoveryContext(_operationId));
+        // Act
+        var act = async () => await _sut.Run(new DiscoveryContext(_operationId));
 
+        // Assert
         await act.Should().ThrowAsync<DiscoveryLookbackUnavailableException>();
         _marshaller.VerifyNoOtherCalls();
         _discoveryService.VerifyNoOtherCalls();
@@ -115,12 +118,15 @@ public class DiscoverActivityBehaviorTests
         "Discover duplicate operation skips providers and persist")]
     public async Task Discover_duplicate_operation_skips_providers_and_persist()
     {
+        // Arrange
         ArrangeSuccessfulLookback();
         _marshaller.Setup(m => m.Initiate(_operationId, nameof(Discover)))
             .ReturnsAsync(ActivityStatus.AlreadyInitiated);
 
-        var outcome = await _sut.RunAsync(_activityContext, new DiscoveryContext(_operationId));
+        // Act
+        var outcome = await _sut.Run(new DiscoveryContext(_operationId));
 
+        // Assert
         outcome.DuplicateDiscoveryOperation.Should().BeTrue();
         outcome.Success.Should().BeNull();
         _discoveryService.VerifyNoOtherCalls();
@@ -133,6 +139,7 @@ public class DiscoverActivityBehaviorTests
         "Discover save failure surfaces as DiscoveryOrchestrationIncompleteException")]
     public async Task Discover_save_failure_surfaces_as_incomplete()
     {
+        // Arrange
         ArrangeSuccessfulLookback();
         ArrangeMarshallerInitiated();
         ArrangeDiscoveryConfig();
@@ -141,8 +148,10 @@ public class DiscoverActivityBehaviorTests
         _repo.Setup(r => r.Save(It.IsAny<DiscoveryResultsDocument>()))
             .ThrowsAsync(new InvalidOperationException("cosmos down"));
 
-        var act = async () => await _sut.RunAsync(_activityContext, new DiscoveryContext(_operationId));
+        // Act
+        var act = async () => await _sut.Run(new DiscoveryContext(_operationId));
 
+        // Assert
         var ex = await act.Should().ThrowAsync<DiscoveryOrchestrationIncompleteException>();
         ex.Which.InnerException.Should().BeOfType<InvalidOperationException>();
         _marshaller.Verify(m => m.Complete(_operationId, nameof(Discover)), Times.Once);

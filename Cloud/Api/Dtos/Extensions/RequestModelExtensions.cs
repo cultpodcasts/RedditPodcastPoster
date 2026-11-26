@@ -23,12 +23,16 @@ public static class RequestModelExtensions
         UnBluesky = request.UnBluesky,
         Ignored = request.Ignored,
         Removed = request.Removed,
+        ApprovalDecision = request.ApprovalDecision,
         Explicit = request.Explicit,
         Release = request.Release,
         Duration = request.Duration,
         Urls = request.Urls,
         Images = request.Images,
         Services = request.Services,
+        AdditionalYouTube = ToYouTubeAlternateChanges(request.AdditionalYouTube),
+        ExpectedAdditionalYouTubeIds = request.ExpectedAdditionalYouTubeIds,
+        PromoteYouTubeId = request.PromoteYouTubeId,
         Subjects = request.Subjects,
         SearchTerms = request.SearchTerms,
         HashTag = request.HashTag,
@@ -107,6 +111,9 @@ public static class RequestModelExtensions
             Services = request.Services,
             Trailers = request.Trailers?.Select(trailer => new Models.FilmTrailerChange(trailer.Id, trailer.Title)).ToArray(),
             ExpectedTrailerIds = request.ExpectedTrailerIds,
+            AdditionalYouTube = ToYouTubeAlternateChanges(request.AdditionalYouTube),
+            ExpectedAdditionalYouTubeIds = request.ExpectedAdditionalYouTubeIds,
+            PromoteYouTubeId = request.PromoteYouTubeId,
             Release = request.Release,
             Duration = request.Duration,
             Explicit = request.Explicit,
@@ -116,7 +123,9 @@ public static class RequestModelExtensions
             BlueskyPosted = request.BlueskyPosted,
             UnBluesky = request.UnBluesky,
             Subjects = request.Subjects,
-            Guests = request.Guests
+            Guests = request.Guests,
+            AlternativeTitles = request.AlternativeTitles,
+            Image = request.Image
         });
 
     public static Models.TvShowChangeRequest ToModel(this TvShowChangeRequest request) =>
@@ -136,7 +145,13 @@ public static class RequestModelExtensions
         });
 
     public static Models.NewsOrganisationChangeRequest ToModel(this NewsOrganisationChangeRequest request) =>
-        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest()));
+        request.CopyServiceIdsTo(request.CopyPublisherFieldsTo(new Models.NewsOrganisationChangeRequest
+        {
+            AdditionalYouTubeChannels = request.AdditionalYouTubeChannels?
+                .Select(x => new Models.AdditionalYouTubeChannelChange(x?.YouTubeChannelId, x?.YouTubePlaylistId))
+                .ToArray(),
+            AdditionalYouTubeChannelIds = request.AdditionalYouTubeChannelIds?.ToArray()
+        }));
 
     public static Models.NewsReportChangeRequest ToModel(this NewsReportChangeRequest request) =>
         request.CopyPlayableFieldsTo(new Models.NewsReportChangeRequest());
@@ -205,8 +220,16 @@ public static class RequestModelExtensions
         model.Language = request.Language;
         model.Guests = request.Guests;
         model.Services = request.Services;
+        model.AdditionalYouTube = ToYouTubeAlternateChanges(request.AdditionalYouTube);
+        model.ExpectedAdditionalYouTubeIds = request.ExpectedAdditionalYouTubeIds;
+        model.PromoteYouTubeId = request.PromoteYouTubeId;
         return model;
     }
+
+    private static Models.YouTubeAlternateChange[]? ToYouTubeAlternateChanges(
+        YouTubeAlternateChangeRequest[]? items) =>
+        items?.Select(item =>
+            new Models.YouTubeAlternateChange(item.YouTubeId, item.Url, item.Title, item.ChannelName)).ToArray();
 
     public static Models.DiscoverySubmitRequest ToModel(this DiscoverySubmitRequest request) => new()
     {
@@ -214,7 +237,9 @@ public static class RequestModelExtensions
         ResultIds = request.ResultIds,
         LanguageDecisions = request.LanguageDecisions,
         IdentityDecisions = request.IdentityDecisions,
-        SelectedIdentityKeys = request.SelectedIdentityKeys
+        SelectedIdentityKeys = request.SelectedIdentityKeys,
+        KindDecisions = request.KindDecisions,
+        SelectedKindKeys = request.SelectedKindKeys
     };
 
     public static Models.DiscoverySubmitOutcomeRequest ToModel(this DiscoverySubmitOutcomeRequest request) => new()
@@ -271,7 +296,9 @@ public static class RequestModelExtensions
         PrefetchedMeta = request.PrefetchedMeta,
         LanguageDecision = request.LanguageDecision,
         IdentityDecision = request.IdentityDecision,
-        SelectedIdentityKey = request.SelectedIdentityKey
+        SelectedIdentityKey = request.SelectedIdentityKey,
+        ServiceLinkConflictDecision = request.ServiceLinkConflictDecision,
+        ServiceLinkConflictEpisodeId = request.ServiceLinkConflictEpisodeId
     };
 
     public static Models.SubmitUrlPrepareRequest ToModel(this SubmitUrlPrepareRequest request) => new()

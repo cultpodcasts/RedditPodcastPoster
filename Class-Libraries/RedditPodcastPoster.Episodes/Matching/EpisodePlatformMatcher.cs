@@ -11,8 +11,6 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
     : IEpisodePlatformMatcher
 {
     private const int MinFuzzyTitleScore = 70;
-    private static readonly TimeSpan DurationTolerance = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan CrossPlatformDurationTolerance = TimeSpan.FromMinutes(5);
 
     private readonly IReadOnlyList<IReleaseMatchStrategy> _releaseMatchStrategies = releaseMatchStrategies.ToList();
     private readonly CompareInfo _compareInfo = CultureInfo.InvariantCulture.CompareInfo;
@@ -84,7 +82,7 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
                 // Offset confidence model: title is never alone. Exact title Certain only when
                 // duration and the release-strategy chain also align — otherwise months-late
                 // Spotify with a recycled/shared title wrong-merges onto the wrong YouTube row.
-                if (DurationsMatch(existingEpisode, incomingEpisode, podcast) &&
+                if (DurationsMatch(existingEpisode, incomingEpisode, titleSupported: true) &&
                     EpisodesReleaseMatch(existingEpisode, incomingEpisode, podcast))
                 {
                     return EpisodeMatchKind.Certain;
@@ -145,7 +143,7 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
             return false;
         }
 
-        if (!DurationsMatch(existingEpisode, incomingEpisode, podcast))
+        if (!DurationsMatch(existingEpisode, incomingEpisode, titleSupported: true))
         {
             return false;
         }
@@ -166,7 +164,7 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
             return false;
         }
 
-        if (!DurationsMatch(existingEpisode, incomingEpisode, podcast))
+        if (!DurationsMatch(existingEpisode, incomingEpisode, titleSupported: false))
         {
             return false;
         }
@@ -207,23 +205,29 @@ public sealed partial class EpisodePlatformMatcher(IEnumerable<IReleaseMatchStra
         return false;
     }
 
-    private static bool DurationsMatch(Episode existingEpisode, Episode incomingEpisode, Podcast podcast)
+    private static bool DurationsMatch(
+        Episode existingEpisode,
+        Episode incomingEpisode,
+        bool titleSupported)
     {
-        var tolerance = GetDurationTolerance(existingEpisode, incomingEpisode, podcast);
+        var tolerance = GetDurationTolerance(existingEpisode, incomingEpisode, titleSupported);
         return Math.Abs((existingEpisode.Length - incomingEpisode.Length).Ticks) < tolerance.Ticks;
     }
 
     private static TimeSpan GetDurationTolerance(
         Episode existingEpisode,
         Episode incomingEpisode,
-        Podcast podcast)
+        bool titleSupported)
     {
         if (HasCrossPlatformYouTubeAudioPair(existingEpisode, incomingEpisode))
         {
-            return CrossPlatformDurationTolerance;
+            return EpisodeDurationTolerance.ForYouTubeAudioPair(
+                existingEpisode.Length,
+                incomingEpisode.Length,
+                titleSupported);
         }
 
-        return DurationTolerance;
+        return EpisodeDurationTolerance.SamePlatform;
     }
 
     private static bool HasCrossPlatformYouTubeAudioPair(Episode existingEpisode, Episode incomingEpisode)

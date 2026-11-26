@@ -123,7 +123,7 @@ public class YouTubeUrlCategoriser(
                         indexingContext);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException ||
-                                           !indexingContext.CancellationToken.IsCancellationRequested)
+                                           !PodcastRunScope.Current.CancellationToken.IsCancellationRequested)
                 {
                     // Private, deleted, or a WL/LL/RD mix, or the lookup failed: the video itself is fine, so submit it
                     // without the playlist rather than failing the whole submit.

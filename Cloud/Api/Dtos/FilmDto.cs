@@ -53,8 +53,23 @@ public class FilmDto : PublisherFieldsDto, IPlayableGuestFieldsDto
     [JsonPropertyName("services")]
     public Dictionary<string, ServiceLinkDto>? Services { get; set; }
 
+    /// <summary>Image from the film's identity (TMDB backdrop or poster). Omitted when unknown (RPP #1430).</summary>
+    [JsonPropertyName("image")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Uri? Image { get; set; }
+
+    /// <summary>Other titles the film is known by. Omitted when never set; [] when a curator cleared them or TMDB had none (RPP #1431).</summary>
+    [JsonPropertyName("alternativeTitles")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string[]? AlternativeTitles { get; set; }
+
     /// <summary>In display order; omitted when the film has none.</summary>
     [JsonPropertyName("trailers")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public FilmTrailerDto[]? Trailers { get; set; }
+
+    /// <summary>Extra YouTube uploads, in display order; omitted when the film has none (RPP #1411).</summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public YouTubeAlternateDto[]? AdditionalYouTube { get; set; }
 }

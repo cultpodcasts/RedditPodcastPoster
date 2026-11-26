@@ -1,4 +1,5 @@
 using Api.Models;
+using Api.Services;
 using Microsoft.Extensions.Logging;
 using Episode = RedditPodcastPoster.Models.Episodes.Episode;
 using RedditPodcastPoster.Models.Episodes;
@@ -12,6 +13,7 @@ using RedditPodcastPoster.PodcastServices.YouTube;
 using RedditPodcastPoster.PodcastServices.YouTube.Extensions;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.BBC.Matching;
+using RedditPodcastPoster.Episodes.Curation;
 using RedditPodcastPoster.InternetArchive.Matching;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
@@ -61,6 +63,17 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         if (episodeChangeRequest.Explicit != null)
         {
             episode.Explicit = episodeChangeRequest.Explicit.Value;
+        }
+
+        // #1484: before the posting flags below, so a curator's explicit flag in the same change still wins.
+        switch (episodeChangeRequest.ApprovalDecision)
+        {
+            case ApprovalDecision.Approve:
+                EpisodeServiceLinks.Approve(episode);
+                break;
+            case ApprovalDecision.Reject:
+                EpisodeServiceLinks.Reject(episode);
+                break;
         }
 
         if (episodeChangeRequest.Ignored != null)
@@ -239,11 +252,17 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             }
         }
 
+        // #1500: track explicit curator image clears / sets so a deliberate removal is recorded on the episode.
+        var imageBefore = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder);
+        var clearedImageKeys = new List<string>();
+        var imageSet = false;
+
         if (episodeChangeRequest.Images?.Spotify != null)
         {
             var image = episodeChangeRequest.Images.Spotify.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.Spotify;
+            TrackImageEdit(ServiceKeys.Spotify, image, clearedImageKeys, ref imageSet);
             EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Spotify, image);
         }
 
@@ -252,6 +271,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             var image = episodeChangeRequest.Images.Apple.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.Apple;
+            TrackImageEdit(ServiceKeys.Apple, image, clearedImageKeys, ref imageSet);
             EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.Apple, image);
         }
 
@@ -260,6 +280,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
             var image = episodeChangeRequest.Images.YouTube.ToString() == string.Empty
                 ? null
                 : episodeChangeRequest.Images.YouTube;
+            TrackImageEdit(ServiceKeys.YouTube, image, clearedImageKeys, ref imageSet);
             EpisodeServicePresence.SetCatalogImage(episode, ServiceKeys.YouTube, image);
         }
 
@@ -297,7 +318,21 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                     key = StreamingServiceCatalog.TryResolveKey(url) ?? pair.Key;
                 }
 
+                if (pair.Value?.Image is not null)
+                {
+                    // #1500: an explicit "" image on a link that stays is a curator clearing that service's art.
+                    // Deleting the whole link ("" url and image) is handled above and is not an image removal.
+                    TrackImageEdit(key, image, clearedImageKeys, ref imageSet);
+                }
+
                 EpisodeServicePresence.Upsert(episode, key, url, image);
+                if (pair.Value?.Image is not null && image is null)
+                {
+                    // #1500: an explicit "" image on a kept link clears that service's art. Upsert keeps an image it
+                    // is not given, so clear it here.
+                    EpisodeServicePresence.SetCatalogImage(episode, key, null);
+                }
+
                 ApplyKnownServiceId(episode, key, url, changeState);
             }
         }
@@ -307,6 +342,7 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
         }
 
         EpisodeServicePresence.SyncIds(episode);
+        ApplyImageRemoved(episode, imageBefore, clearedImageKeys, imageSet);
 
         if (episodeChangeRequest.Language != null)
         {
@@ -328,7 +364,114 @@ public class EpisodeChangeApplier(ILogger<EpisodeChangeApplier> logger)
                 : null;
         }
 
+        YouTubeAlternateChangeApplier.Apply(
+            episode, episodeChangeRequest.AdditionalYouTube, episodeChangeRequest.PromoteYouTubeId);
+
         return changeState;
+    }
+
+    /// <summary>
+    /// The primary YouTube id after this change's <c>services</c> or <c>urls.youtube</c> is applied.
+    /// Services win when both are sent, matching <see cref="Apply"/>.
+    /// </summary>
+    internal static string? ResultingYouTubePrimary(Episode episode, EpisodeChangeRequest request)
+    {
+        if (request.Services is not null)
+        {
+            return YouTubeAlternateChangeApplier.ResultingPrimaryYouTubeId(episode, request.Services);
+        }
+
+        if (request.Urls?.YouTube is { } url)
+        {
+            if (url.ToString() == string.Empty)
+            {
+                return null;
+            }
+
+            if (YouTubePodcastServiceMatcher.IsMatch(url))
+            {
+                var id = YouTubeIdResolver.Extract(url);
+                if (!string.IsNullOrWhiteSpace(id))
+                {
+                    return id;
+                }
+            }
+        }
+
+        return YouTubeAlternateChangeApplier.CurrentPrimaryYouTubeId(episode);
+    }
+
+    private static void TrackImageEdit(string key, Uri? image, List<string> clearedImageKeys, ref bool imageSet)
+    {
+        if (image is null)
+        {
+            clearedImageKeys.Add(key);
+        }
+        else
+        {
+            imageSet = true;
+        }
+    }
+
+    /// <summary>
+    /// #1500: a curator setting any image clears <see cref="Episode.ImageRemoved"/>. A curator clearing the image of a
+    /// link that stays on the episode, when that leaves the episode with no image at all (it had one before), records
+    /// the removal, so search, D1, the homepage, share cards and social posts show no art rather than falling back to
+    /// the YouTube thumbnail. Clearing one image while another remains, deleting a whole link, or clearing an image
+    /// that was already empty changes nothing. Edits that touch no image leave the flag as it is.
+    /// </summary>
+    internal static void ApplyImageRemoved(
+        Episode episode,
+        Uri? imageBefore,
+        IReadOnlyCollection<string> clearedImageKeys,
+        bool imageSet)
+    {
+        if (imageSet)
+        {
+            episode.ImageRemoved = null;
+            return;
+        }
+
+        if (imageBefore is null || clearedImageKeys.Count == 0)
+        {
+            return;
+        }
+
+        if (EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder) is not null)
+        {
+            return;
+        }
+
+        if (clearedImageKeys.Any(key => EpisodeServicePresence.TryGetUrl(episode, key) is not null))
+        {
+            episode.ImageRemoved = true;
+        }
+    }
+
+    /// <summary>
+    /// #1484: why a change cannot be applied to <paramref name="episode"/>'s approval status, or null. An episode held
+    /// for approval (awaiting or rejected) is made public only by approving it, never by clearing <c>removed</c>; only
+    /// a held episode can be rejected (null means approved, like any ordinary episode, which is hidden with
+    /// <c>removed</c>); and a decision cannot be combined with the opposite <c>removed</c>. Approving an episode that is
+    /// already approved is accepted and changes nothing.
+    /// </summary>
+    internal static string? SplitOffReviewError(Episode episode, EpisodeChangeRequest request)
+    {
+        switch (request.ApprovalDecision)
+        {
+            case null:
+                return request.Removed == false && episode.IsHeldForApproval()
+                    ? "This split-off is awaiting approval or rejected: approve it to make it public."
+                    : null;
+            case ApprovalDecision.Reject when !episode.IsHeldForApproval():
+                return "Only an episode awaiting approval can be rejected.";
+            case ApprovalDecision.Approve when request.Removed == true:
+                return "An approved split-off cannot also be removed in the same change.";
+            case ApprovalDecision.Reject when request.Removed == false:
+                return "A rejected split-off stays removed.";
+            default:
+                return null;
+        }
     }
 
     /// <summary>

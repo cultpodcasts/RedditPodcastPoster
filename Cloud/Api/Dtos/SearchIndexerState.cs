@@ -1,5 +1,8 @@
-﻿namespace Api.Dtos;
+﻿using Api.Contracts;
 
+namespace Api.Dtos;
+
+[ExportContract]
 public enum SearchIndexerState
 {
     EpisodeNotFound = 1,

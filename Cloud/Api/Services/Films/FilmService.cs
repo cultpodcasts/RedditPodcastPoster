@@ -2,8 +2,10 @@ using Api.Models;
 using Api.Services.Catalogue;
 using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Tmdb.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
 
 namespace Api.Services.Films;
@@ -12,6 +14,8 @@ public class FilmService(
     IFilmRepository filmRepository,
     CataloguePlayableSearchSync searchSync,
     IPlayableSocialRetraction socialRetraction,
+    IIdentityMetadataEnricher identityMetadata,
+    IUrlMembershipLookup urlMembershipLookup,
     ILogger<FilmService> logger) : IFilmService
 {
     public async Task<FilmGetResult> GetAsync(string identifier, CancellationToken cancellationToken)
@@ -64,6 +68,7 @@ public class FilmService(
             // Projected before the PATCH, so the match uses the release, length and AT URI the post was made with.
             var target = SocialPostRemovalTarget.For(film);
             var hadTrailers = film.Trailers is { Count: > 0 };
+            var hadAdditionalYouTube = film.AdditionalYouTube is { Count: > 0 };
             var readTrailerIds = film.Trailers?.Select(trailer => trailer.Id).ToHashSet() ?? [];
 
             if (!PlayableChangeApplier.TryParseRelease(request.Change.Release, allowYear: true, out _, out var fieldError) ||
@@ -71,6 +76,16 @@ public class FilmService(
                 !FilmLinkChangeApplier.TryValidate(film, request.Change, out fieldError))
             {
                 return new FilmUpdateResult(FilmUpdateStatus.BadRequest, fieldError);
+            }
+
+            var heldYouTube = await YouTubeAlternateOwnership.ConflictMessageIfHeld(
+                urlMembershipLookup,
+                YouTubeAlternateOwnership.NewFilmAlternateIds(film, request.Change),
+                [film.Id],
+                cancellationToken);
+            if (heldYouTube is not null)
+            {
+                return new FilmUpdateResult(FilmUpdateStatus.Conflict, heldYouTube);
             }
 
             // Same decision as PostStatusApplier, without writing the film this request first read.
@@ -90,7 +105,21 @@ public class FilmService(
                 }
             }
 
-            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds);
+            if (request.Change.AdditionalYouTube is not null)
+            {
+                var stale = await ReadStaleYouTubeAlternates(film.Id, request.Change.ExpectedAdditionalYouTubeIds);
+                if (stale.Status != FilmUpdateStatus.Accepted)
+                {
+                    return stale;
+                }
+            }
+
+            // Read once, outside the save loop. Applied to the film the save re-reads, only where a field is empty
+            // and this request did not touch it (a field the curator cleared in this PATCH stays empty).
+            var metadata = await ReadIdentityMetadata(film, request.Change, cancellationToken);
+            var skip = SkipFrom(request.Change);
+            var refillEmptyAlternativeTitles = IdentityIdsChanged(film, request.Change) && request.Change.AlternativeTitles is null;
+            var persisted = await SaveKeepingAttachedTrailers(film.Id, request.Change, readTrailerIds, metadata, skip, cancellationToken, refillEmptyAlternativeTitles);
             if (persisted.Result.Status != FilmUpdateStatus.Accepted || persisted.Film is null)
             {
                 return persisted.Result;
@@ -133,7 +162,8 @@ public class FilmService(
                 target.Projection,
                 request.Change.Removed == true,
                 cancellationToken,
-                trailersCleared: hadTrailers && saved.Trailers is not { Count: > 0 });
+                trailersCleared: hadTrailers && saved.Trailers is not { Count: > 0 },
+                youTubeAlternatesCleared: hadAdditionalYouTube && saved.AdditionalYouTube is not { Count: > 0 });
 
             return new FilmUpdateResult(FilmUpdateStatus.Accepted, Outcome: outcome);
         }
@@ -174,6 +204,60 @@ public class FilmService(
             logger.LogError(ex, "Failed to delete film '{filmId}'.", filmId);
             return new EpisodeDeleteResult(EpisodeDeleteStatus.Failed);
         }
+    }
+
+    /// <summary>
+    /// RPP #1430: the film's TMDB metadata when this edit leaves it with an IMDb or TMDB id and either changes an id
+    /// or leaves a field identity can fill empty (description, release, runtime, image, publisher, alternative titles).
+    /// Null otherwise, or when the lookup fails; the edit is saved either way.
+    /// </summary>
+    private async Task<TmdbMovieMetadata?> ReadIdentityMetadata(
+        Film film,
+        FilmChangeRequest change,
+        CancellationToken cancellationToken)
+    {
+        var imdbId = change.ImdbId is null
+            ? film.ImdbId
+            : change.ImdbId.Trim().Length == 0 ? null : change.ImdbId.Trim();
+        var tmdbId = change.TmdbId is null
+            ? film.TmdbId
+            : change.TmdbId.Value == 0 ? null : change.TmdbId;
+        if (imdbId is null && tmdbId is null)
+        {
+            return null;
+        }
+
+        var idsChanged = IdentityIdsChanged(film, change);
+        if (!idsChanged && !IdentityMetadataFill.HasGaps(film, SkipFrom(change)))
+        {
+            return null;
+        }
+
+        return await identityMetadata.FetchFilmAsync(tmdbId, imdbId, cancellationToken);
+    }
+
+    private static IdentityFieldSkip SkipFrom(FilmChangeRequest change) => new(
+        Description: change.Description is not null,
+        Release: change.Release is not null,
+        Length: change.Duration is not null,
+        Image: change.Image is not null,
+        AlternativeTitles: change.AlternativeTitles is not null,
+        Publisher: change.PublisherName is not null,
+        TmdbId: change.TmdbId is not null);
+
+    /// <summary>
+    /// True when this PATCH sets a different IMDb or TMDB id than the film already has. A [] alternative-titles
+    /// list is then fillable, as long as the request does not send alternativeTitles (RPP #1431).
+    /// </summary>
+    private static bool IdentityIdsChanged(Film film, FilmChangeRequest change)
+    {
+        var imdbId = change.ImdbId is null
+            ? film.ImdbId
+            : change.ImdbId.Trim().Length == 0 ? null : change.ImdbId.Trim();
+        var tmdbId = change.TmdbId is null
+            ? film.TmdbId
+            : change.TmdbId.Value == 0 ? null : change.TmdbId;
+        return !string.Equals(imdbId, film.ImdbId, StringComparison.Ordinal) || tmdbId != film.TmdbId;
     }
 
     private const int MaxSaveAttempts = FilmDocumentUpdate.MaxAttempts;
@@ -222,6 +306,41 @@ public class FilmService(
                ?? [];
     }
 
+    private const string StaleYouTubeAlternatesMessage =
+        "The film's additional YouTube links changed after this edit was loaded. Close and reopen the film to edit them.";
+
+    private async Task<FilmUpdateResult> ReadStaleYouTubeAlternates(Guid filmId, string[]? expectedIds)
+    {
+        var latest = await filmRepository.GetFilmForUpdate(filmId);
+        if (latest is null)
+        {
+            return new FilmUpdateResult(FilmUpdateStatus.NotFound);
+        }
+
+        var expected = expectedIds is null ? new HashSet<string>(StringComparer.Ordinal) : expectedIds.ToHashSet(StringComparer.Ordinal);
+        var unexpected = latest.Film.AdditionalYouTube?
+            .Select(item => item.YouTubeId)
+            .Where(id => !expected.Contains(id))
+            .ToArray() ?? [];
+        if (unexpected.Length == 0)
+        {
+            return new FilmUpdateResult(FilmUpdateStatus.Accepted);
+        }
+
+        return StaleYouTubeAlternates(filmId, unexpected);
+    }
+
+    private FilmUpdateResult StaleYouTubeAlternates(Guid filmId, string[] unexpected)
+    {
+        logger.LogWarning(
+            "{method}: Film '{filmId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
+            nameof(StaleYouTubeAlternates), filmId, unexpected.Length);
+        return new FilmUpdateResult(
+            FilmUpdateStatus.Conflict,
+            StaleYouTubeAlternatesMessage,
+            UnexpectedAdditionalYouTubeIds: unexpected);
+    }
+
     /// <summary>
     /// The film this replace wrote, or a result and no film when the edit was not saved.
     /// </summary>
@@ -236,7 +355,11 @@ public class FilmService(
     private async Task<FilmPersist> SaveKeepingAttachedTrailers(
         Guid filmId,
         FilmChangeRequest change,
-        IReadOnlySet<Guid> readTrailerIds)
+        IReadOnlySet<Guid> readTrailerIds,
+        TmdbMovieMetadata? metadata,
+        IdentityFieldSkip skip,
+        CancellationToken cancellationToken,
+        bool refillEmptyAlternativeTitles = false)
     {
         var guardingTrailers = change.Trailers is not null;
         for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
@@ -258,7 +381,23 @@ public class FilmService(
                     return new FilmPersist(StaleTrailers(filmId, unexpected), null);
                 }
             }
-            else
+
+            if (change.AdditionalYouTube is not null)
+            {
+                var expected = change.ExpectedAdditionalYouTubeIds is null
+                    ? new HashSet<string>(StringComparer.Ordinal)
+                    : change.ExpectedAdditionalYouTubeIds.ToHashSet(StringComparer.Ordinal);
+                var unexpectedYouTube = latest.Film.AdditionalYouTube?
+                    .Select(item => item.YouTubeId)
+                    .Where(id => !expected.Contains(id))
+                    .ToArray() ?? [];
+                if (unexpectedYouTube.Length > 0)
+                {
+                    return new FilmPersist(StaleYouTubeAlternates(filmId, unexpectedYouTube), null);
+                }
+            }
+
+            if (!guardingTrailers)
             {
                 var attached = latest.Film.Trailers?.Count(trailer => !readTrailerIds.Contains(trailer.Id)) ?? 0;
                 if (attached > 0)
@@ -269,9 +408,24 @@ public class FilmService(
                 }
             }
 
+            var heldYouTube = await YouTubeAlternateOwnership.ConflictMessageIfHeld(
+                urlMembershipLookup,
+                YouTubeAlternateOwnership.NewFilmAlternateIds(latest.Film, change),
+                [latest.Film.Id],
+                cancellationToken);
+            if (heldYouTube is not null)
+            {
+                return new FilmPersist(new FilmUpdateResult(FilmUpdateStatus.Conflict, heldYouTube), null);
+            }
+
             if (!TryApply(latest.Film, change, out _, out var applyError))
             {
                 return new FilmPersist(new FilmUpdateResult(FilmUpdateStatus.BadRequest, applyError), null);
+            }
+
+            if (metadata is not null)
+            {
+                IdentityMetadataFill.Fill(latest.Film, metadata, skip, refillEmptyAlternativeTitles);
             }
 
             if (await filmRepository.TryReplace(latest.Film, latest.ETag))
@@ -297,6 +451,7 @@ public class FilmService(
         postStatus = PostStatusChange.None;
         if (!PlayableChangeApplier.TryParseRelease(change.Release, allowYear: true, out var release, out error) ||
             !PlayableChangeApplier.TryParseDuration(change.Duration, out var length, out error) ||
+            !TryParseImage(change.Image, out var image, out error) ||
             !FilmLinkChangeApplier.TryValidate(film, change, out error))
         {
             return false;
@@ -307,6 +462,10 @@ public class FilmService(
 
         // Publisher fields include publisher, description and removed.
         PublisherChangeApplier.Apply(film, change);
+        if (image.Specified)
+        {
+            film.Image = image.Value;
+        }
         postStatus = PostStatusApplier.Apply(
             film, change.Posted, change.Tweeted, change.BlueskyPosted, change.UnBluesky);
 
@@ -340,6 +499,36 @@ public class FilmService(
             film.Guests = PlayableChangeApplier.NormaliseGuests(change.Guests);
         }
 
+        return true;
+    }
+
+    /// <summary>
+    /// Omitted (null) is unchanged. <c>""</c> clears. Anything else must be an absolute http(s) URL (RPP #1435).
+    /// </summary>
+    internal static bool TryParseImage(string? image, out (bool Specified, Uri? Value) parsed, out string? error)
+    {
+        parsed = default;
+        error = null;
+        if (image is null)
+        {
+            return true;
+        }
+
+        var text = image.Trim();
+        if (text.Length == 0)
+        {
+            parsed = (true, null);
+            return true;
+        }
+
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            error = "Image must be an absolute http(s) URL, or blank to clear.";
+            return false;
+        }
+
+        parsed = (true, uri);
         return true;
     }
 }

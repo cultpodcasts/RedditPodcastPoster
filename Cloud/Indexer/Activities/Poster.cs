@@ -1,4 +1,4 @@
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure.Diagnostics;
@@ -9,25 +9,26 @@ using RedditPodcastPoster.Configuration.Options;
 
 namespace Indexer.Activities;
 
-[DurableTask(nameof(Poster))]
 public class Poster(
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<PosterOptions> posterOptions,
     IOptions<PostingCriteria> postingCriteria,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Poster> logger)
-    : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly PosterOptions _posterOptions = posterOptions.Value;
     private readonly PostingCriteria _postingCriteria = postingCriteria.Value;
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
-    public override Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
+    [Function(nameof(Poster))]
+    public Task<IndexerContext> Run(
+        [ActivityTrigger] IndexerContext indexerContext,
+        FunctionContext functionContext)
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Poster));
 
         logger.LogInformation("{class} initiated. task-activity-context-instance-id: '{contextInstanceId}'.",
-            nameof(Poster), context.InstanceId);
+            nameof(Poster), functionContext.InvocationId);
         logger.LogInformation(indexerContext.ToString());
         logger.LogInformation(_posterOptions.ToString());
         logger.LogInformation(_postingCriteria.ToString());
@@ -35,7 +36,7 @@ public class Poster(
 
         logger.LogInformation(
             "{method} Posting with options released-since: '{baselineDate:O}', max-posts: '{posterOptionsMaxPosts}'.",
-            nameof(RunAsync), baselineDate, _posterOptions.MaxPosts);
+            nameof(Run), baselineDate, _posterOptions.MaxPosts);
 
         if (!activityOptionsProvider.RunPoster(out var reason))
         {
@@ -55,12 +56,12 @@ public class Poster(
         // Live Reddit.NET posting removed; RunPoster switch kept for a future Devvit poster.
         logger.LogInformation(
             "{method} Reddit posting is retired; skipping episode posts (released-since '{baselineDate:O}').",
-            nameof(RunAsync),
+            nameof(Run),
             baselineDate);
 
         var result = indexerContext with { Success = true };
         memoryProbe.End(true);
-        logger.LogInformation("{method} Completed. Result: {result}", nameof(RunAsync), result);
+        logger.LogInformation("{method} Completed. Result: {result}", nameof(Run), result);
         return Task.FromResult(result);
     }
 }

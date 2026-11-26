@@ -81,6 +81,27 @@ public class DiscoverySubmissionHandlersTests
     }
 
     [Fact(DisplayName =
+        "A queued apply answers 202 Accepted with the Applying status, because the ingest runs on the queue and the page polls the submission (#1415).")]
+    public async Task queued_apply_returns_202()
+    {
+        // Arrange
+        _mocker.GetMock<IDiscoverySubmissionReviewService>()
+            .Setup(s => s.Apply(It.IsAny<Guid>(), It.IsAny<DiscoverySubmissionApplyRequest>(),
+                It.IsAny<SupervisionCaller>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DiscoverySubmissionCommandResult(DiscoverySubmissionCommandStatus.Accepted,
+                ETag: _fixture.Create<string>(), SubmissionStatus: RedditPodcastPoster.Models.Discovery.DiscoverySubmissionStatus.Applying));
+        var sut = _mocker.CreateInstance<PostDiscoverySubmissionApplyHandler>();
+
+        // Act
+        var result = await sut.Handle(Context("supervise"),
+            new DiscoverySubmissionReviewRoute<DiscoverySubmissionApplyRequest>(_fixture.Create<Guid>(),
+                new DiscoverySubmissionApplyRequest { ETag = _fixture.Create<string>() }), CancellationToken.None);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
+
+    [Fact(DisplayName =
         "A supervise caller's apply reaches the review service as a supervisor and a successful apply returns 200 with the command outcome.")]
     public async Task supervisor_apply_reaches_service()
     {

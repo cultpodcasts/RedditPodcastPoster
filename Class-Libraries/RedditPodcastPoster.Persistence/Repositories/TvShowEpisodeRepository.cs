@@ -31,6 +31,33 @@ public class TvShowEpisodeRepository(
         CataloguePlayableFieldPatchOperations.ReadWithETag<TvShowEpisode>(
             container, episodeId.ToString(), ToPartitionKey(tvShowId));
 
+    public async Task<bool> TryReplace(TvShowEpisode episode, string etag)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(etag);
+        if (episode.Id == Guid.Empty || episode.TvShowId == Guid.Empty)
+        {
+            throw new ArgumentException("TvShowEpisode Id and TvShowId must be set before replace.");
+        }
+
+        try
+        {
+            await container.ReplaceItemAsync(
+                episode,
+                episode.Id.ToString(),
+                ToPartitionKey(episode.TvShowId),
+                new ItemRequestOptions { IfMatchEtag = etag });
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.PreconditionFailed
+                                             or HttpStatusCode.NotFound)
+        {
+            logger.LogWarning(
+                "{method}: tv-show episode '{EpisodeId}' changed or was deleted since it was read ({status}).",
+                nameof(TryReplace), episode.Id, ex.StatusCode);
+            return false;
+        }
+    }
+
     public Task<CataloguePlayablePatchOutcome> PatchFields(
         Guid tvShowId,
         Guid episodeId,

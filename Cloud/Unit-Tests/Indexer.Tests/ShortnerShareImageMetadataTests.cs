@@ -137,4 +137,30 @@ public class ShortnerShareImageMetadataTests
         json.Should().Contain("\"imageAspect\":\"wide\"");
         roundTrip!.ImageAspect.Should().Be(ShareImageAspect.Square);
     }
+
+    [Fact(DisplayName =
+        "New shortener metadata carries no share image when a curator removed the episode's image, so share cards show no art (#1500).")]
+    public void Stores_no_image_when_curator_removed_it()
+    {
+        // Arrange
+        const string youTubeId = "griffinsong42";
+        var episode = new Episode
+        {
+            YouTubeId = youTubeId,
+            ImageRemoved = true
+        };
+        var metadata = new MetaData
+        {
+            EpisodeTitle = "Sample title",
+            ReleaseDate = new DateOnly(2026, 7, 29),
+            Duration = TimeSpan.FromMinutes(30)
+        };
+
+        // Act
+        ShortnerShareImageMetadata.Apply(metadata, episode);
+
+        // Assert
+        metadata.Image.Should().BeNull();
+        metadata.YoutubeId.Should().BeNull();
+    }
 }

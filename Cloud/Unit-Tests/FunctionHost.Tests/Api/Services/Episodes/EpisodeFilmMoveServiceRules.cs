@@ -77,7 +77,7 @@ public class EpisodeFilmMoveServiceRules
                 It.IsAny<int?>(),
                 It.IsAny<CatalogueIdentityChoice>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ApplyMissing(It.IsAny<Film>(), It.IsAny<CatalogueAuthorityIds?>()))
@@ -221,7 +221,7 @@ public class EpisodeFilmMoveServiceRules
         var ids = new CatalogueAuthorityIds(imdb, tmdb, TvdbId: null);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed(ids));
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ApplyMissing(It.IsAny<Film>(), ids))
@@ -275,7 +275,7 @@ public class EpisodeFilmMoveServiceRules
             ]);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.NeedsPrompt(hold));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
@@ -315,7 +315,7 @@ public class EpisodeFilmMoveServiceRules
         var ids = new CatalogueAuthorityIds(imdb, tmdb, TvdbId: null);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Select, selectedKey, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Select, selectedKey, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed(ids));
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ApplyMissing(It.IsAny<Film>(), ids))
@@ -357,7 +357,7 @@ public class EpisodeFilmMoveServiceRules
         episode.Title = title;
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Continue, null, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Continue, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
@@ -398,7 +398,7 @@ public class EpisodeFilmMoveServiceRules
         _mocker.GetMock<ICatalogueIdentityEnricher>().Verify(
             e => e.ResolveFilmAsync(
                 It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CatalogueIdentityChoice>(),
-                It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+                It.IsAny<string?>(), It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()),
             Times.Never);
         _mocker.GetMock<IEpisodeServiceMaterialiser>().Verify(
             m => m.MaterialiseAsync(
@@ -419,7 +419,7 @@ public class EpisodeFilmMoveServiceRules
         episode.Title = title;
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(e => e.ResolveFilmAsync(
-                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>()))
+                title, It.IsAny<int?>(), CatalogueIdentityChoice.Unset, null, It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
         _podcasts.Seed(podcast);
         _episodes.Seed(episode);
@@ -496,7 +496,7 @@ public class EpisodeFilmMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "The search document keeps the episode guid and switches ContentKind to Film with no series name, as the catalogue migrator does.")]
+        "The search document keeps the episode guid and switches ContentKind to Film with no series name, as kind transfer does.")]
     public async Task search_swap_uses_same_guid_and_film_kind()
     {
         // Arrange
@@ -559,7 +559,7 @@ public class EpisodeFilmMoveServiceRules
     }
 
     [Fact(DisplayName =
-        "A removed episode cannot be moved to a film, because the migrator only moves active episodes, and the search swap receives no upload.")]
+        "A removed episode cannot be moved to a film, because only active episodes are moved, and the search swap receives no upload.")]
     public async Task removed_episode_is_bad_request()
     {
         // Arrange
@@ -576,6 +576,30 @@ public class EpisodeFilmMoveServiceRules
         result.Status.Should().Be(EpisodeFilmMoveStatus.BadRequest);
         _savedFilms.Should().BeEmpty();
         _uploadedSearchDocuments.Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "A held or rejected episode cannot be moved to a new film, because a split-off stays hidden until a curator approves it, and nothing is written.")]
+    [InlineData(ApprovalStatus.AwaitingApproval)]
+    [InlineData(ApprovalStatus.Rejected)]
+    public async Task held_episode_is_bad_request(ApprovalStatus status)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        episode.ApprovalStatus = status;
+        _podcasts.Seed(podcast);
+        _episodes.Seed(episode);
+
+        // Act
+        var result = await Move(podcast.Id, episode.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeFilmMoveStatus.BadRequest);
+        result.Error.Should().Be("An episode held for approval cannot be moved to a film");
+        _savedFilms.Should().BeEmpty();
+        _uploadedSearchDocuments.Should().BeNull();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().NotBeNull();
     }
 
     [Fact(DisplayName =

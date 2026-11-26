@@ -1,4 +1,4 @@
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Azure.Diagnostics;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -11,19 +11,20 @@ namespace Indexer.Activities;
 /// and replaces any YouTube has since withdrawn. Runs after the recent candidates load and before
 /// posting, so social cards built later in the run use the replacement.
 /// </summary>
-[DurableTask(nameof(YouTubeThumbnailRecheck))]
 public class YouTubeThumbnailRecheck(
     IRecentYouTubeThumbnailRechecker rechecker,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<YouTubeThumbnailRecheck> logger)
-    : TaskActivity<IndexerContext, IndexerContext>
 {
-    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
+    [Function(nameof(YouTubeThumbnailRecheck))]
+    public async Task<IndexerContext> Run(
+        [ActivityTrigger] IndexerContext indexerContext,
+        FunctionContext functionContext)
     {
         var memoryProbe = memoryProbeOrchestrator.Start(nameof(YouTubeThumbnailRecheck));
         logger.LogInformation(
             "{YouTubeThumbnailRecheckName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.",
-            nameof(YouTubeThumbnailRecheck), context.InstanceId);
+            nameof(YouTubeThumbnailRecheck), functionContext.InvocationId);
 
         if (indexerContext.RecentEpisodeCandidates is not { Length: > 0 } candidates)
         {

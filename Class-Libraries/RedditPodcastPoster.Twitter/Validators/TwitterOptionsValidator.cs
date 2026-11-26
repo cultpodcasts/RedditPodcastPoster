@@ -21,6 +21,32 @@ public class TwitterOptionsValidator : IValidateOptions<TwitterOptions>
                 $"(config key: {TwitterOptions.SectionName}__{nameof(TwitterOptions.RequestTimeoutSeconds)}).");
         }
 
+        if (options.MaxPosts <= 0)
+        {
+            failures.Add(
+                $"{nameof(TwitterOptions)}.{nameof(TwitterOptions.MaxPosts)} must be > 0 " +
+                $"(config key: {TwitterOptions.SectionName}__{nameof(TwitterOptions.MaxPosts)}).");
+        }
+        else if (options.MaxPosts > TwitterOptions.MaxPostsLimit)
+        {
+            failures.Add(
+                $"{nameof(TwitterOptions)}.{nameof(TwitterOptions.MaxPosts)} must be <= {TwitterOptions.MaxPostsLimit} " +
+                $"(config key: {TwitterOptions.SectionName}__{nameof(TwitterOptions.MaxPosts)}).");
+        }
+
+        if (options.MaxFailures <= 0)
+        {
+            failures.Add(
+                $"{nameof(TwitterOptions)}.{nameof(TwitterOptions.MaxFailures)} must be > 0 " +
+                $"(config key: {TwitterOptions.SectionName}__{nameof(TwitterOptions.MaxFailures)}).");
+        }
+        else if (options.MaxFailures > TwitterOptions.MaxFailuresLimit)
+        {
+            failures.Add(
+                $"{nameof(TwitterOptions)}.{nameof(TwitterOptions.MaxFailures)} must be <= {TwitterOptions.MaxFailuresLimit} " +
+                $"(config key: {TwitterOptions.SectionName}__{nameof(TwitterOptions.MaxFailures)}).");
+        }
+
         if (options.ApiBaseAddress is not { IsAbsoluteUri: true })
         {
             failures.Add(

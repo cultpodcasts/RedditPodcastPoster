@@ -17,6 +17,9 @@ public interface INewsReportRepository : IRepository<NewsReport>, IFilterableRep
     /// <summary>Point read that also returns the ETag; null when the report does not exist.</summary>
     Task<ETagged<NewsReport>?> GetNewsReportWithETag(Guid newsOrganisationId, Guid reportId);
 
+    /// <summary>Optimistic replace guarded by <paramref name="etag"/>. False when the document changed or is gone.</summary>
+    Task<bool> TryReplace(NewsReport report, string etag);
+
     /// <summary>
     /// Cosmos partial patch of <c>/services</c> and/or <c>/youTubeId</c> only, guarded by <paramref name="ifMatchETag"/>.
     /// A missing document is <see cref="CataloguePlayablePatchOutcome.NotFound"/> (never recreated); a changed one is

@@ -169,6 +169,38 @@ public class SearchEpisodeImageTests
         expandedEmpty.Should().BeEmpty();
     }
 
+    [Fact(DisplayName =
+        "A curator-removed image projects the '-' token, not an empty string, so clients show no art instead of the YouTube thumbnail they would synthesize from youtubeId (#1500).")]
+    public void curator_removed_image_projects_the_removed_token()
+    {
+        // Arrange
+        var episode = CatalogEpisode("removedvid01");
+        episode.ImageRemoved = true;
+
+        // Act
+        var result = SearchEpisodeImage.From(episode);
+
+        // Assert
+        result.Image.Should().Be(Episode.ImageRemovedSearchToken);
+        result.Image.Should().Be("-");
+        SearchEpisodeImage.Expand(result.Image, "removedvid01").Should().Be("-",
+            "the removed token is not a URL or sigil, so it never expands to a YouTube thumbnail");
+    }
+
+    [Fact(DisplayName =
+        "An episode with no stored image and no removal still projects an empty image, so clients keep the YouTube thumbnail fallback (#1500).")]
+    public void no_image_and_no_removal_projects_empty()
+    {
+        // Arrange
+        var episode = CatalogEpisode("fallbackvid1");
+
+        // Act
+        var result = SearchEpisodeImage.From(episode);
+
+        // Assert
+        result.Image.Should().BeEmpty();
+    }
+
     private static Episode CatalogEpisode(
         string? youTubeId,
         Uri? youTubeImage = null,

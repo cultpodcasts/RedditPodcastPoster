@@ -40,6 +40,15 @@ public partial class RestoreProcessor(
                 else
                 {
                     var episode = episodeMatches.Single();
+                    if (episode.IsHeldForApproval())
+                    {
+                        // #1484: a split-off awaiting approval or rejected is made public only by a curator approving it.
+                        logger.LogWarning(
+                            "Skipping episode '{EpisodeId}' ('{episodeLine}'): approval status is '{ApprovalStatus}'. Approve it in the episode editor instead.",
+                            episode.Id, episodeLine, episode.ApprovalStatus);
+                        continue;
+                    }
+
                     episode.Removed = false;
                     updatedEpisodeIds.Add(episode.Id);
                     await episodeRepository.Save(episode);

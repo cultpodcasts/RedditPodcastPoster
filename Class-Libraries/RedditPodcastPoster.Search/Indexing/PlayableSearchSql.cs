@@ -107,6 +107,24 @@ public static class PlayableSearchSql
             """;
     }
 
+    /// <summary>
+    /// Cosmos projection of <c>additionalYouTube</c> as the search document's <c>youTubeAlternates</c>
+    /// tokens <c>{youTubeId}|{yyyy-MM-dd}|{channelName}</c> (RPP #1411). Release uses the first ten
+    /// characters of the stored ISO string (the UTC date). Null when the array is missing or empty so
+    /// Azure omits the field, matching <see cref="Formatting.YouTubeAlternateSearchToken.For"/>.
+    /// </summary>
+    public static string YouTubeAlternatesProjection(string alias)
+    {
+        return
+            $"IIF(IS_DEFINED({alias}.additionalYouTube) AND IS_ARRAY({alias}.additionalYouTube) AND ARRAY_LENGTH({alias}.additionalYouTube) > 0, " +
+            "ARRAY(SELECT VALUE CONCAT(" +
+            "a.youTubeId, \"|\", " +
+            "IIF(IS_DEFINED(a.release) AND IS_STRING(a.release) AND LENGTH(a.release) >= 10, SUBSTRING(a.release, 0, 10), \"\"), " +
+            "\"|\", " +
+            "IIF(IS_DEFINED(a.channelName) AND IS_STRING(a.channelName), a.channelName, \"\")) " +
+            $"FROM a IN {alias}.additionalYouTube), null)";
+    }
+
     public static string SiblingQuery(
         SiblingProjection projection,
         IReadOnlyList<string> svcKeys,
@@ -125,7 +143,9 @@ public static class PlayableSearchSql
             ? $"{projection.SeriesNameExpression} as seriesName,"
             : string.Empty;
         var release = SearchIndexCosmosSql.ReleaseSort(documentAlias);
-        var image = SearchIndexCosmosSql.ImageOrEmpty(imageCoalesceOrder, documentAlias);
+        // RPP #1430: a TV episode's identity image (c.image, the TMDB still) when no service has an image.
+        var image =
+            $"(({SearchIndexCosmosSql.CoalescedImageFallback(imageCoalesceOrder, documentAlias)} ?? {documentAlias}.image) ?? \"\")";
         var svc = SearchIndexCosmosSql.SvcProjection(svcKeys, documentAlias);
         var spotifyId = SpotifyEpisodeIdFromUrl(documentAlias);
         var appleId = AppleEpisodeIdFromUrl(documentAlias);
@@ -151,6 +171,14 @@ public static class PlayableSearchSql
                 {documentAlias}.publisherSearchTerms as publisherSearchTerms,
                 {documentAlias}.searchTerms as episodeSearchTerms,
                 {documentAlias}.lang as lang,
+                {documentAlias}.alternativeTitles as alternativeTitles,
+                {documentAlias}.imdbId as imdbId,
+                {documentAlias}.tmdbId as tmdbId,
+                {documentAlias}.tvdbId as tvdbId,
+                {documentAlias}.seriesImdbId as seriesImdbId,
+                {documentAlias}.seriesTmdbId as seriesTmdbId,
+                {documentAlias}.seriesTvdbId as seriesTvdbId,
+                {YouTubeAlternatesProjection(documentAlias)} as youTubeAlternates,
                 {documentAlias}._ts
             FROM c
             WHERE ((NOT IS_DEFINED({documentAlias}.parentRemoved) OR IS_NULL({documentAlias}.parentRemoved) OR {documentAlias}.parentRemoved = false)

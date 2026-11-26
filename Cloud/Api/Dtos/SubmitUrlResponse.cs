@@ -24,6 +24,14 @@ public class SubmitUrlResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IdentityDecisionBody? IdentityDecision { get; private set; }
 
+    /// <summary>
+    /// Set when nothing was written because the URL matches a stored episode that already has a different link for
+    /// that service (#1416). Re-POST with <c>serviceLinkConflictDecision</c> and <c>serviceLinkConflictEpisodeId</c>.
+    /// </summary>
+    [JsonPropertyName("serviceLinkConflict")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ServiceLinkConflictBody? ServiceLinkConflict { get; private set; }
+
     /// <summary>The caller chose cancel; nothing was created.</summary>
     [JsonPropertyName("cancelled")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -41,7 +49,8 @@ public class SubmitUrlResponse
                 result.Podcast?.Id,
                 result.ContentKind,
                 result.PlayableId,
-                result.DefaultLanguageFromDetection)
+                result.DefaultLanguageFromDetection,
+                result.SplitOffEpisode?.Id)
         };
     }
 
@@ -50,6 +59,25 @@ public class SubmitUrlResponse
 
     public static SubmitUrlResponse IdentityDecisionRequired(CatalogueIdentityHold hold) =>
         new() { IdentityDecision = ToIdentityDecision(hold) };
+
+    public static SubmitUrlResponse ServiceLinkConflictDecisionRequired(ServiceLinkConflictHold hold,
+        Guid? podcastId = null) =>
+        new()
+        {
+            ServiceLinkConflict = new ServiceLinkConflictBody
+            {
+                EpisodeId = hold.EpisodeId,
+                PodcastId = podcastId,
+                EpisodeTitle = hold.EpisodeTitle,
+                EpisodeRelease = hold.EpisodeReleaseUtc,
+                Links = hold.Links.Select(link => new ServiceLinkConflictLinkBody
+                {
+                    Service = link.Service,
+                    StoredUrl = link.StoredUrl?.ToString(),
+                    SubmittedUrl = link.SubmittedUrl?.ToString()
+                }).ToArray()
+            }
+        };
 
     public static SubmitUrlResponse CancelledResponse() => new() { Cancelled = true };
 
@@ -155,7 +183,8 @@ public class SubmitUrlResponse
         Guid? podcastId,
         string? contentKind = null,
         Guid? playableId = null,
-        bool defaultLanguageFromDetection = false)
+        bool defaultLanguageFromDetection = false,
+        Guid? splitOffEpisodeId = null)
     {
         [JsonPropertyName("episode")]
         [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -181,6 +210,14 @@ public class SubmitUrlResponse
 
         [JsonPropertyName("episodeDetails")]
         public EpisodeDetails? EpisodeDetails { get; private set; } = submitEpisodeDetails;
+
+        /// <summary>
+        /// #1484: set when an overwrite moved the stored episode's old links to a new episode in the same podcast
+        /// (<c>podcastId</c>). That episode is hidden (removed) until a curator reviews and approves it.
+        /// </summary>
+        [JsonPropertyName("splitOffEpisodeId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Guid? SplitOffEpisodeId { get; private set; } = splitOffEpisodeId;
 
         /// <summary>True when this create stored a detected non-English default language on a new parent.</summary>
         [JsonPropertyName("defaultLanguageFromDetection")]
@@ -210,6 +247,43 @@ public class SubmitUrlResponse
 
         [JsonPropertyName("candidates")]
         public required IdentityCandidateBody[] Candidates { get; set; }
+    }
+
+    public class ServiceLinkConflictBody
+    {
+        /// <summary>The stored episode; send it back as <c>serviceLinkConflictEpisodeId</c> with <c>overwrite</c>.</summary>
+        [JsonPropertyName("episodeId")]
+        public required Guid EpisodeId { get; set; }
+
+        /// <summary>#1484: the stored episode's podcast, so the curator can open the stored episode.</summary>
+        [JsonPropertyName("podcastId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Guid? PodcastId { get; set; }
+
+        [JsonPropertyName("episodeTitle")]
+        public required string EpisodeTitle { get; set; }
+
+        [JsonPropertyName("episodeRelease")]
+        public required DateTime EpisodeRelease { get; set; }
+
+        [JsonPropertyName("links")]
+        public required ServiceLinkConflictLinkBody[] Links { get; set; }
+    }
+
+    public class ServiceLinkConflictLinkBody
+    {
+        /// <summary><c>spotify</c> or <c>apple</c>.</summary>
+        [JsonPropertyName("service")]
+        public required string Service { get; set; }
+
+        /// <summary>The stored episode's link now; on <c>overwrite</c> it moves to a new episode of its own.</summary>
+        [JsonPropertyName("storedUrl")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? StoredUrl { get; set; }
+
+        [JsonPropertyName("submittedUrl")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? SubmittedUrl { get; set; }
     }
 
     public class IdentityCandidateBody

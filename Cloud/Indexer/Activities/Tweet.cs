@@ -1,4 +1,4 @@
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure.Diagnostics;
@@ -10,25 +10,26 @@ using RedditPodcastPoster.Twitter.Posters;
 
 namespace Indexer.Activities;
 
-[DurableTask(nameof(Tweet))]
 public class Tweet(
     ITweeter tweeter,
     IActivityOptionsProvider activityOptionsProvider,
     IOptions<IndexerOptions> indexerOptions,
     IMemoryProbeOrchestrator memoryProbeOrchestrator,
     ILogger<Tweet> logger)
-    : TaskActivity<IndexerContext, IndexerContext>
 {
     private readonly IndexerOptions _indexerOptions = indexerOptions.Value;
     private readonly IMemoryProbeOrchestrator _memoryProbeOrchestrator = memoryProbeOrchestrator;
 
-    public override async Task<IndexerContext> RunAsync(TaskActivityContext context, IndexerContext indexerContext)
+    [Function(nameof(Tweet))]
+    public async Task<IndexerContext> Run(
+        [ActivityTrigger] IndexerContext indexerContext,
+        FunctionContext functionContext)
     {
         var memoryProbe = _memoryProbeOrchestrator.Start(nameof(Tweet));
 
         logger.LogInformation(
             "{TweetName} initiated. task-activity-context-instance-id: '{ContextInstanceId}'.", nameof(Tweet),
-            context.InstanceId);
+            functionContext.InvocationId);
         logger.LogInformation(indexerContext.ToString());
 
         if (!activityOptionsProvider.RunTweet(out var reason))
@@ -57,7 +58,7 @@ public class Tweet(
 
         memoryProbe.End();
 
-        logger.LogInformation($"{nameof(RunAsync)} Completed");
+        logger.LogInformation($"{nameof(Run)} Completed");
         return indexerContext with { Success = true };
     }
 }

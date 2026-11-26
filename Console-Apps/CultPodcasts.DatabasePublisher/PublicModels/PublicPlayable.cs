@@ -43,4 +43,10 @@ public class PublicPlayable
     [JsonPropertyName("urls")]
     [JsonPropertyOrder(14)]
     public SortedDictionary<string, Uri> Urls { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>Extra YouTube uploads in display order (RPP #1411); omitted when there are none.</summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonPropertyOrder(15)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<PublicYouTubeAlternate>? AdditionalYouTube { get; set; }
 }

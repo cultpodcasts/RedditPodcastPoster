@@ -50,6 +50,10 @@ Measured miss rate (Azure hits absent from D1) on full corpus free-text set:
 
 ## Analyzer / index notes
 
+- Production schema (G1), beyond the 8 Nov 2026 demo snapshot, must also include:
+  **full uncapped descriptions**, **guests**, film **`alternativeTitles`**, and
+  retrievable identity ids (`imdbId` / `tmdbId` / `tvdbId` and series variants).
+  Guests and full descriptions are required from soak day one (SP-0.3, 16 Nov 2026).
 - External-content FTS5 table + AI/AD/AU triggers (column contract must stay identical
   across rebuilds).
 - **Diacritics:** D1 folds by default; Azure does not. Prefer keeping fold (better UX);
@@ -71,7 +75,13 @@ Measured miss rate (Azure hits absent from D1) on full corpus free-text set:
 ## Ranking
 
 - Default free-text: FTS5 `bm25()` / `rank`. Top-10 overlap with Azure is weak (0–7/10) —
-  tune per-column weights (SP-1.8).
+  tune per-column weights (SP-1.8). Title and `alternativeTitles` should be the heaviest
+  columns.
+- **Required before cutover (Jon, 16 Nov 2026, 10:14 GMT):** an unquoted query that is an
+  exact title or an exact AKA must rank that document first (heavy title/AKA phrase boost).
+  Example: `Father's House` ranks Faderhuset first. Quoted searches keep working as phrases
+  (e.g. `"hannah w."`). SP-1.8 must not slip past G4. Add harness cases for unquoted exact
+  title, unquoted AKA, and quoted phrases.
 - Filter browse: `ORDER BY release DESC` — **exact id sequence** vs Azure on podcast/subject
   pages (verified). Add `id` as secondary key for same-timestamp ties (SP-1.7).
 - Post-cutover enhancements: recency blend, `NEAR` proximity boost

@@ -75,6 +75,7 @@ public static class CatalogueDtoMapping
         dto.Language = playable.Language;
         dto.Guests = playable.Guests;
         dto.Services = playable.Services.ToDtos();
+        dto.AdditionalYouTube = YouTubeAlternateDtoMapping.ToDtos(playable.AdditionalYouTube);
         return dto;
     }
 

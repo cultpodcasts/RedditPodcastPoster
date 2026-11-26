@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Api.Contracts;
 using Api.Dtos.Mapping;
 
 namespace Api.Dtos;
@@ -6,13 +7,15 @@ namespace Api.Dtos;
 /// <summary>
 /// Curate/admin episode JSON. Flat projection — does not inherit domain Episode.
 /// </summary>
+[ExportContract]
 public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
 {
     /// <summary><c>Episode</c>, <c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c>.</summary>
     [JsonPropertyName("contentKind")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonPropertyOrder(300)]
-    public string? ContentKind { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ContentKindDto? ContentKind { get; set; }
 
     /// <summary>Podcast, news organisation or TV show id; null for a film.</summary>
     [JsonPropertyName("parentId")]
@@ -98,6 +101,16 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyOrder(45)]
     public bool Removed { get; set; }
 
+    /// <summary>
+    /// #1484: <c>"AwaitingApproval"</c> or <c>"Rejected"</c> on an episode held for curator approval (a split-off);
+    /// absent means approved (every ordinary episode, and a split-off once approved).
+    /// </summary>
+    [JsonPropertyName("approvalStatus")]
+    [JsonPropertyOrder(451)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ApprovalStatusDto? ApprovalStatus { get; set; }
+
     [JsonPropertyName("lang")]
     [JsonPropertyOrder(46)]
     public string? Language { get; set; }
@@ -122,13 +135,13 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyOrder(60)]
     public ServiceUrlsDto Urls { get; set; } = new();
 
-    [JsonPropertyName("subjects")]
+    [JsonPropertyName("subjects")] // pragma: allowlist secret
     [JsonPropertyOrder(70)]
-    public List<string> Subjects { get; set; } = [];
+    public List<string> Subjects { get; set; } = []; // pragma: allowlist secret
 
-    [JsonPropertyName("removedSubjects")]
+    [JsonPropertyName("removedSubjects")] // pragma: allowlist secret
     [JsonPropertyOrder(71)]
-    public List<string> RemovedSubjects { get; set; } = [];
+    public List<string> RemovedSubjects { get; set; } = []; // pragma: allowlist secret
 
     [JsonPropertyName("matches")]
     [JsonPropertyOrder(72)]
@@ -149,6 +162,12 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyName("services")]
     [JsonPropertyOrder(151)]
     public Dictionary<string, ServiceLinkDto>? Services { get; set; }
+
+    /// <summary>Extra YouTube uploads, in display order; omitted when the episode has none (RPP #1526).</summary>
+    [JsonPropertyName("additionalYouTube")]
+    [JsonPropertyOrder(153)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public YouTubeAlternateDto[]? AdditionalYouTube { get; set; }
 
     [JsonPropertyName("guests")]
     [JsonPropertyOrder(160)]
@@ -179,6 +198,22 @@ public class EpisodeDto : IPlayableKindDto, IPlayableGuestFieldsDto
     [JsonPropertyName("image")]
     [JsonPropertyOrder(250)]
     public Uri? Image { get; set; }
+
+    /// <summary>Other titles a film is known by (RPP #1431). Omitted for other kinds.</summary>
+    [JsonPropertyName("alternativeTitles")]
+    [JsonPropertyOrder(251)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string[]? AlternativeTitles { get; set; }
+
+    /// <summary>
+    /// RPP #1500: true when a curator removed this episode's image, so the site shows no art rather than the YouTube
+    /// thumbnail. Omitted otherwise (never <c>false</c>). Read-only: set and cleared by image edits, not by this field.
+    /// Same name, order and omission as <see cref="PublicEpisodeDto.ImageRemoved"/>.
+    /// </summary>
+    [JsonPropertyName("imageRemoved")]
+    [JsonPropertyOrder(252)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ImageRemoved { get; set; }
 
     /// <summary>Resolved people for <see cref="Guests"/> (curator edit).</summary>
     [JsonPropertyName("guestPeople")]

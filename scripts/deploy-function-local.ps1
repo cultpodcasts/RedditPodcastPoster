@@ -94,8 +94,8 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw 'dotnet CLI was not found on PATH.'
 }
 
-# Production Function publishes must use stable .NET 10 — never a preview/RC SDK.
-# Repo global.json pins 10.0.x; this assert catches machines that ignore it or lack that SDK.
+# Production Function publishes must use stable .NET 11 — never a preview/RC SDK.
+# Repo global.json pins 11.0.x; this assert catches machines that ignore it or lack that SDK.
 $sdkVersion = (& dotnet --version 2>$null).Trim()
 if ([string]::IsNullOrWhiteSpace($sdkVersion)) {
     throw 'Unable to resolve dotnet SDK version (dotnet --version failed).'
@@ -104,13 +104,13 @@ Write-Host "dotnet SDK: $sdkVersion"
 if ($sdkVersion -match '(?i)preview|rc|alpha|beta') {
     throw @"
 Production Function deploys must not use a preview/RC .NET SDK (got $sdkVersion).
-Install a stable .NET 10 SDK and keep repo global.json (sdk 10.0.x). Do not publish with .NET 11+ preview.
+Install a stable .NET 11 SDK and keep repo global.json (sdk 11.0.x). Do not publish with a preview SDK.
 "@
 }
-if (-not ($sdkVersion -match '^10\.')) {
+if (-not ($sdkVersion -match '^11\.')) {
     throw @"
-Production Function deploys require .NET SDK 10.x (got $sdkVersion).
-Install .NET 10 and ensure repo global.json selects it (dotnet --version should report 10.x).
+Production Function deploys require .NET SDK 11.x (got $sdkVersion).
+Install .NET 11 and ensure repo global.json selects it (dotnet --version should report 11.x).
 "@
 }
 

@@ -1,3 +1,4 @@
+using Api.Dtos.Mapping;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.PodcastServices.Abstractions.Streaming;
 
@@ -16,13 +17,16 @@ public static class PublicEpisodeExtension
             Id = episode.Id,
             Title = episode.Title,
             Description = episode.Description,
-            Release = episode.ReleaseUtc ,
+            Release = episode.ReleaseUtc,
             Length = episode.Length,
             Explicit = episode.Explicit,
-            Ids = episode.Ids,
-            Services = episode.Services,
+            Ids = episode.Ids.ToDto(),
+            Services = episode.Services.ToDtos(),
             Subjects = episode.Subjects,
-            Image = EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder)
+            Image = episode.IsImageRemoved()
+                ? null
+                : EpisodeServicePresence.CoalescedImage(episode, StreamingServiceCatalog.ImageCoalesceOrder),
+            ImageRemoved = episode.IsImageRemoved() ? true : null
         };
     }
 }

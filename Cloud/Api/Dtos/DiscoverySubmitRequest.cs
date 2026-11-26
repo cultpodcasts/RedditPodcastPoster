@@ -27,4 +27,15 @@ public class DiscoverySubmitRequest
 
     [JsonPropertyName("selectedIdentityKeys")]
     public Dictionary<Guid, string>? SelectedIdentityKeys { get; set; }
+
+    /// <summary>
+    /// Answers for items that look like a film, TV show or news report. Keys are discovery result ids;
+    /// values are <c>select</c> or <c>continue</c> (keep as a podcast). With <c>select</c>, also send
+    /// <see cref="SelectedKindKeys"/>.
+    /// </summary>
+    [JsonPropertyName("kindDecisions")]
+    public Dictionary<Guid, string>? KindDecisions { get; set; }
+
+    [JsonPropertyName("selectedKindKeys")]
+    public Dictionary<Guid, string>? SelectedKindKeys { get; set; }
 }

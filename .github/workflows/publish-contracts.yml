@@ -1,0 +1,67 @@
+# Packs contracts/ and publishes @cultpodcasts/contracts to GitHub Packages. # pragma: allowlist secret
+# Runs on main when the package shell or the C# inputs that define the wire shape change,
+# and from a manual dispatch of main. Generated TypeScript is produced in this workflow;
+# it is not stored in git. A dispatch from any other branch is a no-op.
+# The patch is assigned here from the highest published patch on the release line.
+# A content hash of the generated files skips a publish when nothing changed, so a retry
+# and an unrelated push exit 0. The workflow does not commit the version back to git.
+
+name: Publish TypeScript contracts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'contracts/**'
+      - 'Tools/ContractExporter/**'
+      - 'Cloud/Api/Contracts/**'
+      - 'Cloud/Api/Serialization/**'
+      - 'Cloud/Api/Dtos/**'
+      - 'Cloud/Api/Extensions/UtcJsonServiceCollectionExtensions.cs'
+      - 'Class-Libraries/RedditPodcastPoster.Models/Serialization/**'
+      - 'Class-Libraries/RedditPodcastPoster.Models/Converters/**'
+      - '.github/workflows/publish-contracts.yml'
+      - 'scripts/publish-contracts-package.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-typescript-contracts
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '11.0.x'
+      - name: Generate contracts
+        run: |
+          set -euo pipefail
+          abs='Class-Libraries/RedditPodcastPoster.DependencyInjection.Abstractions/RedditPodcastPoster.DependencyInjection.Abstractions.csproj'
+          di='Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj'
+          dotnet build "$abs" --configuration Release -p:SkipEnsureDependencyInjectionBuilt=true
+          dotnet build "$di" --configuration Release -p:SkipEnsureDependencyInjectionBuilt=true
+          dotnet build Tools/ContractExporter/ContractExporter.csproj --configuration Release -p:SkipEnsureDependencyInjectionBuilt=true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          registry-url: https://npm.pkg.github.com
+          scope: '@cultpodcasts' # pragma: allowlist secret
+          package-manager-cache: false
+      - name: Typecheck
+        working-directory: contracts
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci && npm run typecheck
+      - name: Publish when the generated contracts changed
+        shell: pwsh
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/publish-contracts-package.ps1

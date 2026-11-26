@@ -6,6 +6,7 @@ using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.YouTube;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.Podcasts;
 
@@ -176,6 +177,46 @@ public sealed class PublicDatabaseValuesRules : IDisposable
         trailers[1]!.AsObject().ContainsKey("release").Should().BeFalse();
         trailers[0]!.AsObject().ContainsKey("id").Should().BeFalse();
         Published(bare.FileKey).ContainsKey("trailers").Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "Public database: when a film has additional YouTube uploads, then each is published in order with its id, " +
+        "url, title, channel name and release date, and a film with none has no additionalYouTube field (RPP #1411).")]
+    public async Task film_additional_youtube_uploads_are_published_in_order()
+    {
+        // Arrange
+        var released = DomainTestFixture.UtcToday.AddDays(-3);
+        var first = new YouTubeAlternate
+        {
+            YouTubeId = "GSIPAfDO_ec",
+            Url = new Uri("https://www.youtube.com/watch?v=GSIPAfDO_ec"),
+            Title = "Manic (True Crime Fix)",
+            ChannelName = "True Crime Fix",
+            Release = released,
+            AddedAt = released
+        };
+        var second = new YouTubeAlternate
+        {
+            YouTubeId = "AAAAAAAAAAA",
+            Url = new Uri("https://www.youtube.com/watch?v=AAAAAAAAAAA"),
+            AddedAt = released
+        };
+        var film = _scenario.GivenFilm(releasedDaysAgo: 6, f => f.AdditionalYouTube = [first, second]);
+        var bare = _scenario.GivenFilm(releasedDaysAgo: 5);
+
+        // Act
+        await _scenario.PublishFirstTime();
+
+        // Assert
+        var alternates = Published(film.FileKey)["additionalYouTube"]!.AsArray();
+        alternates.Select(t => t!["youTubeId"]!.GetValue<string>()).Should().Equal(first.YouTubeId, second.YouTubeId);
+        alternates[0]!["url"]!.GetValue<string>().Should().Be(first.Url.OriginalString);
+        alternates[0]!["title"]!.GetValue<string>().Should().Be(first.Title);
+        alternates[0]!["channelName"]!.GetValue<string>().Should().Be(first.ChannelName);
+        alternates[0]!["release"]!.GetValue<string>()
+            .Should().Be(released.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        alternates[1]!.AsObject().ContainsKey("title").Should().BeFalse();
+        Published(bare.FileKey).ContainsKey("additionalYouTube").Should().BeFalse();
     }
 
     [Theory(DisplayName =

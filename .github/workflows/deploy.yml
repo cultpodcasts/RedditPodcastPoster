@@ -18,25 +18,30 @@ on:
 permissions:
   id-token: write
   contents: read
-  # variables: write is only on the provision job (sets/clears PROVISION_LATCH)
+  # PROVISION_LATCH set/clear uses secrets.RPP_VARIABLES_TOKEN (not a GITHUB_TOKEN permission).
 
-env:  
+env:
+  # Production only. A workflow_dispatch from any other ref does not provision or deploy.
   DEPLOYMENT_RESOURCEGROUP_NAME: AutomatedInfra
   DATABASE_RESOURCEGROUP_NAME: ${{ secrets.DATABASE_RESOURCEGROUP_NAME }}
   MANAGEMENT_RESOURCEGROUP_NAME: ${{ secrets.MANAGEMENT_RESOURCEGROUP_NAME }}
   AZURE_KEYVAULT_NAME: ${{ secrets.AZURE_KEYVAULT_NAME }}
   BUDGET_ALERT_EMAIL: ${{ secrets.BUDGET_ALERT_EMAIL }}
   MONTHLY_FUNCTIONS_BUDGET_AMOUNT: '3'
+  # cultpodcastsstg stays kind Storage. The upgrade to StorageV2 is one-way and is a separate change.
   storageName: cultpodcastsstg
+  storageKind: Storage
   suffix: infra
   location: uksouth
   functionState: start
-  ALLOW_NON_MAIN_DEPLOY: 'true'
+  # JSON booleans for functions.bicep. Kept here so the parameters string has no nested quotes (those break the workflow parser).
+  d1SearchProductionEnabled: true
+  disableScheduledFunctions: false
   COSMOS_DEPLOYMENT_NAME: infra-cosmos
   API_PACKAGE_PATH: './Cloud/Api' 
   DISCOVER_PACKAGE_PATH: './Cloud/Discovery' 
   INDEXER_PACKAGE_PATH: './Cloud/Indexer' 
-  DOTNET_VERSION: '10.0.x' 
+  DOTNET_VERSION: '11.0.x' 
   buildConfiguration: 'Release'
   TARGET_RUNTIME: 'linux-x64'
   outputApi: 'output/api'
@@ -51,7 +56,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      # Paths-filter hit, or manual "Run workflow" on main with run_provision=true.
+      # Paths-filter hit, or a manual run_provision on main.
       # Authoritative gate for provision steps / archive-infrastructure (do not re-export the raw filter).
       run_provision: ${{ steps.changes.outputs.infrastructure == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_provision == 'true') }}
     strategy:
@@ -70,7 +75,7 @@ jobs:
             output: 'output/indexer'
             artifact: 'indexer'
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - uses: dorny/paths-filter@v4
       id: changes
       with:
@@ -83,8 +88,29 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore /p:Configuration=Release -r ${{ env.TARGET_RUNTIME }}
+    # Shared Class-Libraries write the same bin/Release/net11.0/*.deps.json. Parallel
+    # MSBuild nodes race on GenerateDepsFile (MSB4018, run 42713443340 attempt 1 on api).
+    # EnsureDependencyInjectionBuilt is skipped when RuntimeIdentifier is set (-r), so the
+    # deploy path has no serialize target. Build once single-node, then publish --no-build.
+    - name: Build ${{ matrix.project.name }}
+      run: >
+        dotnet build
+        --configuration ${{ env.buildConfiguration }}
+        -r ${{ env.TARGET_RUNTIME }}
+        --no-restore
+        -p:SkipEnsureDependencyInjectionBuilt=true
+        -m:1
+        ${{ matrix.project.path }}
     - name: Publish ${{ matrix.project.name }}
-      run: dotnet publish --configuration ${{ env.buildConfiguration }} -r ${{ env.TARGET_RUNTIME }} ${{ matrix.project.path }} -o:${{ matrix.project.output }}
+      run: >
+        dotnet publish
+        --configuration ${{ env.buildConfiguration }}
+        -r ${{ env.TARGET_RUNTIME }}
+        --no-restore
+        --no-build
+        -p:SkipEnsureDependencyInjectionBuilt=true
+        ${{ matrix.project.path }}
+        -o:${{ matrix.project.output }}
     - name: Archive ${{ matrix.project.name }} artifacts
       uses: actions/upload-artifact@v7
       with:
@@ -99,21 +125,37 @@ jobs:
       # Same gate as Build — live streaming scrapers are opt-in, not a CI contract.
       SKIP_LIVE_STREAMING_SCRAPER_TESTS: '1'
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     - name: Restore dependencies
       run: dotnet restore
+    # Same deps.json race as the matrix build job when EnsureDependencyInjectionBuilt
+    # nested MSBuild runs from many parents in parallel (no RID on this job).
+    - name: Build DI foundations
+      run: |
+        set -euo pipefail
+        abs='Class-Libraries/RedditPodcastPoster.DependencyInjection.Abstractions/RedditPodcastPoster.DependencyInjection.Abstractions.csproj'
+        di='Class-Libraries/RedditPodcastPoster.DependencyInjection/RedditPodcastPoster.DependencyInjection.csproj'
+        dotnet build "$abs" --configuration ${{ env.buildConfiguration }} --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
+        dotnet build "$di" --configuration ${{ env.buildConfiguration }} --no-restore -p:SkipEnsureDependencyInjectionBuilt=true
+    - name: Build solution
+      run: >
+        dotnet build
+        --configuration ${{ env.buildConfiguration }}
+        --no-restore
+        -p:SkipEnsureDependencyInjectionBuilt=true
+        -m:1
     - name: Run tests
-      run: dotnet test --configuration ${{ env.buildConfiguration }} --no-restore --verbosity normal
+      run: dotnet test --configuration ${{ env.buildConfiguration }} --no-build --verbosity normal
 
   archive-infrastructure:
     runs-on: ubuntu-latest
     needs: build
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       if: needs.build.outputs.run_provision == 'true'
     - name: Archive bicep artifacts
       if: needs.build.outputs.run_provision == 'true'
@@ -135,12 +177,14 @@ jobs:
   provision:
     runs-on: ubuntu-latest
     needs: [build, test, archive-infrastructure]
-    if: github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true'
+    if: github.ref == 'refs/heads/main'
     continue-on-error: false
     permissions:
       id-token: write
       contents: read
-      variables: write
+      # No variables: write — that scope is invalid for GITHUB_TOKEN and made
+      # GitHub reject the whole workflow (#1309 / #1373). Latch set/clear uses
+      # secrets.RPP_VARIABLES_TOKEN (see provision_latch step).
     outputs:
       # Same-run gate for *-deploy (vars context may not refresh after we clear the latch).
       deploy_allowed: ${{ steps.provision_latch.outputs.deploy_allowed }}
@@ -203,7 +247,7 @@ jobs:
         subscription-id: ${{ secrets.AZURE_Subscription_ID }}
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/function-storage.bicep
-        parameters: '{"location":"${{ env.location }}", "storageName":"${{ env.storageName }}"}'
+        parameters: '{"location":"${{ env.location }}", "storageName":"${{ env.storageName }}", "storageKind":"${{ env.storageKind }}"}'
     - name: Application-Insights (Deploy Bicep)
       id: bicepappinsightsdeploy
       uses: azure/bicep-deploy@v2.5.0
@@ -230,7 +274,7 @@ jobs:
         resource-group-name: ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
         template-file: ./Infrastructure/functions.bicep
         parameters-file: ./Infrastructure/functions.bicepparam
-        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}"}'
+        parameters: '{"location":"${{ env.location }}", "suffix":"${{ env.suffix }}", "storageName":"${{ env.storageName }}", "alertEmailAddress":"${{ env.BUDGET_ALERT_EMAIL }}", "d1SearchProductionEnabled": ${{ env.d1SearchProductionEnabled }}, "disableScheduledFunctions": ${{ env.disableScheduledFunctions }}}'
 
     - name: Set Function State
       if: ${{ ((env.functionState == 'start') || (env.functionState == 'stop')) && needs.build.outputs.run_provision == 'true' }}
@@ -238,11 +282,14 @@ jobs:
       with:
         azcliversion: latest
         inlineScript: |
-          az functionapp ${{ env.functionState }} --name api-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name indexer-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
-          az functionapp ${{ env.functionState }} --name discover-${{ env.suffix }} --resource-group ${{ env.DEPLOYMENT_RESOURCEGROUP_NAME }}
+          set -euo pipefail
+          az functionapp "$functionState" --name "api-${suffix}" --resource-group "$DEPLOYMENT_RESOURCEGROUP_NAME"
+          az functionapp "$functionState" --name "indexer-${suffix}" --resource-group "$DEPLOYMENT_RESOURCEGROUP_NAME"
+          az functionapp "$functionState" --name "discover-${suffix}" --resource-group "$DEPLOYMENT_RESOURCEGROUP_NAME"
 
     # After Cosmos/functions. Must succeed for provision to pass (no continue-on-error).
+    # A new budget cannot use the live budget's April 2026 start date, and that date must
+    # not change. This keeps functions-cost-budget-infra.
     - name: Functions Budget (Deploy Bicep)
       id: bicepfunctionsbudgetdeploy
       uses: azure/bicep-deploy@v2.5.0
@@ -261,15 +308,25 @@ jobs:
       id: provision_latch
       if: always()
       env:
-        GH_TOKEN: ${{ github.token }}
+        # Prefer RPP_VARIABLES_TOKEN (PAT / fine-grained with Actions Variables write).
+        # Fall back to github.token so the job still runs; set/clear then warn.
+        RPP_VARIABLES_TOKEN: ${{ secrets.RPP_VARIABLES_TOKEN }}
+        FALLBACK_TOKEN: ${{ github.token }}
         RUN_PROVISION: ${{ needs.build.outputs.run_provision }}
         BYPASS_LATCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.bypass_provision_latch == 'true' }}
         LATCH_VALUE: ${{ vars.PROVISION_LATCH }}
       run: |
         set -euo pipefail
+        JOB_OK="${{ job.status }}"
         REPO="${{ github.repository }}"
         RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        JOB_OK="${{ job.status }}"
+
+        if [[ -n "${RPP_VARIABLES_TOKEN:-}" ]]; then
+          export GH_TOKEN="$RPP_VARIABLES_TOKEN"
+        else
+          export GH_TOKEN="$FALLBACK_TOKEN"
+          echo "::warning::Repo secret RPP_VARIABLES_TOKEN is not set. Using github.token, which cannot write Actions variables. Add RPP_VARIABLES_TOKEN so PROVISION_LATCH set/clear works. See docs/deployment.md § Provision latch."
+        fi
 
         latch_blocked=false
         if [[ -n "${LATCH_VALUE}" && "${LATCH_VALUE}" == blocked* ]]; then
@@ -281,16 +338,23 @@ jobs:
             # Same-run deploys use deploy_allowed=true after successful bicep even if
             # the cross-run latch variable cannot be deleted (permissions / API).
             echo "deploy_allowed=true" >> "$GITHUB_OUTPUT"
-            gh variable delete PROVISION_LATCH --repo "$REPO" 2>/dev/null || true
-            if gh variable list --repo "$REPO" --json name -q '.[].name' 2>/dev/null | grep -qx 'PROVISION_LATCH'; then
-              echo "::warning::PROVISION_LATCH still present after delete attempt — cross-run latch NOT cleared (this run may still deploy via deploy_allowed). Retry delete or run_provision when permissions allow."
+            if [[ -z "${RPP_VARIABLES_TOKEN:-}" ]]; then
+              echo "::warning::Skipping PROVISION_LATCH delete — RPP_VARIABLES_TOKEN not set. Same-run deploy_allowed=true; cross-run latch may still be set. See docs/deployment.md § Provision latch."
             else
-              echo "Cleared PROVISION_LATCH after successful provision (absent or deleted)."
+              gh variable delete PROVISION_LATCH --repo "$REPO" 2>/dev/null || true
+              if gh variable list --repo "$REPO" --json name -q '.[].name' 2>/dev/null | grep -qx 'PROVISION_LATCH'; then
+                echo "::warning::PROVISION_LATCH still present after delete attempt — cross-run latch NOT cleared (this run may still deploy via deploy_allowed). Retry delete or run_provision when permissions allow."
+              else
+                echo "Cleared PROVISION_LATCH after successful provision (absent or deleted)."
+              fi
             fi
           else
             BODY="blocked|${{ github.sha }}|${{ github.run_id }}|${RUN_URL}"
-            gh variable set PROVISION_LATCH --repo "$REPO" --body "$BODY"
-            echo "Set PROVISION_LATCH=$BODY"
+            if gh variable set PROVISION_LATCH --repo "$REPO" --body "$BODY"; then
+              echo "Set PROVISION_LATCH=$BODY"
+            else
+              echo "::warning::Failed to set PROVISION_LATCH (need RPP_VARIABLES_TOKEN with Variables write). deploy_allowed=false for this run; cross-run latch NOT set."
+            fi
             echo "deploy_allowed=false" >> "$GITHUB_OUTPUT"
           fi
           exit 0
@@ -313,7 +377,7 @@ jobs:
   api-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
+    if: github.ref == 'refs/heads/main' && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -337,14 +401,14 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'api-infra'
+          app-name: api-${{ env.suffix }}
           slot-name: 'Production'
           package: ${{ env.outputApi }}
 
   discover-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
+    if: github.ref == 'refs/heads/main' && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -368,14 +432,14 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'discover-infra'
+          app-name: discover-${{ env.suffix }}
           slot-name: 'Production'
           package: ${{ env.outputDiscover }}
 
   indexer-deploy:
     runs-on: ubuntu-latest
     needs: provision
-    if: (github.ref == 'refs/heads/main' || vars.ALLOW_NON_MAIN_DEPLOY == 'true') && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
+    if: github.ref == 'refs/heads/main' && needs.provision.result == 'success' && needs.provision.outputs.deploy_allowed == 'true'
     permissions:
       id-token: write #This is required for requesting the JWT
     continue-on-error: false
@@ -399,7 +463,6 @@ jobs:
         uses: Azure/functions-action@v1
         id: fa
         with:
-          app-name: 'indexer-infra'
+          app-name: indexer-${{ env.suffix }}
           slot-name: 'Production'
           package: ${{ env.outputIndexer }}
-

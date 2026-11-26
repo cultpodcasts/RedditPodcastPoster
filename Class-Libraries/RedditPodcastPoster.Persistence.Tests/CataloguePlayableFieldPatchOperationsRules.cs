@@ -125,6 +125,31 @@ public class CataloguePlayableFieldPatchOperationsRules : IDisposable
     }
 
     [Fact(DisplayName =
+        "Playable field patch: filling youTubeId when the member was absent uses Set (not Replace) on /youTubeId, " +
+        "because Replace fails when the property is missing and playables written before compact youTubeId still " +
+        "need the id added.")]
+    public void absent_youtube_id_fill_uses_set_not_replace()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var patch = new CataloguePlayableFieldPatch
+        {
+            SetYouTubeId = true,
+            YouTubeId = videoId,
+            YouTubeIdDefined = false
+        };
+
+        // Act
+        var operations = CataloguePlayableFieldPatchOperations.Build(patch);
+
+        // Assert
+        var youTubeOp = operations.Should().ContainSingle().Subject;
+        youTubeOp.Path.Should().Be("/youTubeId");
+        youTubeOp.OperationType.Should().Be(PatchOperationType.Set);
+        youTubeOp.OperationType.Should().NotBe(PatchOperationType.Replace);
+    }
+
+    [Fact(DisplayName =
         "Playable field patch: the ETag read records services and youTubeId as defined when the raw document " +
         "contains them, including an explicit JSON null, and as absent when they are omitted, because a typed " +
         "model cannot tell those shapes apart (#1154).")]

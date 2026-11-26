@@ -31,12 +31,12 @@ public class UrlSubmitter(
         var episodeResult = SubmitResultState.None;
         try
         {
-            if (submitContentTypes?.Value is { Enabled: true } && SubmitContentClassifier.IsBbcNews(url))
+            if (submitContentTypes?.Value is { Enabled: true } && BbcNewsSubmitRejection.Applies(url))
             {
-                return new SubmitResult(
-                    SubmitResultState.None,
-                    SubmitResultState.None,
-                    ContentKind: SubmitClassification.NewsReport);
+                // G5 (#1211): BBC news comes in only via iPlayer or the BBC News YouTube channel. Reject before
+                // any categorise or persist, so nothing is saved under BBC News.
+                logger.LogInformation("Rejected BBC News page submit '{Url}'.", url);
+                return BbcNewsSubmitRejection.Result();
             }
 
             // An item moved out of a podcast (to a film, film trailer, TV episode or news report) keeps its

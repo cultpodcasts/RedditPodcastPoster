@@ -153,8 +153,13 @@ public class Indexer(
                 using var budgetCts = new CancellationTokenSource(budget, timeProvider);
                 try
                 {
-                    var onDemandContext = indexingContext with { CancellationToken = budgetCts.Token };
-                    updateTask = podcastUpdater.Update(podcast, enrichOnly, onDemandContext);
+                    // Copy so the update's bypass flags stay on this run; the budget token travels on the run scope.
+                    var onDemandContext = indexingContext with { };
+                    using (PodcastRunScope.Enter(new PodcastRunScope(budgetCts.Token)))
+                    {
+                        updateTask = podcastUpdater.Update(podcast, enrichOnly, onDemandContext);
+                    }
+
                     var results = await updateTask.WaitAsync(budget + _budget.OnDemandAbandonGrace, timeProvider);
 
                     updatedEpisodes = results.MergeResult.AddedEpisodes

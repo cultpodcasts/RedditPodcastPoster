@@ -17,12 +17,9 @@ After a failed Actions **provision** (`run_provision` / `Infrastructure/**` appl
 
 Authoritative: [`docs/deployment.md`](docs/deployment.md) § Provision latch · [`.cursor/rules/production-deploy-truth.mdc`](.cursor/rules/production-deploy-truth.mdc).
 
-## Catalogue migrate / playable-services CLIs (HARD)
+## FilmSearchPusher / FilmSearchPush - keep until search is on Cloudflare D1 (HARD)
 
-1. **This checkout:** `CatalogueMigrateIdentify --apply` always exits 2. `CatalogueMigrate` has a writer (#1049). `--apply` / `--rollback --apply` write only with the exact `--consent` phrase, otherwise they exit 2. Never weaken that gate. News apply is allowlist-only (S-008). `CataloguePlayableServicesBackfill --apply` likewise writes only with its exact `--consent` phrase (else exit 2).
-2. **Agents never pass `--apply` or `--consent`** to `CatalogueMigrateIdentify`, `CatalogueMigrate`, or `CataloguePlayableServicesBackfill`. The human runs apply and types the phrase. GATE 5 / “continue” / deploy / merge is **not** consent. Checklist: [`docs/catalogue-run/definition-of-done.md`](docs/catalogue-run/definition-of-done.md).
-
-Rule: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
+Do **not** retire, delete or "clean up" the `FilmSearchPusher` console (+ Tests), the `FilmSearchPush` library in `RedditPodcastPoster.EntitySearchIndexer`, `IFilmSearchPushWatermarkStore` / `FilmSearchPushWatermark` or `ModelType.FilmSearchPushWatermark` until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408). The Azure AI Search tier's data sources (3 on Free) are all used by episodes, TV and news, so films have no pull indexer, and this is the only bulk path that gets films into search (for example after an index rebuild). Jon, 12 Nov 2026 (#1369 / PR #1405). Rule: [`.cursor/rules/film-search-pusher-keep.mdc`](.cursor/rules/film-search-pusher-keep.mdc).
 
 ## Unit tests (HARD)
 
@@ -44,6 +41,10 @@ Cursor also runs this via `.cursor/hooks.json` on `stop` / `afterFileEdit`.
 ## Streaming submit orchestration (contracts)
 
 Cross-repo streaming ingest contract (membership `service`, prepare/submit): [`docs/streaming-submit-orchestration.md`](docs/streaming-submit-orchestration.md). JSON copy under `docs/contracts/` must match Api fixture — `pwsh ./scripts/assert-streaming-submit-contract-copy.ps1`.
+
+## TypeScript API contracts
+
+HTTP DTO TypeScript, JSON Schema and Zod are generated from `[ExportContract]` types during the build of `Tools/ContractExporter` into gitignored `contracts/src`, `contracts/schemas` and `contracts/typecheck`. CI typechecks that output. `contracts/package.json` stores the release line (`major.minor.0`). The publish workflow assigns the patch and publishes only when a hash of the generated files differs from the latest GitHub Packages version. Install notes: [`docs/typescript-contracts.md`](docs/typescript-contracts.md).
 
 ## CQRS (HARD)
 
@@ -79,6 +80,7 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 
 ## Domain conventions
 
+- A parent's title regex (podcast `TitleRegex`, or a news organisation's / TV show's `indexing.titleRegex` on a post projection) is only compiled via `Podcast.CreateTitleRegex` (`Podcast.TitleFlags`, case-insensitive) — display DTOs, homepage and social posts alike (#1378).
 - Podcast `DescriptionRegex` is only compiled via `DescriptionRegexTokens.Create` (tokens `{episode-title}`, `{podcast-name}`, 2s match timeout); see [docs/description-regex-tokens.md](docs/description-regex-tokens.md).
 - YouTube episode images are chosen only by `YouTubeThumbnailResolver` (success status + taller than the 90px placeholder) and are never cleared; recent `maxresdefault`/`hq720` images are re-checked hourly by the Indexer `YouTubeThumbnailRecheck` activity. See [docs/youtube-thumbnails.md](docs/youtube-thumbnails.md).
 - Search documents store compact service identifiers and short key names. The UI reconstructs URLs. Call the type `CompactSearchRecord`. Do not add `V2` or `Legacy` names.
@@ -86,7 +88,8 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - Cosmos container name is `LookUps` (not `knownTerms`). `KnownTerms` and elimination terms are items in `LookUps`. Short-lived file-key leases live in `FileKeyClaims`, not LookUps. Infrastructure includes a `PushSubscriptions` container.
 - Use detached `Podcast` / `Episode` models and the `PodcastEpisode` pair. Canonical repositories are the split-container implementations in `RedditPodcastPoster.Persistence`. Do not reintroduce `Persistence.Legacy` or embedded-container repositories.
 - Episode ID is globally unique. Azure Search indexing does not use soft-delete.
-- Date-times are UTC. An unspecified-kind `DateTime` is UTC (`UtcDateTimes.ToUtc`). Never convert `DateTime` to `DateTimeOffset` implicitly or with `new DateTimeOffset(dateTime)`: both read unspecified as host-local time (#1191, #1194). Use `UtcDateTimes.ToUtcOffset`. The API writes every date-time as ISO-8601 with `Z` (contract: `FunctionHost.Tests` `UtcJsonDtoContractRules`); the only exception is the discovery schedule's UK-local `slotStartUk`. Date-only releases stay at midnight UTC on that date.
+- Date-times are UTC. An unspecified-kind `DateTime` is UTC (`UtcDateTimes.ToUtc`). Never convert `DateTime` to `DateTimeOffset` implicitly or with `new DateTimeOffset(dateTime)`: both read unspecified as host-local time (#1191, #1194). Use `UtcDateTimes.ToUtcOffset`. The API writes every date-time as ISO-8601 with `Z` (contract: `FunctionHost.Tests` `UtcJsonDtoContractRules`); the only exception is the discovery schedule's UK-local `slotStartUk`. Date-only releases stay at midnight UTC on that date. Cross-hop audit + test matrix: [`docs/utc-datetime-contract.md`](docs/utc-datetime-contract.md) (#1212).
+- A news organisation may hold extra YouTube channels in its own `additionalYouTubeChannels` (`NewsOrganisation.AdditionalYouTubeChannels`, `[{ youTubeChannelId, youTubePlaylistId? }]`, news PATCH only; each channel is channel-wide or scoped by its own playlist, and the main playlist scopes only the main channel). It is not on the shared `CatalogueIndexingSource` and TV shows have no such field: do not add parent-specific fields to the shared indexing block. Any owner lookup or uniqueness check on a YouTube channel must match a news organisation's main **or** additional channels (a TV show's main channel only), and any playlist-scope decision must use `CatalogueParentYouTubeChannels.Of(parent).PlaylistIdOn(channelId)`, never the main `YouTubePlaylistId` alone. See [docs/news-organisation-multiple-youtube-channels.md](docs/news-organisation-multiple-youtube-channels.md) (#1370).
 - `podcast.Removed` is the removal flag. Do not trust episode-level `podcastRemoved` when deciding whether an episode can be posted.
 - Container factories are explicit: `CreatePodcastsContainer()` and `CreateEpisodesContainer()`.
 - Cosmos settings bind to the `cosmosdb` configuration section.
@@ -98,10 +101,41 @@ Every behaviour change in those areas **MUST** ship with a `BusinessRules/**` te
 - Azure Functions Flex Consumption `instanceMemoryMB` is 512, 2048, or 4096.
 - Memory probing goes through `IMemoryProbeOrchestrator`: `Start(nameof(Class))` and `End()`. `MemoryProbeOptions` decides whether a session is created.
 
+## Review gate (HARD, cultpodcasts/RedditPodcastPoster#1507 / #1563)
+
+`.github/workflows/review-gate.yml` publishes the commit status **`review-gate`** on every PR head SHA. It is red until the review-implement-pr reviewer says the **current head commit** is acceptable, so a PR cannot be merged mid-review. It does **not** look at CI: CI must be green separately. When the status is failure the Actions job also fails so the check run matches.
+
+**Preferred clear path (no HTML):** with CI green, open the PR → **Review** → **Approve** on the current head. A trusted Approve auto-adds `review-acceptable` and turns `review-gate` green. **Changes requested** on the head turns it red. HTML markers remain an alternate path for agents.
+
+The reviewer's **final step** when its verdict is acceptable (marker path, optional when Approving):
+
+1. Check that every other check for the head SHA has passed (`gh pr checks <n>`). Never mark a SHA while CI is pending or red.
+2. Either **Approve** the PR on the current head, **or** post a PR **issue comment** (`gh pr comment <n>`) containing the marker for the **full 40-character head SHA** it reviewed:
+   `<!-- review-gate: acceptable sha=<head sha> -->`
+   Get the SHA with `gh pr view <n> --json headRefOid --jq .headRefOid`. To withdraw a verdict, use **Request changes** or post `<!-- review-gate: changes-requested sha=<head sha> -->`.
+3. On Approve the workflow adds `review-acceptable`. On the marker path, **then** add the label: `gh pr edit <n> --add-label review-acceptable` (a label with no acceptable Approve/marker for the head SHA and no carried acceptance is removed).
+4. Check `review-gate` is green (`gh pr checks <n>`), then move the card to Ready For Review.
+
+Rules:
+
+- Only the reviewer Approves / adds the marker and label. The implementor never does.
+- Trusted reviews and markers count only from OWNER, MEMBER or COLLABORATOR accounts. Markers in **review bodies** (as HTML text), on quoted (`>`) lines, inside fenced or indented code blocks, inside inline code spans, or for any other SHA are ignored — Approve/Changes Requested use the review *state* and `commit_id`. Comments are ordered by when they were created, so editing an old comment does not make its marker the latest; within one comment the last marker wins.
+- Any new push removes `review-acceptable` and turns the status red, **except** a head that is only merge-from-base commits on top of a SHA the reviewer already marked acceptable: `.github/scripts/merge-only-tip.cjs` walks first parents (max 10 hops) and the acceptance and label **carry** with no re-mark (cultpodcasts/RedditPodcastPoster#1555). Each hop must be a two-parent merge whose second parent is on the base branch, with no PR/base file overlap and a merge delta equal to the base side, verified from complete compare file listings (GitHub returns at most 300 files per compare and does not page them, so a listing that reaches 300 fails closed). Rebases, feature commits, overlapping or hand-edited merges, a changes-requested marker on the way, or an API error do not carry: the reviewer re-checks and Approves or re-marks as before.
+- The workflow runs on `pull_request_target`, `issue_comment`, and `pull_request_review`, always checking out the **default branch** only (`persist-credentials: false`), so editing the gate in a PR does not change that PR's result.
+- **Process interlock, not a security boundary.** The reviewer, the implementor and Jon all post as `cultpodcasts` (author association OWNER), and anyone with write access can label or post a status. "Only the reviewer marks" is enforced by agent rules, not by GitHub. (Possible future hardening: a separate reviewer GitHub App, with markers accepted only from its bot login.)
+- The job is named `publish-status`, not `review-gate`, so the only thing called `review-gate` is the commit status. GitHub would otherwise require a check run and a status of the same name.
+- Follow-on after merge (needs Jon's OK): require `review-gate` on `main`, with its source pinned to **GitHub Actions** (the app that posts the status), not "any source".
+
+## Linking PRs to tickets (HARD)
+
+- Every PR for a ticket links it with a **closing keyword** so it shows under the issue's **Development** panel: same repo `Closes #N`; another repo `Closes cultpodcasts/<repo>#N` (e.g. Api / website companions of an RPP ticket: `Closes cultpodcasts/RedditPodcastPoster#N`). Do **not** use `Refs` for the ticket a PR delivers — `Refs` PRs are invisible under Development.
+- A ticket with PRs in several repos stays **open until ALL of its PRs are merged**. GitHub closes it on the first `Closes` merge; `.github/workflows/issue-close-sibling-guard.yml` (mirrored in RedditPodcastPoster, Api and website) reopens it while any PR for it is still open (Development links, cross-references incl. `Refs`, trio search) and restores the board card to In Progress (cultpodcasts/RedditPodcastPoster#1423).
+- List companion PRs in the PR body (`Companions: cultpodcasts/Api#…, cultpodcasts/website#…`) with the merge order.
+
 ## Cursor Cloud specific instructions
 
 Multi-repo workspace: this repo is at `/agent/repos/redditpodcastposter` alongside `/agent/repos/api`
-and `/agent/repos/website`. Uses the **.NET 10 SDK** (installed at `~/.dotnet`; login shells get it
+and `/agent/repos/website`. Uses the **.NET 11 SDK** (installed at `~/.dotnet`; login shells get it
 from `~/.bashrc`, else prepend `$HOME/.dotnet` and set `DOTNET_ROOT=$HOME/.dotnet`). `pwsh` is
 available for the guardrail scripts.
 

@@ -1,5 +1,6 @@
 using Api.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.EntitySearchIndexer.Extensions;
 using RedditPodcastPoster.EntitySearchIndexer.Services;
 using RedditPodcastPoster.Models.Catalogue;
@@ -8,6 +9,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.Search.Models;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Languages;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -22,7 +24,8 @@ public class SubmitUrlService(
     IEpisodeSearchIndexerService episodeSearchIndexerService,
     ILookupRepository lookupRepository,
     ILogger<SubmitUrlService> logger,
-    IPlayableSearchDocumentSwap playableSearch) : ISubmitUrlService
+    IPlayableSearchDocumentSwap playableSearch,
+    IOptions<SubmitContentTypesOptions>? submitContentTypes = null) : ISubmitUrlService
 {
     public async Task<SubmitUrlResult> SubmitAsync(
         SubmitUrlRequest submitUrlModel,
@@ -39,6 +42,15 @@ public class SubmitUrlService(
                 logger.LogWarning("{RunName}: Rejected submit of '{Url}': {Error}", nameof(SubmitAsync),
                     submitUrlModel.Url, parentError);
                 return new SubmitUrlResult(SubmitUrlStatus.BadRequest, Message: parentError);
+            }
+
+            // G5 (#1211): a BBC News page is rejected with its message whatever else the request carries, so the
+            // parent-target URL check and the podcast-name lookup below cannot pre-empt it with a generic 400 / 409.
+            if (submitContentTypes?.Value is { Enabled: true } && BbcNewsSubmitRejection.Applies(submitUrlModel.Url))
+            {
+                logger.LogInformation("{RunName}: Rejected BBC News page submit '{Url}'.", nameof(SubmitAsync),
+                    submitUrlModel.Url);
+                return new SubmitUrlResult(SubmitUrlStatus.Rejected, BbcNewsSubmitRejection.Result());
             }
 
             if (parentTarget != null && !UrlSubmitter.CanFileUnderCatalogueParent(submitUrlModel.Url))
@@ -85,6 +97,39 @@ public class SubmitUrlService(
             var supported = await SupportedLanguageCodes();
             var choice = CatalogueLanguageChoices.Parse(submitUrlModel.LanguageDecision);
             var identityChoice = CatalogueIdentityChoices.Parse(submitUrlModel.IdentityDecision);
+            var serviceLinkConflictChoice = ServiceLinkConflictChoice.CreateNew;
+            Guid? serviceLinkConflictEpisodeId = null;
+            if (submitUrlModel.CanResolveServiceLinkConflict)
+            {
+                if (!ServiceLinkConflictChoices.TryParseAnswer(
+                        submitUrlModel.ServiceLinkConflictDecision,
+                        out serviceLinkConflictChoice))
+                {
+                    return new SubmitUrlResult(SubmitUrlStatus.BadRequest,
+                        Message: "serviceLinkConflictDecision must be 'overwrite', 'create-new' or 'cancel'.");
+                }
+
+                serviceLinkConflictEpisodeId = submitUrlModel.ServiceLinkConflictEpisodeId;
+                if (serviceLinkConflictChoice == ServiceLinkConflictChoice.Cancel)
+                {
+                    // #1483: the curator cancelled a service-link conflict prompt. Nothing is submitted, so no path
+                    // (podcast, catalogue kind or catalogue parent) can write; the submitter keeps its own early
+                    // returns as a backstop.
+                    logger.LogInformation(
+                        "{RunName}: Service-link conflict answered cancel for '{Url}': nothing submitted.",
+                        nameof(SubmitAsync), submitUrlModel.Url);
+                    return new SubmitUrlResult(SubmitUrlStatus.Cancelled,
+                        new SubmitResult(SubmitResultState.None, SubmitResultState.None));
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(submitUrlModel.ServiceLinkConflictDecision) ||
+                     submitUrlModel.ServiceLinkConflictEpisodeId != null)
+            {
+                logger.LogWarning(
+                    "{RunName}: Ignoring serviceLinkConflictDecision '{Decision}' from a caller without the curate scope; a service-link conflict creates a new episode.",
+                    nameof(SubmitAsync), submitUrlModel.ServiceLinkConflictDecision);
+            }
+
             var submitOptions = new SubmitOptions(
                 podcastId,
                 true,
@@ -95,7 +140,10 @@ public class SubmitUrlService(
                 SupportedLanguageCodes: supported,
                 LanguageChoice: choice,
                 IdentityChoice: identityChoice,
-                SelectedIdentityKey: submitUrlModel.SelectedIdentityKey);
+                SelectedIdentityKey: submitUrlModel.SelectedIdentityKey,
+                // A curator is asked before a conflicting episode is created or overwritten (#1416).
+                ServiceLinkConflict: serviceLinkConflictChoice,
+                ServiceLinkConflictEpisodeId: serviceLinkConflictEpisodeId);
             var result = await urlSubmitter.Submit(
                 submitUrlModel.Url,
                 new IndexingContext
@@ -116,7 +164,8 @@ public class SubmitUrlService(
                 return new SubmitUrlResult(SubmitUrlStatus.RequiresCurator, result);
             }
 
-            if (choice == CatalogueLanguageChoice.Cancel || identityChoice == CatalogueIdentityChoice.Cancel)
+            if (choice == CatalogueLanguageChoice.Cancel || identityChoice == CatalogueIdentityChoice.Cancel ||
+                serviceLinkConflictChoice == ServiceLinkConflictChoice.Cancel)
             {
                 return new SubmitUrlResult(SubmitUrlStatus.Cancelled, result);
             }
@@ -129,6 +178,11 @@ public class SubmitUrlService(
             if (result.IdentityHold is { Candidates.Count: > 0 })
             {
                 return new SubmitUrlResult(SubmitUrlStatus.IdentityDecisionRequired, result);
+            }
+
+            if (result.ServiceLinkConflict != null)
+            {
+                return new SubmitUrlResult(SubmitUrlStatus.ServiceLinkConflictDecisionRequired, result);
             }
 
             var episodeId = result.Episode?.Id;
@@ -147,19 +201,18 @@ public class SubmitUrlService(
                 return new SubmitUrlResult(SubmitUrlStatus.Ok, result);
             }
 
-            if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
+            if (result.SplitOffEpisode is { } splitOff)
+            {
+                // #1484: the overwritten episode and its split-off in one indexing call. The split-off is hidden
+                // (removed) until a curator approves it, so indexing it keeps it out of search.
+                await IndexEpisodes(
+                    episodeId.HasValue ? [episodeId.Value, splitOff.Id] : [splitOff.Id], cancellationToken);
+            }
+            else if (result.EpisodeResult is SubmitResultState.Created or SubmitResultState.Enriched)
             {
                 if (episodeId.HasValue)
                 {
-                    try
-                    {
-                        await episodeSearchIndexerService.IndexEpisode(episodeId.Value, cancellationToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Failed to index episode after submission. EpisodeId: '{EpisodeId}'.",
-                            episodeId.Value);
-                    }
+                    await IndexEpisode(episodeId.Value, cancellationToken);
                 }
                 else
                 {
@@ -242,6 +295,31 @@ public class SubmitUrlService(
         {
             logger.LogError(ex, "{RunName}: Failed to submit url '{Url}'.", nameof(SubmitAsync), submitUrlModel.Url);
             return new SubmitUrlResult(SubmitUrlStatus.Failed, Message: "Failure");
+        }
+    }
+
+    private async Task IndexEpisode(Guid episodeId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await episodeSearchIndexerService.IndexEpisode(episodeId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to index episode after submission. EpisodeId: '{EpisodeId}'.", episodeId);
+        }
+    }
+
+    private async Task IndexEpisodes(Guid[] episodeIds, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await episodeSearchIndexerService.IndexEpisodes(episodeIds, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to index episodes after submission. EpisodeIds: '{EpisodeIds}'.",
+                string.Join(", ", episodeIds));
         }
     }
 

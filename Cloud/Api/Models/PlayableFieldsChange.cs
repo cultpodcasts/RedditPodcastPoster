@@ -27,4 +27,23 @@ public abstract class PlayableFieldsChange
     /// resolved from the URL when present.
     /// </summary>
     public Dictionary<string, ServiceLink>? Services { get; set; }
+
+    /// <summary>
+    /// Additional YouTube uploads to keep, in display order (RPP #1526). Existing entries are identified by
+    /// <c>youTubeId</c>; a new entry is added from a YouTube url. Entries left out are removed; [] removes all.
+    /// </summary>
+    public YouTubeAlternateChange[]? AdditionalYouTube { get; set; }
+
+    /// <summary>
+    /// Additional YouTube ids the client last saw. When <see cref="AdditionalYouTube"/> is sent, a stored id that is
+    /// not in this list is a 409 and nothing is saved.
+    /// </summary>
+    public string[]? ExpectedAdditionalYouTubeIds { get; set; }
+
+    /// <summary>
+    /// The YouTube id of an additional upload to swap into the primary YouTube link. The previous primary becomes
+    /// an additional upload. The id must be in <see cref="AdditionalYouTube"/> when that field is sent, otherwise
+    /// it must already be on the item.
+    /// </summary>
+    public string? PromoteYouTubeId { get; set; }
 }

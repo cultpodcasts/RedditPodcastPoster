@@ -55,7 +55,7 @@ public class PodcastUpdater(
     public const string CatalogueOwnedUrlSkippedMessagePrefix = "Indexer skipped catalogue-owned URL:";
 
     /// <summary>
-    /// Stable log prefix when the podcast row disappeared during this pass (CatalogueMigrate deleted it after the
+    /// Stable log prefix when the podcast row disappeared during this pass (a kind transfer deleted it after the
     /// pass had already read it). App Insights keys off it. <c>stage</c> is <c>save-episodes</c> or <c>save-podcast</c>.
     /// </summary>
     public const string PodcastGoneMessagePrefix = "IndexerPodcastGone";
@@ -103,15 +103,15 @@ public class PodcastUpdater(
 
         logger.LogInformation("'{method}': Podcast '{podcastName}' {nameOfEnrichOnly}= '{enrichOnly}'.", 
             nameof(Update), podcast.Name, nameof(enrichOnly), enrichOnly);
-        var cancellationToken = indexingContext.CancellationToken;
+        var cancellationToken = PodcastRunScope.Current.CancellationToken;
         if (!enrichOnly)
         {
-            indexingContext.ReportStage("cosmos-read-episodes");
+            PodcastRunScope.Current.ReportStage("cosmos-read-episodes");
             var releaseScopedEpisodes = await episodeRepository
                 .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
                 .ToListAsync(cancellationToken);
 
-            indexingContext.ReportStage("discover-episodes", $"stored-in-window={releaseScopedEpisodes.Count}");
+            PodcastRunScope.Current.ReportStage("discover-episodes", $"stored-in-window={releaseScopedEpisodes.Count}");
             var newEpisodes = await episodeProvider.GetEpisodes(podcast, releaseScopedEpisodes, indexingContext);
             cancellationToken.ThrowIfCancellationRequested();
             // Explicit podcast MinimumDuration always applies. Bypass only skips the global posting-criteria floor.
@@ -140,7 +140,7 @@ public class PodcastUpdater(
                 }
             }
 
-            indexingContext.ReportStage("merge", $"discovered={newEpisodes.Count}");
+            PodcastRunScope.Current.ReportStage("merge", $"discovered={newEpisodes.Count}");
             episodes = await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes, cancellationToken);
             mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
             await DropAddedEpisodesOwnedByCatalogue(podcast, mergeResult, cancellationToken);
@@ -154,7 +154,7 @@ public class PodcastUpdater(
         }
         else
         {
-            indexingContext.ReportStage("cosmos-read-episodes");
+            PodcastRunScope.Current.ReportStage("cosmos-read-episodes");
             episodes = await episodeRepository
                 .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
                 .ToListAsync(cancellationToken);
@@ -179,7 +179,7 @@ public class PodcastUpdater(
             }
         }
 
-        indexingContext.ReportStage("cosmos-read-platform-identified");
+        PodcastRunScope.Current.ReportStage("cosmos-read-platform-identified");
         var episodesWithAssignedPlatformIds = await episodeRepository
             .GetByPodcastId(
                 podcast.Id,
@@ -189,7 +189,7 @@ public class PodcastUpdater(
         var enrichmentEpisodeContext =
             BuildEnrichmentEpisodeContext(episodes, episodesWithAssignedPlatformIds);
 
-        indexingContext.ReportStage("enrich", $"episodes={episodes.Count}");
+        PodcastRunScope.Current.ReportStage("enrich", $"episodes={episodes.Count}");
         var enrichmentResult = await podcastServicesEpisodeEnricher.EnrichEpisodes(
             podcast, enrichmentEpisodeContext, episodes, indexingContext);
         // Past the budget, stop before any write; the next pass repeats the work. Each write below re-checks the token,
@@ -200,9 +200,9 @@ public class PodcastUpdater(
         var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
         var filterResult = podcastFilter.Filter(podcast, episodes, eliminationTerms.Terms);
 
-        indexingContext.ReportStage(SaveEpisodesStage,
+        PodcastRunScope.Current.ReportStage(SaveEpisodesStage,
             $"enriched={enrichmentResult.UpdatedEpisodes.Count} filtered={filterResult.FilteredEpisodes.Count} merged={mergeResult.MergedEpisodes.Count} added={mergeResult.AddedEpisodes.Count}");
-        // CatalogueMigrate deletes the source podcast after the move. A pass that read the row before that delete
+        // Kind transfer deletes the source podcast after the move. A pass that read the row before that delete
         // must not upsert it back, or save episodes under an id that no longer exists. One point-read (1 RU) before
         // the first write, and again before the podcast upsert.
         if (!await PodcastRowStillExists(podcast.Id, SaveEpisodesStage, cancellationToken))
@@ -405,7 +405,7 @@ public class PodcastUpdater(
                 }
             }
 
-            indexingContext.ReportStage(SavePodcastStage);
+            PodcastRunScope.Current.ReportStage(SavePodcastStage);
             cancellationToken.ThrowIfCancellationRequested();
             if (await PodcastRowStillExists(podcast.Id, SavePodcastStage, cancellationToken))
             {
@@ -489,7 +489,7 @@ public class PodcastUpdater(
 
     /// <summary>
     /// Point-reads the podcast. When the row is gone, logs <see cref="PodcastGoneMessagePrefix"/> and reports whether
-    /// a TvShow or NewsOrganisation now has the same id (the CatalogueMigrate destination).
+    /// a TvShow or NewsOrganisation now has the same id (the kind-transfer destination).
     /// </summary>
     private async Task<bool> PodcastRowStillExists(Guid podcastId, string stage, CancellationToken cancellationToken)
     {

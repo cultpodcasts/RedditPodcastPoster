@@ -7,6 +7,12 @@ public interface IFilmRepository : IRepository<Film>, IFilterableRepository<Film
     Task<Film?> GetFilm(Guid filmId);
     Task Delete(Guid filmId);
 
+    /// <summary>
+    /// Films search may hold: every film that is not removed (<c>removed</c> absent, null or false). A server-side
+    /// <c>COUNT</c>, so it reads no documents. The film search push compares it with the index's film documents.
+    /// </summary>
+    Task<int> CountSearchable();
+
     /// <summary>The film with its Cosmos ETag, for an optimistic <see cref="TryReplace"/>. Null when it does not exist.</summary>
     Task<FilmVersion?> GetFilmForUpdate(Guid filmId);
 
@@ -15,6 +21,12 @@ public interface IFilmRepository : IRepository<Film>, IFilterableRepository<Film
     /// there first (or the film is gone), so the caller re-reads and re-applies instead of overwriting that write.
     /// </summary>
     Task<bool> TryReplace(Film film, string etag);
+
+    /// <summary>
+    /// Creates the film only when no document has its id (Cosmos create, not upsert). False when one already does:
+    /// the caller re-reads it. Lets concurrent creates of the same deterministic id converge on one document.
+    /// </summary>
+    Task<bool> TryCreate(Film film);
 
     /// <summary>
     /// Film ids whose <c>trailers[].id</c> equals <paramref name="trailerId"/>.

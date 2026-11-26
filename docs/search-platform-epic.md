@@ -1,10 +1,15 @@
 # Search platform epic — leave Azure AI Search Free tier
 
 **Status:** Prototype + parity complete (2026-11-07/08); switchover ticketed (SP-\* on
-board). Production apihost still Azure. **Working docs for agents:**
+board). Production apihost still Azure. **Decisions 16 November 2026, 10:14 GMT
+(Europe/London):** (1) SP-0.3 closed — D1 indexes full descriptions **and guests from
+day one of the soak** (option A, guests pulled forward from G5); (2) unquoted exact
+title / AKA phrase-first ranking is required before cutover (SP-1.8; quoted searches
+stay phrases). Post-epic schema gaps (`alternativeTitles`, identity ids) are listed in
+[`docs/search-platform/README.md`](./search-platform/README.md). **Working docs for agents:**
 [`docs/search-platform/`](./search-platform/README.md) (start at
 [agent-handoff.md](./search-platform/agent-handoff.md) when a ticket is thin).
-**Date:** 2026-11-07 (vendor limits re-verified); evidence + tickets updated 2026-11-08.
+**Date:** 2026-11-07 (vendor limits re-verified); evidence + tickets updated 2026-11-08; decisions 2026-11-16.
 **Related:**
 [search-platform/](./search-platform/README.md) (switchover plan, engine, sync, parity, bugs),
 [search-platform-alternatives.md](./search-platform-alternatives.md) (2026-07 survey — still the wide-net reference),
@@ -522,9 +527,12 @@ Agent-facing copies of engine/sync/parity/bugs live under
 
 **Relevance (search page, 1.5 % of traffic but the point of search):**
 
-- **bm25 per-column weights** — the known P2 gap: top-10 overlap with Azure is 0–7/10 on
-  free text. FTS5 `bm25()` takes per-column weights (title > seriesName > subjects >
-  description > search terms); tune against the harness's top-10 overlap metric.
+- **bm25 per-column weights + title/AKA phrase-first ranking** — required before
+  cutover (SP-1.8; Jon, 16 Nov 2026). Top-10 overlap with Azure is 0–7/10 on free text.
+  FTS5 `bm25()` takes per-column weights (title and `alternativeTitles` heaviest, then
+  seriesName, subjects, description, guests, search terms). An unquoted query that is an
+  exact title or AKA must rank that document first; quoted searches stay phrases. Tune
+  against the harness, including those cases.
 - **Recency blending** — blended `ORDER BY` of bm25 + release-date decay so fresh
   episodes surface. Azure needed a scoring profile for this; the live index never
   defined one.
@@ -555,6 +563,11 @@ Agent-facing copies of engine/sync/parity/bugs live under
 curator search-term fields, diacritics folding (2026-11-08 A/B: `agora`/`ágora` both 421
 on D1 vs 23/407 disjoint on Azure — en.lucene has no ASCII folding), legacy
 `podcastName` filter tolerance (stale clients get results instead of Azure's 400).
+
+**Decided 16 November 2026 (not optional, not post-cutover):** full descriptions and
+guests ship from soak day one (SP-0.3). Unquoted exact title / AKA phrase-first ranking
+is required before cutover (SP-1.8). Film `alternativeTitles` and identity ids must be
+in the G1/G2 schema even though they landed on Azure after the 8 Nov demo.
 
 **Operational:**
 
@@ -633,11 +646,11 @@ flowchart LR
 | Gate | Intent | Exit criterion (must be true) |
 |------|--------|-------------------------------|
 | **G0** | Freeze parity baseline | Harness green; week log-replay 0 in-corpus misses; shape nits listed; intentional divergences documented (§4C / §4C.1 / §4C.2) |
-| **G1** | Production-ready search Worker | Dedicated D1 (or confirmed `apiDB`); Sessions API reads; service binding from `api`; admin upsert/delete route; secrets parity planned; shape nits fixed; proxy error-forwarding shipped |
-| **G2** | Backend drips into D1 | `SearchIndexerService` dual-writes Azure + D1; weekly reconcile + shadow rebuild path; drift threshold defined; read replication `mode: auto` |
-| **G3** | Prove live equivalence | Shadow traffic (or sampled dual-query) drift-free for agreed soak window; overload/latency SLOs held under real load |
-| **G4** | Swap `apihost` | Preview cutover → soak → production cutover; rollback = flip `apihost` back; stale-client `podcastName` tolerated |
-| **G5** | Decommission + unlock §6A | Azure index + hourly indexer retired; description-size cap raised; guests indexed; enhancements backlog unblocked |
+| **G1** | Production-ready search Worker | Dedicated D1 (or confirmed `apiDB`); Sessions API reads; service binding from `api`; admin upsert/delete route; secrets parity planned; shape nits fixed; proxy error-forwarding shipped; schema includes full descriptions, guests, `alternativeTitles`, and identity ids |
+| **G2** | Backend drips into D1 | `SearchIndexerService` dual-writes Azure + D1 (full descriptions, guests, `alternativeTitles`, identity ids); weekly reconcile + shadow rebuild path; drift threshold defined; read replication `mode: auto` |
+| **G3** | Prove live equivalence | Shadow traffic (or sampled dual-query) drift-free for agreed soak window; overload/latency SLOs held under real load; soak corpus already has full descriptions and guests (SP-0.3, 16 Nov 2026) |
+| **G4** | Swap `apihost` | Preview cutover → soak → production cutover; rollback = flip `apihost` back; stale-client `podcastName` tolerated; **unquoted exact title/AKA phrase-first ranking in place** (SP-1.8; required) |
+| **G5** | Decommission + unlock §6A | Azure index + hourly indexer retired; leftover Azure cap-driven slimming dropped (SP-5.2); enhancements backlog unblocked. Guests and full descriptions are already live from G3. |
 
 ### 8.3 Ticket catalogue
 
@@ -658,7 +671,7 @@ URLs into SP-E, then board-add every URL.
 | **SP-G0** | `[search-platform] SP-G0 — GATE 0: Parity sign-off` | checklist | Closes when children Done |
 | SP-0.1 | `[search-platform] SP-0.1 — Record parity baseline & intentional divergences in epic` | yes | Doc-only; cite harness + week replay artefacts |
 | SP-0.2 | `[search-platform] SP-0.2 — Fix Azure-shaped response nits (podcastName omit, release ms, @odata.context)` | yes | **Repo: api** (`search-demo` → production engine) |
-| SP-0.3 | `[search-platform] SP-0.3 — Decision: full-description recall vs strict-content soak mode` | yes | Product decision ticket; blocks G4 messaging |
+| SP-0.3 | `[search-platform] SP-0.3 — Decision: full-description recall vs strict-content soak mode` | yes | **Done 16 Nov 2026:** option A + guests from soak day one; #1320 closed |
 
 #### Gate 1 — Production engine
 
@@ -672,7 +685,7 @@ URLs into SP-E, then board-add every URL.
 | SP-1.5 | `[search-platform] SP-1.5 — Forward Azure/upstream search errors (status + body) from /search proxy` | yes | **Repo: api** `src/search.ts` — production bug |
 | SP-1.6 | `[search-platform] SP-1.6 — Drop empty-body-400 legacyName latch once proxy forwards named errors` | yes | **Repo: website**; blocked by SP-1.5 |
 | SP-1.7 | `[search-platform] SP-1.7 — Deterministic secondary sort by id on release/rank pages` | yes | **Repo: api** |
-| SP-1.8 | `[search-platform] SP-1.8 — bm25 per-column weights tuned against harness top-10` | yes | **Repo: api**; can slip to post-G4 if G0 accepts rank approx |
+| SP-1.8 | `[search-platform] SP-1.8 — bm25 per-column weights tuned against harness top-10` | yes | **Repo: api**; **required before G4** (title/AKA phrase-first ranking; `alternativeTitles` column). Must not slip. |
 
 #### Gate 2 — Sync path (drip + weekly reset)
 
@@ -708,7 +721,7 @@ URLs into SP-E, then board-add every URL.
 |----|-------|------------------------|-------|
 | **SP-G5** | `[search-platform] SP-G5 — GATE 5: Azure retired; §6A unlocked` | checklist | |
 | SP-5.1 | `[search-platform] SP-5.1 — Retire Azure Search index + hourly Cosmos indexer` | yes | RPP |
-| SP-5.2 | `[search-platform] SP-5.2 — Raise DescriptionSize; index guests; drop cap-driven slimming` | yes | RPP |
+| SP-5.2 | `[search-platform] SP-5.2 — Raise DescriptionSize; index guests; drop cap-driven slimming` | yes | RPP; **rescoped 16 Nov 2026:** guests + full descriptions moved to G1/G2. Remaining: drop Azure cap-driven slimming after retirement. |
 | SP-5.3 | `[search-platform] SP-5.3 — Enhancements: autosuggest enrichment from D1 vocabulary` | yes | Builds on existing R2 suggestions pipeline |
 | SP-5.4 | `[search-platform] SP-5.4 — Enhancements: spell-correct / did-you-mean via fts5vocab` | yes | Post-cutover; §6A |
 | SP-5.5 | `[search-platform] SP-5.5 — Enhancements: recency blend + proximity boost` | yes | Post-cutover; §6A |
@@ -723,8 +736,8 @@ URLs into SP-E, then board-add every URL.
 3. **No production `wrangler deploy` / website Pages deploy / Azure Function production
    deploy** from an agent unless the user names that exact deploy in the conversation
    (existing hard rules).
-4. **CatalogueMigrate `--apply` remains refused** in this checkout — unrelated, but do
-   not conflate search rebuild with catalogue migrate.
+4. *(Historical)* The CatalogueMigrate consoles were retired in #1369; search rebuild was
+   never part of the catalogue migration.
 5. When creating further tickets under this epic, mint the next free `SP-{gate}.{n}` ID
    and add it to SP-E's checklist in the same PR/commit that opens the issue.
 

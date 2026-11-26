@@ -11,6 +11,8 @@ using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -57,7 +59,7 @@ public class DiscoveryKindClassificationRules
             .ReturnsAsync(new EpisodeUrlRoute(null, null, null));
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.ResolveFilmAsync(It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<CatalogueIdentityChoice>(),
-                It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string?>(), It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(CatalogueIdentityAdmission.Proceed());
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.ResolveTvShowEpisodeAsync(It.IsAny<TvShow>(), It.IsAny<string>(),
@@ -114,6 +116,9 @@ public class DiscoveryKindClassificationRules
     private void UseRealPipeline()
     {
         _mocker.Use<ICatalogueKindSubmitter>(_mocker.CreateInstance<CatalogueKindSubmitter>());
+        _mocker.GetMock<IServiceLinkConflictGate>()
+            .Setup(x => x.Evaluate(It.IsAny<CategorisedItem>(), It.IsAny<SubmitOptions>()))
+            .Returns(ServiceLinkConflictOutcome.Proceed);
         _mocker.Use<ICategorisedItemProcessor>(_mocker.CreateInstance<CategorisedItemProcessor>());
         _mocker.Use<IDiscoveryResultProcessor>(_mocker.CreateInstance<DiscoveryResultProcessor>());
     }
@@ -416,6 +421,121 @@ public class DiscoveryKindClassificationRules
         (await act.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should()
             .Contain("could be stored");
         _films.Should().BeEmpty();
+    }
+
+
+    [Fact(DisplayName =
+        "Choosing an existing news report attaches the discovered URL to that exact report through DiscoveryUrlSubmitter and CatalogueParentSubmitter, even when URL matching would otherwise create a new report.")]
+    public async Task selecting_an_existing_news_report_attaches_to_that_report()
+    {
+        // Arrange
+        UseFlag(true);
+        var url = YouTubeUrl();
+        var orgId = _fixture.CreateGuid();
+        var reportId = _fixture.CreateGuid();
+        var org = new NewsOrganisation("Court TV") { Id = orgId };
+        var report = new NewsReport("An existing report")
+        {
+            Id = reportId,
+            NewsOrganisationId = orgId
+        };
+        _mocker.GetMock<ICatalogueParentLookup>()
+            .Setup(x => x.FindById(CatalogueParentKind.NewsOrganisation, orgId))
+            .ReturnsAsync(CatalogueParentMatch.For(org));
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(x => x.GetByNewsOrganisationId(orgId))
+            .Returns(ToAsync(new[] { report }));
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(x => x.GetNewsReportWithETag(It.IsAny<Guid>(), It.IsAny<Guid>()))
+            .ReturnsAsync(new ETagged<NewsReport>(report, "etag-1"));
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(x => x.TryReplace(It.IsAny<NewsReport>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
+        _mocker.GetMock<IUrlCategoriser>()
+            .Setup(c => c.Categorise(
+                It.IsAny<RedditPodcastPoster.Models.Podcasts.Podcast>(),
+                It.IsAny<IReadOnlyList<Episode>>(),
+                url,
+                It.IsAny<IndexingContext>(),
+                It.IsAny<bool>(),
+                It.IsAny<NonPodcastServiceItemMetaData?>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(new CategorisedItem(
+                null, null, null, null, null,
+                new CategorisedYouTubeItem(
+                    "UCunmapped", _fixture.CreateYouTubeId(), "Court TV", "", "Court TV",
+                    "An existing report", "", DateTime.UtcNow, TimeSpan.FromMinutes(8), url, false, null, null),
+                null, Service.YouTube));
+        var parentSubmitter = _mocker.CreateInstance<CatalogueParentSubmitter>();
+        var sut = new DiscoveryUrlSubmitter(
+            _mocker.Get<IEpisodeUrlRouter>(),
+            _mocker.Get<IDiscoveryResultProcessor>(),
+            parentSubmitter,
+            _mocker.Get<ICatalogueParentLookup>(),
+            _mocker.Get<ISubmitResultAdaptor>(),
+            _mocker.Get<Microsoft.Extensions.Logging.ILogger<DiscoveryUrlSubmitter>>());
+        var options = new SubmitOptions(
+            null,
+            true,
+            CreationSource: EpisodeCreationSource.Discovery,
+            ClassificationSignals: new SubmitClassificationSignals(url, News: true),
+            Parent: new CatalogueParentTarget(CatalogueParentKind.NewsOrganisation, orgId),
+            KindChoice: DiscoveryKindChoice.Select,
+            SelectedKindKey: DiscoveryKindKeys.NewsReport(orgId, reportId),
+            TargetNewsOrganisationId: orgId,
+            TargetNewsReportId: reportId,
+            EnforceLanguageGate: false);
+
+        parentSubmitter.Should().BeOfType<CatalogueParentSubmitter>();
+
+        // Act
+        var result = await sut.Submit(Result(youTube: url), new IndexingContext(), options);
+
+        // Assert
+        result.State.Should().Be(DiscoverySubmitResultState.EnrichedEpisode);
+        result.ContentKind.Should().Be(SubmitClassification.NewsReport);
+        result.PlayableId.Should().Be(reportId);
+        result.ParentId.Should().Be(orgId);
+        result.Episode.Should().BeNull();
+        report.Services.Should().ContainKey(ServiceKeys.YouTube);
+        report.Services[ServiceKeys.YouTube].Url.Should().Be(url);
+        report.YouTubeId.Should().NotBeNullOrWhiteSpace();
+        _mocker.GetMock<INewsReportRepository>().Verify(
+            x => x.TryReplace(It.Is<NewsReport>(r => r.Id == reportId), It.IsAny<string>()), Times.Once);
+        _mocker.GetMock<INewsReportRepository>().Verify(x => x.Save(It.IsAny<NewsReport>()), Times.Never);
+        _mocker.GetMock<IPodcastProcessor>().Verify(
+            p => p.AddEpisodeToExistingPodcast(It.IsAny<CategorisedItem>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "A curator-confirmed film stand-in takes its title from the discovery and does not use a Vimeo service link.")]
+    public async Task confirmed_film_stand_in_is_not_labelled_vimeo()
+    {
+        // Arrange
+        UseFlag(true);
+        var url = SpotifyUrl();
+        var title = "A discovered film title";
+        CategoriserReturns(url, new CategorisedItem(null, null, null, null, null, null, null, Service.Spotify));
+        UseRealPipeline();
+        var sut = _mocker.CreateInstance<DiscoveryUrlSubmitter>();
+        var discovery = Result(spotify: url);
+        discovery.EpisodeName = title;
+        var options = DiscoveryOptions() with
+        {
+            KindChoice = DiscoveryKindChoice.Select,
+            SelectedKindKey = DiscoveryKindKeys.Film(Guid.NewGuid()),
+            ClassificationSignals = new SubmitClassificationSignals(url, MadeAsFilm: true)
+        };
+
+        // Act
+        var result = await sut.Submit(discovery, new IndexingContext(), options);
+
+        // Assert
+        var film = _films.Should().ContainSingle().Subject;
+        film.Name.Should().Be(title);
+        film.Services.Should().NotContainKey("vimeo");
+        result.ContentKind.Should().Be(SubmitClassification.Film);
+        result.PlayableId.Should().Be(film.Id);
     }
 
     private static async IAsyncEnumerable<T> ToAsync<T>(IEnumerable<T> items)

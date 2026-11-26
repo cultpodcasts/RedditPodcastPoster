@@ -28,7 +28,7 @@ public class PodcastServicesEpisodeEnricher(
     )
     {
         var results = new List<EnrichmentResult>();
-        var cancellationToken = indexingContext.CancellationToken;
+        var cancellationToken = PodcastRunScope.Current.CancellationToken;
         foreach (var episode in newEpisodes)
         {
             // The indexer's per-podcast budget: stop between calls so a slow enrichment is cancelled, not abandoned.

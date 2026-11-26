@@ -16,6 +16,11 @@ public interface ITvShowEpisodeRepository : IRepository<TvShowEpisode>, IFiltera
     Task<ETagged<TvShowEpisode>?> GetTvShowEpisodeWithETag(Guid tvShowId, Guid episodeId);
 
     /// <summary>
+    /// Replace the episode when its current ETag is <paramref name="etag"/>. False on a mismatch or a missing row.
+    /// </summary>
+    Task<bool> TryReplace(TvShowEpisode episode, string etag);
+
+    /// <summary>
     /// Cosmos partial patch of <c>/services</c> and/or <c>/youTubeId</c> only, guarded by <paramref name="ifMatchETag"/>.
     /// A missing document is <see cref="CataloguePlayablePatchOutcome.NotFound"/> (never recreated); a changed one is
     /// <see cref="CataloguePlayablePatchOutcome.Conflict"/>.

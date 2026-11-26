@@ -41,6 +41,44 @@ public class FilmChangeRequest : PublisherFieldsChangeRequest
     [JsonPropertyName("expectedTrailerIds")]
     public Guid[]? ExpectedTrailerIds { get; set; }
 
+    /// <summary>
+    /// Additional YouTube uploads to keep, in display order (RPP #1411). Existing entries are identified by
+    /// <c>youTubeId</c>; a new entry is added from a YouTube <c>url</c>. Entries left out are removed; [] removes
+    /// all. Send <see cref="ExpectedAdditionalYouTubeIds"/> with this field. A stored id not in that list is a 409.
+    /// </summary>
+    [JsonPropertyName("additionalYouTube")]
+    public YouTubeAlternateChangeRequest[]? AdditionalYouTube { get; set; }
+
+    /// <summary>
+    /// Additional YouTube ids the client last saw. When <see cref="AdditionalYouTube"/> is sent, a stored id that is
+    /// not in this list is a 409 and nothing is saved.
+    /// </summary>
+    [JsonPropertyName("expectedAdditionalYouTubeIds")]
+    public string[]? ExpectedAdditionalYouTubeIds { get; set; }
+
+    /// <summary>
+    /// The YouTube id of an additional upload to swap into the primary <c>services.youtube</c> (RPP #1411). The
+    /// previous primary becomes an additional upload. The id must be in <see cref="AdditionalYouTube"/> when that
+    /// field is sent, otherwise it must already be on the film. Unknown id is a 400.
+    /// </summary>
+    [JsonPropertyName("promoteYouTubeId")]
+    public string? PromoteYouTubeId { get; set; }
+
+    /// <summary>
+    /// The film's identity image (TMDB backdrop or poster; RPP #1435). <c>""</c> clears; otherwise an absolute http(s)
+    /// URL. Omitted (null) = unchanged. A value sent here is not overwritten by identity fill in the same PATCH.
+    /// </summary>
+    [JsonPropertyName("image")]
+    public string? Image { get; set; }
+
+    /// <summary>
+    /// Other titles the film is known by (RPP #1431). Replaces the list; [] clears it; blanks and the film's own name are
+    /// dropped, duplicates are removed (case-insensitive), titles are trimmed. [] (a curator cleared them, or TMDB had
+    /// none) is not filled again, unless a later PATCH changes the IMDb or TMDB id and does not send this field.
+    /// </summary>
+    [JsonPropertyName("alternativeTitles")]
+    public string[]? AlternativeTitles { get; set; }
+
     /// <summary>A year <c>yyyy</c> or a calendar date <c>yyyy-MM-dd</c>. Anything else is a 400.</summary>
     [JsonPropertyName("release")]
     public string? Release { get; set; }

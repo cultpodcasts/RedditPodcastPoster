@@ -1,3 +1,4 @@
+using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 
@@ -29,6 +30,9 @@ public class EpisodeChangeRequest
 
     public bool? Removed { get; set; }
 
+    /// <summary>#1484: approve (clear the approval status) or reject an episode awaiting approval.</summary>
+    public ApprovalDecision? ApprovalDecision { get; set; }
+
     public bool? Explicit { get; set; }
 
     public DateTime? Release { get; set; }
@@ -40,6 +44,12 @@ public class EpisodeChangeRequest
     public ServiceImageUrls? Images { get; set; }
 
     public Dictionary<string, ServiceLink>? Services { get; set; }
+
+    public YouTubeAlternateChange[]? AdditionalYouTube { get; set; }
+
+    public string[]? ExpectedAdditionalYouTubeIds { get; set; }
+
+    public string? PromoteYouTubeId { get; set; }
 
     public string[]? Subjects { get; set; }
 
@@ -60,12 +70,15 @@ public class EpisodeChangeRequest
         UnBluesky != null ||
         Ignored != null ||
         Removed != null ||
+        ApprovalDecision != null ||
         Explicit != null ||
         Release != null ||
         Duration != null ||
         Urls != null ||
         Images != null ||
         Services != null ||
+        AdditionalYouTube != null ||
+        PromoteYouTubeId != null ||
         Subjects != null ||
         SearchTerms != null ||
         HashTag != null ||
@@ -73,8 +86,9 @@ public class EpisodeChangeRequest
         Guests != null;
 
     /// <summary>
-    /// Homepage JSON does not include guests, search terms, hash tags, or social un-post flags.
+    /// Homepage JSON does not include guests, search terms, hash tags, additional YouTube, or social un-post flags.
     /// A guests-only curator POST must not wait on a full homepage republish.
+    /// Promoting an additional upload swaps <c>services.youtube</c> and <c>ids.youtube</c>, which the homepage row does include.
     /// </summary>
     public bool HasHomepageAffectingChange =>
         Title != null ||
@@ -82,12 +96,14 @@ public class EpisodeChangeRequest
         Posted != null ||
         Ignored != null ||
         Removed != null ||
+        ApprovalDecision != null ||
         Explicit != null ||
         Release != null ||
         Duration != null ||
         Urls != null ||
         Images != null ||
         Services != null ||
+        PromoteYouTubeId != null ||
         Subjects != null ||
         Language != null;
 }

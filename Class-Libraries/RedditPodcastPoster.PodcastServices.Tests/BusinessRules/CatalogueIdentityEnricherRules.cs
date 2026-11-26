@@ -8,6 +8,8 @@ using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.TvShows;
+using RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Fixtures;
+using RedditPodcastPoster.Tmdb.Clients;
 using RedditPodcastPoster.Tmdb.Models;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules;
@@ -118,7 +120,8 @@ public class CatalogueIdentityEnricherRules
     }
 
     [Fact(DisplayName =
-        "When several film matches share a year and the create has that year, the single year match is applied without a prompt.")]
+        "When several film matches share a year and the create has that year and a runtime that agrees with TMDB, " +
+        "the single year match is applied without a prompt.")]
     public async Task ambiguous_film_narrowed_by_year_is_unique()
     {
         // Arrange
@@ -127,6 +130,7 @@ public class CatalogueIdentityEnricherRules
         var matchingId = CreateTmdbId();
         var otherId = CreateDistinctTmdbId(matchingId);
         var imdbId = ImdbId();
+        var length = TimeSpan.FromMinutes(81);
         var candidates = new[]
         {
             new CatalogueAuthorityCandidate(
@@ -160,6 +164,9 @@ public class CatalogueIdentityEnricherRules
         _mocker.GetMock<ICatalogueAuthorityLookup>()
             .Setup(x => x.CollectFilmAsync(matchingId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CatalogueAuthorityIds(imdbId, matchingId, null));
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(x => x.GetMovieMetadataAsync(matchingId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TmdbMovieMetadata(matchingId, title, null, null, 80, null, null, []));
         var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
 
         // Act
@@ -167,12 +174,145 @@ public class CatalogueIdentityEnricherRules
             title,
             year,
             CatalogueIdentityChoice.Unset,
-            selectedKey: null);
+            selectedKey: null,
+            length: length);
 
         // Assert
         admission.Hold.Should().BeFalse();
         admission.Ids!.TmdbId.Should().Be(matchingId);
         admission.Ids.ImdbId.Should().Be(imdbId);
+    }
+
+    [Fact(DisplayName =
+        "When several film matches share a year but the year match's TMDB runtime is far outside the source length " +
+        "band, create offers the picker instead of auto-applying the short wrong title (RPP #1497).")]
+    public async Task year_narrowed_film_with_disagreeing_runtime_holds_candidates()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var year = DomainTestFixture.UtcToday.Year - 5;
+        var matchingId = CreateTmdbId();
+        var otherId = CreateDistinctTmdbId(matchingId);
+        var candidates = new[]
+        {
+            new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TmdbKey(matchingId),
+                title,
+                year,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                matchingId,
+                TvdbId: null),
+            new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TmdbKey(otherId),
+                title,
+                year - 1,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                otherId,
+                TvdbId: null)
+        };
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewFilmAsync(title, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                title,
+                HitCount: 2,
+                ImdbId: null,
+                TmdbId: null,
+                TvdbId: null,
+                [title, title],
+                Resolution: CatalogueAuthorityResolution.SeveralProgrammes,
+                Candidates: candidates));
+        _mocker.GetMock<ITmdbClient>()
+            .Setup(x => x.GetMovieMetadataAsync(matchingId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TmdbMovieMetadata(matchingId, title, null, null, 11, null, null, []));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.ResolveFilmAsync(
+            title,
+            year,
+            CatalogueIdentityChoice.Unset,
+            selectedKey: null,
+            length: TimeSpan.FromMinutes(81));
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        admission.Prompt!.Candidates.Should().HaveCount(2);
+        _mocker.GetMock<ICatalogueAuthorityLookup>().Verify(
+            x => x.CollectFilmAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Edit-time film Look up offers a unique TMDB match as a single-candidate picker so the curator confirms " +
+        "before blank identity fields are filled (RPP #1497).")]
+    public async Task lookup_film_unique_match_requires_confirmation()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var tmdbId = CreateTmdbId();
+        var imdbId = ImdbId();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewFilmAsync(title, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                title,
+                HitCount: 1,
+                imdbId,
+                tmdbId,
+                TvdbId: null,
+                [title],
+                Resolution: CatalogueAuthorityResolution.Unique));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupFilmAsync(
+            title,
+            year: null,
+            CatalogueIdentityChoice.Unset,
+            selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        admission.Prompt!.Candidates.Should().ContainSingle(c => c.TmdbId == tmdbId);
+    }
+
+    [Fact(DisplayName =
+        "Edit-time film Look up holds a unique IMDb-only match as a single imdb: candidate so the curator confirms " +
+        "before a blank IMDb id is filled, and does not proceed with those ids (RPP #1497).")]
+    public async Task lookup_film_unique_imdb_only_requires_confirmation()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var imdbId = ImdbId();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewFilmAsync(title, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                title,
+                HitCount: 1,
+                imdbId,
+                TmdbId: null,
+                TvdbId: null,
+                [title],
+                Resolution: CatalogueAuthorityResolution.Unique));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupFilmAsync(
+            title,
+            year: null,
+            CatalogueIdentityChoice.Unset,
+            selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        var candidate = admission.Prompt!.Candidates.Should().ContainSingle().Subject;
+        candidate.Key.Should().Be(CatalogueAuthorityCandidate.ImdbKey(imdbId));
+        candidate.TmdbId.Should().BeNull();
+        candidate.Source.Should().Be(CatalogueAuthorityCandidate.ImdbSource);
     }
 
     [Fact(DisplayName =
@@ -349,6 +489,295 @@ public class CatalogueIdentityEnricherRules
         show.ImdbId.Should().Be(existingImdb);
         show.TmdbId.Should().Be(existingTmdb);
         show.TvdbId.Should().Be(existingTvdb);
+    }
+
+    [Fact(DisplayName =
+        "When the only film match has a different title, admission holds that single candidate for the curator to accept " +
+        "rather than reporting no match, and does not apply it even when the year agrees (issue #1421).")]
+    public async Task single_different_title_candidate_is_offered_not_applied()
+    {
+        // Arrange
+        var candidate = new CatalogueAuthorityCandidate(
+            CatalogueAuthorityCandidate.TmdbKey(FaderhusetFilm.TmdbId),
+            FaderhusetFilm.TmdbTitle,
+            FaderhusetFilm.Year,
+            CatalogueAuthorityCandidate.FilmKind,
+            CatalogueAuthorityCandidate.TmdbSource,
+            FaderhusetFilm.TmdbId,
+            TvdbId: null);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewFilmAsync(FaderhusetFilm.Query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                FaderhusetFilm.Query,
+                HitCount: 1,
+                ImdbId: null,
+                TmdbId: null,
+                TvdbId: null,
+                [FaderhusetFilm.TmdbTitle],
+                Resolution: CatalogueAuthorityResolution.DifferentTitle,
+                Candidates: [candidate]));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.ResolveFilmAsync(
+            FaderhusetFilm.Query,
+            FaderhusetFilm.Year,
+            CatalogueIdentityChoice.Unset,
+            selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        admission.Prompt!.Target.Should().Be(CatalogueAuthorityCandidate.FilmKind);
+        admission.Prompt.Query.Should().Be(FaderhusetFilm.Query);
+        admission.Prompt.Candidates.Should().ContainSingle()
+            .Which.Key.Should().Be(CatalogueAuthorityCandidate.TmdbKey(FaderhusetFilm.TmdbId));
+        _mocker.GetMock<ICatalogueAuthorityLookup>()
+            .Verify(x => x.CollectFilmAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the curator selects an IMDb-only film candidate, admission stores that IMDb id alone, because TMDB had no record for it.")]
+    public async Task select_imdb_key_applies_imdb_id_only()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var imdbId = ImdbId();
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+        var film = new Film(title);
+
+        // Act
+        var admission = await sut.ResolveFilmAsync(
+            title,
+            year: null,
+            CatalogueIdentityChoice.Select,
+            CatalogueAuthorityCandidate.ImdbKey(imdbId));
+        sut.ApplyMissing(film, admission.Ids);
+
+        // Assert
+        admission.Hold.Should().BeFalse();
+        admission.Ids!.ImdbId.Should().Be(imdbId);
+        admission.Ids.TmdbId.Should().BeNull();
+        film.ImdbId.Should().Be(imdbId);
+        film.TmdbId.Should().BeNull();
+        _mocker.GetMock<ICatalogueAuthorityLookup>()
+            .Verify(x => x.CollectFilmAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Edit-time TV show lookup: when TMDB TV and TheTVDB offer nothing, film/documentary hits for the same title " +
+        "are held for the curator to pick and no ids are applied (#1387).")]
+    public async Task lookup_tv_show_offers_film_candidates_when_tv_has_none()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var imdbId = ImdbId();
+        var film = new CatalogueAuthorityCandidate(
+            CatalogueAuthorityCandidate.ImdbKey(imdbId),
+            name,
+            Year: null,
+            CatalogueAuthorityCandidate.FilmKind,
+            CatalogueAuthorityCandidate.ImdbSource,
+            TmdbId: null,
+            TvdbId: null);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewTvShowAsync(name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(name, 0, null, null, null, []));
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewTvShowOtherKindsAsync(name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                name, 1, null, null, null, [name],
+                Resolution: CatalogueAuthorityResolution.DifferentTitle,
+                Candidates: [film]));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupTvShowAsync(name, CatalogueIdentityChoice.Unset, selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        admission.Prompt!.Target.Should().Be(CatalogueAuthorityCandidate.TvShowKind);
+        admission.Prompt.Candidates.Should().ContainSingle().Which.Key.Should().Be(film.Key);
+    }
+
+    [Fact(DisplayName =
+        "Edit-time TV show lookup: a confident TV match is used as before and film/documentary search is not asked (#1387).")]
+    public async Task lookup_tv_show_unique_tv_match_skips_film_search()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var imdbId = ImdbId();
+        var tmdbId = CreateTmdbId();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewTvShowAsync(name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                name, 1, imdbId, tmdbId, null, [name], Resolution: CatalogueAuthorityResolution.Unique));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupTvShowAsync(name, CatalogueIdentityChoice.Unset, selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeFalse();
+        admission.Ids!.ImdbId.Should().Be(imdbId);
+        admission.Ids.TmdbId.Should().Be(tmdbId);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Verify(x => x.PreviewTvShowOtherKindsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "Edit-time TV show lookup: when the TV authorities offer candidates (several programmes or a different " +
+        "title), the TV prompt is used and film/documentary search is never asked (#1387).")]
+    [InlineData(CatalogueAuthorityResolution.SeveralProgrammes)]
+    [InlineData(CatalogueAuthorityResolution.DifferentTitle)]
+    public async Task lookup_tv_show_with_tv_candidates_prompts_tv(CatalogueAuthorityResolution resolution)
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var tvdbId = _fixture.CreateAppleId();
+        var tv = new CatalogueAuthorityCandidate(
+            CatalogueAuthorityCandidate.TvdbKey(tvdbId),
+            name,
+            Year: null,
+            CatalogueAuthorityCandidate.TvShowKind,
+            CatalogueAuthorityCandidate.TvdbSource,
+            TmdbId: null,
+            tvdbId);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewTvShowAsync(name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                name, 2, null, null, null, [name], Resolution: resolution, Candidates: [tv]));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupTvShowAsync(name, CatalogueIdentityChoice.Unset, selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Prompt!.Candidates.Should().ContainSingle().Which.Key.Should().Be(tv.Key);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Verify(x => x.PreviewTvShowOtherKindsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Edit-time TV show lookup: when the film/documentary search throws, the result is the same no-match as " +
+        "before (no ids, no prompt), not an error (#1387).")]
+    public async Task lookup_tv_show_film_search_failure_is_no_match()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewTvShowAsync(name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(name, 0, null, null, null, []));
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewTvShowOtherKindsAsync(name, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException(_fixture.CreateTitle()));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupTvShowAsync(name, CatalogueIdentityChoice.Unset, selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeFalse();
+        admission.Ids.Should().BeNull();
+        admission.Prompt.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Edit-time TV show lookup: a single TV hit under a different title with no candidates to pick falls " +
+        "through to the film/documentary search (#1387).")]
+    public async Task lookup_tv_show_single_disagreeing_tv_hit_asks_film_search()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var imdbId = ImdbId();
+        var film = new CatalogueAuthorityCandidate(
+            CatalogueAuthorityCandidate.ImdbKey(imdbId),
+            name,
+            Year: null,
+            CatalogueAuthorityCandidate.FilmKind,
+            CatalogueAuthorityCandidate.ImdbSource,
+            TmdbId: null,
+            TvdbId: null);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewTvShowAsync(name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                name, 1, null, null, null, [_fixture.CreateTitleNotContainedIn(name)],
+                Resolution: CatalogueAuthorityResolution.DifferentTitle));
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewTvShowOtherKindsAsync(name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                name, 1, null, null, null, [name],
+                Resolution: CatalogueAuthorityResolution.DifferentTitle,
+                Candidates: [film]));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupTvShowAsync(name, CatalogueIdentityChoice.Unset, selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Prompt!.Candidates.Should().ContainSingle().Which.Key.Should().Be(film.Key);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Verify(x => x.PreviewTvShowOtherKindsAsync(name, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "Create-time TV show resolve never asks film/documentary search, so a submit or move is not held on a film " +
+        "guess (#1387).")]
+    public async Task resolve_tv_show_does_not_offer_film_candidates()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewTvShowAsync(name, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(name, 0, null, null, null, []));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.ResolveTvShowAsync(name, CatalogueIdentityChoice.Unset, selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeFalse();
+        admission.Ids.Should().BeNull();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Verify(x => x.PreviewTvShowOtherKindsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the curator picks an IMDb-keyed film for a TV show, only the IMDb id is stored and no TV ids are " +
+        "collected (#1387).")]
+    public async Task select_imdb_key_for_tv_show_stores_imdb_id_only()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var imdbId = ImdbId();
+        var show = new TvShow(name);
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupTvShowAsync(
+            name,
+            CatalogueIdentityChoice.Select,
+            CatalogueAuthorityCandidate.ImdbKey(imdbId));
+        sut.ApplyMissing(show, admission.Ids);
+
+        // Assert
+        admission.Hold.Should().BeFalse();
+        admission.Ids!.ImdbId.Should().Be(imdbId);
+        admission.Ids.TmdbId.Should().BeNull();
+        admission.Ids.TvdbId.Should().BeNull();
+        show.ImdbId.Should().Be(imdbId);
+        show.TmdbId.Should().BeNull();
+        _mocker.GetMock<ICatalogueAuthorityLookup>()
+            .Verify(x => x.CollectTvShowAsync(It.IsAny<int?>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        // The edit-time select goes straight to SelectTvShowAsync: no TV or film search is re-run.
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Verify(x => x.PreviewTvShowAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Verify(x => x.PreviewTvShowOtherKindsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private string ImdbId() =>

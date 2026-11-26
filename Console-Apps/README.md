@@ -297,55 +297,6 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 | `<channel-name>` | YouTube channel name |
 | `<most-recent-upload-name>` | Title of the channel’s most recent upload |
 
-### CatalogueMigrateIdentify
-
-**Purpose:** Dry-run corpus identify. URL scan: BBC `/news/` → News + allowlist (S-008). Podcast-level: YouTube-only publishers whose names look like news organisations (four-letter call sign, a News word, newspaper masthead such as Times/Herald, 24/7 rolling news, France 24 / Jazeera / Euronews, or ABC/NBC/CBS/FOX plus a channel number; names that say Podcast stay podcasts; curator stay-podcast names stay podcasts) with YouTube-only episodes → News + allowlist; curator-named TV programmes (canonical show name, not the channel; playables keep a services map for every platform) → TV; **two or more** stored BBC iPlayer episode URLs (no Spotify/Apple ids) → TV, even when some other episodes lack iPlayer. Film is not discovered here (use `CatalogueMigrate --kind Film --podcast-id`). Mixed Spotify plus `/news/` stays Episode and needs a curator. The TV scan reads `episode.Services` only; leftover-only iPlayer in Cosmos `urls.bbc` is not on the typed Episode and needs EpisodeServiceBackfill first. Signal-identified TV and film rows are checked against TMDB and TheTVDB only when that set is at most 50. A larger set is reported and not sent. News is not sent. A unique agreeing title is the only match. When the publisher name is not one programme, programmes come from the episodes: an iPlayer series or season slug, a repeated title (including parts), or a brand shared by two or more episodes. Each of those is checked the same way, up to 50 programmes on that publisher. A single remaining title is its own programme and is tried as a film when it is not a series. A shorter clause with several hits does not replace the full title. **`--apply` always exits 2.** Dry-run only; agent run-gate: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
-
-**Run:** `dotnet run --project Console-Apps/CatalogueMigrateIdentify --` · PATH: `CatalogueMigrateIdentify`
-
-| Option | Description |
-|--------|-------------|
-| `--podcast-id` | Identify a single podcast GUID. Default is every podcast |
-| `--apply` | Always refused (exit 2). Dry-run only; does not write Cosmos |
-
-### CatalogueMigrate
-
-**Purpose:** Corpus **move** from Podcast/Episode into News, Film and TV (S-007: run News, then Film, then TV). Keeps GUIDs. Dry-run by default: it logs one `Catalogue migrate plan … apply= block=` line per podcast, and apply uses the same planner. News apply needs `CatalogueNewsOrganisationAllowlist` (S-008, frozen 2 Oct 2026; 299 names after the 21 and 22 Oct 2026 curator reviews). Dry-run still discovers via Identify heuristics and logs `onAllowlist`. Auto-indexed podcasts (`IndexAllEpisodes` / `EpisodeIncludeTitleRegex`) move to News and TV with their discovery settings in the parent's `indexing` block (blank text stored as null), and the hourly indexer keeps indexing them. Only Film refuses an auto-indexed podcast. Film is a one-off (episode id, no parent) and requires `--podcast-id`. TV may be scanned from stored iPlayer series URLs on `services`, or targeted with `--podcast-id`. Leftover-only `urls.bbc` iPlayer is not visible until backfill.
-
-`--apply` writes **only** with `--consent "I approve CatalogueMigrate --kind <Kind> production writes"`, otherwise it exits 2. Each podcast: destination upsert → verify count → same-id Search swap (`contentKind`) → delete episodes → delete podcast. Evidence goes to one JSONL per batch, with full before-snapshots. Re-running resumes. `--rollback <file>` previews a restore. Add `--apply --consent "I approve CatalogueMigrate rollback of <file name> in production"` to restore. Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 a podcast failed (run stopped, source kept). Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc). Ops: [`docs/catalogue-run/gate-5.md`](../docs/catalogue-run/gate-5.md).
-
-**Indexer window (auto-indexed podcasts only):** the Indexer's `Hourly` run starts at :03 and `HourlyCatchUp` at :08. A pass that read a podcast before the move would save it again after the move and re-create the deleted row. So `--apply` skips an auto-indexed podcast at minutes :00–:14 and :55–:59 (plan line `block=` says so; the run carries on with other podcasts). Re-run between :15 and :54 to move it. Dry-run is not affected. Separately, just before deleting the source, apply re-reads it: if the podcast was indexed (`lastIndexed` changed) or an episode arrived during the move, the source is kept and the run stops with exit 3, and a re-run moves the current rows. Each podcast is re-read just before it is planned, so a long run never moves (or snapshots for rollback) a copy read at the start. While a move is unfinished (parent written, podcast not yet deleted), the hourly indexer skips the parent (`IndexerCatalogueParentSourcePodcastExists`) and keeps indexing the podcast, so new videos are not saved twice.
-
-**Run:** `dotnet run --project Console-Apps/CatalogueMigrate --` · PATH: `CatalogueMigrate`
-
-| Option | Description |
-|--------|-------------|
-| `--kind` | `NewsReport`, `Film`, or `TvShowEpisode` (required unless `--rollback`) |
-| `--podcast-id` | One podcast GUID. Required for Film. Optional for News and TV (default is identify-scan) |
-| `--apply` | Write. Needs the exact `--consent` phrase, else exit 2. Auto-indexed podcasts move only at minutes :15–:54 |
-| `--consent` | Human approval phrase (see above). Never default it or script it |
-| `--batch-size` | Podcasts per evidence file (default 25, max 500) |
-| `--limit` | Stop after this many eligible podcasts |
-| `--evidence-dir` | Evidence folder (default `catalogue-migrate-evidence`) |
-| `--rollback` | Evidence JSONL to restore from. Previews unless `--apply` |
-
-### CataloguePlayableServicesBackfill
-
-**Purpose:** Cosmos-first repair of Film / TvShowEpisode / NewsReport `services` (url + image) from episode backup JSON (`episode/{guid}.json`). Scans live playables, diffs backup service maps, and carries discrepant **non-null** backup url/image onto the entity. Dry-run by default (JSONL change log only). `--apply` writes only with `--consent` (human-held consent phrase, not documented) (else exit 2). Exit codes: 0 ok, 1 bad arguments, 2 refused, 3 failed writes. Agents never pass `--apply`/`--consent`: [`.cursor/rules/catalogue-migrate-cli-dry-run.mdc`](../.cursor/rules/catalogue-migrate-cli-dry-run.mdc).
-
-**Run:** `dotnet run --project Console-Apps/CataloguePlayableServicesBackfill --` · PATH: `CataloguePlayableServicesBackfill`
-
-| Option | Description |
-|--------|-------------|
-| `--episode-backup-dir` | CosmosDbDownloader export root (or `episode` folder) |
-| `--kind` | `film` \| `tvshowepisode` \| `newsreport` \| `all` |
-| `--ids` | Comma-separated GUIDs |
-| `--limit` | Stop after N discrepancy candidates (`0` = no limit) |
-| `--change-log` | JSONL path |
-| `--snapshot-dir` | Optional before-`services` JSON slices |
-| `--apply` | Write. Needs the exact `--consent` phrase, else exit 2 |
-| `--consent` | Human approval phrase. Never default it or script it |
-
 ### CategorisePodcastEpisodes
 
 **Purpose:** Categorise / subject-tag podcast episodes.
@@ -369,16 +320,6 @@ RemoveEpisodes restore-podcast --podcast-id <id1>,<id2> --non-dry-run   # apply
 | Option | Description |
 |--------|-------------|
 | `-a, --apply` | Apply changes; without this flag, report only |
-
-### NewsOrganisationDefaultsBackfill
-
-**Purpose:** One-off: store `indexing.bypassShortEpisodeChecking = true` and `indexing.alwaysPromoteAsHero = true` on every news organisation (the defaults new news organisations are created with). Dry-run unless `--apply`; each write is a Cosmos partial patch of those two members only, and news organisations that already have both are skipped (idempotent). Run only after the release that saves these defaults at creation is deployed. Do not run `--apply` against production without explicit approval.
-
-**Run:** `dotnet run --project Console-Apps/NewsOrganisationDefaultsBackfill --` · PATH: `NewsOrganisationDefaultsBackfill`
-
-| Option | Description |
-|--------|-------------|
-| `-a, --apply` | Patch the two flags; without this flag, report counts only |
 
 ### UnusableFileKeyAudit
 
@@ -508,6 +449,8 @@ FilmSearchPusher
 
 **Purpose:** Push film search documents from the Cosmos `Films` container into the search index, in place of a Film pull indexer (the Free tier's three data sources are used by episodes, TV and news). Run locally, once a day.
 
+**Why this exists / do not remove (Jon, 12 Nov 2026):** the Azure AI Search tier limits data sources (3 on Free), and episodes, TV show episodes and news reports use all three, so films have no pull indexer. This console, with the `FilmSearchPush` library (`RedditPodcastPoster.EntitySearchIndexer/FilmSearchPush`) and the `FilmSearchPushWatermark` store, is the **only bulk path** that gets films into search, for example after an index rebuild (`CreateSearchIndex --teardown-index`) and for `--full` orphan-film cleanup. Curator saves only push one film at a time. **Do not remove until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408).** Rule: [`.cursor/rules/film-search-pusher-keep.mdc`](../.cursor/rules/film-search-pusher-keep.mdc).
+
 **Run:** `dotnet run --project Console-Apps/FilmSearchPusher --` · PATH: `FilmSearchPusher`
 
 | Option | Description |
@@ -521,12 +464,38 @@ How it works:
 - **Incremental (default):** reads films with `_ts >=` the saved watermark (the boundary second is re-pushed so a film saved later in that second is not missed), merge-or-uploads each document built by `CataloguePlayableSearchDocument.For(Film)` (the curator edit's document, description cut to `Constants.DescriptionSize`), and deletes the document of any film marked removed.
 - **Becomes a full push** when `--full` is given, when no watermark has been saved, or when the index holds no film documents (straight after a teardown).
 - **Watermark:** the `FilmSearchPushWatermark` singleton in Cosmos `LookUps` (`highWaterMark` = highest film `_ts` pushed, plus `updatedUtc` and last-run counts). It advances only after every push and delete succeeded, so a failed incremental run is retried; a failed full run (failed documents or a request that throws part-way) clears it, so the next run is full again. Exit code `1` on any failure.
-- Curator film edits and Move to film still push their document straight away; this run catches anything else (CatalogueMigrate film applies, rebuilds) within a day.
+- Curator film edits and Move to film still push their document straight away; this run catches anything else (index rebuilds) within a day.
 
 ```powershell
 FilmSearchPusher --dry-run   # what would change
 FilmSearchPusher             # daily incremental push
 FilmSearchPusher --full      # push all films and remove orphaned film documents
+```
+
+### D1SearchReconcile
+
+**Purpose:** Reconcile the Cloudflare D1 search index with Cosmos (SP-2.2, [#1322](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1322)), and do the **initial backfill**. Same code as the Indexer's weekly `D1SearchReconcile` timer, without the function's 5-minute limit. **Dry run unless `--write`.**
+
+**Run:** `dotnet run --project Console-Apps/D1SearchReconcile --` · PATH: `D1SearchReconcile`
+
+| Option | Description |
+|--------|-------------|
+| `--write` | Patch the index `api:Endpoint` points at. Without it, the run reads D1's inventory and Cosmos and reports, and writes nothing |
+| `--allow-drift` | With `--write`: patch even above `d1Search:Reconcile:DriftThreshold` (default 5%). For the initial backfill (D1 empty) or a deliberate repair |
+| `--full` | Compare the whole catalogue with D1, ignoring the last-reconciled watermark. The weekly Indexer timer always does this. Without `--full`, a run after a successful `--write` only reads playables (and every episode of a podcast) whose Cosmos `_ts` is at or after that watermark |
+| `--rebuild` | With `--write` (and without `--allow-drift` or `--full`): rebuild the whole index from Cosmos into new tables, swap them in, check them (integrity, sample searches, a full reconcile) and drop the old index; any failed check swaps the old index back (SP-2.3, [#226](https://github.com/cultpodcasts/Api/issues/226)). For drift or corruption, on demand only. Run it again to resume or clean up an interrupted rebuild. See `docs/search-platform/sync-and-replication.md` |
+
+**Config:** It uses the same user-secrets store as every other console, so the Cosmos settings, `api:Endpoint`, `auth0client:Domain` and `auth0client:Audience` are already there. User secrets are only for secrets: add `d1Search:ClientId` and `d1Search:ClientSecret` (the prod `search-index-writer` client). The console reads only local user secrets and its own `appsettings.json`; it never reads Key Vault. Non-secret defaults (the reconcile drift threshold, and any others) live in `Console-Apps/D1SearchReconcile/appsettings.json` (`d1Search:Reconcile:DriftThreshold`, default 5%; `d1Search:Rebuild:Tolerance`, `d1Search:Rebuild:MaxShrink` and `d1Search:Rebuild:SampleQueries` for `--rebuild`). `publish-console-apps.ps1` copies that file to `artifacts\tools\D1SearchReconcile.appsettings.json`; the exe loads both `appsettings.json` and `D1SearchReconcile.appsettings.json` from its own directory, so it works when run from `artifacts\tools`. `d1Search:Enabled` is the Functions switch only (`d1SearchProductionEnabled` in bicep, default false); the console does not require it and stays dry unless `--write`. The run prints the index host and whether it writes before it starts. While it runs, the console shows a Spectre.Console progress bar with the same columns as CosmosDbDownloader and CultPodcasts.DatabasePublisher (description, bar, percentage, elapsed, remaining time / ETA, spinner). A Starting task is shown while the host resolves the Cosmos client, then Catalogue starts at "waiting for first page" with a known total (from a container count on a full scan) and updates on the first item and every ten after that (not only every hundred), Inventory shows authenticating and a running page count, and a `--write --full` upsert task also shows how far the second Cosmos catalogue pass has scanned (an incremental write sends the window's already-built documents). The Indexer's weekly timer always does a full compare and has no console UI. This console sets the writer's (and HttpClient) log level to Warning so per-batch Information lines do not overwrite the bar; the Functions still log those lines. Log lines that do pass the filter (warnings and errors) are held while the bar is live and written to standard error once it has finished, so they are never drawn over the bar ([#1475](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1475)). After the bar, a `Scan:` line says which scan ran: `full scan (--full)`, `full scan: no watermark yet` (the first run; the first successful `--write`, including one that finds nothing to change, saves the watermark), or `incremental from _ts … (… UTC)`. Exit code `1` when the sync is not configured, the run fails, or it is refused for drift.
+
+How it works: it pages the index's `{ id, modifiedAt }` inventory (`GET /search/admin/docs/inventory`) and compares that with Cosmos. After a successful `--write` it stores a last-reconciled watermark (a LookUps singleton; the next incremental run reads playables with `_ts >=` that value, plus every episode of a podcast whose `_ts` is in the same window, and re-reads the boundary second so a document saved later in that second is not missed). An episode document's `modifiedAt` is always the **episode's** own `_ts`, never the podcast's: podcasts are saved for bookkeeping far more often than their indexed fields change, and a podcast `_ts` there made 58,187 unchanged documents look stale ([#1475](https://github.com/cultpodcasts/RedditPodcastPoster/issues/1475)). An episode read only because its podcast changed counts as stale only when the podcast's name or search terms no longer match the episode's projection (`D1SearchEpisodeParentProjection`), and is then re-sent with its unchanged `modifiedAt` (the Worker applies an equal one). A first run, or `--full`, still streams the whole catalogue; a cheap container `Count()` gives the catalogue bar a total so it is determinate. Incremental missing/stale are taken from the window; orphans are found with a cheap eligible-id projection against the inventory, not a second document build of everything. With `--write`, if the drift is within the threshold or `--allow-drift` is set, a full run streams Cosmos again and upserts only the missing and stale documents (100 per request); an incremental write sends the documents already built in the window. Then the orphans are deleted (1000 per request). The watermark advances only after a successful `--write` (patched or already in sync). Writes are idempotent; a stopped run can just be run again.
+
+```powershell
+D1SearchReconcile                            # incremental dry run (full, the first time)
+D1SearchReconcile --full                     # full catalogue dry run
+D1SearchReconcile --write                    # incremental write once a watermark exists
+D1SearchReconcile --write --allow-drift      # initial production backfill: Jon's call
+D1SearchReconcile --write --full             # weekly-style full write from the console
+D1SearchReconcile --rebuild --write          # rebuild, check, then drop or swap back: Jon's call
 ```
 
 ### DeleteSearchDocument
@@ -671,6 +640,8 @@ The TV show, news and film files differ from the podcast file on purpose:
 - **Not kept:** a different instant, an episode that is new to the file, or a previous text that is not a full date-time in that shape (a year, a bare date such as `2019-05-01`, words, an impossible date, a number, null) is written as it would be without a baseline: for a podcast episode the instant with a trailing `Z`, for a TV show episode or news report the catalogue's own precision. A year or a bare date is never held against a date-time, so a catalogue release that gains a time of day is published with it.
 - **The baseline:** the previous publish's file with the same file key and the same id or, for a file that is moved first (a rename, or a podcast that became a TV show or news organisation), the file it is moved from. A file with a different id is not used, and a new file has no baseline. This applies to podcast episodes, TV show episodes and news reports; a film is a single item with no previous text of its own.
 - **Reading:** the texts are read once, together with the baseline files at the start of the run, and are only ever read. A file that cannot be read at all (locked, no access) stops the run before anything is planned or changed, like any unreadable file in the folder (exit code 2); a file that is not JSON of the expected shape has no id, so the plan treats it as an unexplained removal (see the list below) that must be accepted knowingly.
+
+**Catalogue read:** each parent kind is loaded once with a full `GetAll()` (not a slim `GetAllBy` projection). Cosmos LINQ projections of id/fileKey/name/removed are valid when expressed as member-init into a mutable type (#1042), but the file build still needs the parent bodies; measured projected+full RU was higher than one full read, so the publisher keeps the single full read.
 
 **The output folder is the baseline.** Run the publisher in the folder that holds the previous publish (the PublicDatabase checkout) and do not clear it first. Before touching any file it reads every top-level `*.json` there, reads the catalogue once, checks every file key and id, and plans the whole run:
 

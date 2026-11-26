@@ -1,5 +1,8 @@
 using RedditPodcastPoster.BBC.Matching;
+using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.UrlSubmission.Models;
 
 namespace RedditPodcastPoster.UrlSubmission.Categorisation;
 
@@ -22,17 +25,75 @@ public static class SubmitContentClassifier
             Series: series);
     }
 
+    /// <summary>
+    /// Option B for #1200: map a curator-confirmed kind candidate to submit options.
+    /// Returns null when the key is missing or not recognised. A caller that already received <c>select</c> must not treat null as "keep as podcast".
+    /// Nothing is applied until the caller writes this onto SubmitOptions.
+    /// </summary>
+    public static DiscoveryKindApplication? FromDiscovery(Uri url, string? selectedKey)
+    {
+        ArgumentNullException.ThrowIfNull(url);
+        if (string.IsNullOrWhiteSpace(selectedKey))
+        {
+            return null;
+        }
+
+        if (DiscoveryKindKeys.TryParseFilm(selectedKey, out var filmId))
+        {
+            return new DiscoveryKindApplication(
+                new SubmitClassificationSignals(url, MadeAsFilm: true),
+                TargetFilmId: filmId);
+        }
+
+        if (DiscoveryKindKeys.TryParseTvShow(selectedKey, out var showId))
+        {
+            return new DiscoveryKindApplication(
+                new SubmitClassificationSignals(url, Series: true),
+                Parent: new CatalogueParentTarget(CatalogueParentKind.TvShow, showId));
+        }
+
+        if (DiscoveryKindKeys.TryParseNewsReport(selectedKey, out var organisationId, out var reportId))
+        {
+            return new DiscoveryKindApplication(
+                new SubmitClassificationSignals(url, News: true),
+                Parent: new CatalogueParentTarget(CatalogueParentKind.NewsOrganisation, organisationId),
+                TargetNewsOrganisationId: organisationId,
+                TargetNewsReportId: reportId);
+        }
+
+        if (CatalogueAuthorityCandidate.TryParseKey(selectedKey, out var tmdbId, out _) && tmdbId is > 0)
+        {
+            return new DiscoveryKindApplication(
+                new SubmitClassificationSignals(url, MadeAsFilm: true),
+                IdentityChoice: CatalogueIdentityChoice.Select,
+                SelectedIdentityKey: selectedKey);
+        }
+
+        if (CatalogueAuthorityCandidate.TryParseImdbKey(selectedKey, out _))
+        {
+            return new DiscoveryKindApplication(
+                new SubmitClassificationSignals(url, MadeAsFilm: true),
+                IdentityChoice: CatalogueIdentityChoice.Select,
+                SelectedIdentityKey: selectedKey);
+        }
+
+        return null;
+    }
     public static SubmitClassification Classify(SubmitClassificationSignals signals)
     {
         ArgumentNullException.ThrowIfNull(signals);
 
-        if (IsNetflixTitleHub(signals.Url))
+        // CLS-002: a Netflix /title/ page for a series is a catalogue hub (no TvShow stub), so it is rejected.
+        // #1517: a /title/ page whose primary type is Movie is the film's own page (films have no stable
+        // public watch URL), so it falls through to Film below.
+        if (IsNetflixTitleHub(signals.Url) && !IsStandaloneFilm(signals))
         {
             return new SubmitClassification(
-                SubmitClassification.Episode,
+                SubmitClassification.TvShowEpisode,
                 HasParent: false,
                 Reject: true,
-                RequiresCurator: false);
+                RequiresCurator: false,
+                RejectionMessage: NetflixSeriesHubSubmitRejection.Message);
         }
 
         if (IsBbcNews(signals.Url) || signals.YouTubeNewsStation || signals.News)
@@ -96,6 +157,9 @@ public static class SubmitContentClassifier
         return path.Contains("/title/", StringComparison.OrdinalIgnoreCase)
                && !path.Contains("/watch/", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsStandaloneFilm(SubmitClassificationSignals signals) =>
+        signals.MadeAsFilm && !signals.Series;
 
     public static bool IsVimeo(Uri url) => HostIs(url, "vimeo.com");
 

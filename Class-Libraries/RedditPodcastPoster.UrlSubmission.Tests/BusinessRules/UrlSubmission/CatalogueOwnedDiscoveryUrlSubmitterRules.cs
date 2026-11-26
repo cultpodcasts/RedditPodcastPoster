@@ -4,6 +4,10 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 using RedditPodcastPoster.Models.Discovery;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.TvShows;
@@ -242,7 +246,33 @@ public class CatalogueOwnedDiscoveryUrlSubmitterRules
         VerifyInnerNotCalled();
     }
 
-    /// <summary>The decorator with the real ownership guard over the (mocked or real) membership lookup.</summary>
+    [Fact(DisplayName =
+        "When a discovery result's YouTube URL is a podcast episode's primary, the result still goes to the inner submitter, because a live episode's own YouTube is not catalogue-owned (RPP #1411).")]
+    public async Task youtube_primary_on_a_podcast_episode_is_submitted_to_the_inner_submitter()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var url = EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.YouTube)!;
+        var episodes = new InMemoryEpisodeRepository();
+        episodes.Seed(episode);
+        _mocker.Use<IEpisodeRepository>(episodes);
+        _mocker.Use(Options.Create(new SubmitContentTypesOptions()));
+        _mocker.Use<IUrlMembershipLookup>(_mocker.CreateInstance<UrlMembershipLookup>());
+        var inner = new DiscoverySubmitResult(DiscoverySubmitResultState.CreatedEpisode);
+        _mocker.GetMock<IDiscoveryUrlSubmitter>()
+            .Setup(x => x.Submit(It.IsAny<DiscoveryResult>(), It.IsAny<IndexingContext>(), It.IsAny<SubmitOptions>()))
+            .ReturnsAsync(inner);
+        var sut = CreateSut();
+
+        // Act
+        var result = await sut.Submit(Result(url), new IndexingContext(), new SubmitOptions(null, true));
+
+        // Assert
+        result.Should().BeSameAs(inner);
+    }
+
+        /// <summary>The decorator with the real ownership guard over the (mocked or real) membership lookup.</summary>
     private CatalogueOwnedDiscoveryUrlSubmitter CreateSut()
     {
         _mocker.Use<ICatalogueOwnershipGuard>(_mocker.CreateInstance<CatalogueOwnershipGuard>());

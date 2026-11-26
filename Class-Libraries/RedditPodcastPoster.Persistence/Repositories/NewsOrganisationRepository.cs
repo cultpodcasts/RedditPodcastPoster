@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Cosmos.Linq;
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -39,8 +40,17 @@ public class NewsOrganisationRepository(
     public Task<bool> PatchIndexerState(Guid newsOrganisationId, CatalogueParentIndexerPatch patch) =>
         CatalogueParentIndexerPatchOperations.Apply(newsOrganisationsContainer, newsOrganisationId, patch);
 
+    public Task<bool> PatchAdditionalYouTubeChannelFlags(
+        Guid newsOrganisationId,
+        IReadOnlyList<AdditionalYouTubeChannel> channels) =>
+        NewsOrganisationAdditionalYouTubeChannelsPatchOperations.Apply(
+            newsOrganisationsContainer, newsOrganisationId, channels);
+
     public Task<NewsOrganisationDefaultsPatchResult> PatchCreationDefaults(Guid newsOrganisationId, bool indexingStored) =>
         NewsOrganisationDefaultsPatchOperations.Apply(newsOrganisationsContainer, newsOrganisationId, indexingStored);
+
+    public Task<bool> RaiseLatestReleased(Guid newsOrganisationId, DateTime latestReleased) =>
+        CatalogueParentIndexerPatchOperations.RaiseLatestReleased(newsOrganisationsContainer, newsOrganisationId, latestReleased);
 
     public async Task Delete(Guid newsOrganisationId)
     {

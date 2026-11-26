@@ -14,8 +14,9 @@ namespace RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 /// <item>Full run: every film, plus a delete for each film document in the index whose film no longer exists in
 /// Cosmos (a hard delete leaves no <c>_ts</c> to find). Orphans are found with Cosmos live ids as the source of
 /// truth (<c>not search.in</c> / set difference), not by paging every film document with unstable <c>$skip</c>.
-/// A full run happens when asked for, when there is no watermark yet, or when the index holds no film documents
-/// (for example straight after a teardown).</item>
+/// A full run happens when asked for, when there is no watermark yet, or when the index holds fewer film documents
+/// than Cosmos has searchable (not removed) films, for example after a teardown, even when a few films have been
+/// pushed into the rebuilt index since.</item>
 /// <item>A removed film's document is deleted; any other film is merge-or-uploaded with
 /// <see cref="CataloguePlayableSearchDocument.For(Film)"/>, the same document the curator edit pushes.</item>
 /// <item>The watermark advances to the highest <c>_ts</c> read only after every push and delete succeeded, so a
@@ -23,6 +24,12 @@ namespace RedditPodcastPoster.EntitySearchIndexer.FilmSearchPush;
 /// again. A dry run writes nothing.</item>
 /// </list>
 /// </summary>
+/// <remarks>
+/// DO NOT REMOVE: with the FilmSearchPusher console and the <c>FilmSearchPushWatermark</c> store, this is the only bulk
+/// path that gets films into search (the search tier's data sources are all used by episodes, TV and news, so films
+/// have no pull indexer), for example after an index rebuild. Do not remove until search moves off Azure AI Search to Cloudflare D1 and films are indexed there (interim: schedule the film push, #1408).
+/// See <c>.cursor/rules/film-search-pusher-keep.mdc</c>.
+/// </remarks>
 public sealed class FilmSearchPusher(
     IFilmRepository filmRepository,
     IFilmSearchPushWatermarkStore watermarkStore,
@@ -128,7 +135,7 @@ public sealed class FilmSearchPusher(
         {
             foreach (var batch in toPush.Chunk(request.BatchSize))
             {
-                failed += (await searchIndex.MergeOrUpload(batch, cancellationToken)).Count;
+                failed += (await searchIndex.Upload(batch, cancellationToken)).Count;
             }
 
             foreach (var batch in toDelete.Chunk(request.BatchSize))
@@ -139,7 +146,7 @@ public sealed class FilmSearchPusher(
         catch (Exception ex) when (full && saved?.HighWaterMark is not null)
         {
             // A whole request failing (quota, network, cancellation) throws instead of returning failed keys. Earlier
-            // batches may already be in the index, so the empty-index check would no longer promote the next run to
+            // batches may already be in the index, so the index-count check might no longer promote the next run to
             // full: clear the watermark first, then let the failure surface.
             logger.LogError(ex,
                 "Film search push: a full run failed part-way; clearing the watermark so the next run is full again.");
@@ -154,7 +161,7 @@ public sealed class FilmSearchPusher(
             if (full && saved?.HighWaterMark is not null)
             {
                 // A partly-failed full run (for example straight after a teardown) leaves some film documents in the
-                // index, so the empty-index check would no longer catch it. Clearing the watermark makes the next
+                // index, so the index-count check might no longer catch it. Clearing the watermark makes the next
                 // run full again instead of incremental from a watermark older films sit below.
                 // The clear is guarded like the throw path: a store failure is logged ("run with --full next") and
                 // the failed-documents outcome is still returned, rather than the store exception surfacing instead.
@@ -210,7 +217,7 @@ public sealed class FilmSearchPusher(
 
         var failed = delete
             ? (await searchIndex.Delete([film.Id.ToString()], cancellationToken)).Count
-            : (await searchIndex.MergeOrUpload([document!], cancellationToken)).Count;
+            : (await searchIndex.Upload([document!], cancellationToken)).Count;
         logger.LogInformation("Film search push: {Action} film '{FilmId}' {Outcome}; watermark unchanged.",
             delete ? "deleted" : "pushed", filmId, failed == 0 ? "ok" : "FAILED");
         return new FilmSearchPushResult(failed == 0, false, false, null, null, 1, delete ? 0 : 1, delete ? 1 : 0,
@@ -258,14 +265,22 @@ public sealed class FilmSearchPusher(
             return true;
         }
 
-        if (await searchIndex.CountFilmDocuments(cancellationToken) == 0)
+        var indexed = await searchIndex.CountFilmDocuments(cancellationToken);
+        var searchable = await filmRepository.CountSearchable();
+        if (indexed < searchable)
         {
+            // Not only an empty index: one film document (a curator edit, a trailer attach, Move to film or a
+            // single-film push) can land in a torn-down index before this run, and an incremental run from the old
+            // watermark would then never bring the other films back.
             logger.LogWarning(
-                "Film search push: the index holds no film documents (rebuilt or torn down?), so every film is pushed instead of films changed since {Watermark}.",
-                previous);
+                "Film search push: the index holds {IndexedCount} film document(s) but Cosmos has {SearchableCount} searchable film(s) (rebuilt or torn down?), so every film is pushed instead of films changed since {Watermark}.",
+                indexed, searchable, previous);
             return true;
         }
 
+        logger.LogInformation(
+            "Film search push: the index holds {IndexedCount} film document(s) for {SearchableCount} searchable film(s); incremental run from {Watermark}.",
+            indexed, searchable, previous);
         return false;
     }
 

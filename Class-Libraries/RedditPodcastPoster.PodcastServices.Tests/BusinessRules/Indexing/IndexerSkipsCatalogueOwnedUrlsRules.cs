@@ -7,6 +7,7 @@ using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
@@ -17,6 +18,9 @@ using RedditPodcastPoster.PodcastServices.Updaters;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
 using RedditPodcastPoster.UrlSubmission.Services;
+using RedditPodcastPoster.Models.YouTube;
+using RedditPodcastPoster.Models.News;
+using RedditPodcastPoster.Episodes.TestSupport.Fakes;
 
 namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 
@@ -352,6 +356,90 @@ public class IndexerSkipsCatalogueOwnedUrlsRules
         logger.Messages.Should().ContainSingle(message =>
                 message.StartsWith(PodcastUpdater.CatalogueOwnedUrlSkippedMessagePrefix, StringComparison.Ordinal))
             .Which.Should().Contain(SubmitClassification.Film).And.Contain(discovered.Id.ToString());
+    }
+
+
+    [Theory(DisplayName =
+        "When a newly found episode's YouTube URL is already an additionalYouTube upload on a film, news report, TV episode or podcast episode, the indexer does not save it, because the source row was deleted on attach and must not come back (RPP #1411 / #1068).")]
+    [InlineData("Film")]
+    [InlineData("NewsReport")]
+    [InlineData("TvShowEpisode")]
+    [InlineData("Episode")]
+    public async Task newly_found_episode_whose_youtube_url_is_an_alternate_is_not_saved(string contentKind)
+    {
+        // Arrange
+        var logger = new CapturedInformationLogger();
+        var harness = new PodcastUpdaterTestHarness(logger: logger);
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        harness.PodcastRepository.Seed(podcast);
+        var discovered = CreateDiscoveredEpisode(ServiceKeys.YouTube);
+        var url = EpisodeServicePresence.TryGetUrl(discovered, ServiceKeys.YouTube)!;
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(discovered)!;
+        var alternate = new YouTubeAlternate { YouTubeId = youTubeId, Url = url, AddedAt = DateTime.UtcNow };
+        var lookupMocker = new AutoMocker();
+        lookupMocker.Use(Options.Create(new SubmitContentTypesOptions()));
+        if (contentKind == SubmitClassification.Film)
+        {
+            var film = new Film(_fixture.CreateTitle()) { AdditionalYouTube = [alternate] };
+            lookupMocker.GetMock<IFilmRepository>()
+                .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
+                .ReturnsAsync((Expression<Func<Film, bool>> predicate) => predicate.Compile()(film) ? film : null);
+        }
+        else if (contentKind == SubmitClassification.NewsReport)
+        {
+            var report = new NewsReport(_fixture.CreateTitle())
+            {
+                NewsOrganisationName = _fixture.CreateTitle(),
+                AdditionalYouTube = [alternate]
+            };
+            lookupMocker.GetMock<INewsReportRepository>()
+                .Setup(x => x.GetBy(It.IsAny<Expression<Func<NewsReport, bool>>>()))
+                .ReturnsAsync((Expression<Func<NewsReport, bool>> predicate) => predicate.Compile()(report) ? report : null);
+        }
+        else if (contentKind == SubmitClassification.TvShowEpisode)
+        {
+            var tv = new TvShowEpisode(_fixture.CreateTitle())
+            {
+                TvShowName = _fixture.CreateTitle(),
+                AdditionalYouTube = [alternate]
+            };
+            lookupMocker.GetMock<ITvShowEpisodeRepository>()
+                .Setup(x => x.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
+                .ReturnsAsync((Expression<Func<TvShowEpisode, bool>> predicate) => predicate.Compile()(tv) ? tv : null);
+        }
+        else
+        {
+            var episodes = new InMemoryEpisodeRepository();
+            var holder = _fixture.CreateYouTubeCatalogueEpisode();
+            holder.AdditionalYouTube = [alternate];
+            holder.Services = null;
+            if (holder.Ids is not null)
+            {
+                holder.Ids.YouTube = null;
+            }
+            episodes.Seed(holder);
+            lookupMocker.Use<IEpisodeRepository>(episodes);
+        }
+
+        var lookup = lookupMocker.CreateInstance<UrlMembershipLookup>();
+        harness.UrlMembershipLookup
+            .Setup(x => x.FindCatalogueServiceUrlOwner(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
+            .Returns((Uri u, CancellationToken token) => lookup.FindCatalogueServiceUrlOwner(u, token));
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(podcast, It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync([discovered]);
+
+        // Act
+        await harness.Updater.Update(
+            podcast,
+            enrichOnly: false,
+            PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert
+        harness.EpisodeRepository.SavedEpisodes.Should().NotContain(episode => episode.Id == discovered.Id);
+        logger.Messages.Should().ContainSingle(message =>
+                message.StartsWith(PodcastUpdater.CatalogueOwnedUrlSkippedMessagePrefix, StringComparison.Ordinal))
+            .Which.Should().Contain(contentKind).And.Contain(discovered.Id.ToString());
     }
 
     private Episode CreateDiscoveredEpisode(string serviceKey) =>

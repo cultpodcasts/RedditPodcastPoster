@@ -2,6 +2,9 @@ using FluentAssertions;
 using Index;
 using Poster;
 using AddAudioPodcast;
+using CreateSearchIndex;
+using D1SearchReconcile;
+using RedditPodcastPoster.EntitySearchIndexer.D1Search;
 using EnrichExistingEpisodesFromPodcastServices;
 using SubmitUrl;
 using Xunit;
@@ -85,6 +88,41 @@ public class ConsoleAppCompositionTests
         // Act
         var act = async () =>
             await ConsoleAppCompositionSupport.ResolveEntryPointAsync(services, typeof(EnrichPodcastEpisodesProcessor));
+
+        // Assert
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact(DisplayName =
+        "D1SearchReconcile console app: its service registration resolves the reconciler, because a missing registration " +
+        "would crash the backfill at startup before it reads anything.")]
+    public async Task d1_search_reconcile_console_services_resolve_reconciler()
+    {
+        // Arrange
+        var services = ConsoleAppCompositionSupport.CreateServiceCollection(s => s.AddD1SearchReconcileConsoleServices());
+
+        // Act
+        var act = async () => await ConsoleAppCompositionSupport.ResolveEntryPointAsync(services, typeof(ID1SearchReconciler));
+
+        // Assert
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact(DisplayName =
+        "CreateSearchIndex console app: its service registration resolves CreateSearchIndexProcessor and the film push " +
+        "behind it, because a missing registration (films repository, watermark store, film search client) would crash " +
+        "every CreateSearchIndex run at startup, not only teardowns.")]
+    public async Task create_search_index_console_services_resolve_processor()
+    {
+        // Arrange
+        var services = ConsoleAppCompositionSupport.CreateServiceCollection(s => s.AddCreateSearchIndexConsoleServices());
+
+        // Act
+        var act = async () =>
+        {
+            await ConsoleAppCompositionSupport.ResolveEntryPointAsync(services, typeof(CreateSearchIndexProcessor));
+            await ConsoleAppCompositionSupport.ResolveEntryPointAsync(services, typeof(IRebuildFilmPush));
+        };
 
         // Assert
         await act.Should().NotThrowAsync();

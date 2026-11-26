@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -12,8 +12,10 @@
 
   <ItemGroup>
     <PackageReference Include="idunno.Bluesky" Version="7.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.12" />
+    <!-- Pins idunno.AtProto's transitive Microsoft.AspNetCore.WebUtilities past GHSA-x33c-w48q-qrgc (NU1903).
+         Temporary: remove this pin when idunno.Bluesky is upgraded (8.0.1+ is out) to a version whose idunno.AtProto
+         already pulls a patched WebUtilities, then confirm `dotnet restore` reports no NU1903. -->
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -9,7 +9,8 @@ public static class EpisodeFilmMoveExtensions
     {
         Title = request?.Title,
         IdentityDecision = request?.IdentityDecision,
-        SelectedIdentityKey = request?.SelectedIdentityKey
+        SelectedIdentityKey = request?.SelectedIdentityKey,
+        FilmId = request?.FilmId
     };
 
     public static EpisodeFilmMoveResponse ToDto(this EpisodeFilmMoveResult result) =>
@@ -20,10 +21,11 @@ public static class EpisodeFilmMoveExtensions
             Error = result.Error,
             FailureIndexing = result.FailureIndexing,
             IdentityDecision = result.IdentityHold is { } hold ? ToIdentityDecision(hold) : null,
-            Cancelled = result.Status == EpisodeFilmMoveStatus.Cancelled
+            Cancelled = result.Status == EpisodeFilmMoveStatus.Cancelled,
+            EmptiedNewsOrganisationId = result.EmptiedNewsOrganisationId
         };
 
-    private static SubmitUrlResponse.IdentityDecisionBody ToIdentityDecision(CatalogueIdentityHold hold) =>
+    internal static SubmitUrlResponse.IdentityDecisionBody ToIdentityDecision(CatalogueIdentityHold hold) =>
         new()
         {
             Target = hold.Target,

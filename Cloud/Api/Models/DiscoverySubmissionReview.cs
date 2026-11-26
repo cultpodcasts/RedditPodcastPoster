@@ -32,6 +32,10 @@ public sealed class DiscoverySubmissionApplyRequest
     public Dictionary<Guid, string>? IdentityDecisions { get; init; }
 
     public Dictionary<Guid, string>? SelectedIdentityKeys { get; init; }
+
+    public Dictionary<Guid, string>? KindDecisions { get; init; }
+
+    public Dictionary<Guid, string>? SelectedKindKeys { get; init; }
 }
 
 public sealed class DiscoverySubmissionRetryRequest
@@ -47,6 +51,10 @@ public sealed class DiscoverySubmissionRetryRequest
     public Dictionary<Guid, string>? IdentityDecisions { get; init; }
 
     public Dictionary<Guid, string>? SelectedIdentityKeys { get; init; }
+
+    public Dictionary<Guid, string>? KindDecisions { get; init; }
+
+    public Dictionary<Guid, string>? SelectedKindKeys { get; init; }
 }
 
 public sealed class DiscoverySubmissionReleaseRequest
@@ -72,13 +80,19 @@ public sealed record DiscoverySubmissionReviewRoute<T>(Guid SubmissionId, T Requ
 public enum DiscoverySubmissionCommandStatus
 {
     Ok,
+
+    /// <summary>
+    /// Apply / retry passed its preflight and the ingest is queued (HTTP 202). The submission stays Applying until the
+    /// worker records the outcome; poll <c>GET discovery-submissions/{id}</c> (#1415).
+    /// </summary>
+    Accepted,
     NotFound,
     Forbidden,
 
     /// <summary>ETag mismatch, wrong lifecycle state, or held reports no longer held for this submission.</summary>
     Conflict,
 
-    /// <summary>Accepted ids outside the held reports, or malformed comments.</summary>
+    /// <summary>Accepted ids outside the held reports, a missing or unrecognised kind key, or malformed comments.</summary>
     Invalid,
 
     /// <summary>Apply ran and failed; submission is ApplyFailed and its reports remain PendingSupervisor.</summary>
@@ -86,6 +100,9 @@ public enum DiscoverySubmissionCommandStatus
 
     /// <summary>Nothing was created; the caller must answer an unsupported-language prompt. Submission is not left Applying.</summary>
     LanguageDecisionRequired,
+
+    /// <summary>Nothing was created; the caller must confirm or skip a kind suggestion. Submission is not left Applying.</summary>
+    KindDecisionRequired,
 
     /// <summary>Nothing was created; the caller must pick an authority identity. Submission is not left Applying.</summary>
     IdentityDecisionRequired

@@ -27,6 +27,11 @@ public class DiscoverySubmitResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IdentityDecision[]? IdentityDecisionsRequired { get; set; }
 
+    /// <summary>Unmapped items with a suggest-only kind hint. Empty results accompany this.</summary>
+    [JsonPropertyName("kindDecisionsRequired")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IdentityDecision[]? KindDecisionsRequired { get; set; }
+
     public class LanguageDecision
     {
         [JsonPropertyName("discoveryItemId")]

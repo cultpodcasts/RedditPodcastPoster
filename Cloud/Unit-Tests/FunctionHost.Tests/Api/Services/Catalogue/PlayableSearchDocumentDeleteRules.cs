@@ -77,11 +77,11 @@ public class PlayableSearchDocumentDeleteRules
         var uploadBatches = new List<int>();
         var call = 0;
         _client
-            .Setup(c => c.MergeOrUploadDocumentsAsync(
-                It.IsAny<IEnumerable<EpisodeSearchRecord>>(), It.IsAny<IndexDocumentsOptions>(),
+            .Setup(c => c.IndexDocumentsAsync(
+                It.IsAny<IndexDocumentsBatch<EpisodeSearchRecord>>(), It.IsAny<IndexDocumentsOptions>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<IEnumerable<EpisodeSearchRecord>, IndexDocumentsOptions, CancellationToken>(
-                (documents, _, _) => uploadBatches.Add(documents.Count()))
+            .Callback<IndexDocumentsBatch<EpisodeSearchRecord>, IndexDocumentsOptions, CancellationToken>(
+                (batch, _, _) => uploadBatches.Add(batch.Actions.Count))
             .ReturnsAsync(() =>
             {
                 var succeeds = Interlocked.Increment(ref call) != 2;
@@ -115,5 +115,49 @@ public class PlayableSearchDocumentDeleteRules
         uploadBatches.Should().Equal(500, 500, 200);
         deleted.Should().BeTrue();
         _batches.Select(batch => batch.Length).Should().Equal(500, 500, 1);
+    }
+
+    [Fact(DisplayName =
+        "A Film search swap is sent as Upload, not MergeOrUpload, so a null seriesName/podcastName clears the " +
+        "uploader channel left from before the episode became a film (#1428).")]
+    public async Task film_swap_is_uploaded()
+    {
+        // Arrange
+        IndexDocumentsBatch<EpisodeSearchRecord>? sent = null;
+        _client
+            .Setup(c => c.IndexDocumentsAsync(
+                It.IsAny<IndexDocumentsBatch<EpisodeSearchRecord>>(), It.IsAny<IndexDocumentsOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IndexDocumentsBatch<EpisodeSearchRecord>, IndexDocumentsOptions, CancellationToken>(
+                (batch, _, _) => sent = batch)
+            .ReturnsAsync(Response.FromValue(
+                SearchModelFactory.IndexDocumentsResult(
+                    [SearchModelFactory.IndexingResult("id", null, true, 200)]),
+                Mock.Of<Response>()));
+        var document = new EpisodeSearchRecord
+        {
+            Id = _fixture.CreateGuid().ToString(),
+            ContentKind = SearchContentKind.Film,
+            SeriesName = null,
+            PodcastName = null,
+            Release = DateTimeOffset.UnixEpoch,
+            Duration = string.Empty,
+            BBC = string.Empty,
+            InternetArchive = string.Empty,
+            Subjects = [],
+            PublisherSearchTerms = string.Empty,
+            EpisodeSearchTerms = string.Empty
+        };
+        var swap = new PlayableSearchDocumentSwap(_client.Object, NullLogger<PlayableSearchDocumentSwap>.Instance);
+
+        // Act
+        var uploaded = await swap.UploadAsync([document], CancellationToken.None);
+
+        // Assert
+        uploaded.Should().BeTrue();
+        sent.Should().NotBeNull();
+        sent!.Actions.Should().ContainSingle();
+        sent.Actions[0].ActionType.Should().Be(IndexActionType.Upload);
+        sent.Actions[0].Document.Should().BeSameAs(document);
     }
 }

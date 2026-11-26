@@ -15,7 +15,14 @@ namespace Api.Models;
 /// <param name="Slug">Route segment: the parent name, or a film's own name.</param>
 /// <param name="Path">Site path with the kind's short id (<see cref="CatalogueShortId.PlayablePath"/>),
 /// e.g. <c>/news/{slug}/{shortId}</c>.</param>
-public sealed record PlayableKind(string ContentKind, Guid? ParentId, string? ParentName, string Slug, string Path)
+public sealed record PlayableKind(
+    string ContentKind,
+    Guid? ParentId,
+    string? ParentName,
+    string Slug,
+    string Path,
+    Uri? IdentityImage = null,
+    string[]? AlternativeTitles = null)
 {
     public static PlayableKind ForPodcastEpisode(Guid episodeId, Podcast podcast)
     {
@@ -34,5 +41,7 @@ public sealed record PlayableKind(string ContentKind, Guid? ParentId, string? Pa
             resolution.ParentId,
             resolution.ParentName,
             resolution.Slug,
-            CatalogueShortId.PlayablePath(resolution.Slug, resolution.Projection.Episode.Id, resolution.ContentKind));
+            CatalogueShortId.PlayablePath(resolution.Slug, resolution.Projection.Episode.Id, resolution.ContentKind),
+            resolution.IdentityImage,
+            resolution.AlternativeTitles);
 }

@@ -31,6 +31,7 @@ public class HomepagePublisherCatalogueRules
     private readonly Mock<ILookupRepository> _lookup = new();
     private readonly Mock<IHomepageCataloguePlayables> _catalogue = new();
     private readonly List<Regex?> _titleRegexes = [];
+    private readonly List<Guid?> _titleParentIds = [];
     private string? _publishedJson;
 
     private readonly Guid _podcastId = Guid.NewGuid();
@@ -52,9 +53,13 @@ public class HomepagePublisherCatalogueRules
         _subjects.Setup(x => x.GetAll()).Returns(Array.Empty<Subject>().ToAsyncEnumerable());
         _textSanitiser
             .Setup(x => x.SanitiseTitle(It.IsAny<string>(), It.IsAny<Regex?>(), It.IsAny<string[]>(),
-                It.IsAny<string[]>(), It.IsAny<string?>()))
-            .Callback((string _, Regex? regex, string[] _, string[] _, string? _) => _titleRegexes.Add(regex))
-            .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _) => title);
+                It.IsAny<string[]>(), It.IsAny<string?>(), It.IsAny<Guid?>()))
+            .Callback((string _, Regex? regex, string[] _, string[] _, string? _, Guid? parentId) =>
+            {
+                _titleRegexes.Add(regex);
+                _titleParentIds.Add(parentId);
+            })
+            .ReturnsAsync((string title, Regex? _, string[] _, string[] _, string? _, Guid? _) => title);
         _textSanitiser
             .Setup(x => x.SanitiseDescription(It.IsAny<string>(), It.IsAny<Regex?>()))
             .Returns((string description, Regex? _) => description);
@@ -122,7 +127,7 @@ public class HomepagePublisherCatalogueRules
         NullLogger<HomepagePublisher>.Instance);
 
     private void GivenCatalogue(params HomepageCataloguePlayable[] items) =>
-        _catalogue.Setup(x => x.GetRecent(It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(items);
+        _catalogue.Setup(x => x.GetRecent(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(items);
 
     private static HomepageCataloguePlayable Item(string kind, string parent, string title, DateTime release) => new()
     {
@@ -218,13 +223,34 @@ public class HomepagePublisherCatalogueRules
     public async Task catalogue_title_uses_parent_title_regex()
     {
         // Arrange
-        GivenCatalogue(Item("NewsReport", "Synthetic Desk", "Synthetic headline", DateTime.UtcNow.AddHours(-1)));
+        var organisationId = Guid.NewGuid();
+        GivenCatalogue(Item("NewsReport", "Synthetic Desk", "Synthetic headline", DateTime.UtcNow.AddHours(-1)) with
+        {
+            ParentId = organisationId
+        });
 
         // Act
         await Sut().PublishHomepage();
 
         // Assert
         _titleRegexes.Should().Contain(x => x != null && x.ToString() == "^Synthetic ");
+        _titleParentIds.Should().Contain(organisationId);
+    }
+
+    [Fact(DisplayName =
+        "Homepage: a news report's parent title regex is case-insensitive, like a podcast episode's, so an outlet " +
+        "suffix pattern still strips a title whose suffix casing differs (#1378).")]
+    public async Task catalogue_title_regex_ignores_case()
+    {
+        // Arrange
+        GivenCatalogue(Item("NewsReport", "Synthetic Desk", "Synthetic headline", DateTime.UtcNow.AddHours(-1)));
+
+        // Act
+        await Sut().PublishHomepage();
+
+        // Assert
+        _titleRegexes.Should().Contain(x =>
+            x != null && x.ToString() == "^Synthetic " && x.Options.HasFlag(RegexOptions.IgnoreCase));
     }
 
     [Fact(DisplayName =
@@ -281,11 +307,13 @@ public class HomepagePublisherCatalogueRules
     public void to_podcast_result_carries_kind_and_parent()
     {
         // Arrange
+        var showId = Guid.NewGuid();
         var item = Item("TvShowEpisode", "Synthetic Show", "Synthetic episode", DateTime.UtcNow) with
         {
             Subjects = [],
             KnownTerms = ["SyntheticTerm"],
-            DescriptionRegex = "^(?<body>.*)$"
+            DescriptionRegex = "^(?<body>.*)$",
+            ParentId = showId
         };
 
         // Act
@@ -298,6 +326,31 @@ public class HomepagePublisherCatalogueRules
         result.DescriptionRegex.Should().Be("^(?<body>.*)$");
         result.KnownTerms.Should().Equal("SyntheticTerm");
         result.Subjects.Should().BeNull();
+        result.ParentId.Should().Be(showId);
         HomepagePublisher.ToRecentEpisode(result).ContentKind.Should().Be("TvShowEpisode");
+    }
+
+    [Fact(DisplayName =
+        "Homepage publisher: an item is included once now is on or after its release, and hidden while " +
+        "the release is still in the future.")]
+    public void future_release_is_hidden_until_now_is_on_or_after_its_release()
+    {
+        // Arrange
+        var release = DateTime.UtcNow.Date.AddDays(4);
+        var now = DateTime.UtcNow;
+        var justBeforeRelease = release.AddTicks(-1);
+        var afterRelease = release.AddHours(1);
+
+        // Act
+        var hiddenNow = HomepagePublisher.IncludeInHomepageWindow(release, now);
+        var hiddenJustBefore = HomepagePublisher.IncludeInHomepageWindow(release, justBeforeRelease);
+        var shownOnRelease = HomepagePublisher.IncludeInHomepageWindow(release, release);
+        var shownAfterRelease = HomepagePublisher.IncludeInHomepageWindow(release, afterRelease);
+
+        // Assert
+        hiddenNow.Should().BeFalse();
+        hiddenJustBefore.Should().BeFalse();
+        shownOnRelease.Should().BeTrue();
+        shownAfterRelease.Should().BeTrue();
     }
 }

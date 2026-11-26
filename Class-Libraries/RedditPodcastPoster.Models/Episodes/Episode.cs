@@ -45,6 +45,53 @@ public class Episode : Playable
     [JsonPropertyOrder(90)]
     public string? PodcastName { get; set; }
 
+    /// <summary>
+    /// Set only on an episode that needs curator approval before it is public (#1484; today a split-off made by a
+    /// submit overwrite): <see cref="RedditPodcastPoster.Models.Episodes.ApprovalStatus.AwaitingApproval"/> until a curator
+    /// approves it (clears this to null) or rejects it (<see cref="RedditPodcastPoster.Models.Episodes.ApprovalStatus.Rejected"/>).
+    /// <b>Null means approved</b>, so every existing episode is approved with no data change. While it is held
+    /// (<see cref="IsHeldForApproval"/>) the episode is never public or posted. An approved episode later removed (e.g.
+    /// unplayable) stays approved (null). Stored as the enum name, like the other stored enums.
+    /// </summary>
+    [JsonPropertyName("approvalStatus")]
+    [JsonPropertyOrder(91)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ApprovalStatus? ApprovalStatus { get; set; }
+
+    /// <summary>
+    /// #1500: true when a curator deliberately removed this episode's image (an edit that cleared the image and left
+    /// no other image). Public surfaces then show <b>no</b> art: the search index and D1 carry
+    /// <see cref="ImageRemovedSearchToken"/> instead of <c>""</c>, and the homepage, public episode, share cards and
+    /// social posts never fall back to the YouTube thumbnail. <b>Null means not removed</b>, so an episode with no stored
+    /// image and no flag keeps the YouTube thumbnail fallback. Cleared when a curator sets an image again.
+    /// </summary>
+    [JsonPropertyName("imageRemoved")]
+    [JsonPropertyOrder(95)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ImageRemoved { get; set; }
+
+    /// <summary>
+    /// #1500: search-index / D1 <c>image</c> value for an episode whose image a curator removed. One character that is
+    /// neither a URL nor a compaction sigil (<c>y</c>/<c>s</c>/<c>a</c>), so clients that predate it expand it to nothing.
+    /// </summary>
+    public const string ImageRemovedSearchToken = "-";
+
+    /// <summary>True when a curator deliberately removed this episode's image (#1500).</summary>
+    public bool IsImageRemoved() => ImageRemoved == true;
+
+    /// <summary>Cosmos SQL (alias <c>e</c>) for episodes awaiting curator approval (#1484, #1491).</summary>
+    public const string CosmosAwaitingApprovalSql = "e.approvalStatus = 'AwaitingApproval'";
+
+    /// <summary>True while a curator has not approved it yet (#1484).</summary>
+    public bool IsAwaitingApproval() => ApprovalStatus == Episodes.ApprovalStatus.AwaitingApproval;
+
+    /// <summary>
+    /// True while it awaits approval or was rejected (#1484): it is kept out of public pages, search, D1, the homepage
+    /// and posting, keyed off <see cref="ApprovalStatus"/> rather than <see cref="Catalogue.Playable.Removed"/>.
+    /// </summary>
+    public bool IsHeldForApproval() => ApprovalStatus.IsHeld();
+
     public static Episode FromSpotify(string spotifyId,
         string title,
         string description,

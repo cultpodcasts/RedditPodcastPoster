@@ -46,7 +46,8 @@ public interface IEpisodeUrlRouter
     /// <paramref name="owner"/> is null. A lookup failure fails closed (<see cref="InvalidOperationException"/>):
     /// with the owner unknown, going on would create a podcast for a channel a parent may own. When no parent's
     /// <c>indexing</c> holds the YouTube channel id, a single parent named like the channel title that claims no
-    /// channel gets it (logged as a Warning, so the curator can set its youTubeChannelId).
+    /// channel gets it (logged as a Warning: the channel id is unset; the website field is read-only — persist via
+    /// admin API / ops tooling).
     /// </summary>
     Task<CatalogueParentMatch?> FindOwningParent(Uri url, EpisodeUrlOwner? owner, IndexingContext indexingContext);
 }
@@ -163,7 +164,7 @@ public class EpisodeUrlRouter(
         if (parent != null)
         {
             logger.LogWarning(
-                "'{Url}' routed by channel title; set youTubeChannelId on {Kind} '{ParentName}' ({ParentId}) to '{ChannelId}'.",
+                "'{Url}' routed by channel title to {Kind} '{ParentName}' ({ParentId}); indexing.youTubeChannelId is unset (expected '{ChannelId}'). Persist via admin API — the website field is read-only.",
                 url, parent.Kind, parent.Parent.Name, parent.Parent.Id, owner.Ids.YouTubeChannelId);
         }
 

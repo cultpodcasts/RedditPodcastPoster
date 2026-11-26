@@ -16,6 +16,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.Text.Sanitisers;
+using RedditPodcastPoster.Models.Serialization;
 using RedditPodcastPoster.Twitter.Builders;
 using RedditPodcastPoster.Twitter.Clients;
 using RedditPodcastPoster.Twitter.Dtos;
@@ -460,26 +461,34 @@ public class TweetIdRules
         client.Verify(x => x.GetTimelineSince(It.IsAny<DateTimeOffset>(), expectedEnd, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    [Fact(DisplayName = "end_time is release + tweet-days + slack for an older podcast episode, and absent for a recent one, a catalogue item, or unset tweet-days.")]
+    [Fact(DisplayName =
+        "end_time is release + tweet-days + slack for an older podcast episode (Unspecified kind read as UTC), and absent for a recent one, a catalogue item, or unset tweet-days.")]
     public void timeline_end()
     {
         // Arrange
         var now = DateTimeOffset.UtcNow;
-        var old = PodcastItem(e => e.ReleaseUtc = DomainTestFixture.UtcAtTime(-30, TimeSpan.FromHours(9)));
+        var release = DomainTestFixture.UtcAtTime(-30, TimeSpan.FromHours(9));
+        var old = PodcastItem(e => e.ReleaseUtc = release);
+        var unspecifiedRelease = DateTime.SpecifyKind(release, DateTimeKind.Unspecified);
+        var oldUnspecified = PodcastItem(e => e.ReleaseUtc = unspecifiedRelease);
         var recent = PodcastItem(e => e.ReleaseUtc = DomainTestFixture.UtcAtTime(-2, TimeSpan.FromHours(9)));
         var tv = CatalogueParentKindMapper.ToPostProjection(
             new TvShowEpisode("Synthetic TV episode") { Id = _fixture.CreateGuid() },
             new TvShow("Synthetic TV show") { Id = _fixture.CreateGuid() });
         tv.Episode.ReleaseUtc = DomainTestFixture.UtcAtTime(-30, TimeSpan.FromHours(9));
+        var expectedEnd = UtcDateTimes.ToUtcOffset(
+            release.AddDays(TweetDays + TweetManager.EndTimeSlackDays));
 
         // Act
         var oldEnd = TweetManager.TimelineEnd(old, TweetDays, now);
+        var oldEndFromUnspecified = TweetManager.TimelineEnd(oldUnspecified, TweetDays, now);
         var recentEnd = TweetManager.TimelineEnd(recent, TweetDays, now);
         var tvEnd = TweetManager.TimelineEnd(tv, TweetDays, now);
         var unsetEnd = TweetManager.TimelineEnd(old, 0, now);
 
         // Assert
-        oldEnd.Should().Be(new DateTimeOffset(old.Episode.ReleaseUtc.AddDays(TweetDays + TweetManager.EndTimeSlackDays), TimeSpan.Zero));
+        oldEnd.Should().Be(expectedEnd);
+        oldEndFromUnspecified.Should().Be(oldEnd);
         recentEnd.Should().BeNull();
         tvEnd.Should().BeNull();
         unsetEnd.Should().BeNull();
@@ -510,18 +519,21 @@ public class TweetIdRules
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
     }
 
-    [Fact(DisplayName = "The timeline window starts a day before release, and never before X's earliest start_time.")]
+    [Fact(DisplayName = "The timeline window starts a day before release (Unspecified kind read as UTC), and never before X's earliest start_time.")]
     public void timeline_start()
     {
         // Arrange
         var release = DomainTestFixture.UtcAtTime(-3, TimeSpan.FromHours(9));
+        var unspecified = DateTime.SpecifyKind(release, DateTimeKind.Unspecified);
 
         // Act
         var start = TweetManager.TimelineStart(release);
+        var startFromUnspecified = TweetManager.TimelineStart(unspecified);
         var floor = TweetManager.TimelineStart(DateTime.MinValue);
 
         // Assert
         start.Should().Be(new DateTimeOffset(release.AddDays(-1), TimeSpan.Zero));
+        startFromUnspecified.Should().Be(start);
         floor.Should().Be(TweetManager.EarliestStartTime);
     }
 

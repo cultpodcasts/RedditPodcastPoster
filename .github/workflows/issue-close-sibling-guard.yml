@@ -1,7 +1,34 @@
 # GitHub auto-closes an issue when ANY linked PR with Closes/Fixes merges.
 # Cross-repo stacks (RPP + Api + website) often still have open companions.
-# This guard reopens the issue when open PRs that still Closes/Fixes it remain.
+# Rule: a ticket with PRs in several repos stays open until ALL of its PRs are
+# merged. This guard reopens the issue when ANY open PR in a cultpodcasts repo
+# closes it: a Development link, or a timeline/search candidate whose live
+# title/body says `Closes|Fixes|Resolves #N` (same repo) or `... owner/repo#N`
+# (any repo). Prose, `Refs`, comment- and commit-only mentions do not count
+# (cultpodcasts/RedditPodcastPoster#1423: #1400 closed while Api#259 + website#667,
+# which said `Refs`, were open and unlinked). It then puts the features board card
+# (user cultpodcasts project 1) back in the column it was in before the close
+# (from its status history; In Progress only if it has none), so a Ready For Review
+# card stays Ready For Review until the final PR merges and it goes to Done
+# (cultpodcasts/RedditPodcastPoster#1514). Any incomplete lookup (GraphQL, search, PR fetch) fails
+# the job, never a silent "no companions"; the job summary says what was decided.
+# Before each side effect the live issue and companion PR states are re-read; the
+# comment goes before the reopen; a closed issue's card is never moved off Done.
+#
+# Convention: cross-repo PRs say `Closes cultpodcasts/<repo>#N` so they show under
+# the issue's Development panel.
+# Logic + tests: .github/scripts/issue-close-sibling-guard*.cjs
 # Mirrored across RedditPodcastPoster, website, and Api.
+#
+# Board writes need repo secret PROJECT_TOKEN: a classic PAT with `project` scope.
+# GITHUB_TOKEN cannot see user-owned Projects V2, so without it the issue is
+# reopened but the card stays Done (job warning + issue comment say so).
+#
+# github-script MUST be v9+: `getOctokit` (used for the PROJECT_TOKEN board client)
+# is only injected into the script context from actions/github-script v9.0.0.
+# Pass `typeof getOctokit === 'function' ? getOctokit : undefined` so an accidental
+# downgrade to v7/v8 does not throw ReferenceError before run() (cultpodcasts/RedditPodcastPoster#1394);
+# the .cjs fail-safe then skips the board write.
 
 name: Issue close sibling guard
 
@@ -14,131 +41,36 @@ permissions:
   pull-requests: read
   contents: read
 
+# Serialise runs per issue (#1425): rapid merges close the issue several times in
+# seconds. cancel-in-progress is false so a running reopen is never killed half-way;
+# GitHub keeps at most one pending run per group (a newer one replaces an older
+# pending one), which is safe because every run re-reads live issue/PR state.
+concurrency:
+  group: issue-close-sibling-guard-${{ github.repository }}-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   reopen-if-siblings-open:
-    if: github.event.issue.state_reason != 'not_planned'
+    # Only completed (or reason-less) closes are guarded; never not_planned / duplicate (#1425).
+    if: github.event.issue.state_reason != 'not_planned' && github.event.issue.state_reason != 'duplicate'
     runs-on: ubuntu-latest
     steps:
-      - name: Reopen when companion Closes PRs are still open
-        uses: actions/github-script@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+
+      - name: Reopen while any PR for the issue is still open
+        uses: actions/github-script@v9
+        env:
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
         with:
           script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const issueNumber = context.payload.issue.number;
-            const full = `${owner}/${repo}#${issueNumber}`;
-
-            // Prefer GraphQL closing-issue links (Development / Closes) — no search lag.
-            const gql = await github.graphql(`
-              query($owner: String!, $repo: String!, $number: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  issue(number: $number) {
-                    closedByPullRequestsReferences(first: 50) {
-                      nodes {
-                        number
-                        state
-                        url
-                        title
-                        repository { nameWithOwner }
-                      }
-                    }
-                  }
-                }
-              }
-            `, { owner, repo, number: issueNumber });
-
-            const linked = gql.repository?.issue?.closedByPullRequestsReferences?.nodes ?? [];
-            const unique = linked
-              .filter((p) => p && p.state === 'OPEN')
-              .map((p) => ({
-                repo: p.repository.nameWithOwner,
-                number: p.number,
-                url: p.url,
-                title: p.title,
-              }));
-
-            if (unique.length === 0) {
-              core.info(`No open companion Closes PRs for ${full}; leave closed.`);
-              return;
-            }
-
-            const list = unique
-              .map((p) => `- ${p.repo}#${p.number}: ${p.title} — ${p.url}`)
-              .join('\n');
-
-            await github.rest.issues.update({
-              owner,
-              repo,
-              issue_number: issueNumber,
-              state: 'open',
-              state_reason: 'reopened',
+            const { run } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/issue-close-sibling-guard.cjs`);
+            await run({
+              github,
+              context,
+              core,
+              getOctokit: typeof getOctokit === 'function' ? getOctokit : undefined,
+              projectToken: process.env.PROJECT_TOKEN
             });
-
-            // Best-effort: put the features board card back on Ready For Review.
-            // GITHUB_TOKEN may lack project write on the user project; never fail the job.
-            try {
-              const project = await github.graphql(`
-                query {
-                  user(login: "cultpodcasts") {
-                    projectV2(number: 1) {
-                      id
-                      field(name: "Status") {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          options { id name }
-                        }
-                      }
-                      items(first: 100) {
-                        nodes {
-                          id
-                          content {
-                            ... on Issue {
-                              number
-                              repository { name }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              `);
-              const p = project.user?.projectV2;
-              const item = p?.items?.nodes?.find(
-                (n) => n.content?.number === issueNumber && n.content?.repository?.name === repo
-              );
-              const rfr = p?.field?.options?.find((o) => o.name === 'Ready For Review');
-              if (p?.id && item?.id && p.field?.id && rfr?.id) {
-                await github.graphql(`
-                  mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
-                    updateProjectV2ItemFieldValue(input: {
-                      projectId: $project
-                      itemId: $item
-                      fieldId: $field
-                      value: { singleSelectOptionId: $option }
-                    }) { projectV2Item { id } }
-                  }
-                `, {
-                  project: p.id,
-                  item: item.id,
-                  field: p.field.id,
-                  option: rfr.id,
-                });
-                core.info('Restored project Status to Ready For Review.');
-              }
-            } catch (e) {
-              core.warning(`Could not restore project Status (non-fatal): ${e.message || e}`);
-            }
-
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: issueNumber,
-              body:
-                `Reopened automatically: GitHub closed this when a \`Closes\`/\`Fixes\` PR merged, but **open companion PR(s)** still reference it:\n\n` +
-                `${list}\n\n` +
-                `GitHub cannot wait for every linked PR. This ticket stays open until those are merged (or unlinked). ` +
-                `Keep \`Closes\` on open siblings so Development stays linked; this guard undoes premature closes.`,
-            });
-
-            core.info(`Reopened ${full}; ${unique.length} open companion PR(s).`);

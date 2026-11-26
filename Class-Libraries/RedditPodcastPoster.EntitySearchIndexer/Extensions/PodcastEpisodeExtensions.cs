@@ -54,7 +54,8 @@ public static class PodcastEpisodeExtensions
             Svc = SearchEpisodeServices.Compact(podcastEpisode.Episode.Services),
             SpotifyId = NullIfWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(podcastEpisode.Episode)),
             Subjects = podcastEpisode.Episode.Subjects?.ToArray() ?? [],
-            YoutubeId = NullIfWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode))
+            YoutubeId = NullIfWhiteSpace(EpisodeServicePresence.YouTubeEpisodeId(podcastEpisode.Episode)),
+            YouTubeAlternates = YouTubeAlternateSearchToken.For(podcastEpisode.Episode)
         };
     }
 

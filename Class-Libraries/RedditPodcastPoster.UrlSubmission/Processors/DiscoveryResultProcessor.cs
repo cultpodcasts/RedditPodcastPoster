@@ -10,6 +10,7 @@ using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.UrlSubmission.Models;
+using RedditPodcastPoster.UrlSubmission.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
 
@@ -47,13 +48,29 @@ public class DiscoveryResultProcessor(
         if (submitContentTypes.Value is { Enabled: true } && submitOptions.ClassificationSignals is null)
         {
             // Same signals as the toolbar submit (UrlSubmitter), from the URL the item was categorised from (the
-            // primary URL only, for now), so CatalogueKindSubmitter can kind-classify a discovered film or TV show
-            // episode. Until a Spotify / Apple / YouTube kind signal exists (#1200's product rule) these URLs always
-            // classify as a podcast-service episode and keep the podcast path.
+            // primary URL only). Unmapped Spotify / Apple / YouTube discoveries stay a podcast-service episode
+            // unless the curator confirmed a kind suggestion (#1200 option B).
             submitOptions = submitOptions with
             {
                 ClassificationSignals = SubmitContentClassifier.FromSubmission(result.CategorisedUrl, categorisedItem)
             };
+        }
+
+        if (submitOptions is { KindChoice: DiscoveryKindChoice.Select, SelectedKindKey: { Length: > 0 } } &&
+            submitOptions.ClassificationSignals is { } signals)
+        {
+            var classified = SubmitContentClassifier.Classify(signals);
+            if (classified.ContentKind is SubmitClassification.Film
+                    or SubmitClassification.TvShowEpisode
+                    or SubmitClassification.NewsReport &&
+                categorisedItem.ResolvedNonPodcastServiceItem is null)
+            {
+                categorisedItem = categorisedItem with
+                {
+                    ResolvedNonPodcastServiceItem = DiscoveryResolvedItemFactory.From(
+                        discoveryResult, categorisedItem)
+                };
+            }
         }
 
         var submitResult = await categorisedItemProcessor.ProcessCategorisedItem(categorisedItem, submitOptions);

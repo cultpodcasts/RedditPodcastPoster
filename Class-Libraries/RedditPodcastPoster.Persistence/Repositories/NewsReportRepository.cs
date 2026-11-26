@@ -30,6 +30,32 @@ public class NewsReportRepository(
     public Task<ETagged<NewsReport>?> GetNewsReportWithETag(Guid newsOrganisationId, Guid reportId) =>
         CataloguePlayableFieldPatchOperations.ReadWithETag<NewsReport>(
             container, reportId.ToString(), ToPartitionKey(newsOrganisationId));
+    public async Task<bool> TryReplace(NewsReport report, string etag)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(etag);
+        if (report.Id == Guid.Empty || report.NewsOrganisationId == Guid.Empty)
+        {
+            throw new ArgumentException("NewsReport Id and NewsOrganisationId must be set before replace.");
+        }
+
+        try
+        {
+            await container.ReplaceItemAsync(
+                report,
+                report.Id.ToString(),
+                ToPartitionKey(report.NewsOrganisationId),
+                new ItemRequestOptions { IfMatchEtag = etag });
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is HttpStatusCode.PreconditionFailed
+                                             or HttpStatusCode.NotFound)
+        {
+            logger.LogWarning(
+                "{method}: news report '{ReportId}' changed or was deleted since it was read ({status}).",
+                nameof(TryReplace), report.Id, ex.StatusCode);
+            return false;
+        }
+    }
 
     public Task<CataloguePlayablePatchOutcome> PatchFields(
         Guid newsOrganisationId,
@@ -121,7 +147,15 @@ public class NewsReportRepository(
 
     public async Task Delete(Guid newsOrganisationId, Guid reportId)
     {
-        await container.DeleteItemAsync<NewsReport>(reportId.ToString(), ToPartitionKey(newsOrganisationId));
+        try
+        {
+            await container.DeleteItemAsync<NewsReport>(reportId.ToString(), ToPartitionKey(newsOrganisationId));
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            // Idempotent (as NewsOrganisationRepository.Delete): a row already gone, e.g. a throttled delete that
+            // landed before its retry, is the outcome the caller asked for.
+        }
     }
 
     public async Task<NewsReport?> GetBy(Expression<Func<NewsReport, bool>> selector)

@@ -91,6 +91,10 @@ public class SubmitUrlProcessor(
                     request.PodcastName,
                     RefreshMeta: request.RefreshMeta));
             logger.LogInformation(result.ToString());
+            if (SubmitUrlIdentityHoldNotice.From(result) is { } identityHoldNotice)
+            {
+                logger.LogWarning("{IdentityHoldNotice} url='{Url}'", identityHoldNotice, url);
+            }
             if (SubmitUrlIndexableEpisodeId.From(result) is { } episodeId)
             {
                 updatedEpisodeIds.Add(episodeId);

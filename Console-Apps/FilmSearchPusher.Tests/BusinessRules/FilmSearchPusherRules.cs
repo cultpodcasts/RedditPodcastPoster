@@ -44,6 +44,8 @@ public class FilmSearchPusherRules
             });
         films.Setup(x => x.GetFilm(It.IsAny<Guid>()))
             .ReturnsAsync((Guid id) => _films.Concat(_filmsCreatedDuringRun).SingleOrDefault(f => f.Id == id));
+        films.Setup(x => x.CountSearchable())
+            .ReturnsAsync(() => _films.Count(film => film.Removed != true));
         films.Setup(x => x.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .Returns((Expression<Func<Film, bool>> selector) =>
             {
@@ -67,7 +69,7 @@ public class FilmSearchPusherRules
                 var live = liveFilmIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
                 return _indexFilmIds.Where(id => !live.Contains(id)).ToList();
             });
-        index.Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+        index.Setup(x => x.Upload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) =>
             {
                 _pushBatchSizes.Add(docs.Count);
@@ -289,6 +291,48 @@ public class FilmSearchPusherRules
     }
 
     [Fact(DisplayName =
+        "When a watermark exists and the index holds 1 of 3 searchable films (a film pushed into a torn-down index before the scheduled run), then every film is pushed, because an incremental run from the old watermark would never bring the other films back.")]
+    public async Task index_holding_fewer_films_than_cosmos_promotes_incremental_run_to_full()
+    {
+        // Arrange
+        var first = CreateStoredFilm(timestamp: 10);
+        var second = CreateStoredFilm(timestamp: 20);
+        var editedAfterTeardown = CreateStoredFilm(timestamp: 900);
+        GivenIndexAlreadyHoldsFilms(editedAfterTeardown);
+        GivenWatermark(800);
+
+        // Act
+        var result = await Push();
+
+        // Assert
+        result.FullPush.Should().BeTrue();
+        _fullReadUsed.Should().BeTrue();
+        _pushed.Select(d => d.Id).Should().BeEquivalentTo(
+            first.Id.ToString(), second.Id.ToString(), editedAfterTeardown.Id.ToString());
+    }
+
+    [Fact(DisplayName =
+        "When the index holds every searchable film (removed films are not counted), then the run stays incremental, because a full push every hour would re-send the whole catalogue for nothing.")]
+    public async Task index_holding_every_searchable_film_stays_incremental()
+    {
+        // Arrange
+        var old = CreateStoredFilm(timestamp: 10);
+        var recent = CreateStoredFilm(timestamp: 900);
+        CreateStoredFilm(timestamp: 5, removed: true);
+        GivenIndexAlreadyHoldsFilms(old, recent);
+        GivenWatermark(800);
+
+        // Act
+        var result = await Push();
+
+        // Assert
+        result.FullPush.Should().BeFalse();
+        _incrementalReadUsed.Should().BeTrue();
+        _fullReadUsed.Should().BeFalse();
+        _pushed.Select(d => d.Id).Should().Equal(recent.Id.ToString());
+    }
+
+    [Fact(DisplayName =
         "When --full is asked for, then every film is pushed and film documents whose film no longer exists in Cosmos are deleted, because a hard-deleted film leaves no _ts for an incremental run to find.")]
     public async Task full_run_pushes_all_and_deletes_orphans()
     {
@@ -405,7 +449,7 @@ public class FilmSearchPusherRules
         GivenWatermark(5_000);
         var calls = 0;
         _mocker.GetMock<IFilmSearchIndexGateway>()
-            .Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.Upload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IReadOnlyList<EpisodeSearchRecord> docs, CancellationToken _) =>
                 ++calls == 1 ? [] : throw new InvalidOperationException("synthetic request failure"));
 
@@ -428,7 +472,7 @@ public class FilmSearchPusherRules
             .Setup(x => x.SaveAsync(It.IsAny<FilmSearchPushWatermark>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new TimeoutException("synthetic store failure"));
         _mocker.GetMock<IFilmSearchIndexGateway>()
-            .Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.Upload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("synthetic request failure"));
 
         // Act
@@ -479,7 +523,7 @@ public class FilmSearchPusherRules
         GivenIndexAlreadyHoldsFilms(changed);
         GivenWatermark(200);
         _mocker.GetMock<IFilmSearchIndexGateway>()
-            .Setup(x => x.MergeOrUpload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.Upload(It.IsAny<IReadOnlyList<EpisodeSearchRecord>>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("synthetic request failure"));
 
         // Act

@@ -7,6 +7,9 @@ namespace RedditPodcastPoster.ContentPublisher.Models;
 
 public class PodcastResult
 {
+    [JsonIgnore]
+    public Guid ParentId { get; set; }
+
     [JsonPropertyName("podcastName")]
     public required string PodcastName { get; set; }
 
@@ -42,6 +45,11 @@ public class PodcastResult
 
     [JsonPropertyName("images")]
     public EpisodeImages? Images { get; set; } = null;
+
+    /// <summary>#1500: a curator removed this episode's image; the homepage shows no art for it.</summary>
+    [JsonPropertyName("imageRemoved")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool ImageRemoved { get; set; }
 
     [JsonPropertyName("knownTerms")]
     [JsonPropertyOrder(271)]

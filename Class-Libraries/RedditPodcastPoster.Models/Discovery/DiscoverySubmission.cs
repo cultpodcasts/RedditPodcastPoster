@@ -129,6 +129,14 @@ public sealed class DiscoverySubmission : CosmosSelector
     [JsonPropertyOrder(230)]
     public Guid[]? InProgressResultIds { get; set; }
 
+    /// <summary>
+    /// When the queued apply / retry worker started ingesting this claim (#1415). <c>null</c> while the claim is still
+    /// queued. A redelivered message that finds it set knows an earlier run may have created episodes.
+    /// </summary>
+    [JsonPropertyName("inProgressWorkerStartedAt")]
+    [JsonPropertyOrder(235)]
+    public DateTime? InProgressWorkerStartedAt { get; set; }
+
     /// <summary>Status before the in-progress claim (restored when an apply is refused before any ingest).</summary>
     [JsonPropertyName("statusBeforeInProgress")]
     [JsonConverter(typeof(JsonStringEnumConverter))]

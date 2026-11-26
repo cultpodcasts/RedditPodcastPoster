@@ -14,7 +14,8 @@ public class PostModel
         Service? podcastPrimaryPostService,
         string[] podcastKnownTerms,
         string[] subjectKnownTerms,
-        string? language = null)
+        string? language = null,
+        Guid? podcastId = null)
     {
         var firstEpisode = episodes.First();
 
@@ -37,11 +38,9 @@ public class PostModel
         PodcastKnownTerms = podcastKnownTerms;
         SubjectKnownTerms = subjectKnownTerms;
         Language = language;
+        PodcastId = podcastId;
 
-        if (!string.IsNullOrWhiteSpace(podcastTitleRegex))
-        {
-            TitleRegex = new Regex(podcastTitleRegex, Podcast.TitleFlags);
-        }
+        TitleRegex = Podcast.CreateTitleRegex(podcastTitleRegex);
 
         if (!string.IsNullOrWhiteSpace(podcastDescriptionRegex))
         {
@@ -53,7 +52,17 @@ public class PostModel
             var bundledPartNumbers = new List<int>();
             foreach (var episode in episodes)
             {
-                var match = TitleRegex.Match(episode.Title);
+                Match match;
+                try
+                {
+                    match = TitleRegex.Match(episode.Title);
+                }
+                catch (RegexMatchTimeoutException)
+                {
+                    TitleRegexMatchTimedOut = true;
+                    continue;
+                }
+
                 if (match.Success)
                 {
                     var parsed = int.TryParse(match?.Result("${partnumber}"), out var partNumber);
@@ -85,6 +94,14 @@ public class PostModel
     public DateTime Published { get; init; }
     public IEnumerable<EpisodePost> Episodes { get; set; }
     public bool IsBundledPost { get; init; }
+    public Guid? PodcastId { get; init; }
+
+    /// <summary>
+    /// A bundled-part scan hit <see cref="RegexMatchTimeoutException"/>. The sanitiser logs that once; this model
+    /// has no logger.
+    /// </summary>
+    public bool TitleRegexMatchTimedOut { get; private set; }
+
     public Regex? TitleRegex { get; init; }
     public Regex? DescriptionRegex { get; init; }
     public bool HasYouTubeUrl { get; init; }

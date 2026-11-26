@@ -4,6 +4,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Persistence.Abstractions.Episodes;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.YouTube;
 
 namespace RedditPodcastPoster.Episodes.TestSupport.Fakes;
 
@@ -48,6 +49,38 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         }
 
         return Task.FromResult<Episode?>(Clone(episode));
+    }
+
+    public string? NextETag { get; set; } = "etag-1";
+
+    /// <summary>When set, the next <see cref="TryReplace"/> returns false and does not write.</summary>
+    public bool FailNextReplace { get; set; }
+
+    public List<(Episode Episode, string ETag)> Replaces { get; } = [];
+
+    public Task<ETagged<Episode>?> GetEpisodeWithETag(Guid podcastId, Guid episodeId)
+    {
+        if (!_episodes.TryGetValue(episodeId, out var episode) || episode.PodcastId != podcastId)
+        {
+            return Task.FromResult<ETagged<Episode>?>(null);
+        }
+
+        return Task.FromResult<ETagged<Episode>?>(new ETagged<Episode>(Clone(episode), NextETag ?? "etag-1"));
+    }
+
+    public Task<bool> TryReplace(Episode episode, string etag)
+    {
+        if (FailNextReplace)
+        {
+            FailNextReplace = false;
+            Replaces.Add((Clone(episode), etag));
+            return Task.FromResult(false);
+        }
+
+        _episodes[episode.Id] = Clone(episode);
+        _savedEpisodes.Add(Clone(episode));
+        Replaces.Add((Clone(episode), etag));
+        return Task.FromResult(true);
     }
 
     public Task<int> Count(Guid podcastId) =>
@@ -247,6 +280,7 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
             BlueskyPost = episode.BlueskyPost,
             Ignored = episode.Ignored,
             Removed = episode.Removed,
+            ApprovalStatus = episode.ApprovalStatus,
             Subjects = [.. episode.Subjects],
             SearchTerms = episode.SearchTerms,
             PodcastName = episode.PodcastName,
@@ -270,6 +304,21 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
                     Spotify = episode.Ids.Spotify,
                     Apple = episode.Ids.Apple,
                     YouTube = episode.Ids.YouTube
-                }
+                },
+            AdditionalYouTube = episode.AdditionalYouTube is { Count: > 0 }
+                ? episode.AdditionalYouTube.Select(item => new YouTubeAlternate
+                {
+                    YouTubeId = item.YouTubeId,
+                    Url = item.Url,
+                    Image = item.Image,
+                    Title = item.Title,
+                    ChannelId = item.ChannelId,
+                    ChannelName = item.ChannelName,
+                    Release = item.Release,
+                    Length = item.Length,
+                    SourceEpisodeId = item.SourceEpisodeId,
+                    AddedAt = item.AddedAt
+                }).ToList()
+                : null
         };
 }

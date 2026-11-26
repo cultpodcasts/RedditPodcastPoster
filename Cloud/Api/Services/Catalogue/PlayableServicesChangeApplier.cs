@@ -35,14 +35,19 @@ public static class PlayableServicesChangeApplier
         return true;
     }
 
-    /// <summary>Applies a services patch onto <paramref name="current"/> and returns the result (null when empty).</summary>
+    /// <summary>
+    /// Applies a services patch onto <paramref name="current"/> and returns the result (null when empty).
+    /// Starts from a deep copy of <paramref name="current"/> without null entries (#1508), so a stored
+    /// <c>"key": null</c> cannot throw, any PATCH heals the document, and the loaded entity's links are not mutated.
+    /// </summary>
     public static Dictionary<string, ServiceLink>? Apply(
         Dictionary<string, ServiceLink>? current,
         Dictionary<string, ServiceLink> services)
     {
-        var map = current is null
+        var copy = ServiceLinkMap.CloneWithoutNulls(current);
+        var map = copy is null
             ? null
-            : new Dictionary<string, ServiceLink>(current, StringComparer.Ordinal);
+            : new Dictionary<string, ServiceLink>(copy, StringComparer.Ordinal);
 
         foreach (var pair in services)
         {

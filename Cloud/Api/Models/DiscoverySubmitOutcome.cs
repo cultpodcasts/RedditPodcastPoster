@@ -1,4 +1,5 @@
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.UrlSubmission.Categorisation;
 using RedditPodcastPoster.EntitySearchIndexer.Models;
 using RedditPodcastPoster.UrlSubmission.Languages;
 
@@ -21,7 +22,8 @@ public record DiscoverySubmitOutcome(
     IReadOnlyList<DiscoverySubmitItemOutcome> Results,
     EntitySearchIndexerResponse SearchIndexer,
     IReadOnlyList<CatalogueLanguageHold>? LanguageDecisionsRequired = null,
-    IReadOnlyList<CatalogueIdentityHold>? IdentityDecisionsRequired = null);
+    IReadOnlyList<CatalogueIdentityHold>? IdentityDecisionsRequired = null,
+    IReadOnlyList<DiscoveryKindHold>? KindDecisionsRequired = null);
 
 public static class DiscoverySubmitItemOutcomeMessages
 {

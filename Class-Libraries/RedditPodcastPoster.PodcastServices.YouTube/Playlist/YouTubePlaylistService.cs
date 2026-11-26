@@ -153,16 +153,16 @@ public class YouTubePlaylistService(
                 playlistRequest.MaxResults = batchSize;
                 playlistRequest.PageToken = nextPageToken;
 
-                indexingContext.ReportStage("youtube-playlist-page",
+                PodcastRunScope.Current.ReportStage("youtube-playlist-page",
                     $"playlist-id={playlistId.PlaylistId} page={walkGuard.PagesFetched + 1} batch-size={batchSize}");
-                playlistItemsListResponse = await playlistRequest.ExecuteAsync(indexingContext.CancellationToken);
+                playlistItemsListResponse = await playlistRequest.ExecuteAsync(PodcastRunScope.Current.CancellationToken);
                 await quotaUsageTracker.RecordQuotaConsumedAsync(
                     youTubeServiceWrapper.CurrentApplication,
                     youTubeServiceWrapper.Usage,
                     YouTubeQuotaOperation.PlaylistItemsList,
                     YouTubeQuotaCosts.PlaylistItemsList);
             }
-            catch (OperationCanceledException) when (indexingContext.CancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (PodcastRunScope.Current.CancellationToken.IsCancellationRequested)
             {
                 // The podcast's time budget elapsed; let the indexer loop log the stage and move on.
                 throw;
@@ -324,9 +324,9 @@ public class YouTubePlaylistService(
             var request = youTubeServiceWrapper.YouTubeService.PlaylistItems.List("snippet,contentDetails");
             request.PlaylistId = playlistId.PlaylistId;
             request.MaxResults = Math.Clamp(maxResults, 1, PlaylistPageSize);
-            indexingContext.ReportStage("youtube-playlist-head",
+            PodcastRunScope.Current.ReportStage("youtube-playlist-head",
                 $"playlist-id={playlistId.PlaylistId} max-results={request.MaxResults}");
-            var response = await request.ExecuteAsync(indexingContext.CancellationToken);
+            var response = await request.ExecuteAsync(PodcastRunScope.Current.CancellationToken);
             await quotaUsageTracker.RecordQuotaConsumedAsync(
                 youTubeServiceWrapper.CurrentApplication,
                 youTubeServiceWrapper.Usage,
@@ -337,7 +337,7 @@ public class YouTubePlaylistService(
                 .ToList();
             return new GetPlaylistHeadResponse(items, response.PageInfo?.TotalResults);
         }
-        catch (OperationCanceledException) when (indexingContext.CancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (PodcastRunScope.Current.CancellationToken.IsCancellationRequested)
         {
             throw;
         }

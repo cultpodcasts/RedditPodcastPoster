@@ -1,3 +1,6 @@
+using Api.Dtos.Extensions;
+using RedditPodcastPoster.Models.Services;
+using RedditPodcastPoster.Models.Podcasts;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -134,5 +137,39 @@ public class PublicEpisodeGetServiceTests
 
         // Assert
         result.Status.Should().Be(PublicEpisodeGetStatus.NotFound);
+    }
+
+    [Fact(DisplayName =
+        "Plain English rule: when a news report's stored services hold a null entry, then the public get still returns it and its public DTO leaves that key out, because a null entry is not a link and must not turn the bookmark into a 500 (#1508).")]
+    public async Task get_returns_catalogue_playable_with_null_services_entry()
+    {
+        // Arrange
+        var organisation = new NewsOrganisation(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var report = new NewsReport(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [ServiceKeys.Spotify] = null!,
+                [ServiceKeys.YouTube] = new() { Url = _fixture.Create<Uri>() }
+            }
+        };
+        report.SetNewsOrganisationProperties(organisation);
+        _catalogueResolution = new CataloguePlayableResolution(
+            nameof(NewsReport),
+            CatalogueParentKindMapper.ToPostProjection(report, organisation),
+            organisation.Id,
+            organisation.Name,
+            organisation.Name,
+            Removed: false);
+
+        // Act
+        var result = await Get(report.Id);
+        var dto = result.Episode!.ToDto(result.Podcast!);
+
+        // Assert
+        result.Status.Should().Be(PublicEpisodeGetStatus.Ok);
+        dto.Services.Should().NotContainKey(ServiceKeys.Spotify);
+        dto.Services.Should().ContainKey(ServiceKeys.YouTube);
     }
 }

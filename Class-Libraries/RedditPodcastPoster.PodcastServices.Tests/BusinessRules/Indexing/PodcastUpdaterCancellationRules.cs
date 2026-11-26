@@ -49,7 +49,8 @@ public class PodcastUpdaterCancellationRules
                 It.IsAny<IndexingContext>()))
             .Callback(() => _budget.Cancel())
             .ReturnsAsync(new EnrichmentResults([]));
-        var context = PodcastUpdaterTestHarness.DefaultIndexingContext() with { CancellationToken = _budget.Token };
+        using var runScope = PodcastRunScope.Enter(new PodcastRunScope(_budget.Token));
+        var context = PodcastUpdaterTestHarness.DefaultIndexingContext();
 
         // Act
         var act = () => _harness.Updater.Update(_podcast, false, context);
@@ -72,7 +73,8 @@ public class PodcastUpdaterCancellationRules
                 It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IList<Episode>>(),
                 It.IsAny<IndexingContext>()))
             .Returns(release.Task);
-        var context = PodcastUpdaterTestHarness.DefaultIndexingContext() with { CancellationToken = _budget.Token };
+        using var runScope = PodcastRunScope.Enter(new PodcastRunScope(_budget.Token));
+        var context = PodcastUpdaterTestHarness.DefaultIndexingContext();
         var update = _harness.Updater.Update(_podcast, false, context);
 
         // Act
@@ -102,7 +104,8 @@ public class PodcastUpdaterCancellationRules
                 _budget.Cancel();
             }
         };
-        var context = PodcastUpdaterTestHarness.DefaultIndexingContext() with { CancellationToken = _budget.Token };
+        using var runScope = PodcastRunScope.Enter(new PodcastRunScope(_budget.Token));
+        var context = PodcastUpdaterTestHarness.DefaultIndexingContext();
 
         // Act
         var act = () => _harness.Updater.Update(_podcast, false, context);
@@ -118,7 +121,8 @@ public class PodcastUpdaterCancellationRules
     public async Task uncancelled_update_saves()
     {
         // Arrange
-        var context = PodcastUpdaterTestHarness.DefaultIndexingContext() with { CancellationToken = _budget.Token };
+        using var runScope = PodcastRunScope.Enter(new PodcastRunScope(_budget.Token));
+        var context = PodcastUpdaterTestHarness.DefaultIndexingContext();
 
         // Act
         await _harness.Updater.Update(_podcast, false, context);

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -43,12 +44,24 @@ public sealed class XApiProblem
         Messages().Any(m => m.Contains("duplicate content", StringComparison.OrdinalIgnoreCase)) ||
         (Errors?.Any(e => e.Code == 187) ?? false);
 
+    /// <summary>The app's monthly usage / credits cap (distinct from a short rate-limit window).</summary>
+    [JsonIgnore]
+    public bool IsUsageCapped =>
+        (Type?.EndsWith("/usage-capped", StringComparison.OrdinalIgnoreCase) ?? false) ||
+        Messages().Any(m => m.Contains("usage cap", StringComparison.OrdinalIgnoreCase));
+
     /// <summary>A rate limit or the app's usage cap; nothing more should be posted this run.</summary>
     [JsonIgnore]
     public bool IsRateOrUsageLimited =>
-        (Type?.EndsWith("/usage-capped", StringComparison.OrdinalIgnoreCase) ?? false) ||
-        Messages().Any(m => m.Contains("too many requests", StringComparison.OrdinalIgnoreCase) ||
-                            m.Contains("usage cap", StringComparison.OrdinalIgnoreCase));
+        IsUsageCapped ||
+        Messages().Any(m => m.Contains("too many requests", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// HTTP status and/or problem that should persist a LookUps skip window: 429, bare 402 (credits gone,
+    /// empty/non-matching body), or a recognised rate/usage problem type.
+    /// </summary>
+    public bool IsLimitOrUsageResponse(HttpStatusCode status) =>
+        status is HttpStatusCode.TooManyRequests or HttpStatusCode.PaymentRequired || IsRateOrUsageLimited;
 
     /// <summary>
     /// X reports the post (or other resource) as gone: a <c>resource-not-found</c> problem type

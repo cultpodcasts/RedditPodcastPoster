@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using FluentAssertions;
+using idunno.AtProto;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Bluesky.Client;
@@ -50,6 +51,84 @@ public class BlueskyApiCardRules
     }
 
     [Fact(DisplayName =
+        "When a curator removed the episode's image, the API card keeps its title and description but has no image and no image is downloaded, because the removed YouTube art must not be posted (#1500).")]
+    public async Task without_card_image_returns_a_card_with_no_image()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var platform = episode.Urls.YouTube!;
+        var shortUrl = ArrangePlatform(platform);
+        var sut = _mocker.CreateInstance<BlueskyFeedClient>();
+
+        // Act
+        var card = await sut.TryCreateApiCard(shortUrl, platform, withoutCardImage: true);
+
+        // Assert
+        card.Should().NotBeNull();
+        card!.Link.Should().Be(shortUrl);
+        card.Title.Should().Be(_platformCard!.Title);
+        card.Description.Should().Be(_platformCard.Description);
+        card.Image.Should().BeNull();
+        _mocker.GetMock<IBlueskyCardImageDownloader>()
+            .Verify(
+                downloader => downloader.Download(It.IsAny<IReadOnlyList<Uri>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When a curator removed the episode's image, the post embeds the link card with no thumbnail and uploads nothing, because the removed art must not be posted (#1500).")]
+    public async Task card_without_image_embeds_with_no_thumbnail_and_no_upload()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var platform = episode.Urls.YouTube!;
+        var shortUrl = ArrangePlatform(platform);
+        var card = new BlueskyApiCard(shortUrl, _platformCard!.Title, _platformCard.Description, null);
+        var uploads = 0;
+
+        // Act
+        var embed = await BlueskyFeedClient.CreateCardEmbed(card, (_, _) =>
+        {
+            uploads++;
+            return Task.FromResult<Blob?>(null);
+        });
+
+        // Assert
+        embed.Should().NotBeNull();
+        embed!.External.Uri.Should().Be(shortUrl.AbsoluteUri);
+        embed.External.Title.Should().Be(card.Title);
+        embed.External.Description.Should().Be(card.Description);
+        embed.External.Thumbnail.Should().BeNull();
+        uploads.Should().Be(0);
+    }
+
+    [Fact(DisplayName =
+        "When the card has an image but its upload fails, no card is embedded, because a link card with the image is only posted once its thumbnail is uploaded.")]
+    public async Task card_with_image_whose_upload_fails_embeds_nothing()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var platform = episode.Urls.YouTube!;
+        var shortUrl = ArrangePlatform(platform);
+        var card = new BlueskyApiCard(shortUrl, _platformCard!.Title, _platformCard.Description, _image);
+        var uploaded = new List<(BlueskyCardImage Image, string Title)>();
+
+        // Act
+        var embed = await BlueskyFeedClient.CreateCardEmbed(card, (image, title) =>
+        {
+            uploaded.Add((image, title));
+            return Task.FromResult<Blob?>(null);
+        });
+
+        // Assert
+        embed.Should().BeNull();
+        uploaded.Should().ContainSingle().Which.Should().Be((_image!, card.Title));
+    }
+
+    [Fact(DisplayName =
         "When the public link is a short URL and the platform URL is Spotify, the API card still opens the short link, because the Spotify episode API supplies the title and image and the short-url page is not fetched.")]
     public async Task short_url_with_spotify_platform_url_returns_an_api_card()
     {
@@ -90,8 +169,8 @@ public class BlueskyApiCardRules
 
         // Assert
         card.Should().NotBeNull();
-        card!.Image.Bytes.Should().Equal(fitted);
-        card.Image.MimeType.Should().Be("image/jpeg");
+        card!.Image!.Bytes.Should().Equal(fitted);
+        card.Image!.MimeType.Should().Be("image/jpeg");
         handler.Requested.Should().Equal(tall, small);
     }
 
@@ -114,8 +193,8 @@ public class BlueskyApiCardRules
 
         // Assert
         card.Should().NotBeNull();
-        card!.Image.Bytes.Should().Equal(fitted);
-        card.Image.MimeType.Should().Be("image/jpeg");
+        card!.Image!.Bytes.Should().Equal(fitted);
+        card.Image!.MimeType.Should().Be("image/jpeg");
         handler.Requested.Should().Equal(tall, small);
     }
 

@@ -27,6 +27,9 @@ public sealed partial class EpisodePlatformMatcher
         CatalogueMatchByLengthOptions options,
         Func<Episode, bool>? reducer = null)
     {
+        // The whole page (before part filtering and the reducer) shows which description lines the show repeats.
+        var page = candidates as IList<Episode> ?? candidates.ToList();
+        candidates = WithoutConflictingParts(probe, page);
         var matches = candidates.Where(x =>
             EpisodeTitleMatch.EqualsOrContains(x.Title, probe.Title));
         if (reducer != null)
@@ -58,7 +61,7 @@ public sealed partial class EpisodePlatformMatcher
             // Do not fall through to same-release / low fuzzy-score matching — that
             // reintroduces wrong-week Spotify attaches (Aug 2026 incident).
             // Probe/catalogue may lack duration (Apple catalogue gaps); scorer handles that.
-            return FindYouTubeDiscoveredCatalogueMatch(probe, sampleList, options);
+            return FindYouTubeDiscoveredCatalogueMatch(probe, sampleList, options, page);
         }
 
         if (probe.Length <= TimeSpan.Zero)
@@ -123,6 +126,7 @@ public sealed partial class EpisodePlatformMatcher
         Regex? episodeMatchRegex,
         Func<Episode, bool>? reducer = null)
     {
+        candidates = WithoutConflictingParts(probe, candidates);
         var matches = candidates.Where(x =>
             EpisodeTitleMatch.EqualsOrContains(x.Title, probe.Title));
         if (reducer != null)
@@ -205,13 +209,27 @@ public sealed partial class EpisodePlatformMatcher
     private static Episode? FindYouTubeDiscoveredCatalogueMatch(
         Episode probe,
         IList<Episode> sampleList,
-        CatalogueMatchByLengthOptions options)
+        CatalogueMatchByLengthOptions options,
+        IEnumerable<Episode> page)
     {
         var subjectFilters = new CatalogueSubjectScoreFilters(
             options.DefaultSubject,
             options.IgnoredSubjects);
-        return CatalogueMatchScorer.SelectBestMatch(probe, sampleList, subjectFilters, options.YouTubePublished);
+        var boilerplate = CatalogueDescriptionBoilerplate.From(page.Select(x => x.Description));
+        return CatalogueMatchScorer.SelectBestMatch(
+            probe,
+            sampleList,
+            subjectFilters,
+            options.YouTubePublished,
+            boilerplate);
     }
+
+    /// <summary>
+    /// A candidate whose title carries a different part or episode number from the probe (pt.I vs pt.II)
+    /// is a different episode, whatever its release or length (#1445).
+    /// </summary>
+    private static List<Episode> WithoutConflictingParts(Episode probe, IEnumerable<Episode> candidates) =>
+        candidates.Where(x => !EpisodeTitlePartMarkers.Conflict(probe.Title, x.Title)).ToList();
 
     private static long GetCatalogueDurationThresholdTicks(CatalogueMatchByLengthOptions options) =>
         options.EnrichingYouTubeDiscoveredEpisode || options.AcceptUniqueDurationWithoutTitleMatch

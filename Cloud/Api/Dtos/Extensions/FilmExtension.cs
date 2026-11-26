@@ -20,6 +20,8 @@ public static class FilmExtension
             Subjects = [.. film.Subjects],
             Guests = film.Guests,
             Services = film.Services.ToDtos(),
+            Image = film.Image,
+            AlternativeTitles = film.AlternativeTitles is { } titles ? [.. titles] : null,
             Trailers = film.Trailers is { Count: > 0 } trailers
                 ? trailers.Select(trailer => new FilmTrailerDto
                 {
@@ -30,6 +32,7 @@ public static class FilmExtension
                     Release = trailer.Release,
                     Duration = CatalogueDtoMapping.FormatDuration(trailer.Length)
                 }).ToArray()
-                : null
+                : null,
+            AdditionalYouTube = YouTubeAlternateDtoMapping.ToDtos(film.AdditionalYouTube)
         }.WithPublisherFields(film);
 }

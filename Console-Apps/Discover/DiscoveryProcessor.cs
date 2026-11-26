@@ -78,13 +78,8 @@ public class DiscoveryProcessor(
         string searchSince;
         if (request.Since.HasValue)
         {
-            if (request.Since.Value.ToUniversalTime() > DateTime.UtcNow)
-            {
-                throw new InvalidOperationException(
-                    $"'{nameof(request)}.{nameof(request.Since)}' is in the future. ");
-            }
-
-            since = request.Since.Value.ToUniversalTime();
+            // Unspecified means UTC (#1212 / #1219) — never ToUniversalTime on CLI args.
+            since = DiscoverCliSince.Resolve(request.Since.Value);
             searchSince = DateTime.UtcNow.Subtract(since).ToString();
         }
         else if (!string.IsNullOrWhiteSpace(request.SearchWindow))
@@ -99,9 +94,9 @@ public class DiscoveryProcessor(
         }
 
         Console.WriteLine(
-            $"Discovering items released since '{since.ToUniversalTime():O}' (local:'{since.ToLocalTime():O}').");
+            $"Discovering items released since '{since:O}' (local:'{since.ToLocalTime():O}').");
 
-        var discoveryBegan = DateTime.UtcNow.ToUniversalTime();
+        var discoveryBegan = DateTime.UtcNow;
         Console.WriteLine(
             $"Initiating discovery at '{discoveryBegan:O}' (local: '{discoveryBegan.ToLocalTime():O}').");
 

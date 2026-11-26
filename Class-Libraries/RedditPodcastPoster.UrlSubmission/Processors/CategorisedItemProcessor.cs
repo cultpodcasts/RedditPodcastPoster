@@ -19,13 +19,24 @@ public class CategorisedItemProcessor(
     IHeroEpisodePromoter heroEpisodePromoter,
     ILogger<CategorisedItem> logger,
     ICatalogueLanguageGate? languageGate = null,
-    ICatalogueKindSubmitter? catalogueKindSubmitter = null) : ICategorisedItemProcessor
+    ICatalogueKindSubmitter? catalogueKindSubmitter = null,
+    IServiceLinkConflictGate? serviceLinkConflictGate = null) : ICategorisedItemProcessor
 {
     public async Task<SubmitResult> ProcessCategorisedItem(CategorisedItem categorisedItem, SubmitOptions submitOptions)
     {
         if (submitOptions.LanguageChoice == CatalogueLanguageChoice.Cancel)
         {
             return LanguageHold(new CatalogueLanguageHold(string.Empty, string.Empty, []));
+        }
+
+        if (submitOptions.ServiceLinkConflict == ServiceLinkConflictChoice.Cancel)
+        {
+            // #1483: the curator cancelled a service-link conflict prompt, so nothing is written on any path (new
+            // podcast, catalogue kind or existing podcast), even if the conflict has gone since the prompt.
+            logger.LogInformation(
+                "Service-link conflict answered cancel for podcast '{PodcastId}': nothing written.",
+                categorisedItem.MatchingPodcast?.Id);
+            return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
         }
 
         if (languageGate == null && (submitOptions.EnforceLanguageGate || submitOptions.LanguageProbe))
@@ -93,10 +104,50 @@ public class CategorisedItemProcessor(
                 return Probe(admission);
             }
 
+            Episode? splitOffEpisode = null;
+            var saveSplitOff = false;
+            if (serviceLinkConflictGate != null)
+            {
+                var conflict = serviceLinkConflictGate.Evaluate(categorisedItem, submitOptions);
+                switch (conflict.Kind)
+                {
+                    case ServiceLinkConflictOutcomeKind.Hold:
+                        return new SubmitResult(
+                            SubmitResultState.None,
+                            SubmitResultState.None,
+                            Podcast: categorisedItem.MatchingPodcast,
+                            ServiceLinkConflict: conflict.Hold);
+                    case ServiceLinkConflictOutcomeKind.Cancelled:
+                        return new SubmitResult(SubmitResultState.None, SubmitResultState.None);
+                    case ServiceLinkConflictOutcomeKind.Overwritten:
+                        categorisedItem = categorisedItem with { MatchingEpisode = conflict.Episode };
+                        splitOffEpisode = conflict.SplitOff;
+                        saveSplitOff = conflict.SaveSplitOff;
+                        break;
+                }
+            }
+
             submitResult = await podcastProcessor.AddEpisodeToExistingPodcast(categorisedItem);
+            if (splitOffEpisode != null)
+            {
+                // The stored episode has lost its old links to the split-off, so it is saved even if the submitted
+                // links happened to add nothing else.
+                submitResult = submitResult with
+                {
+                    EpisodeResult = SubmitResultState.Enriched,
+                    SplitOffEpisode = splitOffEpisode
+                };
+            }
 
             if (submitOptions.PersistToDatabase)
             {
+                if (splitOffEpisode != null && saveSplitOff)
+                {
+                    // Saved first: if the stored episode's save then fails, its old links exist twice, never zero times.
+                    // A reused split-off that gained no link is not saved again, so curator edits to it are kept (#1482).
+                    await episodeRepository.Save(splitOffEpisode);
+                }
+
                 if (submitResult is { PodcastResult: SubmitResultState.Enriched })
                 {
                     await podcastRepository.Save(categorisedItem.MatchingPodcast);

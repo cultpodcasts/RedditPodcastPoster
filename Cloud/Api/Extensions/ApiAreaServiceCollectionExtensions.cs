@@ -58,6 +58,7 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IEpisodeDeleteService, EpisodeDeleteService>()
             .AddScoped<IEpisodeGetService, EpisodeGetService>()
             .AddScoped<IEpisodeOutgoingService, EpisodeOutgoingService>()
+            .AddScoped<IEpisodeAwaitingApprovalService, EpisodeAwaitingApprovalService>()
             .AddScoped<EpisodeUpdateService>()
             .AddScoped<IEpisodeUpdateService>(sp =>
             {
@@ -73,13 +74,20 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostEpisodeFilmMoveHandler, PostEpisodeFilmMoveHandler>()
             .AddScoped<IEpisodeTrailerAttachService, EpisodeTrailerAttachService>()
             .AddScoped<IPostEpisodeTrailerAttachHandler, PostEpisodeTrailerAttachHandler>()
+            .AddScoped<IYouTubeAlternateAttachService, YouTubeAlternateAttachService>()
+            .AddScoped<IPostEpisodeYouTubeAlternateAttachHandler, PostEpisodeYouTubeAlternateAttachHandler>()
             .AddScoped<IEpisodeTvShowMoveService, EpisodeTvShowMoveService>()
             .AddScoped<IPostEpisodeTvShowMoveHandler, PostEpisodeTvShowMoveHandler>()
+            .AddScoped<IEpisodeNewsMoveService, EpisodeNewsMoveService>()
+            .AddScoped<IPostEpisodeNewsMoveHandler, PostEpisodeNewsMoveHandler>()
+            .AddScoped<IPostPodcastNewsMoveHandler, PostPodcastNewsMoveHandler>()
             .AddScoped<IDeleteEpisodeHandler, DeleteEpisodeHandler>()
             .AddScoped<IGetEpisodeHandler, GetEpisodeHandler>()
             .AddScoped<IGetOutgoingEpisodesHandler, GetOutgoingEpisodesHandler>()
+            .AddScoped<IGetAwaitingApprovalEpisodesHandler, GetAwaitingApprovalEpisodesHandler>()
             .AddScoped<IPostEpisodeHandler, PostEpisodeHandler>()
-            .AddScoped<IPublishEpisodeHandler, PublishEpisodeHandler>();
+            .AddScoped<IPublishEpisodeHandler, PublishEpisodeHandler>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiPodcasts(this IServiceCollection services) =>
         services
@@ -147,7 +155,16 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<INewsReportService, NewsReportService>()
             .AddScoped<IGetNewsReportHandler, GetNewsReportHandler>()
             .AddScoped<IPostNewsReportHandler, PostNewsReportHandler>()
-            .AddScoped<IDeleteNewsReportHandler, DeleteNewsReportHandler>();
+            .AddScoped<IDeleteNewsReportHandler, DeleteNewsReportHandler>()
+            .AddScoped<INewsReportTvShowMoveService, NewsReportTvShowMoveService>()
+            .AddScoped<IPostNewsReportTvShowMoveHandler, PostNewsReportTvShowMoveHandler>()
+            .AddScoped<INewsReportFilmMoveService, NewsReportFilmMoveService>()
+            .AddScoped<IPostNewsReportFilmMoveHandler, PostNewsReportFilmMoveHandler>()
+            .AddScoped<INewsReportOrganisationMoveService, NewsReportOrganisationMoveService>()
+            .AddScoped<IPostNewsReportOrganisationMoveHandler, PostNewsReportOrganisationMoveHandler>()
+            .AddScoped<INewsOrganisationDeleteService, NewsOrganisationDeleteService>()
+            .AddScoped<IDeleteNewsOrganisationHandler, DeleteNewsOrganisationHandler>()
+            .AddTimeProviderIfMissing();
 
     public static IServiceCollection AddApiFilms(this IServiceCollection services) =>
         services
@@ -220,6 +237,12 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IDiscoveryChannelBanService, DiscoveryChannelBanService>()
             .AddScoped<IPostDiscoveryChannelBanHandler, PostDiscoveryChannelBanHandler>()
             .AddScoped<IDiscoverySubmissionReviewService, DiscoverySubmissionReviewService>()
+            // Own QueueClients: the container's QueueClient singleton is the kind-transfer queue (#1415).
+            // The poison client is this singleton, not a new credential on every enqueue.
+            .AddSingleton<IDiscoverySubmissionApplyQueue>(sp => new DiscoverySubmissionApplyQueue(
+                PodcastKindTransferQueueClientFactory.Create(DiscoverySubmissionApplyQueueMessage.QueueName),
+                PodcastKindTransferQueueClientFactory.Create(DiscoverySubmissionApplyQueueMessage.PoisonQueueName),
+                sp.GetRequiredService<ILogger<DiscoverySubmissionApplyQueue>>()))
             .AddScoped<IDiscoverySubmissionIngestedEpisodes, DiscoverySubmissionIngestedEpisodes>()
             .AddScoped<IGetDiscoverySubmissionsHandler, GetDiscoverySubmissionsHandler>()
             .AddScoped<IGetDiscoverySubmissionHandler, GetDiscoverySubmissionHandler>()

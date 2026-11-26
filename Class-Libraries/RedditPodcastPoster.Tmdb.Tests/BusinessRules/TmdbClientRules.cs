@@ -7,6 +7,8 @@ using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Tmdb.Clients;
 using RedditPodcastPoster.Tmdb.Configuration;
+using RedditPodcastPoster.Catalogue.Identity;
+using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Tmdb.Models;
 
 namespace RedditPodcastPoster.Tmdb.Tests.BusinessRules;
@@ -204,6 +206,141 @@ public class TmdbClientRules
         hits[0].Year.Should().Be(year);
     }
 
+    [Fact(DisplayName =
+        "A TMDB movie search hit keeps the original-language title beside the English title, because a curator may " +
+        "search by the original title (issue #1421: \"Faderhuset\" is listed as \"Father's House\").")]
+    public async Task movie_search_hit_keeps_original_title()
+    {
+        // Arrange
+        const string listed = "Father's House";
+        const string original = "Faderhuset";
+        var movieId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["results"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = movieId,
+                    ["title"] = listed,
+                    ["original_title"] = original,
+                    ["release_date"] = $"{DomainTestFixture.UtcToday.Year:0000}-01-01"
+                }
+            }
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var hits = await sut.SearchMoviesAsync(original);
+
+        // Assert
+        hits.Should().ContainSingle();
+        hits[0].Name.Should().Be(listed);
+        hits[0].OriginalName.Should().Be(original);
+    }
+
+    [Fact(DisplayName =
+        "A TMDB search hit whose original title is the same as its listed title carries no separate original title.")]
+    public async Task same_original_title_is_not_repeated()
+    {
+        // Arrange
+        var name = _fixture.CreateTitle();
+        var payload = new JsonObject
+        {
+            ["results"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = CreateTmdbId(),
+                    ["name"] = name,
+                    ["original_name"] = name
+                }
+            }
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var hits = await sut.SearchTvAsync(name);
+
+        // Assert
+        hits.Should().ContainSingle().Which.OriginalName.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Finding a movie by IMDb title id asks TMDB find with external_source=imdb_id and returns that movie, " +
+        "so an IMDb-only match can still store the TMDB id.")]
+    public async Task find_movie_by_imdb_id_returns_the_tmdb_movie()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var imdbId = "tt" + _fixture.CreateAppleId();
+        var name = _fixture.CreateTitle();
+        var original = _fixture.CreateTitleNotContainedIn(name);
+        var year = DomainTestFixture.UtcToday.Year;
+        var payload = new JsonObject
+        {
+            ["movie_results"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = movieId,
+                    ["title"] = name,
+                    ["original_title"] = original,
+                    ["release_date"] = $"{year:0000}-01-01"
+                }
+            },
+            ["tv_results"] = new JsonArray()
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var hit = await sut.FindMovieByImdbIdAsync(imdbId);
+
+        // Assert
+        hit.Should().NotBeNull();
+        hit!.Id.Should().Be(movieId);
+        hit.Name.Should().Be(name);
+        hit.OriginalName.Should().Be(original);
+        hit.Kind.Should().Be(TmdbTitleKind.Movie);
+        hit.Year.Should().Be(year);
+        _handler.Requests.Should().ContainSingle();
+        _handler.Requests[0].RequestUri!.AbsolutePath.Should().Be($"/3/find/{imdbId}");
+        _handler.Requests[0].RequestUri!.Query.Should().Contain("external_source=imdb_id");
+    }
+
+    [Fact(DisplayName =
+        "Finding a movie by IMDb title id returns nothing when TMDB has no movie for it.")]
+    public async Task find_movie_by_imdb_id_without_movie_returns_null()
+    {
+        // Arrange
+        _handler.Enqueue(HttpStatusCode.OK, new JsonObject { ["movie_results"] = new JsonArray() }.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var hit = await sut.FindMovieByImdbIdAsync("tt" + _fixture.CreateAppleId());
+
+        // Assert
+        hit.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Finding a movie by something that is not an IMDb title id does not call TMDB.")]
+    public async Task find_movie_by_invalid_imdb_id_does_not_call()
+    {
+        // Arrange
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var hit = await sut.FindMovieByImdbIdAsync(_fixture.CreateTitle());
+
+        // Assert
+        hit.Should().BeNull();
+        _handler.Requests.Should().BeEmpty();
+    }
+
     [Fact(DisplayName = "TMDB calls are refused when the API key is unset.")]
     public async Task missing_api_key_does_not_call()
     {
@@ -243,6 +380,291 @@ public class TmdbClientRules
         logged.Should().OnlyContain(message => !message.Contains(_options.ApiKey) && !message.Contains("api_key"));
     }
 
+    [Fact(DisplayName =
+        "Movie metadata reads the overview, runtime, release date and backdrop, and lists every other title (the TMDB " +
+        "title, original, alternative and translated) once (RPP #1430, #1431).")]
+    public async Task movie_metadata_reads_details_and_other_titles()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["id"] = movieId,
+            ["title"] = "Father's House",
+            ["original_title"] = "Faderhuset",
+            ["overview"] = " A documentary. ",
+            ["runtime"] = 88,
+            ["release_date"] = "2026-10-19",
+            ["poster_path"] = "/poster.jpg",
+            ["backdrop_path"] = "/backdrop.jpg",
+            ["alternative_titles"] = new JsonObject
+            {
+                ["titles"] = new JsonArray(
+                    new JsonObject { ["title"] = "faderhuset" },
+                    new JsonObject { ["title"] = "Fathers House" },
+                    new JsonObject { ["title"] = " " })
+            },
+            ["translations"] = new JsonObject
+            {
+                ["translations"] = new JsonArray(
+                    new JsonObject { ["data"] = new JsonObject { ["title"] = "Father's House" } },
+                    new JsonObject { ["data"] = new JsonObject { ["title"] = "La casa del padre" } },
+                    new JsonObject { ["data"] = new JsonObject { ["title"] = "" } })
+            }
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var metadata = await sut.GetMovieMetadataAsync(movieId);
+
+        // Assert
+        metadata.Should().NotBeNull();
+        metadata!.Id.Should().Be(movieId);
+        metadata.Title.Should().Be("Father's House");
+        metadata.Overview.Should().Be("A documentary.");
+        metadata.RuntimeMinutes.Should().Be(88);
+        metadata.ReleaseDate.Should().Be(new DateOnly(2026, 10, 19));
+        metadata.Image.Should().Be(new Uri("https://image.tmdb.org/t/p/w1280/backdrop.jpg"));
+        metadata.OtherTitles.Should().Equal("Father's House", "Faderhuset", "Fathers House", "La casa del padre");
+        _handler.Requests.Single().RequestUri!.OriginalString
+            .Should().Contain($"movie/{movieId}?append_to_response=alternative_titles,translations");
+    }
+
+    [Fact(DisplayName =
+        "TMDB's listed title is stored as an alternative title when it differs from the film's name, so a search for " +
+        "Father's House finds Faderhuset (RPP #1431).")]
+    public async Task movie_metadata_fills_the_tmdb_title_as_an_alternative_when_it_differs_from_the_film_name()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["id"] = movieId,
+            ["title"] = "Father's House",
+            ["original_title"] = "Faderhuset",
+            ["overview"] = "A documentary.",
+            ["runtime"] = 90,
+            ["release_date"] = "2026-11-19",
+            ["alternative_titles"] = new JsonObject
+            {
+                ["titles"] = new JsonArray(new JsonObject { ["title"] = "Faderhuset" })
+            },
+            ["translations"] = new JsonObject
+            {
+                ["translations"] = new JsonArray(
+                    new JsonObject { ["data"] = new JsonObject { ["title"] = "Father's House" } })
+            }
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+        var film = new Film("Faderhuset") { Description = string.Empty };
+
+        // Act
+        var metadata = await sut.GetMovieMetadataAsync(movieId);
+        IdentityMetadataFill.Fill(film, metadata!);
+
+        // Assert
+        film.AlternativeTitles.Should().Contain("Father's House");
+    }
+
+    [Fact(DisplayName =
+        "Movie metadata uses the poster when TMDB has no backdrop, and leaves a zero runtime and a blank date unset.")]
+    public async Task movie_metadata_falls_back_to_poster()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var listed = _fixture.CreateTitle();
+        var payload = new JsonObject
+        {
+            ["id"] = movieId,
+            ["title"] = listed,
+            ["runtime"] = 0,
+            ["release_date"] = "",
+            ["poster_path"] = "/poster.jpg"
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var metadata = await sut.GetMovieMetadataAsync(movieId);
+
+        // Assert
+        metadata!.Image.Should().Be(new Uri("https://image.tmdb.org/t/p/w780/poster.jpg"));
+        metadata.RuntimeMinutes.Should().BeNull();
+        metadata.ReleaseDate.Should().BeNull();
+        metadata.OtherTitles.Should().Equal(listed);
+    }
+
+    [Fact(DisplayName =
+        "TV episode metadata reads the name, overview, runtime, air date and still from the season/episode path.")]
+    public async Task tv_episode_metadata_reads_details()
+    {
+        // Arrange
+        var seriesId = CreateTmdbId();
+        var episodeId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["id"] = episodeId,
+            ["name"] = "Pilot",
+            ["overview"] = "It begins.",
+            ["runtime"] = 47,
+            ["air_date"] = "2019-02-03",
+            ["still_path"] = "/still.jpg"
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var metadata = await sut.GetTvEpisodeMetadataAsync(seriesId, 1, 1);
+
+        // Assert
+        metadata.Should().Be(new TmdbEpisodeMetadata(
+            episodeId, "Pilot", "It begins.", 47, new DateOnly(2019, 2, 3),
+            new Uri("https://image.tmdb.org/t/p/w780/still.jpg")));
+        _handler.Requests.Single().RequestUri!.AbsolutePath.Should().Be($"/3/tv/{seriesId}/season/1/episode/1");
+    }
+
+    [Fact(DisplayName =
+        "Finding a TV episode by IMDb title id returns its series id, season and episode number from TMDB find.")]
+    public async Task find_tv_episode_by_imdb_id()
+    {
+        // Arrange
+        var imdbId = "tt" + _fixture.CreateAppleId();
+        var showId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["movie_results"] = new JsonArray(),
+            ["tv_episode_results"] = new JsonArray(new JsonObject
+            {
+                ["id"] = CreateTmdbId(),
+                ["show_id"] = showId,
+                ["season_number"] = 3,
+                ["episode_number"] = 7
+            })
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var reference = await sut.FindTvEpisodeByImdbIdAsync(imdbId);
+
+        // Assert
+        reference.Should().Be(new TmdbEpisodeReference(showId, 3, 7));
+    }
+
+
+    [Fact(DisplayName =
+        "Movie metadata reads the first named production company as publisher, skipping blank names (RPP #1436).")]
+    public async Task movie_metadata_reads_first_named_production_company()
+    {
+        // Arrange
+        var movieId = CreateTmdbId();
+        var payload = new JsonObject
+        {
+            ["id"] = movieId,
+            ["title"] = _fixture.CreateTitle(),
+            ["production_companies"] = new JsonArray(
+                new JsonObject { ["name"] = " " },
+                new JsonObject { ["name"] = " Copenhagen Film Company " },
+                new JsonObject { ["name"] = "Other Studio" })
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var metadata = await sut.GetMovieMetadataAsync(movieId);
+
+        // Assert
+        metadata!.Publisher.Should().Be("Copenhagen Film Company");
+    }
+
+    [Fact(DisplayName =
+        "TV show metadata uses the first named network as publisher, or the first named production company when " +
+        "there is no network (RPP #1436).")]
+    public async Task tv_show_metadata_reads_network_or_production_company()
+    {
+        // Arrange
+        var withNetwork = CreateTmdbId();
+        var withCompany = CreateTmdbId();
+        var withNeither = CreateTmdbId();
+        _handler.Enqueue(HttpStatusCode.OK, new JsonObject
+        {
+            ["id"] = withNetwork,
+            ["networks"] = new JsonArray(
+                new JsonObject { ["name"] = "" },
+                new JsonObject { ["name"] = " HBO " }),
+            ["production_companies"] = new JsonArray(new JsonObject { ["name"] = "Warner Bros. Television" })
+        }.ToJsonString());
+        _handler.Enqueue(HttpStatusCode.OK, new JsonObject
+        {
+            ["id"] = withCompany,
+            ["networks"] = new JsonArray(new JsonObject { ["name"] = "  " }),
+            ["production_companies"] = new JsonArray(new JsonObject { ["name"] = " Warner Bros. Television " })
+        }.ToJsonString());
+        _handler.Enqueue(HttpStatusCode.OK, new JsonObject
+        {
+            ["id"] = withNeither,
+            ["networks"] = new JsonArray(),
+            ["production_companies"] = new JsonArray(new JsonObject { ["name"] = " " })
+        }.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var network = await sut.GetTvShowMetadataAsync(withNetwork);
+        var company = await sut.GetTvShowMetadataAsync(withCompany);
+        var neither = await sut.GetTvShowMetadataAsync(withNeither);
+
+        // Assert
+        network.Should().Be(new TmdbShowMetadata(withNetwork, "HBO"));
+        company.Should().Be(new TmdbShowMetadata(withCompany, "Warner Bros. Television"));
+        neither.Should().Be(new TmdbShowMetadata(withNeither, null));
+        _handler.Requests.Should().HaveCount(3);
+        _handler.Requests[0].RequestUri!.AbsolutePath.Should().Be($"/3/tv/{withNetwork}");
+    }
+
+    [Fact(DisplayName =
+        "Finding a TV series by IMDb title id asks TMDB find with external_source=imdb_id and returns that series " +
+        "from tv_results (RPP #1436).")]
+    public async Task find_tv_series_by_imdb_id_returns_the_tmdb_series()
+    {
+        // Arrange
+        var seriesId = CreateTmdbId();
+        var imdbId = "tt" + _fixture.CreateAppleId();
+        var name = _fixture.CreateTitle();
+        var original = _fixture.CreateTitleNotContainedIn(name);
+        var year = DomainTestFixture.UtcToday.Year;
+        var payload = new JsonObject
+        {
+            ["movie_results"] = new JsonArray(),
+            ["tv_results"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = seriesId,
+                    ["name"] = name,
+                    ["original_name"] = original,
+                    ["first_air_date"] = $"{year:0000}-01-01"
+                }
+            }
+        };
+        _handler.Enqueue(HttpStatusCode.OK, payload.ToJsonString());
+        var sut = _mocker.CreateInstance<TmdbClient>();
+
+        // Act
+        var hit = await sut.FindTvSeriesByImdbIdAsync(imdbId);
+
+        // Assert
+        hit.Should().NotBeNull();
+        hit!.Id.Should().Be(seriesId);
+        hit.Name.Should().Be(name);
+        hit.OriginalName.Should().Be(original);
+        hit.Kind.Should().Be(TmdbTitleKind.TvSeries);
+        hit.Year.Should().Be(year);
+        _handler.Requests.Should().ContainSingle();
+        _handler.Requests[0].RequestUri!.AbsolutePath.Should().Be($"/3/find/{imdbId}");
+        _handler.Requests[0].RequestUri!.Query.Should().Contain("external_source=imdb_id");
+    }
     private int CreateTmdbId()
     {
         var value = (int)(_fixture.CreateAppleId() % 1_000_000_000L);

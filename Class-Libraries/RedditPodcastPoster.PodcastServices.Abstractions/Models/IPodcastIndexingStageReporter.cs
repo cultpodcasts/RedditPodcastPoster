@@ -2,7 +2,7 @@ namespace RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 /// <summary>
 /// Records the stage a single podcast's index run has reached, so a run that stalls can be traced to the call
-/// it was waiting on (the last stage logged before the stall). Carried on <see cref="IndexingContext.StageReporter"/>
+/// it was waiting on (the last stage logged before the stall). Carried on <see cref="PodcastRunScope.StageReporter"/>
 /// for the duration of one podcast update; absent outside the indexer's per-podcast loop.
 /// </summary>
 public interface IPodcastIndexingStageReporter

@@ -5,9 +5,11 @@ using Moq.AutoMock;
 using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.TvShows;
+using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
+using RedditPodcastPoster.Tmdb.Models;
 using Xunit;
 
 namespace FunctionHost.Tests.Api.Services.TvShows;
@@ -36,6 +38,9 @@ public class TvShowCascadeRules
             .Setup(r => r.Save(It.IsAny<IEnumerable<TvShowEpisode>>()))
             .Callback<IEnumerable<TvShowEpisode>>(episodes => _saveBatches.Add(episodes.ToArray()))
             .Returns(Task.CompletedTask);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchTvShowAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TmdbShowMetadata?)null);
     }
 
     private TvShow CreateOrganisation(bool? removed = null)
@@ -162,5 +167,30 @@ public class TvShowCascadeRules
         dto.PublisherName.Should().Be("Synthetic Studios");
         dto.Description.Should().Be("Synthetic docuseries");
         _mocker.GetMock<ITvShowEpisodeRepository>().Verify(r => r.GetByTvShowId(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "PATCH TV show IMDb, TMDB or TVDB ids copies those ids onto every episode, because public pages read series identity from the episode search document (RPP #1437).")]
+    public async Task identity_id_change_cascades_series_ids_to_episodes()
+    {
+        // Arrange
+        var show = CreateOrganisation();
+        var episode = AddReport(show);
+        var imdbId = _fixture.CreateImdbId();
+        var tvdbId = _fixture.CreateTvdbId();
+        var tmdbId = _fixture.CreateTmdbId();
+
+        // Act
+        var result = await Update(show, new TvShowChangeRequest { ImdbId = imdbId, TvdbId = tvdbId, TmdbId = tmdbId });
+
+        // Assert
+        result.Status.Should().Be(TvShowUpdateStatus.Accepted);
+        _saved!.ImdbId.Should().Be(imdbId);
+        _saved.TvdbId.Should().Be(tvdbId);
+        _saved.TmdbId.Should().Be(tmdbId);
+        episode.SeriesImdbId.Should().Be(imdbId);
+        episode.SeriesTvdbId.Should().Be(tvdbId);
+        episode.SeriesTmdbId.Should().Be(tmdbId);
+        _saveBatches.SelectMany(b => b).Should().BeEquivalentTo([episode]);
     }
 }

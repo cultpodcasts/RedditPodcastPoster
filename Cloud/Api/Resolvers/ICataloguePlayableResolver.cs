@@ -24,7 +24,9 @@ public record CataloguePlayableResolution(
     string? ParentName,
     string Slug,
     bool Removed,
-    bool ParentRemoved = false);
+    bool ParentRemoved = false,
+    Uri? IdentityImage = null,
+    string[]? AlternativeTitles = null);
 
 public interface ICataloguePlayableResolver
 {
