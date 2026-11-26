@@ -86,8 +86,9 @@ public class EpisodeChangeRequest
         Guests != null;
 
     /// <summary>
-    /// Homepage JSON does not include guests, search terms, hash tags, or social un-post flags.
+    /// Homepage JSON does not include guests, search terms, hash tags, additional YouTube, or social un-post flags.
     /// A guests-only curator POST must not wait on a full homepage republish.
+    /// Promoting an additional upload swaps <c>services.youtube</c> and <c>ids.youtube</c>, which the homepage row does include.
     /// </summary>
     public bool HasHomepageAffectingChange =>
         Title != null ||
@@ -102,6 +103,7 @@ public class EpisodeChangeRequest
         Urls != null ||
         Images != null ||
         Services != null ||
+        PromoteYouTubeId != null ||
         Subjects != null ||
         Language != null;
 }

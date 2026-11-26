@@ -39,7 +39,8 @@ public class ContractWireRules
                 "ServiceDto",
                 "ServiceLinkDto",
                 "ServiceUrlsDto",
-                "SubjectMatchDto"
+                "SubjectMatchDto",
+                "YouTubeAlternateDto"
             };
 
         // Act

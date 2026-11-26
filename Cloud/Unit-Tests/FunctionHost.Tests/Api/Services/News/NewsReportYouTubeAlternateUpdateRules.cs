@@ -260,6 +260,9 @@ public class NewsReportYouTubeAlternateUpdateRules
         unparseableResult.Status.Should().Be(NewsReportUpdateStatus.Accepted);
         _saved!.AdditionalYouTube!.First().YouTubeId.Should().Be(primaryId);
         _saved.AdditionalYouTube!.First().Url.Should().Be(_fixture.DefaultYouTubeUrl(primaryId));
+        _mocker.GetMock<INewsReportRepository>().Verify(
+            r => r.TryReplace(It.IsAny<NewsReport>(), It.IsAny<string>()), Times.Exactly(2));
+        _mocker.GetMock<INewsReportRepository>().Verify(r => r.Save(It.IsAny<NewsReport>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -337,5 +340,59 @@ public class NewsReportYouTubeAlternateUpdateRules
         // Assert
         dto.AdditionalYouTube.Should().ContainSingle().Which.YouTubeId.Should().Be(alternate.YouTubeId);
         dto.AdditionalYouTube![0].Url.Should().Be(alternate.Url);
+    }
+
+    [Fact(DisplayName =
+        "PATCH news report additionalYouTube that loses its replace and then sees an unlisted alternate is a conflict, and the tweet and Bluesky posts stay up, because a 409 must not retract a live post (RPP #1526).")]
+    public async Task lost_replace_then_stale_keep_list_does_not_retract_social_posts()
+    {
+        // Arrange
+        var alternate = CreateAlternate();
+        var extra = CreateAlternate();
+        var report = CreateReport(r =>
+        {
+            r.AdditionalYouTube = [alternate];
+            r.OldTweeted = true;
+            r.OldBlueskyPosted = true;
+        });
+        var raced = new NewsReport(report.Title)
+        {
+            Id = report.Id,
+            Length = report.Length,
+            OldTweeted = true,
+            OldBlueskyPosted = true,
+            AdditionalYouTube = [alternate, extra]
+        };
+        raced.SetNewsOrganisationProperties(new NewsOrganisation(report.NewsOrganisationName ?? _fixture.CreateTitle())
+        {
+            Id = report.NewsOrganisationId
+        });
+        var reads = 0;
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.GetNewsReportWithETag(report.NewsOrganisationId, report.Id))
+            .ReturnsAsync(() => new ETagged<NewsReport>(reads++ == 0 ? report : raced, "\"synthetic-etag\""));
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(r => r.TryReplace(It.IsAny<NewsReport>(), It.IsAny<string>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await Update(report, new NewsReportChangeRequest
+        {
+            AdditionalYouTube = [new YouTubeAlternateChange(alternate.YouTubeId, null, null, null)],
+            ExpectedAdditionalYouTubeIds = [alternate.YouTubeId],
+            Tweeted = false,
+            BlueskyPosted = false
+        });
+
+        // Assert
+        result.Status.Should().Be(NewsReportUpdateStatus.Conflict);
+        result.UnexpectedAdditionalYouTubeIds.Should().Equal(extra.YouTubeId);
+        _saved.Should().BeNull();
+        _mocker.GetMock<IPlayableSocialRetraction>().Verify(
+            s => s.RemoveTweet(It.IsAny<PostStatusChange>(), It.IsAny<IPromotable>(), It.IsAny<SocialPostRemovalTarget>()),
+            Times.Never);
+        _mocker.GetMock<IPlayableSocialRetraction>().Verify(
+            s => s.RemoveBlueskyPost(It.IsAny<PostStatusChange>(), It.IsAny<IPromotable>(), It.IsAny<SocialPostRemovalTarget>()),
+            Times.Never);
     }
 }

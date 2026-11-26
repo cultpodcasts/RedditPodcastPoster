@@ -3,6 +3,10 @@ using Api.Dtos.Mapping;
 using Api.Models;
 using Api.Resolvers;
 using Api.Services.Episodes;
+using RedditPodcastPoster.Bluesky.Managers;
+using RedditPodcastPoster.ContentPublisher.Models;
+using RedditPodcastPoster.ContentPublisher.Publishers;
+using RedditPodcastPoster.Twitter.Managers;
 using Azure.Search.Documents;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -267,6 +271,9 @@ public class EpisodeYouTubeAlternateUpdateRules
         _saved!.Ids!.YouTube.Should().Be(alternate.YouTubeId);
         _saved.AdditionalYouTube!.First().YouTubeId.Should().Be(primaryId);
         _saved.AdditionalYouTube!.First().Url.Should().Be(_fixture.DefaultYouTubeUrl(primaryId));
+        _mocker.GetMock<IEpisodeRepository>().Verify(
+            r => r.TryReplace(It.IsAny<Episode>(), It.IsAny<string>()), Times.Exactly(2));
+        _mocker.GetMock<IEpisodeRepository>().Verify(r => r.Save(It.IsAny<Episode>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -345,6 +352,122 @@ public class EpisodeYouTubeAlternateUpdateRules
         // Assert
         dto.AdditionalYouTube.Should().ContainSingle().Which.YouTubeId.Should().Be(alternate.YouTubeId);
         dto.AdditionalYouTube![0].Url.Should().Be(alternate.Url);
+    }
+
+    [Fact(DisplayName =
+        "PATCH episode promoteYouTubeId of an id the episode does not hold is a bad request and nothing is saved, because an unknown promote must not be acknowledged (RPP #1526).")]
+    public async Task promote_of_unknown_youtube_id_is_bad_request()
+    {
+        // Arrange
+        var unknownId = _fixture.CreateYouTubeId();
+        var (episode, podcast) = Resolved();
+
+        // Act
+        var result = await Update(episode, podcast, new EpisodeChangeRequest
+        {
+            PromoteYouTubeId = unknownId
+        });
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.BadRequest);
+        result.Message.Should().Contain(unknownId);
+        _saved.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "PATCH episode additionalYouTube that loses its replace and then sees an unlisted alternate is a conflict, and the tweet and Bluesky posts stay up, because a 409 must not retract a live post (RPP #1526).")]
+    public async Task lost_replace_then_stale_keep_list_does_not_retract_social_posts()
+    {
+        // Arrange
+        var alternate = CreateAlternate();
+        var extra = CreateAlternate();
+        var (episode, podcast) = Resolved(e =>
+        {
+            e.AdditionalYouTube = [alternate];
+            e.OldTweeted = true;
+            e.OldBlueskyPosted = true;
+        });
+        var raced = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        raced.Id = episode.Id;
+        raced.PodcastId = episode.PodcastId;
+        raced.AdditionalYouTube = [alternate, extra];
+        raced.OldTweeted = true;
+        raced.OldBlueskyPosted = true;
+        var reads = 0;
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.GetEpisodeWithETag(episode.PodcastId, episode.Id))
+            .ReturnsAsync(() => new ETagged<Episode>(reads++ == 0 ? episode : raced, "\"synthetic-etag\""));
+        _mocker.GetMock<IEpisodeRepository>()
+            .Setup(r => r.TryReplace(It.IsAny<Episode>(), It.IsAny<string>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await Update(episode, podcast, new EpisodeChangeRequest
+        {
+            AdditionalYouTube = [new YouTubeAlternateChange(alternate.YouTubeId, null, null, null)],
+            ExpectedAdditionalYouTubeIds = [alternate.YouTubeId],
+            Tweeted = false,
+            BlueskyPosted = false
+        });
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Conflict);
+        result.UnexpectedAdditionalYouTubeIds.Should().Equal(extra.YouTubeId);
+        _saved.Should().BeNull();
+        _mocker.GetMock<ITweetManager>().Verify(m => m.RemoveTweet(It.IsAny<PodcastEpisode>()), Times.Never);
+        _mocker.GetMock<IBlueskyPostManager>().Verify(m => m.RemovePost(It.IsAny<PodcastEpisode>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "PATCH episode promoteYouTubeId on an episode released in the past week republishes the homepage, because the swap changes the YouTube id on the homepage row (RPP #1526).")]
+    public async Task promote_on_recent_episode_republishes_homepage()
+    {
+        // Arrange
+        var alternate = CreateAlternate();
+        var (episode, podcast) = Resolved(e =>
+        {
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(1);
+            e.AdditionalYouTube = [alternate];
+        });
+        _mocker.GetMock<IHomepagePublisher>()
+            .Setup(p => p.PublishHomepage())
+            .ReturnsAsync(new PublishHomepageResult(true));
+
+        // Act
+        var result = await Update(episode, podcast, SeenYouTube(episode, new EpisodeChangeRequest
+        {
+            PromoteYouTubeId = alternate.YouTubeId
+        }));
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        _mocker.GetMock<IHomepagePublisher>().Verify(p => p.PublishHomepage(), Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "PATCH episode promoteYouTubeId on an episode older than a week does not republish the homepage, because that episode is not on the recent homepage row (RPP #1526).")]
+    public async Task promote_on_older_episode_does_not_republish_homepage()
+    {
+        // Arrange
+        var alternate = CreateAlternate();
+        var (episode, podcast) = Resolved(e =>
+        {
+            e.ReleaseUtc = DomainTestFixture.UtcDaysAgo(30);
+            e.AdditionalYouTube = [alternate];
+        });
+        _mocker.GetMock<IHomepagePublisher>()
+            .Setup(p => p.PublishHomepage())
+            .ReturnsAsync(new PublishHomepageResult(true));
+
+        // Act
+        var result = await Update(episode, podcast, SeenYouTube(episode, new EpisodeChangeRequest
+        {
+            PromoteYouTubeId = alternate.YouTubeId
+        }));
+
+        // Assert
+        result.Status.Should().Be(EpisodeUpdateStatus.Accepted);
+        _mocker.GetMock<IHomepagePublisher>().Verify(p => p.PublishHomepage(), Times.Never);
     }
 
 #pragma warning disable SYSLIB0050

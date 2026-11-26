@@ -56,7 +56,8 @@ public class NewsReportService(
             var target = SocialPostRemovalTarget.For(report);
             var hadAdditionalYouTube = report.AdditionalYouTube is { Count: > 0 };
 
-            if (request.Change.AdditionalYouTube is not null)
+            if (request.Change.AdditionalYouTube is not null ||
+                !string.IsNullOrWhiteSpace(request.Change.PromoteYouTubeId))
             {
                 if (!PlayableChangeApplier.TryValidate(report, request.Change, out var validateError))
                 {
@@ -156,19 +157,22 @@ public class NewsReportService(
                 return new NewsReportPersist(new NewsReportUpdateResult(NewsReportUpdateStatus.NotFound), null);
             }
 
-            var unexpected = YouTubeAlternateChangeApplier.IdsTheClientDidNotList(
-                latest.Item.AdditionalYouTube, change.ExpectedAdditionalYouTubeIds);
-            if (unexpected.Length > 0)
+            if (change.AdditionalYouTube is not null)
             {
-                logger.LogWarning(
-                    "{method}: News report '{reportId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
-                    nameof(SaveAdditionalYouTube), firstRead.Id, unexpected.Length);
-                return new NewsReportPersist(
-                    new NewsReportUpdateResult(
-                        NewsReportUpdateStatus.Conflict,
-                        YouTubeAlternateChangeApplier.StaleMessage("news report"),
-                        UnexpectedAdditionalYouTubeIds: unexpected),
-                    null);
+                var unexpected = YouTubeAlternateChangeApplier.IdsTheClientDidNotList(
+                    latest.Item.AdditionalYouTube, change.ExpectedAdditionalYouTubeIds);
+                if (unexpected.Length > 0)
+                {
+                    logger.LogWarning(
+                        "{method}: News report '{reportId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
+                        nameof(SaveAdditionalYouTube), firstRead.Id, unexpected.Length);
+                    return new NewsReportPersist(
+                        new NewsReportUpdateResult(
+                            NewsReportUpdateStatus.Conflict,
+                            YouTubeAlternateChangeApplier.StaleMessage("news report"),
+                            UnexpectedAdditionalYouTubeIds: unexpected),
+                        null);
+                }
             }
 
             var held = await YouTubeConflict(latest.Item, change, cancellationToken);
@@ -182,21 +186,66 @@ public class NewsReportService(
                 return new NewsReportPersist(new NewsReportUpdateResult(NewsReportUpdateStatus.BadRequest, error), null);
             }
 
+            if (!await newsReportRepository.TryReplace(latest.Item, latest.ETag))
+            {
+                continue;
+            }
+
+            // Deletes run only after the replace. A later 409 leaves the live posts in place.
             var outcome = new EpisodeUpdateOutcome
             {
                 BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, latest.Item, target),
                 TweetDeleted = await socialRetraction.RemoveTweet(postStatus, latest.Item, target)
             };
-            if (await newsReportRepository.TryReplace(latest.Item, latest.ETag))
+            var report = latest.Item;
+            if (outcome.TweetDeleted == true || outcome.BlueskyPostDeleted == true)
             {
-                return new NewsReportPersist(
-                    new NewsReportUpdateResult(NewsReportUpdateStatus.Accepted, Outcome: outcome),
-                    latest.Item);
+                report = await PersistClearedSocialFlags(report, outcome) ?? report;
             }
+
+            return new NewsReportPersist(
+                new NewsReportUpdateResult(NewsReportUpdateStatus.Accepted, Outcome: outcome),
+                report);
         }
 
         throw new InvalidOperationException(
             $"News report '{firstRead.Id}' kept changing during the edit; not saved.");
+    }
+
+    /// <summary>
+    /// Writes cleared tweet and Bluesky flags onto a fresh read, so a field changed during the delete stays.
+    /// </summary>
+    private async Task<NewsReport?> PersistClearedSocialFlags(NewsReport saved, EpisodeUpdateOutcome outcome)
+    {
+        for (var attempt = 1; attempt <= FilmDocumentUpdate.MaxAttempts; attempt++)
+        {
+            var latest = await newsReportRepository.GetNewsReportWithETag(saved.NewsOrganisationId, saved.Id);
+            if (latest is null)
+            {
+                logger.LogWarning(
+                    "{method}: News report '{reportId}' was deleted while clearing social flags.",
+                    nameof(PersistClearedSocialFlags), saved.Id);
+                return null;
+            }
+
+            if (outcome.TweetDeleted == true)
+            {
+                latest.Item.ClearTweetState();
+            }
+
+            if (outcome.BlueskyPostDeleted == true)
+            {
+                latest.Item.ClearBlueskyPostState();
+            }
+
+            if (await newsReportRepository.TryReplace(latest.Item, latest.ETag))
+            {
+                return latest.Item;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"News report '{saved.Id}' kept changing while clearing social flags; not saved.");
     }
 
     public async Task<EpisodeDeleteResult> DeleteAsync(Guid reportId, CancellationToken cancellationToken)

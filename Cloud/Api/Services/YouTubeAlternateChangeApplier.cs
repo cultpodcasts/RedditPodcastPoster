@@ -142,8 +142,8 @@ internal static class YouTubeAlternateChangeApplier
         var ids = new List<string>();
         foreach (var entry in additional)
         {
-            var id = entry.YouTubeId;
-            if (string.IsNullOrWhiteSpace(id) &&
+            var id = string.IsNullOrWhiteSpace(entry.YouTubeId) ? null : entry.YouTubeId.Trim();
+            if (id is null &&
                 Uri.TryCreate(entry.Url, UriKind.Absolute, out var url))
             {
                 id = YouTubeIdResolver.Extract(url);

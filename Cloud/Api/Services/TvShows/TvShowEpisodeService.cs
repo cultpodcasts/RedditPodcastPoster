@@ -61,7 +61,8 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.BadRequest, idError);
             }
 
-            if (request.Change.AdditionalYouTube is not null)
+            if (request.Change.AdditionalYouTube is not null ||
+                !string.IsNullOrWhiteSpace(request.Change.PromoteYouTubeId))
             {
                 if (!PlayableChangeApplier.TryValidate(episode, request.Change, out var validateError))
                 {
@@ -198,19 +199,22 @@ public class TvShowEpisodeService(
                 return new TvShowEpisodePersist(new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.NotFound), null);
             }
 
-            var unexpected = YouTubeAlternateChangeApplier.IdsTheClientDidNotList(
-                latest.Item.AdditionalYouTube, change.ExpectedAdditionalYouTubeIds);
-            if (unexpected.Length > 0)
+            if (change.AdditionalYouTube is not null)
             {
-                logger.LogWarning(
-                    "{method}: TV-show episode '{episodeId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
-                    nameof(SaveAdditionalYouTube), firstRead.Id, unexpected.Length);
-                return new TvShowEpisodePersist(
-                    new TvShowEpisodeUpdateResult(
-                        TvShowEpisodeUpdateStatus.Conflict,
-                        YouTubeAlternateChangeApplier.StaleMessage("TV episode"),
-                        UnexpectedAdditionalYouTubeIds: unexpected),
-                    null);
+                var unexpected = YouTubeAlternateChangeApplier.IdsTheClientDidNotList(
+                    latest.Item.AdditionalYouTube, change.ExpectedAdditionalYouTubeIds);
+                if (unexpected.Length > 0)
+                {
+                    logger.LogWarning(
+                        "{method}: TV-show episode '{episodeId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
+                        nameof(SaveAdditionalYouTube), firstRead.Id, unexpected.Length);
+                    return new TvShowEpisodePersist(
+                        new TvShowEpisodeUpdateResult(
+                            TvShowEpisodeUpdateStatus.Conflict,
+                            YouTubeAlternateChangeApplier.StaleMessage("TV episode"),
+                            UnexpectedAdditionalYouTubeIds: unexpected),
+                        null);
+                }
             }
 
             var held = await YouTubeConflict(latest.Item, change, cancellationToken);
@@ -232,21 +236,66 @@ public class TvShowEpisodeService(
                 SkipFrom(change),
                 cancellationToken);
 
+            if (!await tvShowEpisodeRepository.TryReplace(latest.Item, latest.ETag))
+            {
+                continue;
+            }
+
+            // Deletes run only after the replace. A later 409 leaves the live posts in place.
             var outcome = new EpisodeUpdateOutcome
             {
                 BlueskyPostDeleted = await socialRetraction.RemoveBlueskyPost(postStatus, latest.Item, target),
                 TweetDeleted = await socialRetraction.RemoveTweet(postStatus, latest.Item, target)
             };
-            if (await tvShowEpisodeRepository.TryReplace(latest.Item, latest.ETag))
+            var saved = latest.Item;
+            if (outcome.TweetDeleted == true || outcome.BlueskyPostDeleted == true)
             {
-                return new TvShowEpisodePersist(
-                    new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Accepted, Outcome: outcome),
-                    latest.Item);
+                saved = await PersistClearedSocialFlags(saved, outcome) ?? saved;
             }
+
+            return new TvShowEpisodePersist(
+                new TvShowEpisodeUpdateResult(TvShowEpisodeUpdateStatus.Accepted, Outcome: outcome),
+                saved);
         }
 
         throw new InvalidOperationException(
             $"TV-show episode '{firstRead.Id}' kept changing during the edit; not saved.");
+    }
+
+    /// <summary>
+    /// Writes cleared tweet and Bluesky flags onto a fresh read, so a field changed during the delete stays.
+    /// </summary>
+    private async Task<TvShowEpisode?> PersistClearedSocialFlags(TvShowEpisode saved, EpisodeUpdateOutcome outcome)
+    {
+        for (var attempt = 1; attempt <= FilmDocumentUpdate.MaxAttempts; attempt++)
+        {
+            var latest = await tvShowEpisodeRepository.GetTvShowEpisodeWithETag(saved.TvShowId, saved.Id);
+            if (latest is null)
+            {
+                logger.LogWarning(
+                    "{method}: TV-show episode '{episodeId}' was deleted while clearing social flags.",
+                    nameof(PersistClearedSocialFlags), saved.Id);
+                return null;
+            }
+
+            if (outcome.TweetDeleted == true)
+            {
+                latest.Item.ClearTweetState();
+            }
+
+            if (outcome.BlueskyPostDeleted == true)
+            {
+                latest.Item.ClearBlueskyPostState();
+            }
+
+            if (await tvShowEpisodeRepository.TryReplace(latest.Item, latest.ETag))
+            {
+                return latest.Item;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"TV-show episode '{saved.Id}' kept changing while clearing social flags; not saved.");
     }
 
     private static IdentityFieldSkip SkipFrom(TvShowEpisodeChangeRequest change) => new(

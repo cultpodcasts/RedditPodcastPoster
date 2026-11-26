@@ -260,6 +260,9 @@ public class TvShowEpisodeYouTubeAlternateUpdateRules
         unparseableResult.Status.Should().Be(TvShowEpisodeUpdateStatus.Accepted);
         _saved!.AdditionalYouTube!.First().YouTubeId.Should().Be(primaryId);
         _saved.AdditionalYouTube!.First().Url.Should().Be(_fixture.DefaultYouTubeUrl(primaryId));
+        _mocker.GetMock<ITvShowEpisodeRepository>().Verify(
+            r => r.TryReplace(It.IsAny<TvShowEpisode>(), It.IsAny<string>()), Times.Exactly(2));
+        _mocker.GetMock<ITvShowEpisodeRepository>().Verify(r => r.Save(It.IsAny<TvShowEpisode>()), Times.Never);
     }
 
     [Fact(DisplayName =
@@ -337,5 +340,59 @@ public class TvShowEpisodeYouTubeAlternateUpdateRules
         // Assert
         dto.AdditionalYouTube.Should().ContainSingle().Which.YouTubeId.Should().Be(alternate.YouTubeId);
         dto.AdditionalYouTube![0].Url.Should().Be(alternate.Url);
+    }
+
+    [Fact(DisplayName =
+        "PATCH TV episode additionalYouTube that loses its replace and then sees an unlisted alternate is a conflict, and the tweet and Bluesky posts stay up, because a 409 must not retract a live post (RPP #1526).")]
+    public async Task lost_replace_then_stale_keep_list_does_not_retract_social_posts()
+    {
+        // Arrange
+        var alternate = CreateAlternate();
+        var extra = CreateAlternate();
+        var episode = CreateEpisode(e =>
+        {
+            e.AdditionalYouTube = [alternate];
+            e.OldTweeted = true;
+            e.OldBlueskyPosted = true;
+        });
+        var raced = new TvShowEpisode(episode.Title)
+        {
+            Id = episode.Id,
+            Length = episode.Length,
+            OldTweeted = true,
+            OldBlueskyPosted = true,
+            AdditionalYouTube = [alternate, extra]
+        };
+        raced.SetTvShowProperties(new TvShow(episode.TvShowName ?? _fixture.CreateTitle())
+        {
+            Id = episode.TvShowId
+        });
+        var reads = 0;
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.GetTvShowEpisodeWithETag(episode.TvShowId, episode.Id))
+            .ReturnsAsync(() => new ETagged<TvShowEpisode>(reads++ == 0 ? episode : raced, "\"synthetic-etag\""));
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(r => r.TryReplace(It.IsAny<TvShowEpisode>(), It.IsAny<string>()))
+            .ReturnsAsync(false);
+
+        // Act
+        var result = await Update(episode, new TvShowEpisodeChangeRequest
+        {
+            AdditionalYouTube = [new YouTubeAlternateChange(alternate.YouTubeId, null, null, null)],
+            ExpectedAdditionalYouTubeIds = [alternate.YouTubeId],
+            Tweeted = false,
+            BlueskyPosted = false
+        });
+
+        // Assert
+        result.Status.Should().Be(TvShowEpisodeUpdateStatus.Conflict);
+        result.UnexpectedAdditionalYouTubeIds.Should().Equal(extra.YouTubeId);
+        _saved.Should().BeNull();
+        _mocker.GetMock<IPlayableSocialRetraction>().Verify(
+            s => s.RemoveTweet(It.IsAny<PostStatusChange>(), It.IsAny<IPromotable>(), It.IsAny<SocialPostRemovalTarget>()),
+            Times.Never);
+        _mocker.GetMock<IPlayableSocialRetraction>().Verify(
+            s => s.RemoveBlueskyPost(It.IsAny<PostStatusChange>(), It.IsAny<IPromotable>(), It.IsAny<SocialPostRemovalTarget>()),
+            Times.Never);
     }
 }

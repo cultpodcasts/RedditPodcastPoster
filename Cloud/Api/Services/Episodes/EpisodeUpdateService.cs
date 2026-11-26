@@ -81,7 +81,9 @@ public class EpisodeUpdateService(
             var request = episodeChangeRequestWrapper.EpisodeChangeRequest;
             var podcast = podcastEpisodeResolverResponse.Podcast;
             var episode = podcastEpisodeResolverResponse.Episode;
-            if (request.AdditionalYouTube is not null)
+            // Promote rewrites additionalYouTube. A keep-list and a promote-only both re-read and replace, so a
+            // stale first read cannot drop an alternate added after it. An unknown promote id is a 400.
+            if (request.AdditionalYouTube is not null || !string.IsNullOrWhiteSpace(request.PromoteYouTubeId))
             {
                 return await UpdateAdditionalYouTube(podcast, episode, request, cancellationToken);
             }
@@ -131,17 +133,21 @@ public class EpisodeUpdateService(
                 return new EpisodeUpdateResult(EpisodeUpdateStatus.NotFound);
             }
 
-            var unexpected = YouTubeAlternateChangeApplier.IdsTheClientDidNotList(
-                latest.Item.AdditionalYouTube, request.ExpectedAdditionalYouTubeIds);
-            if (unexpected.Length > 0)
+            // A promote-only edit does not send a keep-list, so a concurrent alternate is not a 409.
+            if (request.AdditionalYouTube is not null)
             {
-                logger.LogWarning(
-                    "{method}: Episode '{episodeId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
-                    nameof(UpdateAdditionalYouTube), firstRead.Id, unexpected.Length);
-                return new EpisodeUpdateResult(
-                    EpisodeUpdateStatus.Conflict,
-                    Message: YouTubeAlternateChangeApplier.StaleMessage("episode"),
-                    UnexpectedAdditionalYouTubeIds: unexpected);
+                var unexpected = YouTubeAlternateChangeApplier.IdsTheClientDidNotList(
+                    latest.Item.AdditionalYouTube, request.ExpectedAdditionalYouTubeIds);
+                if (unexpected.Length > 0)
+                {
+                    logger.LogWarning(
+                        "{method}: Episode '{episodeId}' has {count} additional YouTube id(s) this edit did not list; not saved.",
+                        nameof(UpdateAdditionalYouTube), firstRead.Id, unexpected.Length);
+                    return new EpisodeUpdateResult(
+                        EpisodeUpdateStatus.Conflict,
+                        Message: YouTubeAlternateChangeApplier.StaleMessage("episode"),
+                        UnexpectedAdditionalYouTubeIds: unexpected);
+                }
             }
 
             var splitOff = EpisodeChangeApplier.SplitOffReviewError(latest.Item, request);
@@ -193,8 +199,10 @@ public class EpisodeUpdateService(
             cancellationToken);
 
     /// <summary>
-    /// Applies the change, runs social deletes, then saves. Null when <paramref name="etag"/> was set and the
-    /// replace lost the race, so the caller reads again.
+    /// Applies the change, then saves. A replace that loses the race returns null so the caller reads again,
+    /// and has not deleted a social post. Social deletes run after a successful replace (or, when there is no
+    /// etag, before the single save, which cannot 409 on a second attempt). Cleared flags are patched onto a
+    /// later read so a rename during the delete is not overwritten.
     /// </summary>
     private async Task<EpisodeUpdateResult?> ApplySaveAndPublish(
         Podcast podcast,
@@ -226,88 +234,32 @@ public class EpisodeUpdateService(
                 indexingContext);
         }
 
-        var podcastEpisode = new PodcastEpisode(podcast, episode);
-
-        var removeBlueskyPostResult = RemovePostState.Unknown;
-        if (changeState.UnBlueskyPost)
-        {
-            try
-            {
-                // Delete first while BlueskyPost AT URI is still on the episode.
-                removeBlueskyPostResult = await blueskyPostManager.RemovePost(podcastEpisode);
-                if (removeBlueskyPostResult != RemovePostState.Deleted)
-                {
-                    logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.",
-                        removeBlueskyPostResult);
-                }
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e,
-                    "Error using bluesky-post-manager to remove post for episode with id '{episodeId}'.",
-                    episode.Id);
-                removeBlueskyPostResult = RemovePostState.Other;
-            }
-
-            // Only flip Cosmostate when the remote post is gone (or already absent).
-            if (removeBlueskyPostResult is RemovePostState.Deleted or RemovePostState.NotFound)
-            {
-                podcastEpisode.Episode.ClearBlueskyPostState();
-            }
-        }
-
-        var removeTweetResult = RemoveTweetState.Unknown;
-        if (changeState.UnTweet)
-        {
-            try
-            {
-                // Delete first, before Tweeted and the stored tweet id are cleared and saved (#1204).
-                removeTweetResult = await tweetManager.RemoveTweet(tweetRemovalTarget ?? podcastEpisode);
-                if (removeTweetResult != RemoveTweetState.Deleted)
-                {
-                    logger.LogWarning("Failure to delete tweet. Result= {removeTweetResult}.",
-                        removeTweetResult);
-                }
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e,
-                    "Error using tweet-manager to remove tweet for episode with id '{episodeId}'.",
-                    episode.Id);
-                removeTweetResult = RemoveTweetState.Other;
-            }
-
-            // Only clear Tweeted when the tweet is gone (or already absent); otherwise the hourly job would
-            // re-post an item whose tweet is still live.
-            if (removeTweetResult is RemoveTweetState.Deleted or RemoveTweetState.NotFound)
-            {
-                podcastEpisode.Episode.ClearTweetState();
-            }
-        }
-
+        var outcome = new EpisodeUpdateOutcome();
         if (etag is null)
         {
+            // One save, no second 409. Delete first so the stored flags drop only when the post is gone (#1204).
+            outcome = await RetractSocial(podcast, episode, changeState, tweetRemovalTarget);
             await episodeRepository.Save(episode);
         }
         else if (!await episodeRepository.TryReplace(episode, etag))
         {
             return null;
         }
+        else
+        {
+            outcome = await RetractSocial(podcast, episode, changeState, tweetRemovalTarget);
+            if (outcome.TweetDeleted == true || outcome.BlueskyPostDeleted == true)
+            {
+                var patched = await PersistClearedSocialFlags(episode, outcome);
+                if (patched is not null)
+                {
+                    episode = patched;
+                }
+            }
+        }
 
         // Reddit.NET live un-post / flair sync is retired. Cosmos `posted` is already
         // applied via EpisodeChangeApplier; title/comment constructors remain for Devvit.
-
-        var outcome = new EpisodeUpdateOutcome();
-        if (changeState.UnTweet)
-        {
-            outcome.TweetDeleted = removeTweetResult is RemoveTweetState.Deleted or RemoveTweetState.NotFound;
-        }
-
-        if (changeState.UnBlueskyPost)
-        {
-            outcome.BlueskyPostDeleted = removeBlueskyPostResult is RemovePostState.Deleted
-                or RemovePostState.NotFound;
-        }
 
         try
         {
@@ -346,6 +298,112 @@ public class EpisodeUpdateService(
         }
 
         return new EpisodeUpdateResult(EpisodeUpdateStatus.Accepted, outcome);
+    }
+
+    /// <summary>
+    /// Deletes the Bluesky post and the tweet, and clears those flags on <paramref name="episode"/> only when the
+    /// remote post is gone. Does not write Cosmos.
+    /// </summary>
+    private async Task<EpisodeUpdateOutcome> RetractSocial(
+        Podcast podcast,
+        Episode episode,
+        EpisodeChangeState changeState,
+        PodcastEpisode? tweetRemovalTarget)
+    {
+        var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var outcome = new EpisodeUpdateOutcome();
+
+        if (changeState.UnBlueskyPost)
+        {
+            var removeBlueskyPostResult = RemovePostState.Unknown;
+            try
+            {
+                removeBlueskyPostResult = await blueskyPostManager.RemovePost(podcastEpisode);
+                if (removeBlueskyPostResult != RemovePostState.Deleted)
+                {
+                    logger.LogWarning("Failure to delete bluesky-post. Result= {removeBlueskyPostResult}.",
+                        removeBlueskyPostResult);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e,
+                    "Error using bluesky-post-manager to remove post for episode with id '{episodeId}'.",
+                    episode.Id);
+                removeBlueskyPostResult = RemovePostState.Other;
+            }
+
+            outcome.BlueskyPostDeleted = removeBlueskyPostResult is RemovePostState.Deleted or RemovePostState.NotFound;
+            if (outcome.BlueskyPostDeleted == true)
+            {
+                episode.ClearBlueskyPostState();
+            }
+        }
+
+        if (changeState.UnTweet)
+        {
+            var removeTweetResult = RemoveTweetState.Unknown;
+            try
+            {
+                removeTweetResult = await tweetManager.RemoveTweet(tweetRemovalTarget ?? podcastEpisode);
+                if (removeTweetResult != RemoveTweetState.Deleted)
+                {
+                    logger.LogWarning("Failure to delete tweet. Result= {removeTweetResult}.",
+                        removeTweetResult);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e,
+                    "Error using tweet-manager to remove tweet for episode with id '{episodeId}'.",
+                    episode.Id);
+                removeTweetResult = RemoveTweetState.Other;
+            }
+
+            outcome.TweetDeleted = removeTweetResult is RemoveTweetState.Deleted or RemoveTweetState.NotFound;
+            if (outcome.TweetDeleted == true)
+            {
+                episode.ClearTweetState();
+            }
+        }
+
+        return outcome;
+    }
+
+    /// <summary>
+    /// Writes cleared tweet and Bluesky flags onto a fresh read, so a field changed during the delete stays.
+    /// </summary>
+    private async Task<Episode?> PersistClearedSocialFlags(Episode saved, EpisodeUpdateOutcome outcome)
+    {
+        for (var attempt = 1; attempt <= FilmDocumentUpdate.MaxAttempts; attempt++)
+        {
+            var latest = await episodeRepository.GetEpisodeWithETag(saved.PodcastId, saved.Id);
+            if (latest is null)
+            {
+                logger.LogWarning(
+                    "{method}: Episode '{episodeId}' was deleted while clearing social flags.",
+                    nameof(PersistClearedSocialFlags), saved.Id);
+                return null;
+            }
+
+            if (outcome.TweetDeleted == true)
+            {
+                latest.Item.ClearTweetState();
+            }
+
+            if (outcome.BlueskyPostDeleted == true)
+            {
+                latest.Item.ClearBlueskyPostState();
+            }
+
+            if (await episodeRepository.TryReplace(latest.Item, latest.ETag))
+            {
+                return latest.Item;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Episode '{saved.Id}' kept changing while clearing social flags; not saved.");
     }
 
     /// <summary>A detached copy of the stored episode, for removal matching only.</summary>
