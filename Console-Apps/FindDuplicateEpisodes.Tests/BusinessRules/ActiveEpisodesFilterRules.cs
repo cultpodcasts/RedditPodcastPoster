@@ -27,4 +27,22 @@ public class ActiveEpisodesFilterRules
         filter.Should().Contain("IS_NULL(e.removed)");
         filter.Should().Contain(Playable.CosmosParentNotRemovedSql);
     }
+
+    [Fact(DisplayName =
+        "FindDuplicateEpisodes ActiveEpisodesFilter excludes an episode whose approvalStatus is set, " +
+        "because a held episode (awaiting approval or rejected) must not be a duplicate candidate " +
+        "and a merge must not publish it or clear that status (#1490).")]
+    public void active_episodes_filter_excludes_held_episodes()
+    {
+        // Arrange
+        // Filter is a const SQL fragment; no mutable arrange.
+
+        // Act
+        var filter = FindDuplicateEpisodesProcessor.ActiveEpisodesFilter;
+
+        // Assert
+        filter.Should().Contain(FindDuplicateEpisodesProcessor.NotHeldForApprovalSql);
+        filter.Should().Contain("NOT IS_DEFINED(e.approvalStatus)");
+        filter.Should().Contain("IS_NULL(e.approvalStatus)");
+    }
 }
