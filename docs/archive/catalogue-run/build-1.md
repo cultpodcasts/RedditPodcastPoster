@@ -11,8 +11,8 @@ Ignore GATE 1 and everything after until this file is done.
 
 | | |
 |--|--|
-| Build work | **Done** (models, dual-key, `films-refactor/` rewrite CLI + tests) |
-| **Next action** | **Merge to `main`** (include `films-refactor/`) |
+| Build work | **Done** (models, dual-key, rewrite CLI + tests — `films-refactor/` since retired in #1406) |
+| **Next action** | **Merge to `main`** (historical: included `films-refactor/`) |
 | After that | Open [gate-1.md](./gate-1.md) only — that is when you deploy / run the tool |
 
 ### When is the rewrite app used?
@@ -31,7 +31,7 @@ So: **have it now · run it in GATE 1 only.**
 ## Done when
 
 1. Code is **merged to `main`** and CI is green, **and**
-2. `films-refactor/EpisodeWireRewrite` is on `main` (not in `.slnx`).
+2. `films-refactor/EpisodeWireRewrite` was on `main` (not in `.slnx`; folder retired in #1406 after GATE 1).
 
 An open PR is not done.
 
@@ -52,7 +52,7 @@ No public Film / TV / News UI yet.
 - [~] Queries understand old **and** new names (dual-key)
 - [~] Repos + DI for five new Cosmos containers
 - [~] Tests
-- [x] Rewrite console app in `films-refactor/` (not in `.slnx`; progress + journal + rollback)
+- [x] Rewrite console app in `films-refactor/` (not in `.slnx`; progress + journal + rollback; retired #1406)
 - [ ] Merge to `main`
 
 Parked (not required for Build 1 done): [#989](https://github.com/cultpodcasts/RedditPodcastPoster/issues/989) DRY Cosmos helper.
@@ -72,8 +72,8 @@ Parked (not required for Build 1 done): [#989](https://github.com/cultpodcasts/R
 | Topic | Where |
 |-------|--------|
 | **Rewrite console requirements** | [build-1-rewrite-console-requirements.md](./build-1-rewrite-console-requirements.md) |
-| Tool README | [films-refactor/README.md](../../../films-refactor/README.md) |
-| **Repair if rollback fails** | [films-refactor/REPAIR.md](../../../films-refactor/REPAIR.md) |
+| Tool README | Historical: lived at `films-refactor/README.md` (retired #1406) |
+| **Repair if rollback fails** | Historical: lived at `films-refactor/REPAIR.md` (retired #1406) |
 | Why dual-key / field renames | Epic § Episode JSON cutover |
 | What ships in the PR | PR #988 description |
 | Deploy scripts (used in GATE 1, not now) | [deployment.md](../../deployment.md) |
