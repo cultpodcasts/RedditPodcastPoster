@@ -135,7 +135,9 @@ public sealed record TmdbMovieMetadata(
     DateOnly? ReleaseDate,
     Uri? Image,
     IReadOnlyList<string> OtherTitles,
-    string? Publisher = null);
+    string? Publisher = null,
+    /// <summary>Year when TMDB only has a year (no full <c>yyyy-MM-dd</c>). Prefer <see cref="ReleaseDate"/> when set.</summary>
+    int? ReleaseYear = null);
 
 /// <summary>
 /// A TMDB TV series' own publisher metadata (RPP #1436). <see cref="Publisher"/> is the first named network, else the
