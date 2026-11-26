@@ -148,9 +148,8 @@ available for the guardrail scripts.
 - **`Discover.slnf`**: forward-slash paths only; every entry must exist in `RedditPodcastPoster.slnx`
   (`pwsh ./scripts/assert-slnf.ps1`). Prefer full-solution build/test unless you need the filter.
 - **slnx membership**: every on-disk `*.csproj` under the repo root is in `RedditPodcastPoster.slnx`
-  except the documented allowlist (`films-refactor/**` — GATE 1 throwaway; generated `obj`/`bin`;
-  local `.tmp*` scratch). The assert walks the filesystem (`Get-ChildItem`), not `git ls-files`.
-  CI runs `assert-slnx-membership.ps1`.
+  except the documented allowlist (generated `obj`/`bin`; local `.tmp*` scratch). The assert walks
+  the filesystem (`Get-ChildItem`), not `git ls-files`. CI runs `assert-slnx-membership.ps1`.
 - **Build / test** (matches CI, no cloud services needed — unit tests are fully mocked):
   `dotnet build RedditPodcastPoster.slnx -c Release` then
   `dotnet test RedditPodcastPoster.slnx -c Release --no-build` (~1762 tests). The startup update script
