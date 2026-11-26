@@ -41,7 +41,7 @@ public class CatalogueCreationIdentityRules
                 It.IsAny<int?>(),
                 It.IsAny<CatalogueIdentityChoice>(),
                 It.IsAny<string?>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(), It.IsAny<TimeSpan?>()))
             .ReturnsAsync(() => _filmAdmission);
         _mocker.GetMock<ICatalogueIdentityEnricher>()
             .Setup(x => x.ApplyMissing(It.IsAny<Film>(), It.IsAny<CatalogueAuthorityIds?>()))

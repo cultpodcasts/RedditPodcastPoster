@@ -15,6 +15,18 @@ public interface ICatalogueIdentityEnricher
         int? year,
         CatalogueIdentityChoice choice,
         string? selectedKey,
+        CancellationToken cancellationToken = default,
+        TimeSpan? length = null);
+
+    /// <summary>
+    /// Edit-time Look up identity for a film (RPP #1497): never auto-applies ids. A unique or year-narrowed
+    /// match is offered as a picker so the curator confirms before blank fields are filled.
+    /// </summary>
+    Task<CatalogueIdentityAdmission> LookupFilmAsync(
+        string title,
+        int? year,
+        CatalogueIdentityChoice choice,
+        string? selectedKey,
         CancellationToken cancellationToken = default);
 
     Task<CatalogueIdentityAdmission> ResolveTvShowAsync(
