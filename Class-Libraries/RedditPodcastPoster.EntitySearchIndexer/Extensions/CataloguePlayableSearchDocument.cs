@@ -83,13 +83,15 @@ public static class CataloguePlayableSearchDocument
         PreferCatalogueYouTubeId(record, film.YouTubeId);
         record.YouTubeAlternates = YouTubeAlternateSearchToken.For(film);
         ApplyServiceIds(record, film.Services);
-        UseIdentityImageWhenNoServiceImage(record, film.Image);
+        // Service image wins; then identity (TMDB); then the first trailer thumbnail (RPP #1430 / #1422).
+        UseIdentityImageWhenNoServiceImage(record, FilmDisplayImage.PreferIdentityOrTrailer(film));
         return record;
     }
 
     /// <summary>
-    /// RPP #1430: a streaming service's image wins; the identity image (TMDB backdrop, poster or still) is used only
-    /// when no service has one. Same order as the pull SQL (<c>PlayableSearchSql.SiblingQuery</c>).
+    /// RPP #1430 / #1422: a streaming service's image wins; the identity image (TMDB backdrop, poster or still) or
+    /// a trailer thumbnail is used only when no service has one. Same order as the pull SQL for services + identity
+    /// (<c>PlayableSearchSql.SiblingQuery</c>); trailer fallback is push-path for films with no Services row.
     /// </summary>
     private static void UseIdentityImageWhenNoServiceImage(EpisodeSearchRecord record, Uri? identityImage)
     {
