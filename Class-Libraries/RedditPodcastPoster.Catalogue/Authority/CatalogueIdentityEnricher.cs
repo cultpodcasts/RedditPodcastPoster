@@ -401,8 +401,9 @@ public sealed class CatalogueIdentityEnricher(
                 if (uniqueCandidate is not null)
                 {
                     logger.LogInformation(
-                        "Catalogue identity film unique offered for confirmation. query={Query} tmdbId={TmdbId}",
+                        "Catalogue identity film unique offered for confirmation. query={Query} imdbId={ImdbId} tmdbId={TmdbId}",
                         query,
+                        preview.ImdbId,
                         preview.TmdbId);
                     return CatalogueIdentityAdmission.NeedsPrompt(
                         new CatalogueIdentityHold(target, query.Trim(), [uniqueCandidate]));
@@ -717,20 +718,39 @@ public sealed class CatalogueIdentityEnricher(
         return false;
     }
 
+    /// <summary>
+    /// Edit-time Look up must confirm a unique film before filling blanks. A positive TMDB id uses a
+    /// <c>tmdb:</c> key. An IMDb-only unique (null TMDB, as from film fallback) uses <c>imdb:</c> so the
+    /// curator still confirms; selecting that key stores the IMDb id alone.
+    /// </summary>
     private static CatalogueAuthorityCandidate? ToUniqueFilmCandidate(string query, CatalogueAuthorityPreview preview)
     {
-        if (preview.TmdbId is not int tmdbId || tmdbId <= 0)
+        var title = string.IsNullOrWhiteSpace(preview.HitLabels.FirstOrDefault()) ? query.Trim() : preview.HitLabels[0];
+        if (preview.TmdbId is int tmdbId && tmdbId > 0)
+        {
+            return new CatalogueAuthorityCandidate(
+                CatalogueAuthorityCandidate.TmdbKey(tmdbId),
+                title,
+                Year: null,
+                CatalogueAuthorityCandidate.FilmKind,
+                CatalogueAuthorityCandidate.TmdbSource,
+                tmdbId,
+                TvdbId: null);
+        }
+
+        var imdbId = preview.ImdbId?.Trim();
+        if (string.IsNullOrWhiteSpace(imdbId))
         {
             return null;
         }
 
         return new CatalogueAuthorityCandidate(
-            CatalogueAuthorityCandidate.TmdbKey(tmdbId),
-            string.IsNullOrWhiteSpace(preview.HitLabels.FirstOrDefault()) ? query.Trim() : preview.HitLabels[0],
+            CatalogueAuthorityCandidate.ImdbKey(imdbId),
+            title,
             Year: null,
             CatalogueAuthorityCandidate.FilmKind,
-            CatalogueAuthorityCandidate.TmdbSource,
-            tmdbId,
+            CatalogueAuthorityCandidate.ImdbSource,
+            TmdbId: null,
             TvdbId: null);
     }
 

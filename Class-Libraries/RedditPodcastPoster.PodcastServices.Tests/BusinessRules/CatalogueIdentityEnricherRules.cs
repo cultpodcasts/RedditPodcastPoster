@@ -280,6 +280,42 @@ public class CatalogueIdentityEnricherRules
     }
 
     [Fact(DisplayName =
+        "Edit-time film Look up holds a unique IMDb-only match as a single imdb: candidate so the curator confirms " +
+        "before a blank IMDb id is filled, and does not proceed with those ids (RPP #1497).")]
+    public async Task lookup_film_unique_imdb_only_requires_confirmation()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        var imdbId = ImdbId();
+        _mocker.GetMock<ICatalogueAuthorityPreviewer>()
+            .Setup(x => x.PreviewFilmAsync(title, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CatalogueAuthorityPreview(
+                title,
+                HitCount: 1,
+                imdbId,
+                TmdbId: null,
+                TvdbId: null,
+                [title],
+                Resolution: CatalogueAuthorityResolution.Unique));
+        var sut = _mocker.CreateInstance<CatalogueIdentityEnricher>();
+
+        // Act
+        var admission = await sut.LookupFilmAsync(
+            title,
+            year: null,
+            CatalogueIdentityChoice.Unset,
+            selectedKey: null);
+
+        // Assert
+        admission.Hold.Should().BeTrue();
+        admission.Ids.Should().BeNull();
+        var candidate = admission.Prompt!.Candidates.Should().ContainSingle().Subject;
+        candidate.Key.Should().Be(CatalogueAuthorityCandidate.ImdbKey(imdbId));
+        candidate.TmdbId.Should().BeNull();
+        candidate.Source.Should().Be(CatalogueAuthorityCandidate.ImdbSource);
+    }
+
+    [Fact(DisplayName =
         "When the single year-narrowed film candidate has no positive TMDB id, create holds candidates " +
         "instead of collecting film id 0.")]
     public async Task year_narrowed_film_without_tmdb_id_holds_candidates()
