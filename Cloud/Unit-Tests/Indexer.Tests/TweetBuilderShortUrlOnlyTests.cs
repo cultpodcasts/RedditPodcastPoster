@@ -5,6 +5,7 @@ using Moq.AutoMock;
 using RedditPodcastPoster.SocialPosting.Factories;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
+using RedditPodcastPoster.Models.Extensions;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.Posting;
 using RedditPodcastPoster.People.Resolvers;
@@ -122,21 +123,28 @@ public class TweetBuilderShortUrlOnlyTests
     }
 
     [Fact(DisplayName =
-        "When a curator removed the episode's image but there is no short URL, the tweet still links the platform URL, because a tweet needs a link (#1500).")]
-    public async Task Image_removed_without_short_url_keeps_platform_url()
+        "When a curator removed the episode's image and short-link creation failed, the tweet links the full site episode URL and omits YouTube and Spotify URLs, because X would card the art the curator removed (#1503).")]
+    public async Task Image_removed_without_short_url_links_site_episode_url()
     {
         // Arrange
         var podcast = _fixture.CreatePodcast();
-        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeAndSpotify(podcast);
         episode.ImageRemoved = true;
         var podcastEpisode = new PodcastEpisode(podcast, episode);
+        var siteUrl = podcastEpisode.ToEpisodeUrl();
+        var youTubeUrl = episode.Urls.YouTube!;
+        var spotifyUrl = episode.Urls.Spotify!;
         var sut = CreateSut(withEpisodeUrl: true, shortUrlOnlyWhenShareImage: false);
 
         // Act
         var tweet = await sut.BuildTweet(podcastEpisode, shortUrl: null, hasShareImage: false);
 
         // Assert
-        tweet.Should().Contain(episode.Urls.YouTube!.ToString());
+        tweet.Should().Contain(siteUrl);
+        tweet.Should().NotContain(youTubeUrl.ToString());
+        tweet.Should().NotContain(youTubeUrl.Host);
+        tweet.Should().NotContain(spotifyUrl.ToString());
+        tweet.Should().NotContain(spotifyUrl.Host);
     }
 
     private static int QuotedTitleLength(string post)
