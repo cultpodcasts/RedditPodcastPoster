@@ -7,7 +7,7 @@ namespace RedditPodcastPoster.Catalogue.Identity;
 /// <summary>
 /// Reads a film's or TV episode's own metadata from its identity services (RPP #1430). Lookups never throw: a failed
 /// or missing lookup is null, so a save never fails because TMDB or TheTVDB is down.
-/// Apply the result with <see cref="IdentityMetadataFill"/>, which fills only empty fields.
+/// Apply the result with <see cref="IdentityMetadataFill"/> (empty fields, plus a film upload-date release).
 /// </summary>
 public interface IIdentityMetadataEnricher
 {
