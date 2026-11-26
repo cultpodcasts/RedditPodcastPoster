@@ -59,4 +59,11 @@ public class CatalogueIdentityIdsBody
     [JsonPropertyName("tvdbId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? TvdbId { get; set; }
+
+    /// <summary>
+    /// Proposed film release from TMDB when this body is a film match (RPP #1410): <c>yyyy-MM-dd</c> or a year.
+    /// </summary>
+    [JsonPropertyName("release")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Release { get; set; }
 }

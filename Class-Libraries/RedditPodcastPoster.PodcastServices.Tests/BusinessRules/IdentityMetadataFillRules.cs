@@ -38,8 +38,9 @@ public class IdentityMetadataFillRules
     }
 
     [Fact(DisplayName =
-        "A film's values that are already set are never overwritten by TMDB: description, release, runtime, image, " +
-        "alternative titles and TMDB id all stay as the curator or the streaming service set them.")]
+        "A film's values that are already set are never overwritten by TMDB when the release year is already in the " +
+        "identity year (within +1): description, release, runtime, image, alternative titles and TMDB id all stay as " +
+        "the curator or the streaming service set them.")]
     public void set_film_fields_are_kept()
     {
         // Arrange
@@ -59,9 +60,11 @@ public class IdentityMetadataFillRules
             PublisherName = "A24"
         };
         film.SetRelease(release);
+        // Identity year must be same-band as the stored year so #1410 does not treat this as an upload date.
+        var metadata = Movie(film.Name) with { ReleaseDate = new DateOnly(1999, 10, 4), ReleaseYear = 1999 };
 
         // Act
-        var changed = IdentityMetadataFill.Fill(film, Movie(film.Name));
+        var changed = IdentityMetadataFill.Fill(film, metadata);
 
         // Assert
         changed.Should().BeFalse();
@@ -72,6 +75,117 @@ public class IdentityMetadataFillRules
         film.AlternativeTitles.Should().Equal(titles);
         film.TmdbId.Should().Be(tmdbId);
         IdentityMetadataFill.HasGaps(film).Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a film's release is a platform upload datetime more than one year after the identity year, identity " +
+        "replaces it with the TMDB calendar date so Move to film does not keep the YouTube upload day (RPP #1410).")]
+    public void upload_datetime_release_is_replaced_by_identity_date()
+    {
+        // Arrange
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Description = _fixture.CreateTitle(),
+            Length = _fixture.CreateDuration(),
+            AlternativeTitles = [],
+            PublisherName = "A24"
+        };
+        film.SetRelease(CatalogueRelease.FromDateTimeUtc(
+            DomainTestFixture.UtcAtTime(-10, _fixture.CreateNonMidnightTimeOfDay())));
+        var identityDate = new DateOnly(1981, 10, 4);
+        var metadata = Movie(film.Name) with { ReleaseDate = identityDate, ReleaseYear = identityDate.Year };
+
+        // Act
+        var gaps = IdentityMetadataFill.HasGaps(film);
+        var changed = IdentityMetadataFill.Fill(film, metadata);
+
+        // Assert
+        gaps.Should().BeTrue();
+        changed.Should().BeTrue();
+        film.Release.Should().BeEquivalentTo(CatalogueRelease.FromDate(identityDate));
+    }
+
+    [Fact(DisplayName =
+        "A film whose stored release year is exactly one year after the identity year is kept: the +1 tolerance " +
+        "treats a this-year upload of a last-year release as the curator's date, so identity fill must not overwrite it (RPP #1410).")]
+    public void release_one_year_after_identity_is_kept()
+    {
+        // Arrange
+        var identityYear = DomainTestFixture.UtcToday.Year - 1;
+        var stored = CatalogueRelease.FromYear(identityYear + 1);
+        var film = FilmWithSetFields(stored);
+        var metadata = Movie(film.Name) with
+        {
+            ReleaseDate = new DateOnly(identityYear, 1, 1),
+            ReleaseYear = identityYear
+        };
+
+        // Act
+        var replace = IdentityMetadataFill.ShouldReplaceFilmRelease(film.Release, identityYear);
+        var changed = IdentityMetadataFill.Fill(film, metadata);
+
+        // Assert
+        replace.Should().BeFalse();
+        changed.Should().BeFalse();
+        film.Release.Should().Be(stored);
+    }
+
+    [Fact(DisplayName =
+        "A film whose stored release year is two years after the identity year is replaced by the identity date, " +
+        "because that is past the one-year tolerance for a platform upload (RPP #1410).")]
+    public void release_two_years_after_identity_is_replaced()
+    {
+        // Arrange
+        var identityYear = DomainTestFixture.UtcToday.Year - 2;
+        var stored = CatalogueRelease.FromYear(identityYear + 2);
+        var film = FilmWithSetFields(stored);
+        var identityDate = new DateOnly(identityYear, 1, 1);
+        var metadata = Movie(film.Name) with { ReleaseDate = identityDate, ReleaseYear = identityYear };
+
+        // Act
+        var replace = IdentityMetadataFill.ShouldReplaceFilmRelease(film.Release, identityYear);
+        var changed = IdentityMetadataFill.Fill(film, metadata);
+
+        // Assert
+        replace.Should().BeTrue();
+        changed.Should().BeTrue();
+        film.Release.Should().BeEquivalentTo(CatalogueRelease.FromDate(identityDate));
+    }
+
+    [Fact(DisplayName =
+        "When identity only has a year (no full yyyy-MM-dd), the film release is stored as year precision, not as " +
+        "1 January (RPP #1410).")]
+    public void year_only_identity_date_is_stored_as_year_precision()
+    {
+        // Arrange
+        var film = new Film(_fixture.CreateTitle()) { Description = string.Empty };
+        var metadata = Movie(film.Name) with { ReleaseDate = null, ReleaseYear = 1994 };
+
+        // Act
+        IdentityMetadataFill.Fill(film, metadata);
+
+        // Assert
+        film.Release.Should().BeEquivalentTo(CatalogueRelease.FromYear(1994));
+        film.Release!.Precision.Should().Be(CatalogueReleasePrecision.Year);
+    }
+
+    [Fact(DisplayName =
+        "An explicit release skip (curator set release in the same PATCH) leaves a platform upload datetime alone " +
+        "even when the identity year is earlier (RPP #1410).")]
+    public void skipped_release_is_not_replaced_by_identity()
+    {
+        // Arrange
+        var upload = CatalogueRelease.FromDateTimeUtc(
+            DomainTestFixture.UtcAtTime(-5, _fixture.CreateNonMidnightTimeOfDay()));
+        var film = new Film(_fixture.CreateTitle()) { Description = string.Empty };
+        film.SetRelease(upload);
+        var metadata = Movie(film.Name) with { ReleaseDate = new DateOnly(1960, 12, 4), ReleaseYear = 1960 };
+
+        // Act
+        IdentityMetadataFill.Fill(film, metadata, new IdentityFieldSkip(Release: true));
+
+        // Assert
+        film.Release.Should().Be(upload);
     }
 
     [Fact(DisplayName =
@@ -342,6 +456,21 @@ public class IdentityMetadataFillRules
         IdentityMetadataFill.HasGaps(setShow).Should().BeFalse();
         IdentityMetadataFill.HasGaps(new TvShow(_fixture.CreateTitle()), new IdentityFieldSkip(Publisher: true))
             .Should().BeFalse();
+    }
+
+    private Film FilmWithSetFields(CatalogueRelease release)
+    {
+        var film = new Film(_fixture.CreateTitle())
+        {
+            Description = _fixture.CreateTitle(),
+            Length = _fixture.CreateDuration(),
+            Image = new Uri($"https://example.org/{_fixture.CreateYouTubeId()}.jpg"),
+            AlternativeTitles = [_fixture.CreateTitle()],
+            TmdbId = _fixture.CreateTmdbId(),
+            PublisherName = "A24"
+        };
+        film.SetRelease(release);
+        return film;
     }
 
     private TmdbMovieMetadata Movie(string title) =>
