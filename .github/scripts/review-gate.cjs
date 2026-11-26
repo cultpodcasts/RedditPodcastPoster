@@ -1,32 +1,38 @@
 'use strict';
-// review-gate (cultpodcasts/RedditPodcastPoster#1507): publish a commit status `review-gate`
-// on a PR's head SHA. It passes only when the PR has the `review-acceptable` label AND the
-// latest review-gate marker for the CURRENT head SHA, posted by a trusted author
-// (OWNER / MEMBER / COLLABORATOR) in a PR **issue comment**, says `acceptable`:
+// review-gate (cultpodcasts/RedditPodcastPoster#1507, #1563): publish a commit status
+// `review-gate` on a PR's head SHA. It passes when the PR has the `review-acceptable`
+// label AND any of:
 //
-//   <!-- review-gate: acceptable sha=<full 40-char head sha> -->
-//   <!-- review-gate: changes-requested sha=<full 40-char head sha> -->   (overrides an earlier acceptable)
+//   1. Approve path (#1563): latest trusted (OWNER / MEMBER / COLLABORATOR) PR review
+//      for the current head SHA is APPROVED (workflow auto-adds the label). A trusted
+//      CHANGES_REQUESTED review for that SHA fails the gate.
+//   2. Marker path: latest trusted issue-comment marker for the head SHA says acceptable:
+//        <!-- review-gate: acceptable sha=<full 40-char head sha> -->
+//        <!-- review-gate: changes-requested sha=<full 40-char head sha> -->
+//   3. Carry path (#1555): merge-from-base-only tip above an acceptable anchor + label.
 //
-// Markers in review bodies are ignored (pull_request_review would run the PR's own workflow
-// YAML), as are markers on quoted (`>`) lines, inside fenced or indented code blocks, or
-// inside inline code spans. Comments are ordered by created_at, so editing an old comment
-// does not make its marker the latest.
+// Markers in review bodies are ignored as verdict text (Approve/Changes Requested use
+// the review *state*, not the body). Markers on quoted (`>`) lines, inside fenced or
+// indented code blocks, or inside inline code spans are ignored. Comments are ordered
+// by created_at, so editing an old comment does not make its marker the latest.
 // The label is removed on a new push (`synchronize`, unless carried: see CARRY below) and on
-// ANY run where it is present but the latest marker for the head SHA is not `acceptable` and
-// nothing is carried (so a dropped push run self-heals;
-// the reviewer posts the marker first, then adds the label). Removing a PR label needs
-// `pull-requests: write`. A non-404 failure (e.g. 403) is logged as a warning and is not
-// fatal: the status is still published, and is never success when the label is stale or
-// the marker is missing (cultpodcasts/RedditPodcastPoster#1519).
-// CARRY (cultpodcasts/RedditPodcastPoster#1555): a head with no marker of its own still passes
-// when it is a chain of PURE merge-from-base commits (see merge-only-tip.cjs) on top of a commit
-// whose latest trusted marker is `acceptable`. The walk follows first parents, at most
-// MAX_HOPS hops, and stops at the nearest commit with a trusted marker: `acceptable` carries,
-// `changes-requested` blocks. The label is kept in that case (no human re-mark). Rebases,
-// feature commits, overlapping or hand-edited merges, an unverifiable listing or an API error
-// do not carry: the label is removed on a push as before (an API error keeps the label but
-// fails the status, so a re-run can heal it). The chain is recomputed from live PR state on
-// every run; no extra marker is written.
+// ANY run where it is present but the head has no acceptable Approve/marker and nothing
+// is carried (so a dropped push run self-heals; the reviewer Approves or posts the marker
+// first, then the label is present). Removing a PR label needs `pull-requests: write`.
+// A non-404 failure (e.g. 403) is logged as a warning and is not fatal: the status is still
+// published, and is never success when the label is stale or the verdict is missing
+// (cultpodcasts/RedditPodcastPoster#1519).
+// CARRY (cultpodcasts/RedditPodcastPoster#1555): a head with no marker/Approve of its own
+// still passes when it is a chain of PURE merge-from-base commits (see merge-only-tip.cjs)
+// on top of a commit whose latest trusted marker is `acceptable`. The walk follows first
+// parents, at most MAX_HOPS hops, and stops at the nearest commit with a trusted marker:
+// `acceptable` carries, `changes-requested` blocks. The label is kept in that case (no
+// human re-mark). Rebases, feature commits, overlapping or hand-edited merges, an
+// unverifiable listing or an API error do not carry: the label is removed on a push as
+// before (an API error keeps the label but fails the status, so a re-run can heal it).
+// The chain is recomputed from live PR state on every run; no extra marker is written.
+// After publishing the commit status, a non-success state fails the Actions job
+// (`core.setFailed`) so the check run is red when the status is red (#1563).
 // Comment bodies are only matched against MARKER_RE here; they are never passed to a shell
 // or a workflow expression. This is a process interlock, not a security boundary: every
 // agent and Jon post as the same OWNER account.
@@ -113,6 +119,25 @@ function latestVerdict(entries, headSha) {
   return { verdict, staleMarker };
 }
 
+// Latest trusted PR review for headSha: APPROVED → 'acceptable', CHANGES_REQUESTED →
+// 'changes-requested'. Ignores COMMENTED / PENDING / DISMISSED and reviews whose commit_id
+// is not the current head. Ordered by submitted_at.
+function latestReviewVerdict(reviews, headSha) {
+  const sha = String(headSha || '').toLowerCase();
+  const trusted = (reviews || [])
+    .filter((r) => TRUSTED_ASSOCIATIONS.has(String(r.author_association || '').toUpperCase()))
+    .filter((r) => {
+      const state = String(r.state || '').toUpperCase();
+      return state === 'APPROVED' || state === 'CHANGES_REQUESTED';
+    })
+    .filter((r) => String(r.commit_id || '').toLowerCase() === sha)
+    .map((r, i) => ({ ...r, i, t: Date.parse(r.submitted_at) || 0 }))
+    .sort((a, b) => a.t - b.t || a.i - b.i);
+  if (trusted.length === 0) return null;
+  const state = String(trusted[trusted.length - 1].state || '').toUpperCase();
+  return state === 'APPROVED' ? 'acceptable' : 'changes-requested';
+}
+
 // Latest trusted verdict per SHA (same ordering and parsing as latestVerdict), as a Map.
 function latestVerdictsBySha(entries) {
   const trusted = (entries || [])
@@ -130,9 +155,20 @@ function truncate(s) {
   return s.length <= MAX_DESCRIPTION ? s : `${s.slice(0, MAX_DESCRIPTION - 1)}…`;
 }
 
+// Combined head verdict: Approve path wins over markers when present for this SHA
+// (Approve clears a prior changes-requested marker; Changes Requested blocks a marker).
+function headVerdict({ entries, headSha, reviewVerdict }) {
+  if (reviewVerdict === 'changes-requested' || reviewVerdict === 'acceptable') {
+    return { verdict: reviewVerdict, staleMarker: false, fromReview: true };
+  }
+  const m = latestVerdict(entries, headSha);
+  return { verdict: m.verdict, staleMarker: m.staleMarker, fromReview: false };
+}
+
 // Pure decision. labels: string[]; pushed: true when this run is for a new push.
 // carry: result of the merge-from-base chain walk (see resolveCarry), or null when not attempted.
-function evaluate({ labels, headSha, entries, pushed, carry }) {
+// reviewVerdict: from latestReviewVerdict, or null.
+function evaluate({ labels, headSha, entries, pushed, carry, reviewVerdict }) {
   const short = String(headSha || '').slice(0, 7);
   const hasLabel = (labels || []).includes(LABEL);
   if (carry && carry.ok) {
@@ -161,9 +197,14 @@ function evaluate({ labels, headSha, entries, pushed, carry }) {
       description: truncate(`New commits (${short}): review needed; reviewer must re-mark this SHA acceptable and re-add ${LABEL}`),
     };
   }
-  const { verdict, staleMarker } = latestVerdict(entries, headSha);
+  const { verdict, staleMarker, fromReview } = headVerdict({ entries, headSha, reviewVerdict });
   if (verdict === 'acceptable' && hasLabel) {
-    return { state: 'success', description: truncate(`Reviewer marked ${short} acceptable`) };
+    return {
+      state: 'success',
+      description: truncate(fromReview
+        ? `Reviewer approved ${short}`
+        : `Reviewer marked ${short} acceptable`),
+    };
   }
   if (verdict === 'changes-requested') {
     return { state: 'failure', description: truncate(`Reviewer requested changes on ${short}`) };
@@ -185,23 +226,24 @@ function commentEntries(comments) {
   return (comments || []).map((c) => ({ at: c.created_at, association: c.author_association, body: c.body }));
 }
 
-// Remove the label on a new push, or whenever it is present without an `acceptable` marker for
-// the current head SHA. State-based, so a push run replaced in the concurrency queue self-heals.
-// A carried acceptance keeps the label; so does an unverifiable carry (API error), which fails
-// the status instead so a re-run can heal it.
-function shouldRemoveLabel({ labels, headSha, entries, pushed, carry }) {
+// Remove the label on a new push, or whenever it is present without an acceptable
+// Approve/marker for the current head SHA. State-based, so a push run replaced in the
+// concurrency queue self-heals. A carried acceptance keeps the label; so does an
+// unverifiable carry (API error), which fails the status instead so a re-run can heal it.
+function shouldRemoveLabel({ labels, headSha, entries, pushed, carry, reviewVerdict }) {
   if (!(labels || []).includes(LABEL)) return false;
   if (carry && (carry.ok || carry.apiError)) return false;
   if (pushed) return true;
-  return latestVerdict(entries, headSha).verdict !== 'acceptable';
+  return headVerdict({ entries, headSha, reviewVerdict }).verdict !== 'acceptable';
 }
 
 // Walk merge-from-base hops from the head to the nearest commit with a trusted marker.
-// Only attempted when the head has no marker of its own and the label is present (without
-// the label there is nothing to carry). Resolves the walk result, or null when not attempted.
-async function resolveCarry({ github, owner, repo, baseRef, headSha, labels, entries, walk = walkMergeOnlyChain }) {
+// Only attempted when the head has no Approve/marker of its own and the label is present
+// (without the label there is nothing to carry). Resolves the walk result, or null when
+// not attempted.
+async function resolveCarry({ github, owner, repo, baseRef, headSha, labels, entries, reviewVerdict, walk = walkMergeOnlyChain }) {
   if (!(labels || []).includes(LABEL)) return null;
-  if (latestVerdict(entries, headSha).verdict !== null) return null;
+  if (headVerdict({ entries, headSha, reviewVerdict }).verdict !== null) return null;
   const bySha = latestVerdictsBySha(entries);
   const classify = (sha) => {
     const v = bySha.get(String(sha).toLowerCase());
@@ -217,7 +259,7 @@ function prNumberFromContext(context) {
   if (context.eventName === 'issue_comment') {
     return p.issue && p.issue.pull_request ? p.issue.number : null;
   }
-  if (context.eventName === 'pull_request_target') {
+  if (context.eventName === 'pull_request_target' || context.eventName === 'pull_request_review') {
     return p.pull_request ? p.pull_request.number : null;
   }
   return null;
@@ -244,8 +286,27 @@ async function run({ github, context, core, walk }) {
   });
   const entries = commentEntries(comments);
 
+  const reviews = await github.paginate(github.rest.pulls.listReviews, {
+    owner, repo, pull_number: number, per_page: 100,
+  });
+  const reviewVerdict = latestReviewVerdict(reviews, headSha);
+
+  // Approve path: ensure the label exists before evaluate so Approve alone clears the gate.
+  if (reviewVerdict === 'acceptable' && !labels.includes(LABEL)) {
+    try {
+      await github.rest.issues.addLabels({ owner, repo, issue_number: number, labels: [LABEL] });
+      labels = [...labels, LABEL];
+      core.info(`Added ${LABEL}: trusted Approve for ${headSha}.`);
+    } catch (err) {
+      const reason = err.message || String(err);
+      const msg = `Failed to add ${LABEL} (${err.status || 'error'}): ${reason}. Publishing review-gate status anyway.`;
+      if (typeof core.warning === 'function') core.warning(msg);
+      else core.info(msg);
+    }
+  }
+
   const carry = await resolveCarry({
-    github, owner, repo, baseRef: pr.base && pr.base.ref, headSha, labels, entries, walk,
+    github, owner, repo, baseRef: pr.base && pr.base.ref, headSha, labels, entries, reviewVerdict, walk,
   });
   if (carry) {
     core.info(carry.ok
@@ -254,10 +315,10 @@ async function run({ github, context, core, walk }) {
   }
 
   let removalFailed = false;
-  if (shouldRemoveLabel({ labels, headSha, entries, pushed, carry })) {
+  if (shouldRemoveLabel({ labels, headSha, entries, pushed, carry, reviewVerdict })) {
     try {
       await github.rest.issues.removeLabel({ owner, repo, issue_number: number, name: LABEL });
-      core.info(`Removed ${LABEL}: ${pushed ? 'new push' : 'no acceptable marker'} for ${headSha}.`);
+      core.info(`Removed ${LABEL}: ${pushed ? 'new push' : 'no acceptable verdict'} for ${headSha}.`);
       labels = labels.filter((l) => l !== LABEL);
     } catch (err) {
       if (err.status === 404) {
@@ -272,7 +333,7 @@ async function run({ github, context, core, walk }) {
     }
   }
 
-  let result = evaluate({ labels, headSha, entries, pushed, carry });
+  let result = evaluate({ labels, headSha, entries, pushed, carry, reviewVerdict });
   // A failed removal must never pass the gate: the label is still stale, or the
   // marker is missing. evaluate() already fails in those cases; this is a guard.
   if (removalFailed && result.state === 'success') {
@@ -295,10 +356,14 @@ async function run({ github, context, core, walk }) {
       .addRaw(`review-gate **${result.state}** on PR #${number} @ \`${headSha}\`: ${result.description}\n`)
       .write();
   }
+  if (result.state !== 'success' && typeof core.setFailed === 'function') {
+    core.setFailed(result.description);
+  }
   return { headSha, ...result };
 }
 
 module.exports = {
   LABEL, STATUS_CONTEXT, MARKER_RE, stripQuotedAndFenced, parseMarkers, latestVerdict, latestVerdictsBySha,
-  evaluate, commentEntries, shouldRemoveLabel, resolveCarry, prNumberFromContext, run,
+  latestReviewVerdict, headVerdict, evaluate, commentEntries, shouldRemoveLabel, resolveCarry,
+  prNumberFromContext, run,
 };

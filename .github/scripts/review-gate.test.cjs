@@ -176,19 +176,20 @@ test('shouldRemoveLabel: a carried or unverifiable push keeps the label; a faile
   assert.equal(g.shouldRemoveLabel({ ...push, carry: null }), true);
 });
 
-test('prNumberFromContext: PR events and PR comments only', () => {
+test('prNumberFromContext: PR events, reviews, and PR comments only', () => {
   assert.equal(g.prNumberFromContext({ eventName: 'pull_request_target', payload: { pull_request: { number: 5 } } }), 5);
-  assert.equal(g.prNumberFromContext({ eventName: 'pull_request_review', payload: { pull_request: { number: 6 } } }), null);
+  assert.equal(g.prNumberFromContext({ eventName: 'pull_request_review', payload: { pull_request: { number: 6 } } }), 6);
   assert.equal(g.prNumberFromContext({ eventName: 'issue_comment', payload: { issue: { number: 7, pull_request: {} } } }), 7);
   assert.equal(g.prNumberFromContext({ eventName: 'issue_comment', payload: { issue: { number: 8 } } }), null);
 });
 
-function fakeGithub({ labels = [], comments = [], state = 'open', removeStatus, headSha = SHA, graph } = {}) {
-  const calls = { statuses: [], removed: [] };
+function fakeGithub({ labels = [], comments = [], reviews = [], state = 'open', removeStatus, addLabelStatus, headSha = SHA, graph } = {}) {
+  const calls = { statuses: [], removed: [], added: [] };
   const github = {
     rest: {
       pulls: {
         get: async () => ({ data: { state, head: { sha: headSha }, base: { ref: 'main' }, labels: labels.map((name) => ({ name })), html_url: 'u' } }),
+        listReviews: 'listReviews',
       },
       // The head is a single-parent commit by default, so it is never a merge-only tip.
       git: { getCommit: async () => ({ data: { parents: [{ sha: OLD }] } }) },
@@ -198,12 +199,17 @@ function fakeGithub({ labels = [], comments = [], state = 'open', removeStatus, 
           if (removeStatus) { const err = new Error('x'); err.status = removeStatus; throw err; }
           calls.removed.push(a.name);
         },
+        addLabels: async (a) => {
+          if (addLabelStatus) { const err = new Error('x'); err.status = addLabelStatus; throw err; }
+          calls.added.push(...(a.labels || []));
+        },
       },
       repos: { createCommitStatus: async (a) => { calls.statuses.push(a); } },
     },
     paginate: async (fn) => {
-      assert.equal(fn, 'listComments');
-      return comments;
+      if (fn === 'listComments') return comments;
+      if (fn === 'listReviews') return reviews;
+      assert.fail(`unexpected paginate target: ${fn}`);
     },
   };
   // A graph (git-graph-fake.cjs) replaces the single-parent default with a real commit graph, so the
@@ -229,11 +235,122 @@ test('run: posts success status on head sha from an issue comment', async () => 
   assert.deepEqual(calls.removed, []);
 });
 
-test('run: pull_request_review events are ignored (review bodies never count)', async () => {
-  const { github, calls } = fakeGithub({ labels: ['review-acceptable'], comments: [c(ok())] });
-  const r = await g.run({ github, core, context: ctx('pull_request_review', 'submitted', { pull_request: { number: 1 } }) });
-  assert.equal(r, null);
-  assert.equal(calls.statuses.length, 0);
+const rev = (state, commit_id = SHA, submitted_at = '2026-11-21T18:00:00Z', author_association = 'OWNER') =>
+  ({ state, commit_id, submitted_at, author_association });
+
+test('latestReviewVerdict: Approve/Changes Requested for head only; ignores COMMENTED and other SHAs', () => {
+  assert.equal(g.latestReviewVerdict([rev('APPROVED')], SHA), 'acceptable');
+  assert.equal(g.latestReviewVerdict([rev('CHANGES_REQUESTED')], SHA), 'changes-requested');
+  assert.equal(g.latestReviewVerdict([rev('COMMENTED')], SHA), null);
+  assert.equal(g.latestReviewVerdict([rev('APPROVED', OLD)], SHA), null);
+  assert.equal(g.latestReviewVerdict([
+    rev('CHANGES_REQUESTED', SHA, '2026-11-21T18:00:00Z'),
+    rev('APPROVED', SHA, '2026-11-21T19:00:00Z'),
+  ], SHA), 'acceptable');
+  assert.equal(g.latestReviewVerdict([rev('APPROVED', SHA, undefined, 'NONE')], SHA), null);
+});
+
+test('evaluate: trusted Approve for head + label passes', () => {
+  const r = g.evaluate({ labels: LABELLED, headSha: SHA, entries: [], reviewVerdict: 'acceptable' });
+  assert.equal(r.state, 'success');
+  assert.match(r.description, /approved/);
+});
+
+test('evaluate: trusted Changes Requested for head fails even with an acceptable marker', () => {
+  const r = g.evaluate({
+    labels: LABELLED, headSha: SHA, entries: [e(ok())], reviewVerdict: 'changes-requested',
+  });
+  assert.equal(r.state, 'failure');
+  assert.match(r.description, /requested changes/);
+});
+
+test('evaluate: Approve for head clears a prior changes-requested marker', () => {
+  const r = g.evaluate({
+    labels: LABELLED, headSha: SHA, entries: [e(no())], reviewVerdict: 'acceptable',
+  });
+  assert.equal(r.state, 'success');
+});
+
+test('evaluate: marker path still works when there is no review verdict', () => {
+  const r = g.evaluate({ labels: LABELLED, headSha: SHA, entries: [e(ok())], reviewVerdict: null });
+  assert.equal(r.state, 'success');
+  assert.match(r.description, /marked/);
+});
+
+test('shouldRemoveLabel: Approve for head keeps the label; Changes Requested removes it', () => {
+  assert.equal(g.shouldRemoveLabel({
+    labels: LABELLED, headSha: SHA, entries: [], reviewVerdict: 'acceptable',
+  }), false);
+  assert.equal(g.shouldRemoveLabel({
+    labels: LABELLED, headSha: SHA, entries: [e(ok())], reviewVerdict: 'changes-requested',
+  }), true);
+});
+
+test('run: Approve for head auto-adds label and posts success', async () => {
+  const { github, calls } = fakeGithub({
+    labels: [], comments: [], reviews: [rev('APPROVED')],
+  });
+  const r = await g.run({
+    github, core, context: ctx('pull_request_review', 'submitted', { pull_request: { number: 1 } }),
+  });
+  assert.deepEqual(calls.added, ['review-acceptable']);
+  assert.equal(r.state, 'success');
+  assert.equal(calls.statuses[0].state, 'success');
+  assert.match(r.description, /approved/);
+});
+
+test('run: Approve for an older SHA is ignored; still awaiting', async () => {
+  const { github, calls } = fakeGithub({
+    labels: [], comments: [], reviews: [rev('APPROVED', OLD)],
+  });
+  const failures = [];
+  const coreFail = { info() {}, setFailed(m) { failures.push(m); } };
+  const r = await g.run({
+    github, core: coreFail, context: ctx('pull_request_review', 'submitted', { pull_request: { number: 1 } }),
+  });
+  assert.deepEqual(calls.added, []);
+  assert.equal(r.state, 'failure');
+  assert.match(r.description, /Awaiting/);
+  assert.equal(failures.length, 1);
+});
+
+test('run: Changes Requested for head fails and setFailed', async () => {
+  const { github, calls } = fakeGithub({
+    labels: LABELLED, comments: [], reviews: [rev('CHANGES_REQUESTED')],
+  });
+  const failures = [];
+  const coreFail = { info() {}, setFailed(m) { failures.push(m); } };
+  const r = await g.run({
+    github, core: coreFail, context: ctx('pull_request_review', 'submitted', { pull_request: { number: 1 } }),
+  });
+  assert.deepEqual(calls.removed, ['review-acceptable']);
+  assert.equal(r.state, 'failure');
+  assert.equal(calls.statuses[0].state, 'failure');
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /requested changes/);
+});
+
+test('run: setFailed is not called on success', async () => {
+  const { github } = fakeGithub({ labels: LABELLED, comments: [c(ok())] });
+  const failures = [];
+  const coreFail = { info() {}, setFailed(m) { failures.push(m); } };
+  const r = await g.run({
+    github, core: coreFail, context: ctx('issue_comment', 'created', { issue: { number: 1, pull_request: {} } }),
+  });
+  assert.equal(r.state, 'success');
+  assert.deepEqual(failures, []);
+});
+
+test('run: setFailed is called when status is failure', async () => {
+  const { github } = fakeGithub({ labels: [], comments: [] });
+  const failures = [];
+  const coreFail = { info() {}, setFailed(m) { failures.push(m); } };
+  const r = await g.run({
+    github, core: coreFail, context: ctx('issue_comment', 'created', { issue: { number: 1, pull_request: {} } }),
+  });
+  assert.equal(r.state, 'failure');
+  assert.equal(failures.length, 1);
+  assert.equal(failures[0], r.description);
 });
 
 test('run: synchronize removes the label and fails', async () => {
@@ -497,11 +614,11 @@ test('run (real walker): a changes-requested marker on the anchor blocks the car
 const workflow = fs.readFileSync(path.join(__dirname, '..', 'workflows', 'review-gate.yml'), 'utf8');
 const code = workflow.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
 
-test('workflow: only pull_request_target + issue_comment triggers; no pull_request_review / pull_request', () => {
+test('workflow: pull_request_target + issue_comment + pull_request_review; no plain pull_request', () => {
   const on = code.slice(code.indexOf('\non:'), code.indexOf('\npermissions:'));
   assert.match(on, /^  pull_request_target:/m);
   assert.match(on, /^  issue_comment:/m);
-  assert.doesNotMatch(on, /pull_request_review/);
+  assert.match(on, /^  pull_request_review:/m);
   assert.doesNotMatch(on, /^  pull_request:/m);
 });
 
