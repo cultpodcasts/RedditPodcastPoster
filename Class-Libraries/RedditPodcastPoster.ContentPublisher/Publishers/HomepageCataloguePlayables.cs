@@ -214,7 +214,8 @@ public class HomepageCataloguePlayables(
             Language = episode.Language,
             TitleRegex = indexing?.TitleRegex ?? string.Empty,
             DescriptionRegex = indexing?.DescriptionRegex ?? string.Empty,
-            KnownTerms = publisher.KnownTerms
+            KnownTerms = publisher.KnownTerms,
+            ParentId = contentKind == nameof(ContentKind.Film) ? null : publisher.Id
         };
     }
 }

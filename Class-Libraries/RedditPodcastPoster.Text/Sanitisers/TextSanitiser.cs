@@ -30,8 +30,17 @@ public partial class TextSanitiser(
 
     public async Task<string> SanitiseTitle(PostModel postModel)
     {
+        if (postModel.TitleRegexMatchTimedOut && postModel.TitleRegex != null)
+        {
+            logger.LogWarning(
+                "Title regex match timed out after {MatchTimeout}. ParentId {ParentId}. Pattern length {PatternLength}. Title left unchanged.",
+                postModel.TitleRegex.MatchTimeout,
+                postModel.PodcastId,
+                postModel.TitleRegex.ToString().Length);
+        }
+
         return await SanitiseTitle(postModel.EpisodeTitle, postModel.TitleRegex, postModel.PodcastKnownTerms,
-            postModel.SubjectKnownTerms, postModel.Language);
+            postModel.SubjectKnownTerms, postModel.Language, postModel.PodcastId);
     }
 
     public string SanitisePodcastName(PostModel postModel)
@@ -45,11 +54,11 @@ public partial class TextSanitiser(
     }
 
     public async Task<string> SanitiseTitle(string episodeTitle, Regex? regex, string[] podcastKnownTerms,
-        string[] subjectKnownTerms, string? language = null)
+        string[] subjectKnownTerms, string? language = null, Guid? parentId = null)
     {
         if (regex != null)
         {
-            episodeTitle = ExtractTitle(episodeTitle, regex);
+            episodeTitle = ExtractTitle(episodeTitle, regex, parentId);
         }
 
         episodeTitle = FixCharacters(episodeTitle);
@@ -221,9 +230,23 @@ public partial class TextSanitiser(
         return body;
     }
 
-    internal string ExtractTitle(string episodeTitle, Regex regex)
+    internal string ExtractTitle(string episodeTitle, Regex regex, Guid? parentId = null)
     {
-        var match = regex.Match(episodeTitle);
+        Match match;
+        try
+        {
+            match = regex.Match(episodeTitle);
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            // A pathological title regex (see DescriptionRegexTokens.MatchTimeout) leaves the raw title rather than
+            // failing homepage publish or posting. Log the parent id and pattern length, never the pattern or title.
+            logger.LogWarning(ex,
+                "Title regex match timed out after {MatchTimeout}. ParentId {ParentId}. Pattern length {PatternLength}. Title left unchanged.",
+                regex.MatchTimeout, parentId, regex.ToString().Length);
+            return episodeTitle;
+        }
+
         var replacement = "${title}";
         if (match.Groups["partsection"].Success)
         {

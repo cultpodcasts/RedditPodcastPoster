@@ -7,6 +7,9 @@ namespace RedditPodcastPoster.ContentPublisher.Models;
 
 public class PodcastResult
 {
+    [JsonIgnore]
+    public Guid ParentId { get; set; }
+
     [JsonPropertyName("podcastName")]
     public required string PodcastName { get; set; }
 
