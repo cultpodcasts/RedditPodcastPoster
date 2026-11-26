@@ -10,10 +10,10 @@ using RedditPodcastPoster.Models.Podcasts;
 namespace RedditPodcastPoster.EpisodeLookup.BusinessRules.Tests.BusinessRules;
 
 /// <summary>
-/// Small-show full reads outside Index are time-budgeted (EpisodeLookupOptions.FullShowReadBudget), from the real case:
-/// submission 4a7d8838 (apply 13 Oct 22:57 BST). The Compendium (Spotify 185 episodes / 4 pages, Apple 159 / 16 pages
-/// of 10) cost ~45 s per platform per item, mostly per-candidate subject classification for YouTube-discovered
-/// episodes, and two items from that show pushed the synchronous apply past the client's patience.
+/// Small-show full reads are time-budgeted (EpisodeLookupOptions.FullShowReadBudget) in every flow, from:
+/// submission 4a7d8838 (apply 13 Oct 22:57 BST) — The Compendium (Spotify 185 / Apple 159) ~45 s per platform; and
+/// Indexer Nov 2026 — Divorcing Religion / Creative Alchemy Index enrich misses walking ~135–179 episode shows
+/// until the 60 s podcast backstop (Apple up to 18 pages during abandon grace).
 /// </summary>
 public class CatalogueFullShowReadBudgetRules
 {
@@ -106,11 +106,13 @@ public class CatalogueFullShowReadBudgetRules
             logger: logger);
 
     [Theory(DisplayName =
-        "INVARIANT (submission 4a7d8838): Outside Index, a full read of a 159-episode Apple show that would take ~45 s " +
-        "stops when the 20 s budget is spent and falls back to a title search, which can still match.")]
+        "INVARIANT (submission 4a7d8838 + Indexer Divorcing Religion / Creative Alchemy): a full read of a 159-episode " +
+        "Apple show that would take ~45 s stops when the 20 s budget is spent and falls back to a title search, " +
+        "including Index enrich so the hourly podcast 60 s backstop is not the first stop.")]
     [InlineData(EpisodeLookupFlow.Submit)]
     [InlineData(EpisodeLookupFlow.Discovery)]
     [InlineData(EpisodeLookupFlow.Enrich)]
+    [InlineData(EpisodeLookupFlow.Index)]
     public async Task Budget_hit_falls_back_to_title_search(EpisodeLookupFlow flow)
     {
         // Arrange
@@ -181,22 +183,27 @@ public class CatalogueFullShowReadBudgetRules
     }
 
     [Fact(DisplayName =
-        "INVARIANT: The Index flow's full read is not budgeted (it runs in the background) and never title-searches.")]
-    public async Task Index_full_read_is_unbudgeted()
+        "Index: when the 20 s full-show-read budget is spent on a miss path, title-search still runs and can match, " +
+        "because Index no longer leaves small-show enrich unbudgeted.")]
+    public async Task Index_budget_hit_falls_back_to_title_search()
     {
         // Arrange
         var clock = new ManualClock(Now);
         var show = Show(159, targetIndex: 150);
-        var source = new PagedSource(show, clock, TimeSpan.FromSeconds(5), searchHits: [show[150]]);
+        var source = new PagedSource(show, clock, TimeSpan.FromMilliseconds(500), searchHits: [show[150]]);
         var classifier = new PerCandidateCostClassifier(clock, TimeSpan.FromMilliseconds(250));
+        var logger = new RecordingLogger<CatalogueLookupExecutor>();
 
         // Act
-        var result = await Sut(clock, classifier).FindMatch(Lookup(EpisodeLookupFlow.Index, show[150].Release), source);
+        var result = await Sut(clock, classifier, logger).FindMatch(Lookup(EpisodeLookupFlow.Index, show[150].Release), source);
 
         // Assert
         result.Match.Should().Be(show[150]);
-        result.Stage.Should().Be("full-show-read");
-        source.PageCalls.Should().Be(16);
-        source.SearchCalls.Should().Be(0);
+        result.Stage.Should().Be("title-search");
+        source.PageCalls.Should().BeLessThan(16);
+        source.SearchCalls.Should().Be(1);
+        logger.Entries.Should().Contain(x =>
+            x.Level == LogLevel.Information && x.Message.StartsWith(CatalogueLookupExecutor.BudgetLogMessagePrefix) &&
+            x.Message.Contains("flow='Index'"));
     }
 }
