@@ -76,6 +76,6 @@ public class IndexIdProvider(
             "IndexIdProvider catalogue-parent-count='{CatalogueParentCount}'", catalogueParentIds.Length);
 
         logger.LogInformation($"{nameof(Run)} Completed.");
-        return new IndexIdProviderResponse(batches, catalogueParentBatches);
+        return new IndexIdProviderResponse(batches, catalogueParentBatches, _indexerOptions.ParallelPasses);
     }
 }

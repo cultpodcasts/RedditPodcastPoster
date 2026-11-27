@@ -40,6 +40,7 @@ public class ContractWireRules
                 "ServiceLinkDto",
                 "ServiceUrlsDto",
                 "SubjectMatchDto",
+                "SubjectMatchSourceDto",
                 "YouTubeAlternateDto"
             };
 
@@ -250,6 +251,31 @@ public class ContractWireRules
         files[ContractPaths.TypeScript].Should().NotContain("contentKind?: string");
         files[ContractPaths.TypeScript].Should().Contain("\n  contentKind?: ContentKindDto | null;\n");
         files[ContractPaths.Zod].Should().Contain("contentKind: contentKindDtoSchema.nullable().optional(),");
+    }
+
+    [Fact(DisplayName =
+        "When the contract is rendered, then source on SubjectMatchDto is the SubjectMatchSourceDto string enum, exported as a const object plus a type of the same name, so clients compare against named members instead of string literals (#1513).")]
+    public void subject_match_source_exports_as_a_string_enum_const_object()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+
+        // Act
+        var files = ContractText.Render(document).ToDictionary(file => file.RelativePath, file => file.Contents);
+        var shape = document.Types.Single(type => type.Name == "SubjectMatchSourceDto").Shape;
+        var subjectMatch = document.Types.Single(type => type.Name == "SubjectMatchDto");
+
+        // Assert
+        shape.Should().Be(ContractShape.StringEnum);
+        subjectMatch.Properties.Single(property => property.JsonName == "source").Type.Name.Should()
+            .Be("SubjectMatchSourceDto");
+        files[ContractPaths.TypeScript].Should().Contain(
+            "export const SubjectMatchSourceDto = {\n  Title: \"Title\",\n  Description: \"Description\",\n  PodcastDefault: \"PodcastDefault\",\n} as const;\n");
+        files[ContractPaths.TypeScript].Should().Contain(
+            "export type SubjectMatchSourceDto = (typeof SubjectMatchSourceDto)[keyof typeof SubjectMatchSourceDto];");
+        files[ContractPaths.TypeScript].Should().NotContain("\n  source: string;\n");
+        files[ContractPaths.TypeScript].Should().Contain("\n  source: SubjectMatchSourceDto;\n");
+        files[ContractPaths.Zod].Should().Contain("source: subjectMatchSourceDtoSchema,");
     }
 
     [Fact(DisplayName =
