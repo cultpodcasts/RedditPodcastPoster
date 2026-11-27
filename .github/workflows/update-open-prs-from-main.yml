@@ -1,0 +1,36 @@
+# When main advances (usually a merged PR), update every open PR branch that targets
+# main via GitHub's Update Branch API — same as the "Update branch" button. Keeps
+# "Require branches to be up to date before merging" from blocking the next merge.
+# Logic + tests: .github/scripts/update-open-prs-from-main*.cjs
+# Mirrored across RedditPodcastPoster, website, and Api.
+
+name: Update open PRs from main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-open-prs-from-main-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+
+      - name: Merge main into open PR branches
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { run } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/update-open-prs-from-main.cjs`);
+            await run({ github, context, core, baseBranch: 'main' });
