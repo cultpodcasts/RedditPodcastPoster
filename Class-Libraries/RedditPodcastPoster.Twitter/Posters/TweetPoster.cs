@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Episodes;
@@ -15,9 +16,13 @@ public class TweetPoster(
     ITweetBuilder tweetBuilder,
     ITwitterClient twitterClient,
     ICataloguePlayableSocialPosts cataloguePlayableSocialPosts,
+    ITweetSaveBackoff saveBackoff,
     ILogger<TweetPoster> logger)
     : ITweetPoster
 {
+    /// <summary>Attempts to save a document after X accepted its post (#1205).</summary>
+    public const int MaxSaveAttempts = 3;
+
     public async Task<PostTweetResponse> PostTweet(PodcastEpisode podcastEpisode, Uri? shortUrl, bool hasShareImage = false)
     {
         string tweet;
@@ -71,6 +76,37 @@ public class TweetPoster(
                 podcastEpisode.Episode.OldTweeted = true;
             }
 
+            var saveFailure = await SaveWithRetry(podcastEpisode);
+            if (saveFailure == null)
+            {
+                return tweetStatus;
+            }
+
+            if (tweetStatus.TweetSendStatus == TweetSendStatus.Sent)
+            {
+                // The post is live but unrecorded. Report it instead of throwing so the run counts the post and
+                // stops: continuing would post the next candidate while persistence is failing, and the same
+                // candidate would be posted again next run (#1205).
+                logger.LogError(saveFailure,
+                    "Tweet-id '{TweetId}' for podcast-id '{PodcastId}' episode-id '{EpisodeId}' was posted to X but the episode could not be saved as tweeted after {Attempts} attempts; the post is live and the episode may be tweeted again.",
+                    tweetStatus.TweetId, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id, MaxSaveAttempts);
+                return tweetStatus with {TweetSendStatus = TweetSendStatus.SentNotSaved};
+            }
+
+            ExceptionDispatchInfo.Capture(saveFailure).Throw();
+        }
+
+        return tweetStatus;
+    }
+
+    /// <summary>
+    /// Saves the tweeted state, retrying with backoff. Returns the last failure when every attempt failed.
+    /// </summary>
+    private async Task<Exception?> SaveWithRetry(PodcastEpisode podcastEpisode)
+    {
+        Exception? lastFailure = null;
+        for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
+        {
             try
             {
                 if (podcastEpisode.IsCataloguePlayable)
@@ -81,18 +117,24 @@ public class TweetPoster(
                 {
                     await episodeRepository.Save(podcastEpisode.Episode);
                 }
+
+                return null;
             }
             catch (Exception ex)
             {
+                lastFailure = ex;
+                var contentKind = podcastEpisode.ContentKind ?? "episode";
                 logger.LogError(ex,
-                    "Failure to save episode with podcast-id '{PodcastId}' and episode-id '{EpisodeId}' after tweet update.", podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id);
-                throw;
+                    "Failure to save {ContentKind} with podcast-id '{PodcastId}' and episode-id '{EpisodeId}' after tweet update. Attempt {Attempt} of {Attempts}.",
+                    contentKind, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id, attempt, MaxSaveAttempts);
+                if (attempt < MaxSaveAttempts)
+                {
+                    await saveBackoff.Delay(attempt);
+                }
             }
-
-            return tweetStatus;
         }
 
-        return tweetStatus;
+        return lastFailure;
     }
 
     private async Task PersistNotTweetable(PodcastEpisode podcastEpisode, string reason)
