@@ -203,6 +203,87 @@ public class SearchSuggestionsIndexBuilderRules
     }
 
     [Fact(DisplayName =
+        "Search suggestions index: when a film has an IMDb id and a TMDB id, then those ids are indexed as extra film rows with the same film id and alias set to the id, because move-to-film and typeahead match a pasted IMDb or TMDB id (#1534).")]
+    public void film_imdb_and_tmdb_ids_are_indexed_as_extra_rows()
+    {
+        // Arrange
+        var name = CreateName();
+        var imdbId = $"tt{_fixture.Create<int>() % 10_000_000:D7}";
+        var tmdbId = Math.Abs(_fixture.Create<int>() % 1_000_000) + 1;
+        var film = new Film(name) { ImdbId = imdbId, TmdbId = tmdbId };
+
+        // Act
+        var corpus = SearchSuggestionsIndexBuilder.Build([], [], [], [], [film]);
+
+        // Assert
+        corpus.Entries.Should().BeEquivalentTo(
+        [
+            new
+            {
+                Type = "film",
+                Canonical = name,
+                SearchText = name.ToLowerInvariant(),
+                Alias = (string?)null,
+                Id = film.Id.ToString()
+            },
+            new
+            {
+                Type = "film",
+                Canonical = name,
+                SearchText = imdbId.ToLowerInvariant(),
+                Alias = (string?)imdbId,
+                Id = film.Id.ToString()
+            },
+            new
+            {
+                Type = "film",
+                Canonical = name,
+                SearchText = tmdbId.ToString(),
+                Alias = (string?)tmdbId.ToString(),
+                Id = film.Id.ToString()
+            }
+        ]);
+    }
+
+    [Fact(DisplayName =
+        "Search suggestions index: when a film has neither an IMDb id nor a TMDB id, then only the name row is indexed, because matching still works by title and film id alone (#1534).")]
+    public void film_without_external_ids_keeps_name_row_only()
+    {
+        // Arrange
+        var film = new Film(CreateName()) { ImdbId = null, TmdbId = null };
+
+        // Act
+        var corpus = SearchSuggestionsIndexBuilder.Build([], [], [], [], [film]);
+
+        // Assert
+        corpus.Entries.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new
+            {
+                Type = "film",
+                Canonical = film.Name,
+                SearchText = film.Name.ToLowerInvariant(),
+                Alias = (string?)null,
+                Id = film.Id.ToString()
+            });
+    }
+
+    [Fact(DisplayName =
+        "Search suggestions index: when a film's TMDB id is zero or negative, then no TMDB search row is emitted, because those values are not a real TMDB id.")]
+    public void film_non_positive_tmdb_id_is_not_indexed()
+    {
+        // Arrange
+        var zero = new Film(CreateName()) { TmdbId = 0 };
+        var negative = new Film(CreateName()) { TmdbId = -1 };
+
+        // Act
+        var corpus = SearchSuggestionsIndexBuilder.Build([], [], [], [], [zero, negative]);
+
+        // Assert
+        corpus.Entries.Should().HaveCount(2);
+        corpus.Entries.Should().OnlyContain(e => e.Alias == null && e.SearchText == e.Canonical.ToLowerInvariant());
+    }
+
+    [Fact(DisplayName =
         "Search suggestions index: when two films share a name, then both are indexed with their own id, because film names can repeat and the match key includes the film id.")]
     public void same_name_films_are_not_collapsed()
     {
