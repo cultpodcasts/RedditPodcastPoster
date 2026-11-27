@@ -16,7 +16,7 @@ public class DiscoveryResponseSubjectMatchesTests
     private readonly Fixture _fixture = new();
 
     [Fact(DisplayName =
-        "When the discovery API maps a result, it returns subjectMatches with the matched term and a string source, so the website can show why each subject matched.")]
+        "When the discovery API maps a result, it returns subjectMatches with the matched term and a SubjectMatchSourceDto source, so the website can show why each subject matched.")]
     public void discovery_response_item_exposes_subject_matches()
     {
         // Arrange
@@ -32,7 +32,8 @@ public class DiscoveryResponseSubjectMatchesTests
         var json = JsonSerializer.Serialize(dto);
 
         // Assert
-        dto.SubjectMatches.Should().ContainSingle(m => m.Term == match.Term && m.Subject == match.Subject);
+        dto.SubjectMatches.Should().ContainSingle(m =>
+            m.Term == match.Term && m.Subject == match.Subject && m.Source == SubjectMatchSourceDto.Title);
         json.Should().Contain($"\"subjectMatches\":[{{\"subject\":\"{match.Subject}\",\"term\":\"{match.Term}\",\"source\":\"Title\"}}]");
     }
 
@@ -99,7 +100,7 @@ public class DiscoveryResponseSubjectMatchesTests
         // Assert
         dtos.Should().ContainSingle().Which.Should().BeEquivalentTo(new SubjectMatchDto
         {
-            Subject = match.Subject, Term = match.Term, Source = "Description"
+            Subject = match.Subject, Term = match.Term, Source = SubjectMatchSourceDto.Description
         });
         emptyDtos.Should().NotBeNull().And.BeEmpty();
     }
