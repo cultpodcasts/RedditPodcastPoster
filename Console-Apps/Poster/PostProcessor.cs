@@ -200,6 +200,15 @@ public class PostProcessor(
                 case TweetSendStatus.AuthenticationFailed:
                     logger.LogError("X rejected the credentials (401/403); tweet not sent.");
                     break;
+                case TweetSendStatus.ServerError:
+                    logger.LogError("X answered with a server error (5xx); tweet may not have been sent.");
+                    break;
+                case TweetSendStatus.Timeout:
+                    logger.LogError("The request to X timed out; the tweet may have been accepted. Check the account before retrying.");
+                    break;
+                case TweetSendStatus.SentNotSaved:
+                    logger.LogError("Tweet was sent but the episode could not be saved as tweeted; it may be tweeted again.");
+                    break;
                 case TweetSendStatus.Failed:
                     logger.LogError("Failed to send tweet.");
                     break;
