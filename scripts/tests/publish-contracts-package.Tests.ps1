@@ -1,8 +1,44 @@
-#Requires -Version 7
+﻿#Requires -Version 7
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0' }
 
 BeforeAll {
     . (Join-Path $PSScriptRoot '..' 'publish-contracts-package.ps1')
+
+    function New-FakePublishedContractsTarball {
+        param(
+            [string] $IndexTs = "export {}`n",
+            [string] $ZodTs = "export {}`n",
+            [string] $SchemaJson = "{}`n",
+            [string] $StoredHash
+        )
+
+        $stage = Join-Path ([System.IO.Path]::GetTempPath()) ('fake-pack-stage-' + [guid]::NewGuid().ToString('n'))
+        $packageDir = Join-Path $stage 'package'
+        New-Item -ItemType Directory -Path (Join-Path $packageDir 'src'), (Join-Path $packageDir 'schemas') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $packageDir 'src/index.ts') -Value $IndexTs -NoNewline
+        Set-Content -LiteralPath (Join-Path $packageDir 'src/zod.ts') -Value $ZodTs -NoNewline
+        Set-Content -LiteralPath (Join-Path $packageDir 'schemas/contracts.schema.json') -Value $SchemaJson -NoNewline
+        $pkg = [ordered]@{
+            name    = '@example/contracts'
+            version = '0.1.2'
+        }
+        if ($PSBoundParameters.ContainsKey('StoredHash') -and $null -ne $StoredHash) {
+            $pkg['contractsContentHash'] = $StoredHash
+        }
+
+        $pkgJson = ($pkg | ConvertTo-Json -Compress)
+        Set-Content -LiteralPath (Join-Path $packageDir 'package.json') -Value $pkgJson -NoNewline
+
+        $tgzName = 'example-contracts-0.1.2.tgz'
+        $tgzPath = Join-Path (Get-Location) $tgzName
+        & tar -czf $tgzPath -C $stage package
+        if ($LASTEXITCODE -ne 0) {
+            throw "tar failed building fake pack ($LASTEXITCODE)"
+        }
+
+        Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+        return $tgzName
+    }
 }
 
 Describe 'contract publish plan' {
@@ -103,6 +139,50 @@ Describe 'generated content hash' {
     }
 }
 
+Describe 'published hash from npm pack' {
+    It 'reads contractsContentHash from the packed package.json' {
+        $fakePack = {
+            $global:LASTEXITCODE = 0
+            $line = $args -join ' '
+            if ($line -match '^pack ') {
+                New-FakePublishedContractsTarball -StoredHash 'abc123' | Out-Null
+                return 'example-contracts-0.1.2.tgz'
+            }
+            $global:LASTEXITCODE = 1
+            return "unexpected $line"
+        }
+
+        $result = Get-PublishedContractsContentHash -Command $fakePack -PackageName '@example/contracts' -Version '0.1.2'
+
+        $result.Ok | Should -BeTrue
+        $result.Hash | Should -Be 'abc123'
+    }
+
+    It 'falls back to hashing packed generated files when the field is missing' {
+        $fakePack = {
+            $global:LASTEXITCODE = 0
+            $line = $args -join ' '
+            if ($line -match '^pack ') {
+                New-FakePublishedContractsTarball | Out-Null
+                return 'example-contracts-0.1.2.tgz'
+            }
+            $global:LASTEXITCODE = 1
+            return "unexpected $line"
+        }
+
+        $result = Get-PublishedContractsContentHash -Command $fakePack -PackageName '@example/contracts' -Version '0.1.2'
+        $expectedDir = Join-Path $TestDrive 'expected-fallback'
+        New-Item -ItemType Directory -Path (Join-Path $expectedDir 'src'), (Join-Path $expectedDir 'schemas') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $expectedDir 'src/index.ts') -Value "export {}`n" -NoNewline
+        Set-Content -LiteralPath (Join-Path $expectedDir 'src/zod.ts') -Value "export {}`n" -NoNewline
+        Set-Content -LiteralPath (Join-Path $expectedDir 'schemas/contracts.schema.json') -Value "{}`n" -NoNewline
+        $expected = Get-ContractsContentHash -Directory $expectedDir
+
+        $result.Ok | Should -BeTrue
+        $result.Hash | Should -Be $expected
+    }
+}
+
 Describe 'publish script' {
     It 'does not publish when the registry already has this hash' {
         $dir = Join-Path $TestDrive 'pkg-skip'
@@ -118,14 +198,18 @@ Describe 'publish script' {
             $global:LASTEXITCODE = 0
             $line = $args -join ' '
             if ($line -match 'versions') { return '["0.1.2"]' }
-            if ($line -match 'contractsContentHash') { return ('"' + $hash + '"') }
+            if ($line -match '^pack ') {
+                New-FakePublishedContractsTarball -StoredHash $hash | Out-Null
+                return 'example-contracts-0.1.2.tgz'
+            }
             return 'unexpected'
         }
 
         $code = Invoke-ContractsPackagePublish -Directory $dir -Command $fake
 
         $code | Should -Be 0
-        ($calls -join "`n") | Should -Not -Match 'publish'
+        ($calls -join "`n") | Should -Not -Match '(^|\s)publish(\s|$)'
+        ($calls -join "`n") | Should -Match 'pack '
     }
 
     It 'sets the next patch and publishes when the hash differs' {
@@ -141,7 +225,10 @@ Describe 'publish script' {
             $global:LASTEXITCODE = 0
             $line = $args -join ' '
             if ($line -match 'versions') { return '["0.1.2"]' }
-            if ($line -match 'contractsContentHash') { return '"previous"' }
+            if ($line -match '^pack ') {
+                New-FakePublishedContractsTarball -StoredHash 'previous' | Out-Null
+                return 'example-contracts-0.1.2.tgz'
+            }
             if ($line -match '^version ') {
                 $pkgPath = Join-Path (Get-Location) 'package.json'
                 $node = [System.Text.Json.Nodes.JsonNode]::Parse((Get-Content -LiteralPath $pkgPath -Raw))
