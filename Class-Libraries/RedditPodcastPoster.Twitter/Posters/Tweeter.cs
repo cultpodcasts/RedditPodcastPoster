@@ -109,6 +109,12 @@ public class Tweeter(
             }
 
             var tweetStatus = await tweetPoster.PostTweet(podcastEpisode, shortUrl, hasShareImage);
+            // Single policy table: count live posts first, then stop when the status forbids continuing.
+            if (CountsAsPosted(tweetStatus.TweetSendStatus))
+            {
+                run.RecordSent();
+            }
+
             if (StopsRun(tweetStatus.TweetSendStatus))
             {
                 LogRunStopped(tweetStatus.TweetSendStatus, podcastEpisode);
@@ -118,7 +124,6 @@ public class Tweeter(
 
             if (tweetStatus.TweetSendStatus == TweetSendStatus.Sent)
             {
-                run.RecordSent();
                 return true;
             }
 
@@ -144,10 +149,18 @@ public class Tweeter(
         }
     }
 
-    /// <summary>Statuses that mean no further post can succeed in this run.</summary>
+    /// <summary>Statuses that mean a post is (or may be) live on X and counts toward MaxPosts.</summary>
+    public static bool CountsAsPosted(TweetSendStatus status) =>
+        status is TweetSendStatus.Sent or TweetSendStatus.SentNotSaved;
+
+    /// <summary>
+    /// Statuses that mean no further post should be attempted in this run: account-wide refusals,
+    /// uncertain timeouts, or a live post whose tweeted state could not be saved (#1205).
+    /// </summary>
     public static bool StopsRun(TweetSendStatus status) =>
         status is TweetSendStatus.TooManyRequests or TweetSendStatus.PaymentRequired
-            or TweetSendStatus.AuthenticationFailed;
+            or TweetSendStatus.AuthenticationFailed or TweetSendStatus.ServerError or TweetSendStatus.Timeout
+            or TweetSendStatus.SentNotSaved;
 
     /// <summary>
     /// The document is already persisted as done, so the candidate is a skip, not a failure
@@ -162,10 +175,16 @@ public class Tweeter(
         {
             TweetSendStatus.PaymentRequired => "X credits depleted (402 Payment Required or usage-capped)",
             TweetSendStatus.AuthenticationFailed => "X rejected the credentials (401/403)",
+            TweetSendStatus.ServerError => "X answered with a server error (5xx)",
+            TweetSendStatus.Timeout => "The request to X timed out (the post may have been accepted)",
+            TweetSendStatus.SentNotSaved => "A post was accepted by X but could not be saved as tweeted",
             _ => "X rate limit reached (429 Too Many Requests)"
         };
         logger.LogWarning(
-            "{Reason}; stopping tweet run. {ContentKind} with id '{EpisodeId}' stays untweeted and is retried next run.",
-            reason, podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id);
+            "{Reason}; stopping tweet run. {ContentKind} with id '{EpisodeId}' is {Outcome}.",
+            reason, podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id,
+            status == TweetSendStatus.SentNotSaved
+                ? "live on X but not recorded as tweeted; check it before the next run"
+                : "left untweeted and retried next run");
     }
 }
