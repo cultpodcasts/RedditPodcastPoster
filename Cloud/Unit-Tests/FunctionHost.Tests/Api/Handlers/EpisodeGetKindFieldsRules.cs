@@ -13,6 +13,7 @@ using Api.Models;
 using Api.Services.Episodes;
 using Api.Services.Public;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Text.Sanitisers;
 using Xunit;
 using Subject = RedditPodcastPoster.Models.Subjects.Subject;
@@ -55,7 +56,7 @@ public class EpisodeGetKindFieldsRules
     }
 
     private PlayableKind CreateNewsKind(string parentName, Guid parentId) =>
-        new("NewsReport", parentId, parentName, parentName,
+        new(ContentKind.NewsReport, parentId, parentName, parentName,
             $"/news/{Uri.EscapeDataString(parentName)}/{_fixture.CreateYouTubeId()}");
 
     [Fact(DisplayName =
@@ -79,7 +80,7 @@ public class EpisodeGetKindFieldsRules
         var body = await ReadJsonBodyAsync(result);
         body.GetProperty("podcastName").GetString().Should().Be(podcast.Name);
         body.GetProperty("podcastId").GetGuid().Should().Be(podcast.Id);
-        body.GetProperty("contentKind").GetString().Should().Be(kind.ContentKind);
+        body.GetProperty("contentKind").GetString().Should().Be(kind.ContentKind.ToString());
         body.GetProperty("parentId").GetGuid().Should().Be(podcast.Id);
         body.GetProperty("parentName").GetString().Should().Be(podcast.Name);
         body.GetProperty("slug").GetString().Should().Be(podcast.Name);
@@ -93,7 +94,7 @@ public class EpisodeGetKindFieldsRules
         // Arrange
         var podcast = _fixture.CreatePodcast(p => p.Name = _fixture.CreateTitle());
         var episode = _fixture.CreateStoredEpisode(podcast);
-        var kind = new PlayableKind("Film", null, null, podcast.Name, $"/film/{Uri.EscapeDataString(podcast.Name)}/{_fixture.CreateYouTubeId()}");
+        var kind = new PlayableKind(ContentKind.Film, null, null, podcast.Name, $"/film/{Uri.EscapeDataString(podcast.Name)}/{_fixture.CreateYouTubeId()}");
         _publicResult = new PublicEpisodeGetResult(PublicEpisodeGetStatus.Ok, episode, podcast, kind);
         var (req, _) = HttpTestHelpers.CreateRequestResponse("GET");
         var sut = _mocker.CreateInstance<GetPublicEpisodeHandler>();

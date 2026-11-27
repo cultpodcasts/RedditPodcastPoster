@@ -5,6 +5,8 @@ namespace RedditPodcastPoster.UrlShortening.Extensions;
 /// <summary>
 /// Public short id for routes and the shortener. Podcast episodes stay an unprefixed
 /// 16-byte GUID. Film, TV, and News prepend ASCII f, t, or n before the same GUID bytes.
+/// Domain <see cref="ContentKind"/> is the canonical API; string overloads parse names
+/// (and null = Episode) for wire/decode callers that still hold kind names.
 /// </summary>
 public static class CatalogueShortId
 {
@@ -13,19 +15,18 @@ public static class CatalogueShortId
     public const string NewsReport = nameof(ContentKind.NewsReport);
 
     /// <summary>
-    /// A missing kind and Episode stay the unprefixed podcast id.
-    /// Film, TV, and News are prefixed. Any other string throws.
+    /// Episode stays the unprefixed podcast id. Film, TV, and News are prefixed.
     /// </summary>
-    public static string Encode(Guid id, string? contentKind)
+    public static string Encode(Guid id, ContentKind contentKind)
     {
-        if (IsUnprefixedEpisode(contentKind))
+        if (contentKind == ContentKind.Episode)
         {
             return GuidExtensions.ToBase64(id);
         }
 
         if (!TryPrefix(contentKind, out var prefix))
         {
-            throw UnknownKind(contentKind);
+            throw UnknownKind(contentKind.ToString());
         }
 
         var guidBytes = id.ToByteArray();
@@ -36,22 +37,35 @@ public static class CatalogueShortId
     }
 
     /// <summary>
-    /// Public playable path. Podcast stays /podcast and an unprefixed short id.
-    /// Film, TV, and News use their route and the prefixed short id.
+    /// Parses a kind name (or null = Episode) then encodes. Prefer
+    /// <see cref="Encode(Guid, ContentKind)"/> when the caller already has the enum.
     /// </summary>
-    public static string PlayablePath(string slug, Guid id, string? contentKind)
+    public static string Encode(Guid id, string? contentKind) =>
+        Encode(id, ParseContentKind(contentKind));
+
+    /// <summary>
+    /// Public playable path. <see cref="ContentKind.Episode"/> maps to <c>/podcast</c>
+    /// with an unprefixed short id; Film, TV, and News use their route and prefixed id.
+    /// </summary>
+    public static string PlayablePath(string slug, Guid id, ContentKind contentKind)
     {
         var root = contentKind switch
         {
-            null or nameof(ContentKind.Episode) => "podcast",
-            Film => "film",
-            TvShowEpisode => "tv",
-            NewsReport => "news",
-            _ => throw UnknownKind(contentKind)
+            ContentKind.Episode => "podcast",
+            ContentKind.Film => "film",
+            ContentKind.TvShowEpisode => "tv",
+            ContentKind.NewsReport => "news",
+            _ => throw UnknownKind(contentKind.ToString())
         };
-        var shortId = Encode(id, contentKind);
-        return $"/{root}/{EncodePlayableSlug(slug)}/{shortId}";
+        return $"/{root}/{EncodePlayableSlug(slug)}/{Encode(id, contentKind)}";
     }
+
+    /// <summary>
+    /// Parses a kind name (or null = Episode) then builds the path. Prefer
+    /// <see cref="PlayablePath(string, Guid, ContentKind)"/> when the caller already has the enum.
+    /// </summary>
+    public static string PlayablePath(string slug, Guid id, string? contentKind) =>
+        PlayablePath(slug, id, ParseContentKind(contentKind));
 
     /// <summary>
     /// Match the site <c>encodeURIComponent</c> contract. <see cref="Uri.EscapeDataString"/>
@@ -110,22 +124,33 @@ public static class CatalogueShortId
         return false;
     }
 
+    /// <summary>
+    /// Null and <c>Episode</c> mean podcast episode. Other names must match
+    /// <see cref="Film"/>, <see cref="TvShowEpisode"/>, or <see cref="NewsReport"/>.
+    /// </summary>
+    public static ContentKind ParseContentKind(string? contentKind) =>
+        contentKind switch
+        {
+            null or nameof(ContentKind.Episode) => ContentKind.Episode,
+            Film => ContentKind.Film,
+            TvShowEpisode => ContentKind.TvShowEpisode,
+            NewsReport => ContentKind.NewsReport,
+            _ => throw UnknownKind(contentKind)
+        };
+
     private static string ToUrlBase64(byte[] bytes) =>
         Convert.ToBase64String(bytes).Replace("/", "-").Replace("+", "_").Replace("=", "");
-
-    private static bool IsUnprefixedEpisode(string? contentKind) =>
-        contentKind is null || contentKind == nameof(ContentKind.Episode);
 
     private static ArgumentException UnknownKind(string? contentKind) =>
         new($"Unknown catalogue content kind \"{contentKind}\".");
 
-    private static bool TryPrefix(string? contentKind, out byte prefix)
+    private static bool TryPrefix(ContentKind contentKind, out byte prefix)
     {
         prefix = contentKind switch
         {
-            nameof(ContentKind.Film) => (byte)'f',
-            nameof(ContentKind.TvShowEpisode) => (byte)'t',
-            nameof(ContentKind.NewsReport) => (byte)'n',
+            ContentKind.Film => (byte)'f',
+            ContentKind.TvShowEpisode => (byte)'t',
+            ContentKind.NewsReport => (byte)'n',
             _ => 0
         };
         return prefix != 0;

@@ -94,7 +94,7 @@ public class ContentKindDtoJsonEquivalenceTests
     public void episode_dtos_write_the_kind_name()
     {
         // Arrange
-        var kind = new PlayableKind(nameof(ContentKind.NewsReport), _fixture.Create<Guid>(), _fixture.Create<string>(),
+        var kind = new PlayableKind(ContentKind.NewsReport, _fixture.Create<Guid>(), _fixture.Create<string>(),
             _fixture.Create<string>(), _fixture.Create<string>());
 
         // Act

@@ -8,7 +8,7 @@ namespace Api.Resolvers;
 /// models are built from (<see cref="RedditPodcastPoster.Models.Catalogue.CatalogueParentKindMapper"/>.ToPostProjection).
 /// The projection is read-only: never save it.
 /// </summary>
-/// <param name="ContentKind"><c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c>.</param>
+/// <param name="ContentKind"><see cref="ContentKind.NewsReport"/>, <see cref="ContentKind.TvShowEpisode"/> or <see cref="ContentKind.Film"/>.</param>
 /// <param name="ParentId">News organisation or TV show id; null for a film (no parent).</param>
 /// <param name="ParentName">News organisation or TV show name; null for a film.</param>
 /// <param name="Slug">The site route segment: the parent name, or the film's own name.</param>
@@ -18,7 +18,7 @@ namespace Api.Resolvers;
 /// Curator publish rejects only this — item-level <c>Removed</c> may still publish and clear.
 /// </param>
 public record CataloguePlayableResolution(
-    string ContentKind,
+    ContentKind ContentKind,
     PodcastEpisode Projection,
     Guid? ParentId,
     string? ParentName,

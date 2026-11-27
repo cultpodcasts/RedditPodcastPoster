@@ -92,7 +92,7 @@ public class CataloguePlayableResolver(
         var name = organisation.Name.Trim();
         var parentRemoved = report.ParentRemoved == true || organisation.IsRemoved();
         return new CataloguePlayableResolution(
-            nameof(ContentKind.NewsReport),
+            ContentKind.NewsReport,
             CatalogueParentKindMapper.ToPostProjection(report, organisation),
             organisation.Id,
             name,
@@ -112,7 +112,7 @@ public class CataloguePlayableResolver(
         var name = show.Name.Trim();
         var parentRemoved = tvEpisode.ParentRemoved == true || show.IsRemoved();
         return new CataloguePlayableResolution(
-            nameof(ContentKind.TvShowEpisode),
+            ContentKind.TvShowEpisode,
             CatalogueParentKindMapper.ToPostProjection(tvEpisode, show),
             show.Id,
             name,
@@ -124,7 +124,7 @@ public class CataloguePlayableResolver(
 
     private static CataloguePlayableResolution ToFilmResolution(RedditPodcastPoster.Models.Films.Film film) =>
         new(
-            nameof(ContentKind.Film),
+            ContentKind.Film,
             CatalogueParentKindMapper.ToPostProjection(film),
             null,
             null,
