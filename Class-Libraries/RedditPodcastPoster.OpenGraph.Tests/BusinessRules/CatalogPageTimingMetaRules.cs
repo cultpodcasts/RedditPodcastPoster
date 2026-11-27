@@ -164,4 +164,49 @@ public class CatalogPageTimingMetaRules
         // Assert
         recovered.Should().Be(airDate);
     }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta recovers Duration from HBO Max contentDetails runtime 44m, " +
+        "so Max episode SSR that only embeds a clock string still fills Length.")]
+    public void quoted_clock_runtime_minutes_only()
+    {
+        // Arrange
+        const string html = """{"contentDetails":{"runtime":"44m"}}""";
+
+        // Act
+        var duration = CatalogPageTimingMeta.TryDurationFromHtml(html);
+
+        // Assert
+        duration.Should().Be(TimeSpan.FromMinutes(44));
+    }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta recovers Duration from HBO Max contentDetails runtime 1h 28m, " +
+        "so Max film/episode clock strings with hours still fill Length.")]
+    public void quoted_clock_runtime_hours_and_minutes()
+    {
+        // Arrange
+        const string html = """{"contentDetails":{"runtime":"1h 28m"}}""";
+
+        // Act
+        var duration = CatalogPageTimingMeta.TryDurationFromHtml(html);
+
+        // Assert
+        duration.Should().Be(new TimeSpan(1, 28, 0));
+    }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta does not treat CSS transition-duration as episode Length, " +
+        "so stylesheet freights cannot coerce Duration when Max runtime is absent.")]
+    public void css_transition_duration_does_not_win()
+    {
+        // Arrange — unquoted CSS clock must not satisfy the Max "runtime":"…" parser.
+        const string html = ".fade { transition-duration: 44m; }";
+
+        // Act
+        var duration = CatalogPageTimingMeta.TryDurationFromHtml(html);
+
+        // Assert
+        duration.Should().BeNull();
+    }
 }

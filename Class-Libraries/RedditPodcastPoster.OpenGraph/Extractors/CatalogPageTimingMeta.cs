@@ -54,6 +54,20 @@ public static partial class CatalogPageTimingMeta
             }
         }
 
+        // HBO Max contentDetails: "runtime":"44m" / "runtime":"1h 28m" (quoted key — not CSS).
+        var quotedClock = QuotedClockRuntimeRegex().Match(html);
+        if (quotedClock.Success)
+        {
+            var clockHours = quotedClock.Groups[1].Success
+                ? int.Parse(quotedClock.Groups[1].Value, CultureInfo.InvariantCulture)
+                : 0;
+            var clockMinutes = int.Parse(quotedClock.Groups[2].Value, CultureInfo.InvariantCulture);
+            if (clockHours > 0 || clockMinutes > 0)
+            {
+                return new TimeSpan(clockHours, clockMinutes, 0);
+            }
+        }
+
         var bareSeconds = DurationBareSecondsRegex().Match(html);
         if (bareSeconds.Success &&
             int.TryParse(bareSeconds.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds) &&
@@ -345,6 +359,15 @@ public static partial class CatalogPageTimingMeta
         @"duration\\*""\s*:\s*\\*""(P[^""\\]+)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex IsoDurationInJsonRegex();
+
+    /// <summary>
+    /// WBD Max <c>contentDetails.runtime</c>: <c>"runtime":"44m"</c> or <c>"runtime":"1h 28m"</c>.
+    /// Requires a quoted JSON property name so CSS <c>transition-duration</c> cannot match.
+    /// </summary>
+    [GeneratedRegex(
+        @"\\*""runtime\\*""\s*:\s*\\*""(?:(\d+)\s*h\s*)?(\d+)\s*m\\*""",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex QuotedClockRuntimeRegex();
 
     [GeneratedRegex(
         @"\\*""duration\\*""\s*:\s*(\d+)",

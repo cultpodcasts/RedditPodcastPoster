@@ -80,16 +80,17 @@ internal static partial class DiscoveryPlusCatalogMeta
                 MadeAsFilm: true);
         }
 
-        var description = openGraph?.Description ?? string.Empty;
+        var description = WbdCatalogPageMeta.CleanWatchMarketingDescription(openGraph?.Description);
         var showName = ResolveShowName(url, html, openGraph, rawTitle);
-        var title = ResolveEpisodeTitle(url, rawTitle, description, showName) ?? rawTitle;
+        var title = ResolveEpisodeTitle(url, rawTitle, openGraph?.Description ?? string.Empty, showName) ?? rawTitle;
+        var image = WbdCatalogPageMeta.TryEpisodeImage(url, html, openGraph?.Image);
 
         return new NonPodcastServiceItemMetaData(
             title,
             description,
             duration,
             release,
-            openGraph?.Image,
+            image,
             openGraph?.Explicit,
             DiscoveryPlusPageMetaDataExtractor.Publisher,
             showName,
@@ -172,7 +173,7 @@ internal static partial class DiscoveryPlusCatalogMeta
     {
         var fromAlt = FirstGroup(html, OgImageAltRegex());
         var fromJsonLd = openGraph?.ShowName ?? FirstGroup(html, TvSeriesNameRegex());
-        var fromTitle = ParseShowNameFromWatchTitle(cleanedOgTitle);
+        var fromTitle = WbdCatalogPageMeta.ParseShowNameFromWatchTitle(cleanedOgTitle);
 
         var showName = OpenGraphSeriesName.FromDistinctCandidates(
             cleanedOgTitle,
@@ -186,7 +187,7 @@ internal static partial class DiscoveryPlusCatalogMeta
             !DiscoveryPlusUrlMatcher.IsEpisodePath(url))
         {
             // Show hub only: title-as-ShowName after stripping Watch / season tails.
-            showName = fromTitle ?? StripWatchPrefix(cleanedOgTitle);
+            showName = fromTitle ?? WbdCatalogPageMeta.StripWatchPrefix(cleanedOgTitle);
         }
 
         if (string.Equals(showName, DiscoveryPlusPageMetaDataExtractor.Publisher, StringComparison.OrdinalIgnoreCase))
@@ -205,13 +206,13 @@ internal static partial class DiscoveryPlusCatalogMeta
     {
         if (!DiscoveryPlusUrlMatcher.IsEpisodePath(url))
         {
-            return StripWatchPrefix(cleanedOgTitle);
+            return WbdCatalogPageMeta.StripWatchPrefix(cleanedOgTitle);
         }
 
-        var fromDescription = FirstGroup(description, DescriptionEpisodeTitleRegex());
+        var fromDescription = WbdCatalogPageMeta.TryEpisodeTitleFromDescription(description);
         if (!string.IsNullOrWhiteSpace(fromDescription))
         {
-            return fromDescription.Trim().TrimEnd('.');
+            return fromDescription;
         }
 
         var fromSlug = EpisodeTitleFromPath(url);
@@ -237,30 +238,7 @@ internal static partial class DiscoveryPlusCatalogMeta
             }
         }
 
-        return StripWatchPrefix(cleanedOgTitle);
-    }
-
-    private static string? ParseShowNameFromWatchTitle(string cleanedOgTitle)
-    {
-        var withoutWatch = StripWatchPrefix(cleanedOgTitle);
-        var beforeSeason = SeasonSplitRegex().Match(withoutWatch);
-        if (beforeSeason.Success)
-        {
-            return beforeSeason.Groups[1].Value.Trim().TrimEnd(':', '|', '-').Trim();
-        }
-
-        return string.IsNullOrWhiteSpace(withoutWatch) ? null : withoutWatch;
-    }
-
-    private static string StripWatchPrefix(string title)
-    {
-        const string watch = "Watch ";
-        if (title.StartsWith(watch, StringComparison.OrdinalIgnoreCase))
-        {
-            return title[watch.Length..].Trim();
-        }
-
-        return title.Trim();
+        return WbdCatalogPageMeta.StripWatchPrefix(cleanedOgTitle);
     }
 
     private static string? EpisodeTitleFromPath(Uri url)
@@ -364,23 +342,9 @@ internal static partial class DiscoveryPlusCatalogMeta
     private static partial Regex TvSeriesNameRegex();
 
     [GeneratedRegex(
-        @"^(.*?)\s*\|\s*Season\s+\d+",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex SeasonSplitRegex();
-
-    [GeneratedRegex(
         @"\|\s*(Season\s+\d+\s+Episode\s+\d+)\s*$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SeasonEpisodeTailRegex();
-
-    /// <summary>
-    /// Capture after <c>Season N, Episode M - </c> until a structural end: space-dot blurb
-    /// separator, pipe, or end of string — not the first <c>.</c> (titles may contain periods).
-    /// </summary>
-    [GeneratedRegex(
-        @"Season\s+\d+\s*,\s*Episode\s+\d+\s*-\s*(.+?)(?:\s+\.|\||$)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex DescriptionEpisodeTitleRegex();
 
     [GeneratedRegex(@"^e\d+-(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex EpisodeSlugRegex();
