@@ -103,4 +103,49 @@ public class DiscoveryPlusUrlMatcherRules
         // Assert
         matches.Should().BeFalse();
     }
+
+    [Fact(DisplayName =
+        "A discovery+ /show/{uuid} path with no season/episode segments is a show hub, " +
+        "so submit can reject it instead of minting a fake episode (#1587).")]
+    public void show_uuid_alone_is_show_hub()
+    {
+        // Arrange
+        var showId = _fixture.CreateGuid();
+        var url = new Uri($"https://www.discoveryplus.com/show/{showId}");
+
+        // Act
+        var hub = DiscoveryPlusUrlMatcher.IsShowHub(url);
+        var episode = DiscoveryPlusUrlMatcher.IsEpisodePath(url);
+        var gotId = DiscoveryPlusUrlMatcher.TryGetShowId(url, out var parsed);
+
+        // Assert
+        hub.Should().BeTrue();
+        episode.Should().BeFalse();
+        gotId.Should().BeTrue();
+        parsed.Should().Be(showId.ToString());
+    }
+
+    [Fact(DisplayName =
+        "A discovery+ episode path under /show/{uuid}/sN/e… shares the show UUID with the hub, " +
+        "so later episode submits can attach to the same TvShow (#1587).")]
+    public void episode_path_shares_show_id_with_hub()
+    {
+        // Arrange
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var hub = new Uri($"https://www.discoveryplus.com/show/{showId}");
+        var episode = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e1-rise-of-top-g/{episodeId}");
+
+        // Act
+        DiscoveryPlusUrlMatcher.TryGetShowId(hub, out var hubId).Should().BeTrue();
+        DiscoveryPlusUrlMatcher.TryGetShowId(episode, out var episodeShowId).Should().BeTrue();
+
+        // Assert
+        DiscoveryPlusUrlMatcher.IsShowHub(hub).Should().BeTrue();
+        DiscoveryPlusUrlMatcher.IsEpisodePath(episode).Should().BeTrue();
+        DiscoveryPlusUrlMatcher.IsShowHub(episode).Should().BeFalse();
+        episodeShowId.Should().Be(hubId);
+        DiscoveryPlusUrlMatcher.SameShow(episode, hubId).Should().BeTrue();
+    }
 }

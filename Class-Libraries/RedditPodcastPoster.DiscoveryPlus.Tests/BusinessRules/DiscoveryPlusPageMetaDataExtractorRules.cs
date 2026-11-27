@@ -123,6 +123,61 @@ public class DiscoveryPlusPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "A discovery+ episode page uses og:image:alt as ShowName and the description episode title as Title, " +
+        "so siblings share one series instead of each OG title becoming its own TvShow (#1587).")]
+    public async Task episode_page_uses_image_alt_show_name_and_description_episode_title()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var episodeTitle = _fixture.CreateTitle();
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var url = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e1-slug/{episodeId}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {showName} | Season  1 Episode 1 | discovery+\" />" +
+            $"<meta property=\"og:image:alt\" content=\"{showName}\" />" +
+            $"<meta property=\"og:description\" content=\"Watch {showName}: Season  1, Episode 1 - {episodeTitle} . More blurb.\" />" +
+            "<meta property=\"og:type\" content=\"video.tv_show\" />" +
+            "</head></html>");
+        var sut = _mocker.CreateInstance<DiscoveryPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(showName);
+        meta.Title.Should().Be(episodeTitle);
+        meta.Publisher.Should().Be("discovery+");
+        meta.MadeAsFilm.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A discovery+ show hub strips the Watch prefix from og:title for ShowName, " +
+        "so the series brand is not stored as 'Watch …'.")]
+    public async Task hub_strips_watch_prefix_for_show_name()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var url = new Uri($"https://www.discoveryplus.com/show/{_fixture.CreateGuid()}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {showName} | discovery+\" />" +
+            $"<meta property=\"og:image:alt\" content=\"{showName}\" />" +
+            "<meta property=\"og:type\" content=\"video.tv_show\" />" +
+            "</head></html>");
+        var sut = _mocker.CreateInstance<DiscoveryPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(showName);
+        meta.Title.Should().Be(showName);
+    }
+
+    [Fact(DisplayName =
         "discovery+ page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {
