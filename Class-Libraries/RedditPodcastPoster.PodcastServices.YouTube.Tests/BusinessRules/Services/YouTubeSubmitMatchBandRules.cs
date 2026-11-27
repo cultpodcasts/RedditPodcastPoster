@@ -15,6 +15,8 @@ using RedditPodcastPoster.PodcastServices.YouTube.Models;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Services;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
+using RedditPodcastPoster.Text.Matchers;
+using EpisodeModel = RedditPodcastPoster.Models.Episodes.Episode;
 
 namespace RedditPodcastPoster.PodcastServices.YouTube.Tests.BusinessRules.Services;
 
@@ -38,6 +40,21 @@ public class YouTubeSubmitMatchBandRules
                 It.IsAny<DateTimeOffset>(),
                 It.IsAny<IndexingContext>()))
             .ReturnsAsync(new List<SearchResult>());
+        // Band-loading tests stub the enrich matcher: pick exact title, else fuzzy ≥ 60.
+        _mocker.GetMock<IPlaylistItemFinder>()
+            .Setup(x => x.FindMatchingYouTubeVideo(
+                It.IsAny<EpisodeModel>(),
+                It.IsAny<IList<PlaylistItem>>(),
+                It.IsAny<TimeSpan?>(),
+                It.IsAny<IndexingContext>(),
+                It.IsAny<Podcast?>()))
+            .ReturnsAsync((EpisodeModel episode, IList<PlaylistItem> items, TimeSpan? _, IndexingContext _, Podcast? _) =>
+            {
+                var match = items.FirstOrDefault(item =>
+                                string.Equals(item.Snippet?.Title, episode.Title, StringComparison.Ordinal))
+                            ?? FuzzyMatcher.Match(episode.Title, items, item => item.Snippet.Title, 60);
+                return match is null ? null : new FindEpisodeResponse(PlaylistItem: match);
+            });
     }
 
     [Fact(DisplayName =
