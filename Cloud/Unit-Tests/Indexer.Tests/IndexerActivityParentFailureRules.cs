@@ -9,6 +9,8 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Configuration.Options;
+using RedditPodcastPoster.Configuration.Services;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 using Xunit;
@@ -25,6 +27,10 @@ public class IndexerActivityParentFailureRules
     public IndexerActivityParentFailureRules()
     {
         _mocker.Use(Options.Create(new IndexerOptions { ReleasedDaysAgo = 1 }));
+        // Pass 1 runs at even hours; hour 0 is fine for failure / hints wiring tests.
+        var utc = DomainTestFixture.UtcAtTime(0, TimeSpan.Zero);
+        _mocker.Use<IDateTimeService>(new FixedUtcDateTimeService(utc));
+        _mocker.Use<IIndexingStrategy>(new IndexingStrategy(_mocker.Get<IDateTimeService>()));
         var reason = "enabled";
         _mocker.GetMock<IActivityOptionsProvider>().Setup(x => x.RunIndex(out reason)).Returns(true);
         _mocker.GetMock<IActivityMarshaller>()
@@ -133,5 +139,12 @@ public class IndexerActivityParentFailureRules
         // Assert
         podcastContext!.UseYouTubeIndexingHints.Should().BeTrue();
         parentContext!.UseYouTubeIndexingHints.Should().BeTrue();
+    }
+
+    private sealed class FixedUtcDateTimeService(DateTime utcNow) : IDateTimeService
+    {
+        public DateTime GetUtcNow() => utcNow;
+
+        public int GetHour() => utcNow.Hour;
     }
 }

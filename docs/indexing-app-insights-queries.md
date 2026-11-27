@@ -792,7 +792,7 @@ After 06:55 UTC, confirm prior day report saved (Section 6A) before concluding q
 
 Indexer YouTube uses a **Cosmos-persisted key ring** (`YouTubeIndexerKeyState`) that **resumes within the same Pacific quota day**. Exhaustion mid-day leaves later YouTube hours with fewer keys. `Rotate indexer api-key` is **Information-level** and usually absent in production; use **`AppExceptions`** with `ring exhausted` and **`YouTubeAuthorityIndexingAudit`** instead.
 
-**YouTube windows:** hours **0 / 3 / 6 / 9 / 12 / 15 / 18 / 21 UTC** (`hour % 3 == 0`). Passes **1–2** at even YouTube hours (0/6/12/18); passes **3–4** at odd YouTube hours (3/9/15/21).
+**YouTube windows:** hours **0 / 3 / 6 / 9 / 12 / 15 / 18 / 21 UTC** (`hour % 3 == 0`). Passes **1–2** at even YouTube hours (0/6/12/18); passes **3–4** at odd YouTube hours (3/9/15/21). Expensive YouTube queries remain **once per day** on that cadence, rotating which batch is allowed (`DayOfYear % 4`: pass 1 or 2 at hour 0, pass 3 or 4 at hour 3) — see `HourlyIndexingSchedule` / #1559.
 
 ### A. Ring exhaustion heatmap (14d)
 

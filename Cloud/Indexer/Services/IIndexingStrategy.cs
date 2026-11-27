@@ -1,12 +1,10 @@
-using Indexer.Models;
-
 namespace Indexer.Services;
 
 public interface IIndexingStrategy
 {
-    bool ResolveYouTube();
-    bool ExpensiveYouTubeQueries();
-    bool ExpensiveSpotifyQueries();
-    bool IndexSpotify();
-    bool IsPrimaryPass(int pass, int totalPasses);
+    /// <summary>
+    /// Schedule for <paramref name="pass"/> at the current UTC time. Throws when that pass
+    /// is not one of the two passes that run this hour.
+    /// </summary>
+    HourlyIndexingSchedule.PassPlan GetPassPlan(int pass);
 }

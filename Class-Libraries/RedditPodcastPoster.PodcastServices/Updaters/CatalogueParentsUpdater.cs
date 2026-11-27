@@ -48,8 +48,9 @@ namespace RedditPodcastPoster.PodcastServices.Updaters;
 /// show id) or an Apple link (parent has an Apple podcast id) are offered to the same
 /// <see cref="ISpotifyEpisodeEnricher"/> / <see cref="IAppleEpisodeEnricher"/> that <see cref="PodcastUpdater"/> runs
 /// through <c>IPodcastServicesEpisodeEnricher</c>, on every pass. Discovery alone cannot fill them: Spotify discovery
-/// only runs on even hours (<c>IndexingStrategy.IndexSpotify</c>) and the hourly selector puts parent batches 3-4 on
-/// odd hours, and Apple discovery is skipped whenever Spotify handled the pass. The enrichers work on a copy of each
+/// runs on every hourly pass (<c>HourlyIndexingSchedule</c>), so Apple discovery is skipped
+/// whenever Spotify handled the pass, and YouTube-discovered playables still need Spotify / Apple links filled in.
+/// The enrichers work on a copy of each
 /// item and only its service links and ids are copied back, so title, description, release and length stay as stored
 /// or as merged this pass. <see cref="EnrichmentRequest.Episodes"/> is the window plus the parent's stored items that
 /// already hold a Spotify or Apple link (read once per pass, only when there is a candidate), so the enrichers' rule that
