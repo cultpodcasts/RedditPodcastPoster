@@ -265,8 +265,13 @@ function prNumberFromContext(context) {
   return null;
 }
 
-async function run({ github, context, core, walk }) {
-  const number = prNumberFromContext(context);
+/**
+ * @param {object} opts
+ * @param {number} [opts.pullNumber] — override PR number (e.g. update-open-prs republish)
+ * @param {boolean} [opts.pushed] — override synchronize semantics (merge-from-base tip update)
+ */
+async function run({ github, context, core, walk, pullNumber, pushed: pushedOverride }) {
+  const number = pullNumber ?? prNumberFromContext(context);
   if (!number) {
     core.info('Not a pull request event; nothing to do.');
     return null;
@@ -278,7 +283,9 @@ async function run({ github, context, core, walk }) {
     return null;
   }
   const headSha = pr.head.sha;
-  const pushed = context.eventName === 'pull_request_target' && context.payload.action === 'synchronize';
+  const pushed = typeof pushedOverride === 'boolean'
+    ? pushedOverride
+    : (context.eventName === 'pull_request_target' && context.payload.action === 'synchronize');
   let labels = (pr.labels || []).map((l) => l.name);
 
   const comments = await github.paginate(github.rest.issues.listComments, {
