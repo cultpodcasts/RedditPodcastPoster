@@ -10,6 +10,7 @@ using Api.Resolvers;
 using Api.Services.Public;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.News;
 using Xunit;
 
@@ -44,7 +45,7 @@ public class PublicEpisodeGetServiceTests
         var report = new NewsReport(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
         report.SetNewsOrganisationProperties(organisation);
         return new CataloguePlayableResolution(
-            nameof(NewsReport),
+            ContentKind.NewsReport,
             CatalogueParentKindMapper.ToPostProjection(report, organisation),
             organisation.Id,
             organisation.Name,
@@ -82,7 +83,7 @@ public class PublicEpisodeGetServiceTests
         result.Status.Should().Be(PublicEpisodeGetStatus.Ok);
         result.Episode.Should().BeSameAs(episode);
         result.Podcast.Should().BeSameAs(podcast);
-        result.Kind!.ContentKind.Should().Be("Episode");
+        result.Kind!.ContentKind.Should().Be(ContentKind.Episode);
         result.Kind.ParentId.Should().Be(podcast.Id);
         result.Kind.Slug.Should().Be(podcast.Name);
         result.Kind.Path.Should().StartWith("/podcast/");
@@ -120,7 +121,7 @@ public class PublicEpisodeGetServiceTests
         result.Status.Should().Be(PublicEpisodeGetStatus.Ok);
         result.Episode!.Id.Should().Be(_catalogueResolution.Projection.Episode.Id);
         result.Podcast!.Name.Should().Be(_catalogueResolution.ParentName);
-        result.Kind!.ContentKind.Should().Be("NewsReport");
+        result.Kind!.ContentKind.Should().Be(ContentKind.NewsReport);
         result.Kind.ParentName.Should().Be(_catalogueResolution.ParentName);
         result.Kind.Path.Should().StartWith("/news/");
     }
@@ -156,7 +157,7 @@ public class PublicEpisodeGetServiceTests
         };
         report.SetNewsOrganisationProperties(organisation);
         _catalogueResolution = new CataloguePlayableResolution(
-            nameof(NewsReport),
+            ContentKind.NewsReport,
             CatalogueParentKindMapper.ToPostProjection(report, organisation),
             organisation.Id,
             organisation.Name,

@@ -9,14 +9,14 @@ namespace Api.Models;
 /// Which kind of playable an episode read model is, and where it lives on the site. Added to the episode GET
 /// responses so a client can link any kind (the existing podcast fields are unchanged).
 /// </summary>
-/// <param name="ContentKind"><c>Episode</c>, <c>NewsReport</c>, <c>TvShowEpisode</c> or <c>Film</c>.</param>
+/// <param name="ContentKind">Domain playable kind (<see cref="ContentKind"/>).</param>
 /// <param name="ParentId">Podcast, news organisation or TV show id; null for a film.</param>
 /// <param name="ParentName">Podcast, news organisation or TV show name; null for a film.</param>
 /// <param name="Slug">Route segment: the parent name, or a film's own name.</param>
 /// <param name="Path">Site path with the kind's short id (<see cref="CatalogueShortId.PlayablePath"/>),
 /// e.g. <c>/news/{slug}/{shortId}</c>.</param>
 public sealed record PlayableKind(
-    string ContentKind,
+    ContentKind ContentKind,
     Guid? ParentId,
     string? ParentName,
     string Slug,
@@ -28,11 +28,11 @@ public sealed record PlayableKind(
     {
         var name = podcast.Name.Trim();
         return new PlayableKind(
-            nameof(RedditPodcastPoster.Models.ContentKinds.ContentKind.Episode),
+            ContentKind.Episode,
             podcast.Id,
             name,
             name,
-            CatalogueShortId.PlayablePath(name, episodeId, nameof(RedditPodcastPoster.Models.ContentKinds.ContentKind.Episode)));
+            CatalogueShortId.PlayablePath(name, episodeId, ContentKind.Episode.ToString()));
     }
 
     public static PlayableKind For(CataloguePlayableResolution resolution) =>
@@ -41,7 +41,10 @@ public sealed record PlayableKind(
             resolution.ParentId,
             resolution.ParentName,
             resolution.Slug,
-            CatalogueShortId.PlayablePath(resolution.Slug, resolution.Projection.Episode.Id, resolution.ContentKind),
+            CatalogueShortId.PlayablePath(
+                resolution.Slug,
+                resolution.Projection.Episode.Id,
+                resolution.ContentKind.ToString()),
             resolution.IdentityImage,
             resolution.AlternativeTitles);
 }

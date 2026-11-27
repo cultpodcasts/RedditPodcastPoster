@@ -8,6 +8,7 @@ using Api.Models;
 using Api.Resolvers;
 using Api.Services.Episodes;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Subjects.Providers;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -82,7 +83,7 @@ public class EpisodeGetServiceRules
         var episode = new TvShowEpisode(_fixture.CreateTitle()) { Id = _fixture.CreateGuid(), Removed = true };
         episode.SetTvShowProperties(show);
         var resolution = new CataloguePlayableResolution(
-            nameof(TvShowEpisode),
+            ContentKind.TvShowEpisode,
             CatalogueParentKindMapper.ToPostProjection(episode, show),
             show.Id,
             show.Name,
@@ -107,7 +108,7 @@ public class EpisodeGetServiceRules
         result.Episode!.Id.Should().Be(episode.Id);
         result.Episode.Removed.Should().BeTrue();
         result.Podcast!.Id.Should().Be(show.Id);
-        result.Kind!.ContentKind.Should().Be("TvShowEpisode");
+        result.Kind!.ContentKind.Should().Be(ContentKind.TvShowEpisode);
         result.Kind.ParentName.Should().Be(show.Name);
         result.Kind.Path.Should().StartWith("/tv/");
     }
@@ -129,7 +130,7 @@ public class EpisodeGetServiceRules
         };
         episode.SetTvShowProperties(show);
         var resolution = new CataloguePlayableResolution(
-            nameof(TvShowEpisode),
+            ContentKind.TvShowEpisode,
             CatalogueParentKindMapper.ToPostProjection(episode, show),
             show.Id,
             show.Name,

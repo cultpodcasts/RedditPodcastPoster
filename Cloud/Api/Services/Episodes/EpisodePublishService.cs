@@ -234,8 +234,7 @@ public class EpisodePublishService(
         }
 
         // Defensive: kind-scoped resolve should only return the expected container; still reject mismatch as 404.
-        if (expectedKind is { } expected &&
-            !string.Equals(catalogue.ContentKind, expected.ToString(), StringComparison.Ordinal))
+        if (expectedKind is { } expected && catalogue.ContentKind != expected)
         {
             return PlayableResolveOutcome.NotFound();
         }

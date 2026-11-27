@@ -64,7 +64,7 @@ public class CataloguePlayableResolverRules
 
         // Assert
         resolution.Should().NotBeNull();
-        resolution!.ContentKind.Should().Be("NewsReport");
+        resolution!.ContentKind.Should().Be(ContentKind.NewsReport);
         resolution.ParentId.Should().Be(_organisation.Id);
         resolution.ParentName.Should().Be(_organisation.Name);
         resolution.Slug.Should().Be(_organisation.Name);
@@ -87,7 +87,7 @@ public class CataloguePlayableResolverRules
         var resolution = await Resolve(_tvEpisode.Id);
 
         // Assert
-        resolution!.ContentKind.Should().Be("TvShowEpisode");
+        resolution!.ContentKind.Should().Be(ContentKind.TvShowEpisode);
         resolution.ParentId.Should().Be(show.Id);
         resolution.ParentName.Should().Be(show.Name);
         resolution.Removed.Should().BeFalse();
@@ -120,7 +120,7 @@ public class CataloguePlayableResolverRules
         var resolution = await Resolve(_film.Id);
 
         // Assert
-        resolution!.ContentKind.Should().Be("Film");
+        resolution!.ContentKind.Should().Be(ContentKind.Film);
         resolution.ParentId.Should().BeNull();
         resolution.ParentName.Should().BeNull();
         resolution.Slug.Should().Be(_film.Name);
@@ -164,7 +164,7 @@ public class CataloguePlayableResolverRules
         var resolution = await Resolve(_film.Id, ContentKind.Film);
 
         // Assert
-        resolution!.ContentKind.Should().Be("Film");
+        resolution!.ContentKind.Should().Be(ContentKind.Film);
         resolution.Projection.Episode.Id.Should().Be(_film.Id);
         newsCalls.Should().Be(0);
         tvCalls.Should().Be(0);

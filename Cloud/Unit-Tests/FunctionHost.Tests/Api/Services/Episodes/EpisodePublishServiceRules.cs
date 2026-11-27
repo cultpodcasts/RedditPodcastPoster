@@ -171,7 +171,7 @@ public class EpisodePublishServiceRules
         var projection = CatalogueParentKindMapper.ToPostProjection(film);
         var expectedUrl = CataloguePlayableSiteLink.For(projection);
         _catalogueResolved = new CataloguePlayableResolution(
-            nameof(ContentKind.Film), projection, null, null, film.Name.Trim(), Removed: false);
+            ContentKind.Film, projection, null, null, film.Name.Trim(), Removed: false);
         var sut = _mocker.CreateInstance<EpisodePublishService>();
 
         // Act
@@ -201,7 +201,7 @@ public class EpisodePublishServiceRules
         var projection = CatalogueParentKindMapper.ToPostProjection(report, organisation);
         var expectedUrl = CataloguePlayableSiteLink.For(projection);
         _catalogueResolved = new CataloguePlayableResolution(
-            nameof(ContentKind.NewsReport), projection, organisation.Id, organisation.Name, organisation.Name,
+            ContentKind.NewsReport, projection, organisation.Id, organisation.Name, organisation.Name,
             Removed: false);
         var sut = _mocker.CreateInstance<EpisodePublishService>();
 
@@ -230,7 +230,7 @@ public class EpisodePublishServiceRules
         var projection = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
         var expectedUrl = CataloguePlayableSiteLink.For(projection);
         _catalogueResolved = new CataloguePlayableResolution(
-            nameof(ContentKind.TvShowEpisode), projection, show.Id, show.Name, show.Name, Removed: false);
+            ContentKind.TvShowEpisode, projection, show.Id, show.Name, show.Name, Removed: false);
         var sut = _mocker.CreateInstance<EpisodePublishService>();
 
         // Act
@@ -258,7 +258,7 @@ public class EpisodePublishServiceRules
         var projection = CatalogueParentKindMapper.ToPostProjection(film);
         projection.Episode.Ignored.Should().BeTrue();
         _catalogueResolved = new CataloguePlayableResolution(
-            nameof(ContentKind.Film), projection, null, null, film.Name.Trim(), Removed: false);
+            ContentKind.Film, projection, null, null, film.Name.Trim(), Removed: false);
         var sut = _mocker.CreateInstance<EpisodePublishService>();
 
         // Act
@@ -286,7 +286,7 @@ public class EpisodePublishServiceRules
         projection.Episode.IsRemoved().Should().BeTrue();
         var expectedUrl = CataloguePlayableSiteLink.For(projection);
         _catalogueResolved = new CataloguePlayableResolution(
-            nameof(ContentKind.Film), projection, null, null, film.Name.Trim(),
+            ContentKind.Film, projection, null, null, film.Name.Trim(),
             Removed: true, ParentRemoved: false);
         var sut = _mocker.CreateInstance<EpisodePublishService>();
 
@@ -314,7 +314,7 @@ public class EpisodePublishServiceRules
         organisation.Removed = true;
         var projection = CatalogueParentKindMapper.ToPostProjection(report, organisation);
         _catalogueResolved = new CataloguePlayableResolution(
-            nameof(ContentKind.NewsReport), projection, organisation.Id, organisation.Name, organisation.Name,
+            ContentKind.NewsReport, projection, organisation.Id, organisation.Name, organisation.Name,
             Removed: true, ParentRemoved: true);
         var sut = _mocker.CreateInstance<EpisodePublishService>();
 
@@ -340,7 +340,7 @@ public class EpisodePublishServiceRules
         show.Removed = true;
         var projection = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
         _catalogueResolved = new CataloguePlayableResolution(
-            nameof(ContentKind.TvShowEpisode), projection, show.Id, show.Name, show.Name,
+            ContentKind.TvShowEpisode, projection, show.Id, show.Name, show.Name,
             Removed: true, ParentRemoved: true);
         var sut = _mocker.CreateInstance<EpisodePublishService>();
 
@@ -470,7 +470,7 @@ public class EpisodePublishServiceRules
                 var film = CreateFilm();
                 var projection = CatalogueParentKindMapper.ToPostProjection(film);
                 var resolution = new CataloguePlayableResolution(
-                    nameof(ContentKind.Film), projection, null, null, film.Name.Trim(), Removed: false);
+                    ContentKind.Film, projection, null, null, film.Name.Trim(), Removed: false);
                 return (film.Id, resolution, CataloguePlayableSiteLink.For(projection));
             }
             case ContentKind.NewsReport:
@@ -478,7 +478,7 @@ public class EpisodePublishServiceRules
                 var (organisation, report) = CreateNewsReport();
                 var projection = CatalogueParentKindMapper.ToPostProjection(report, organisation);
                 var resolution = new CataloguePlayableResolution(
-                    nameof(ContentKind.NewsReport), projection, organisation.Id, organisation.Name,
+                    ContentKind.NewsReport, projection, organisation.Id, organisation.Name,
                     organisation.Name, Removed: false);
                 return (report.Id, resolution, CataloguePlayableSiteLink.For(projection));
             }
@@ -487,7 +487,7 @@ public class EpisodePublishServiceRules
                 var (show, tvEpisode) = CreateTvEpisode();
                 var projection = CatalogueParentKindMapper.ToPostProjection(tvEpisode, show);
                 var resolution = new CataloguePlayableResolution(
-                    nameof(ContentKind.TvShowEpisode), projection, show.Id, show.Name, show.Name, Removed: false);
+                    ContentKind.TvShowEpisode, projection, show.Id, show.Name, show.Name, Removed: false);
                 return (tvEpisode.Id, resolution, CataloguePlayableSiteLink.For(projection));
             }
             default:

@@ -32,7 +32,7 @@ public static class PlayableKindDtoExtensions
             return dto;
         }
 
-        dto.ContentKind = kind.ContentKind.ToContentKindDto();
+        dto.ContentKind = kind.ContentKind.ToDto();
         dto.ParentId = kind.ParentId;
         dto.ParentName = kind.ParentName;
         dto.Slug = kind.Slug;
