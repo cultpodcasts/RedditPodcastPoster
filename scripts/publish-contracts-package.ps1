@@ -6,11 +6,16 @@
   contracts/package.json records the release line (major.minor). Its patch is 0 in git and is
   not the version that ships. This script hashes the generated files, reads the highest
   published version with npm view, and publishes major.minor.(highest patch + 1) only when
-  that hash differs. The hash is stored on the published package as contractsContentHash so
-  the next run can skip. Nothing is committed back to git.
+  that hash differs. The hash is written onto the published package as contractsContentHash.
 
-  An npm view failure other than "package not found" (E404) fails the run. A retry of a
-  publish that already stored this hash exits 0.
+  GitHub Packages' npm view metadata drops custom package.json fields, so the skip check
+  reads contractsContentHash from the published tarball (npm pack + package/package.json),
+  not from `npm view … contractsContentHash`. When the field is missing from an older
+  tarball, the script hashes that tarball's generated files the same way as a local build.
+  Nothing is committed back to git.
+
+  An npm view / pack failure other than "package not found" (E404) fails the run. A retry of
+  a publish that already stored this hash exits 0.
 #>
 [CmdletBinding()]
 param(
@@ -80,27 +85,92 @@ function ConvertFrom-NpmVersionsOutput {
     return [pscustomobject]@{ Ok = $true; Versions = @($parsed | ForEach-Object { "$_" }) }
 }
 
-function ConvertFrom-NpmHashOutput {
-    param([int] $ExitCode, [string] $Output)
+function Get-ContractsContentHashFromPackageJson {
+    param([Parameter(Mandatory)][string] $PackageJsonPath)
 
-    if ($ExitCode -ne 0) {
-        if ($Output -match 'E404') {
-            return [pscustomobject]@{ Ok = $true; Hash = $null }
+    $root = [System.Text.Json.JsonDocument]::Parse((Get-Content -LiteralPath $PackageJsonPath -Raw)).RootElement
+    foreach ($property in $root.EnumerateObject()) {
+        if ($property.Name -eq 'contractsContentHash') {
+            $value = $property.Value.GetString()
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                return $value
+            }
+
+            return $null
         }
-
-        return [pscustomobject]@{ Ok = $false; Hash = $null; Error = $Output }
     }
 
-    $trimmed = $Output.Trim()
-    if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed -eq 'undefined') {
-        return [pscustomobject]@{ Ok = $true; Hash = $null }
-    }
+    return $null
+}
 
-    if ($trimmed.StartsWith('"')) {
-        return [pscustomobject]@{ Ok = $true; Hash = [string]($trimmed | ConvertFrom-Json) }
-    }
+function Get-PublishedContractsContentHash {
+    param(
+        [Parameter(Mandatory)][scriptblock] $Command,
+        [Parameter(Mandatory)][string] $PackageName,
+        [Parameter(Mandatory)][string] $Version
+    )
 
-    return [pscustomobject]@{ Ok = $true; Hash = $trimmed }
+    $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('contracts-pack-' + [guid]::NewGuid().ToString('n'))
+    New-Item -ItemType Directory -Path $temp | Out-Null
+    try {
+        Push-Location $temp
+        try {
+            $packResult = Invoke-NpmCapture -Command $Command -- pack "$PackageName@$Version"
+            if ($packResult.ExitCode -ne 0) {
+                if ($packResult.Output -match 'E404') {
+                    return [pscustomobject]@{ Ok = $true; Hash = $null }
+                }
+
+                return [pscustomobject]@{ Ok = $false; Hash = $null; Error = $packResult.Output }
+            }
+
+            $tgz = Get-ChildItem -LiteralPath $temp -Filter '*.tgz' | Select-Object -First 1
+            if (-not $tgz) {
+                return [pscustomobject]@{
+                    Ok    = $false
+                    Hash  = $null
+                    Error = "npm pack $PackageName@$Version produced no .tgz in $temp.`n$($packResult.Output)"
+                }
+            }
+
+            $extractDir = Join-Path $temp 'extracted'
+            New-Item -ItemType Directory -Path $extractDir | Out-Null
+            & tar -xzf $tgz.FullName -C $extractDir
+            if ($LASTEXITCODE -ne 0) {
+                return [pscustomobject]@{
+                    Ok    = $false
+                    Hash  = $null
+                    Error = "Failed to extract $($tgz.Name) (tar exit $LASTEXITCODE)."
+                }
+            }
+
+            $packageDir = Join-Path $extractDir 'package'
+            $packageJson = Join-Path $packageDir 'package.json'
+            if (-not (Test-Path -LiteralPath $packageJson)) {
+                return [pscustomobject]@{
+                    Ok    = $false
+                    Hash  = $null
+                    Error = "Packed tarball $($tgz.Name) has no package/package.json."
+                }
+            }
+
+            $stored = Get-ContractsContentHashFromPackageJson -PackageJsonPath $packageJson
+            if ($stored) {
+                return [pscustomobject]@{ Ok = $true; Hash = $stored }
+            }
+
+            # Older publishes (or a registry that stripped the field from the tarball) —
+            # re-hash the packed generated files with the same algorithm as a local build.
+            $computed = Get-ContractsContentHash -Directory $packageDir
+            return [pscustomobject]@{ Ok = $true; Hash = $computed }
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Get-ContractsReleaseVersions {
@@ -269,11 +339,12 @@ function Invoke-ContractsPackagePublish {
     $parsed = (Get-ContractsReleaseVersions $versions.Versions).Versions
     if ($parsed.Count -gt 0) {
         $latest = (Get-HighestContractVersion $parsed).ToString()
-        $hashResult = Invoke-NpmCapture -Command $Command -- view "$name@$latest" contractsContentHash --json
-        $hashView = ConvertFrom-NpmHashOutput -ExitCode $hashResult.ExitCode -Output $hashResult.Output
+        # Do not use `npm view … contractsContentHash` — GitHub Packages omits custom
+        # package.json fields from the metadata document (#1509). Read the published tarball.
+        $hashView = Get-PublishedContractsContentHash -Command $Command -PackageName $name -Version $latest
         if (-not $hashView.Ok) {
-            Write-Host "npm view contractsContentHash failed for $latest. Not publishing."
-            Write-Host $hashResult.Output
+            Write-Host "Reading contractsContentHash from npm pack of $latest failed. Not publishing."
+            Write-Host $hashView.Error
             return 1
         }
 
