@@ -93,23 +93,22 @@ public static class HourlyOrchestrationHealthChecker
         IEnumerable<HourlyOrchestrationInstance> instances)
     {
         var hourUtc = utcNow.Hour;
-        var elapsedIntoHour = utcNow - HourlyOrchestrationCatchUpEvaluator.GetUtcHourStart(utcNow).UtcDateTime;
-        if (elapsedIntoHour < CurrentHourStuckThreshold)
-        {
-            return [];
-        }
 
+        // Measured from when the run started (its CreatedAt), not from the top of the hour: the timer starts the run
+        // at about H:03, so a run measured from H:00 was reported as stuck at H:08 although it then completed.
         return instances
             .Where(instance => HourlyOrchestrationCatchUpEvaluator.IsInUtcHour(instance.CreatedAt, utcNow))
             .Where(instance =>
                 HourlyOrchestrationCatchUpEvaluator.IsInProgressStatus(instance.Status)
                 || instance.Status == OrchestrationRuntimeStatus.Pending)
-            .Select(instance => new HourlyOrchestrationHealthIssue(
+            .Select(instance => (Instance: instance, Running: utcNow - instance.CreatedAt.UtcDateTime))
+            .Where(x => x.Running >= CurrentHourStuckThreshold)
+            .Select(x => new HourlyOrchestrationHealthIssue(
                 HourlyOrchestrationHealthIssueKind.CurrentHourStuck,
                 hourUtc,
-                instance.InstanceId,
-                instance.Status,
-                $"HourlyOrchestration for UTC hour {hourUtc} is still '{instance.Status}' after {elapsedIntoHour.TotalMinutes:F0} minutes (instance-id='{instance.InstanceId}')."))
+                x.Instance.InstanceId,
+                x.Instance.Status,
+                $"HourlyOrchestration for UTC hour {hourUtc} is still '{x.Instance.Status}' {x.Running.TotalMinutes:F0} minutes after it started (instance-id='{x.Instance.InstanceId}', created-at='{x.Instance.CreatedAt.UtcDateTime:O}')."))
             .ToList();
     }
 }
