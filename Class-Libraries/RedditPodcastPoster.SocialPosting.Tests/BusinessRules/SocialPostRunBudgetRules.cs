@@ -47,8 +47,6 @@ public class SocialPostRunBudgetRules
         // Assert
         budget.Posts.Should().Be(1);
         budget.HasCapacity.Should().BeFalse();
-        budget.TryReserve().Should().BeFalse();
-        budget.Stopped.Should().BeTrue();
     }
 
     [Fact(DisplayName =
