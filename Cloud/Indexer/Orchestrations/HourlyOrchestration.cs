@@ -61,7 +61,8 @@ public class HourlyOrchestration
             try
             {
                 indexerContext = await context.CallActivityAsync<IndexerContext>(
-                    nameof(global::Indexer.Activities.Indexer), new IndexerContextWrapper(indexerContext, pass));
+                    nameof(global::Indexer.Activities.Indexer),
+                    new IndexerContextWrapper(indexerContext, pass, context.CurrentUtcDateTime));
             }
             catch (TaskFailedException ex)
             {

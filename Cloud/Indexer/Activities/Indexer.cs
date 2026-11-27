@@ -61,7 +61,10 @@ public class Indexer(
 
         logger.LogInformation("Pre: {indexerContext} {indexerOptions}", indexerContext.ToString(),
             _indexerOptions.ToString());
-        var passPlan = indexingStrategy.GetPassPlan(indexerContextWrapper.Pass);
+        // Use the orchestration-frozen ScheduleUtc — never wall clock — so a late activity after
+        // the hour rolls still gets the pass plan the orchestration selected.
+        var passPlan = indexingStrategy.GetPassPlan(
+            indexerContextWrapper.ScheduleUtc, indexerContextWrapper.Pass);
         var youTubeEnabledThisPass = passPlan.ResolveYouTube;
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {

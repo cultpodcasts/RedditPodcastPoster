@@ -3,8 +3,8 @@ namespace Indexer.Services;
 public interface IIndexingStrategy
 {
     /// <summary>
-    /// Schedule for <paramref name="pass"/> at the current UTC time. Throws when that pass
-    /// is not one of the two passes that run this hour.
+    /// Schedule for <paramref name="pass"/> at <paramref name="scheduleUtc"/>. Throws when that
+    /// pass is not one of the two passes that run in that UTC hour.
     /// </summary>
-    HourlyIndexingSchedule.PassPlan GetPassPlan(int pass);
+    HourlyIndexingSchedule.PassPlan GetPassPlan(DateTime scheduleUtc, int pass);
 }

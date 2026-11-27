@@ -9,7 +9,6 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Configuration.Options;
-using RedditPodcastPoster.Configuration.Services;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
@@ -87,33 +86,36 @@ public class HourlyIndexingScheduleRules
         "Every batch gets Spotify discovery on every run, because IndexSpotify is always true on the hour's schedule.")]
     public void every_batch_gets_spotify_discovery_on_every_run()
     {
-        // Arrange / Act
+        // Arrange
         var plans = AllPlans();
+
+        // Act
+        var batchesWithoutDiscovery = Enumerable.Range(1, IndexPasses)
+            .Where(batch => !plans.Any(row => row.Plan.Pass == batch && row.Plan.IndexSpotify))
+            .ToArray();
 
         // Assert
         plans.Should().OnlyContain(row => row.Plan.IndexSpotify);
-        Enumerable.Range(1, IndexPasses).Should().OnlyContain(batch =>
-            plans.Any(row => row.Plan.Pass == batch && row.Plan.IndexSpotify));
+        batchesWithoutDiscovery.Should().BeEmpty();
     }
 
     [Fact(DisplayName =
-        "Every batch is allowed expensive Spotify queries at least once every 24 hours.")]
-    public void every_batch_gets_expensive_spotify_at_least_once_per_day()
+        "Every batch is allowed expensive Spotify queries exactly twice every 24 hours (Jon 2b).")]
+    public void every_batch_gets_expensive_spotify_exactly_twice_per_day()
     {
         // Arrange
         var plans = AllPlans();
 
         // Act
-        var expensiveDaysMissing = Enumerable.Range(1, IndexPasses)
+        var expensiveCountsPerBatchPerDay = Enumerable.Range(1, IndexPasses)
             .SelectMany(batch => plans
                 .Where(row => row.Plan.Pass == batch)
                 .GroupBy(row => row.Utc.Date)
-                .Where(g => g.All(row => !row.Plan.ExpensiveSpotify))
-                .Select(g => (batch, g.Key)))
+                .Select(g => (batch, day: g.Key, count: g.Count(row => row.Plan.ExpensiveSpotify))))
             .ToArray();
 
         // Assert
-        expensiveDaysMissing.Should().BeEmpty();
+        expensiveCountsPerBatchPerDay.Should().OnlyContain(row => row.count == 2);
     }
 
     [Fact(DisplayName =
@@ -173,17 +175,18 @@ public class HourlyIndexingScheduleRules
         "The pass pairing is unchanged: even hours run passes 1 and 2, odd hours run passes 3 and 4.")]
     public void pass_pairing_is_unchanged()
     {
-        // Arrange / Act
+        // Arrange
         var plans = AllPlans();
 
+        // Act
+        var evenHourPasses = plans.Where(row => row.Utc.Hour % 2 == 0).Select(row => row.Plan.Pass).ToArray();
+        var oddHourPasses = plans.Where(row => row.Utc.Hour % 2 == 1).Select(row => row.Plan.Pass).ToArray();
+        var passesPerHour = plans.GroupBy(row => row.Utc).Select(g => g.Count()).ToArray();
+
         // Assert
-        plans.Where(row => row.Utc.Hour % 2 == 0)
-            .Select(row => row.Plan.Pass)
-            .Should().OnlyContain(pass => pass == 1 || pass == 2);
-        plans.Where(row => row.Utc.Hour % 2 == 1)
-            .Select(row => row.Plan.Pass)
-            .Should().OnlyContain(pass => pass == 3 || pass == 4);
-        plans.GroupBy(row => row.Utc).Should().OnlyContain(g => g.Count() == 2);
+        evenHourPasses.Should().OnlyContain(pass => pass == 1 || pass == 2);
+        oddHourPasses.Should().OnlyContain(pass => pass == 3 || pass == 4);
+        passesPerHour.Should().OnlyContain(count => count == 2);
     }
 
     [Fact(DisplayName =
@@ -191,7 +194,7 @@ public class HourlyIndexingScheduleRules
     public async Task indexer_builds_indexing_context_from_schedule_for_pass()
     {
         // Arrange — hour 6: pass 2 is the expensive-Spotify pass; pass 1 is not.
-        var utc = ScheduleOriginUtc.AddHours(6);
+        var scheduleUtc = ScheduleOriginUtc.AddHours(6);
         var operationIds = new[]
         {
             _fixture.Create<Guid>(), _fixture.Create<Guid>(), _fixture.Create<Guid>(), _fixture.Create<Guid>()
@@ -212,8 +215,7 @@ public class HourlyIndexingScheduleRules
         {
             var mocker = new AutoMocker();
             mocker.Use(Options.Create(new IndexerOptions { ReleasedDaysAgo = 1 }));
-            mocker.Use<IDateTimeService>(new FixedUtcDateTimeService(utc));
-            mocker.Use<IIndexingStrategy>(new IndexingStrategy(mocker.Get<IDateTimeService>()));
+            mocker.Use<IIndexingStrategy>(new IndexingStrategy());
             var reason = "enabled";
             mocker.GetMock<IActivityOptionsProvider>().Setup(x => x.RunIndex(out reason)).Returns(true);
             mocker.GetMock<IActivityMarshaller>()
@@ -246,7 +248,7 @@ public class HourlyIndexingScheduleRules
                 .Setup(x => x.UpdateParents(It.IsAny<Guid[]>(), It.IsAny<IndexingContext>()))
                 .ReturnsAsync(true);
 
-            var wrapper = new IndexerContextWrapper(baseContext, pass);
+            var wrapper = new IndexerContextWrapper(baseContext, pass, scheduleUtc);
             return await mocker.CreateInstance<Indexer.Activities.Indexer>()
                 .Run(wrapper, mocker.GetMock<FunctionContext>().Object);
         }
@@ -264,10 +266,67 @@ public class HourlyIndexingScheduleRules
         pass2Context.IndexSpotify.Should().BeTrue();
     }
 
-    private sealed class FixedUtcDateTimeService(DateTime utcNow) : IDateTimeService
+    [Fact(DisplayName =
+        "When the Indexer activity runs after the UTC hour rolls, it keeps the orchestration hour's pass plan " +
+        "and does not throw, because ScheduleUtc is frozen on the wrapper.")]
+    public async Task indexer_keeps_orchestration_schedule_after_hour_rolls()
     {
-        public DateTime GetUtcNow() => utcNow;
+        // Arrange — odd hour 5 schedules pass 4; wall clock at hour 6 would otherwise throw.
+        var scheduleUtc = ScheduleOriginUtc.AddHours(5);
+        var expectedPlan = HourlyIndexingSchedule.ForPass(scheduleUtc, 4)!;
+        var operationIds = new[]
+        {
+            _fixture.Create<Guid>(), _fixture.Create<Guid>(), _fixture.Create<Guid>(), _fixture.Create<Guid>()
+        };
+        var indexIds = new[]
+        {
+            new[] { _fixture.Create<Guid>() },
+            new[] { _fixture.Create<Guid>() },
+            new[] { _fixture.Create<Guid>() },
+            new[] { _fixture.Create<Guid>() }
+        };
+        var baseContext = new IndexerContext(operationIds, indexIds);
 
-        public int GetHour() => utcNow.Hour;
+        IndexingContext? captured = null;
+        var mocker = new AutoMocker();
+        mocker.Use(Options.Create(new IndexerOptions { ReleasedDaysAgo = 1 }));
+        mocker.Use<IIndexingStrategy>(new IndexingStrategy());
+        var reason = "enabled";
+        mocker.GetMock<IActivityOptionsProvider>().Setup(x => x.RunIndex(out reason)).Returns(true);
+        mocker.GetMock<IActivityMarshaller>()
+            .Setup(x => x.Initiate(It.IsAny<Guid>(), It.IsAny<string>()))
+            .ReturnsAsync(ActivityStatus.Initiated);
+        mocker.GetMock<IActivityMarshaller>()
+            .Setup(x => x.Complete(It.IsAny<Guid>(), It.IsAny<string>()))
+            .ReturnsAsync(ActivityStatus.Completed);
+        mocker.GetMock<IMemoryProbeOrchestrator>()
+            .Setup(x => x.Start(It.IsAny<string>()))
+            .Returns(mocker.GetMock<IMemoryProbeScope>().Object);
+        mocker.GetMock<FunctionContext>()
+            .SetupGet(x => x.InvocationId)
+            .Returns(_fixture.Create<string>());
+        mocker.GetMock<IPodcastsUpdater>()
+            .Setup(x => x.UpdatePodcasts(It.IsAny<Guid[]>(), It.IsAny<IndexingContext>()))
+            .Callback<Guid[], IndexingContext>((_, context) => captured = context)
+            .ReturnsAsync(true);
+        mocker.GetMock<ICatalogueParentsUpdater>()
+            .Setup(x => x.UpdateParents(It.IsAny<Guid[]>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync(true);
+
+        var wrapper = new IndexerContextWrapper(baseContext, 4, scheduleUtc);
+        var sut = mocker.CreateInstance<Indexer.Activities.Indexer>();
+
+        // Act
+        var result = await sut.Run(wrapper, mocker.GetMock<FunctionContext>().Object);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.IndexSpotify.Should().Be(expectedPlan.IndexSpotify);
+        captured.SkipYouTubeUrlResolving.Should().Be(!expectedPlan.ResolveYouTube);
+        captured.SkipExpensiveSpotifyQueries.Should().Be(!expectedPlan.ExpensiveSpotify);
+        captured.SkipExpensiveYouTubeQueries.Should().Be(!expectedPlan.ExpensiveYouTube);
+        // Sanity: wall-clock hour 6 has no pass 4 — proving the freeze matters.
+        HourlyIndexingSchedule.ForPass(scheduleUtc.AddHours(1), 4).Should().BeNull();
     }
 }
