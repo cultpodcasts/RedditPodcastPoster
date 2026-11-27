@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.OpenGraph.Extractors;
 
 namespace RedditPodcastPoster.DiscoveryPlus.Matching;
 
@@ -44,20 +45,9 @@ public static partial class DiscoveryPlusUrlMatcher
     /// Episode watch pages keep the show UUID then add a season (<c>sN</c>) and/or episode
     /// (<c>e…</c>) segment (<c>/show/{uuid}/s1/e1-slug/{episodeUuid}</c>). Trailing path after
     /// the show id without those segments is not an episode (treat as hub / reject).
+    /// Shared with Max via <see cref="WbdCatalogPageMeta.IsEpisodePath"/>.
     /// </summary>
-    public static bool IsEpisodePath(Uri url)
-    {
-        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        for (var i = 0; i < parts.Length; i++)
-        {
-            if (SeasonSegmentRegex().IsMatch(parts[i]) || EpisodeSegmentRegex().IsMatch(parts[i]))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    public static bool IsEpisodePath(Uri url) => WbdCatalogPageMeta.IsEpisodePath(url);
 
     public static bool TryGetShowId(Uri url, out string showId)
     {
