@@ -131,6 +131,62 @@ public class EpisodePublishServiceRules
     }
 
     [Theory(DisplayName =
+        "When X holds the content already (duplicate refused) or accepted it but the save failed, then the publish outcome reports Tweeted=true without a failed-tweet payload, because the content is on X and Tweeted=false would invite a double post (#1205).")]
+    [InlineData(TweetSendStatus.DuplicateForbidden)]
+    [InlineData(TweetSendStatus.SentNotSaved)]
+    public async Task content_already_on_x_reports_tweeted(TweetSendStatus status)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcastResolved = new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
+        _mocker.GetMock<ITweetPoster>()
+            .Setup(p => p.PostTweet(It.IsAny<PodcastEpisode>(), It.IsAny<Uri?>(), It.IsAny<bool>()))
+            .ReturnsAsync(new PostTweetResponse(status, _fixture.Create<string>()));
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(podcast.Id, episode.Id, new EpisodePublishRequest { Tweet = true }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodePublishStatus.Ok);
+        result.Outcome!.Tweeted.Should().BeTrue();
+        result.Outcome.FailedTweetContent.Should().BeNull();
+    }
+
+    [Theory(DisplayName =
+        "When X does not take the post (failed, rate-limited, credits, credentials, 5xx or timeout), then the publish outcome reports Tweeted=false with the failed tweet content, because the curator must be able to retry.")]
+    [InlineData(TweetSendStatus.Failed)]
+    [InlineData(TweetSendStatus.TooManyRequests)]
+    [InlineData(TweetSendStatus.PaymentRequired)]
+    [InlineData(TweetSendStatus.AuthenticationFailed)]
+    [InlineData(TweetSendStatus.ServerError)]
+    [InlineData(TweetSendStatus.Timeout)]
+    public async Task post_not_taken_by_x_reports_not_tweeted(TweetSendStatus status)
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
+        _podcastResolved = new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
+        var tweetContent = _fixture.Create<string>();
+        _mocker.GetMock<ITweetPoster>()
+            .Setup(p => p.PostTweet(It.IsAny<PodcastEpisode>(), It.IsAny<Uri?>(), It.IsAny<bool>()))
+            .ReturnsAsync(new PostTweetResponse(status, tweetContent));
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(podcast.Id, episode.Id, new EpisodePublishRequest { Tweet = true }),
+            CancellationToken.None);
+
+        // Assert
+        result.Outcome!.Tweeted.Should().BeFalse();
+        result.Outcome.FailedTweetContent.Should().Be(tweetContent);
+    }
+
+    [Theory(DisplayName =
         "When a curator publishes an episode held for approval (awaiting approval or rejected), then it is refused as a bad request with an approve-it-first message: nothing is posted, no short link is made and it stays removed and unsaved (#1484).")]
     [InlineData(ApprovalStatus.AwaitingApproval)]
     [InlineData(ApprovalStatus.Rejected)]

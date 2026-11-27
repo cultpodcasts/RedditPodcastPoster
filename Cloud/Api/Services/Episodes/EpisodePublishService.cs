@@ -97,15 +97,26 @@ public class EpisodePublishService(
                                 podcastEpisode.Episode.Id);
                         }
 
-                        if (result.TweetSendStatus != TweetSendStatus.Sent)
+                        // X accepted the post (Sent), already holds identical content (DuplicateForbidden: the poster
+                        // persisted it as tweeted), or accepted it but the save failed (SentNotSaved, #1205). In
+                        // every case the content is on X, so reporting Tweeted=false would invite a double post.
+                        if (result.TweetSendStatus is TweetSendStatus.Sent or TweetSendStatus.DuplicateForbidden
+                            or TweetSendStatus.SentNotSaved)
+                        {
+                            if (result.TweetSendStatus == TweetSendStatus.SentNotSaved)
+                            {
+                                logger.LogError(
+                                    "Tweet for episode-id '{EpisodeId}' was posted to X but could not be saved as tweeted: '{PostTweetResponse}'.",
+                                    podcastEpisode.Episode.Id, result);
+                            }
+
+                            outcome.Tweeted = true;
+                        }
+                        else
                         {
                             logger.LogError("Tweet result: '{PostTweetResponse}'.", result);
                             outcome.FailedTweetContent = result.candidateTweet;
                             outcome.Tweeted = false;
-                        }
-                        else
-                        {
-                            outcome.Tweeted = true;
                         }
                     }
                     catch (Exception e)

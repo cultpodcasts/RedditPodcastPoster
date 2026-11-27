@@ -58,7 +58,22 @@ public class TwitterClient(
             Content = new StringContent(jsonData, Encoding.UTF8, "application/json")
         };
 
-        using var response = await httpClient.SendAsync(createTweetRequest, cancellationToken);
+        HttpResponseMessage response;
+        try
+        {
+            response = await httpClient.SendAsync(createTweetRequest, cancellationToken);
+        }
+        catch (Exception ex) when (IsRequestTimeout(ex, cancellationToken))
+        {
+            // X may have accepted the post before the client gave up. Never re-send from here; the caller stops
+            // the run so the next run can see whether the post is live before trying again (#1205).
+            logger.LogError(ex,
+                "Failed to send tweet. The request to X timed out; the post may still have been accepted. Tweet: '{Tweet}'.",
+                tweet);
+            return new PostTweetResponse(TweetSendStatus.Timeout, tweet);
+        }
+
+        using var responseLifetime = response;
         if (response.IsSuccessStatusCode)
         {
             logger.LogInformation("Tweet sent successfully! Tweet: '{Tweet}'.", tweet);
@@ -102,6 +117,15 @@ public class TwitterClient(
                 resetDetails, response.ReasonPhrase, response.StatusCode, JsonSerializer.Serialize(retryAfterHeaders),
                 problem.Summary(), tweet);
             return new PostTweetResponse(TweetSendStatus.TooManyRequests, tweetData.text);
+        }
+
+        if (problem.IsClientForbidden)
+        {
+            // The problem type says the app is not allowed to post at all, whatever the HTTP status was.
+            logger.LogError(
+                "Failed to send tweet. Client-forbidden. Reason-Phrase: '{ResponseReasonPhrase}'. Status-code: '{ResponseStatusCode}'. Problem: '{Problem}', Tweet: '{Tweet}'.",
+                response.ReasonPhrase, response.StatusCode, problem.Summary(), tweet);
+            return new PostTweetResponse(TweetSendStatus.AuthenticationFailed, tweetData.text);
         }
 
         logger.LogError(
@@ -223,6 +247,15 @@ public class TwitterClient(
 
     /// <summary>X's maximum page size for the user posts timeline.</summary>
     private const int TimelinePageSize = 100;
+
+    /// <summary>
+    /// <see cref="HttpClient"/> reports its own timeout as a <see cref="TaskCanceledException"/> (inner
+    /// <see cref="TimeoutException"/>) without the caller's token being cancelled; a caller cancellation is not a
+    /// timeout and keeps propagating.
+    /// </summary>
+    private static bool IsRequestTimeout(Exception exception, CancellationToken cancellationToken) =>
+        !cancellationToken.IsCancellationRequested &&
+        exception is TimeoutException or TaskCanceledException;
 
     private async Task<XApiSkipReason?> TryGetActiveSkip(CancellationToken cancellationToken)
     {

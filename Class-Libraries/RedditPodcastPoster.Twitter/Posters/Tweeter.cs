@@ -120,6 +120,15 @@ public class Tweeter(
             }
 
             var tweetStatus = await tweetPoster.PostTweet(podcastEpisode, shortUrl, hasShareImage);
+            if (tweetStatus.TweetSendStatus == TweetSendStatus.SentNotSaved)
+            {
+                // The post is live, so it counts, but its state could not be saved: stop before posting another.
+                run.Posts++;
+                LogRunStopped(tweetStatus.TweetSendStatus, podcastEpisode);
+                run.Stopped = true;
+                return false;
+            }
+
             if (StopsRun(tweetStatus.TweetSendStatus))
             {
                 LogRunStopped(tweetStatus.TweetSendStatus, podcastEpisode);
@@ -173,7 +182,7 @@ public class Tweeter(
     /// <summary>Statuses that mean no further post can succeed in this run.</summary>
     public static bool StopsRun(TweetSendStatus status) =>
         status is TweetSendStatus.TooManyRequests or TweetSendStatus.PaymentRequired
-            or TweetSendStatus.AuthenticationFailed;
+            or TweetSendStatus.AuthenticationFailed or TweetSendStatus.ServerError or TweetSendStatus.Timeout;
 
     /// <summary>
     /// The document is already persisted as done, so the candidate is a skip, not a failure
@@ -188,10 +197,16 @@ public class Tweeter(
         {
             TweetSendStatus.PaymentRequired => "X credits depleted (402 Payment Required or usage-capped)",
             TweetSendStatus.AuthenticationFailed => "X rejected the credentials (401/403)",
+            TweetSendStatus.ServerError => "X answered with a server error (5xx)",
+            TweetSendStatus.Timeout => "The request to X timed out (the post may have been accepted)",
+            TweetSendStatus.SentNotSaved => "A post was accepted by X but could not be saved as tweeted",
             _ => "X rate limit reached (429 Too Many Requests)"
         };
         logger.LogWarning(
-            "{Reason}; stopping tweet run. {ContentKind} with id '{EpisodeId}' stays untweeted and is retried next run.",
-            reason, podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id);
+            "{Reason}; stopping tweet run. {ContentKind} with id '{EpisodeId}' is {Outcome}.",
+            reason, podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id,
+            status == TweetSendStatus.SentNotSaved
+                ? "live on X but not recorded as tweeted; check it before the next run"
+                : "left untweeted and retried next run");
     }
 }
