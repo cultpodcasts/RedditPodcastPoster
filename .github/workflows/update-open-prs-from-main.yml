@@ -3,6 +3,11 @@
 # "Require branches to be up to date before merging" from blocking the next merge.
 # Logic + tests: .github/scripts/update-open-prs-from-main*.cjs
 # Mirrored across RedditPodcastPoster, website, and Api.
+#
+# HARD (#1582): use repo secret OPEN_PR_UPDATE_TOKEN (PAT or GitHub App installation
+# token with contents + pull-requests write). Update Branch with GITHUB_TOKEN puts
+# pull_request CI in "Approve workflows to run" and often leaves review-gate unposted.
+# After each tip update the job also republishes review-gate (statuses: write).
 
 name: Update open PRs from main
 
@@ -14,6 +19,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  statuses: write
 
 concurrency:
   group: update-open-prs-from-main-${{ github.repository }}
@@ -27,10 +33,24 @@ jobs:
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Merge main into open PR branches
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          OPEN_PR_UPDATE_TOKEN: ${{ secrets.OPEN_PR_UPDATE_TOKEN }}
         with:
+          # Trusted actor token — never github.token for Update Branch (#1582).
+          github-token: ${{ secrets.OPEN_PR_UPDATE_TOKEN }}
           script: |
+            if (!process.env.OPEN_PR_UPDATE_TOKEN) {
+              core.setFailed(
+                'Repo secret OPEN_PR_UPDATE_TOKEN is not set. ' +
+                'Add a classic PAT (repo) or fine-grained token (Contents + Pull requests: Read and write) ' +
+                'so Update Branch is not attributed to github-actions[bot]. ' +
+                'See cultpodcasts/RedditPodcastPoster#1582.'
+              );
+              return;
+            }
             const { run } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/update-open-prs-from-main.cjs`);
             await run({ github, context, core, baseBranch: 'main' });
