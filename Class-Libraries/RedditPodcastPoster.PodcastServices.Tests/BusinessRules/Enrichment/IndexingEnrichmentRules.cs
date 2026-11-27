@@ -2,6 +2,7 @@ using FluentAssertions;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Episodes.Adapters;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.Episodes.TestSupport;
 using RedditPodcastPoster.Episodes.TestSupport.Assertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
@@ -588,6 +589,124 @@ public class IndexingEnrichmentRules
         episode.Urls.Apple.Should().NotBeNull();
         episode.Urls.YouTube.Should().NotBeNull();
     }
+
+    [Fact(DisplayName =
+        "In the Index flow an episode of a podcast with no Spotify show id is not sent to the Spotify enricher, " +
+        "because the planner plans nothing for it, while the Apple and YouTube enrichers are still attempted.")]
+    public async Task index_flow_skips_spotify_enricher_when_podcast_has_no_spotify_show_id()
+    {
+        // Arrange
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
+        var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
+            spotifyEnricher,
+            appleEnricher,
+            youTubeEnricher);
+        var podcast = CreateNoSpotifyShowPodcast();
+        var episode = CreateEpisodeMissingAllPlatforms(podcast);
+        var indexingContext = new IndexingContext { LookupFlow = EpisodeLookupFlow.Index };
+
+        // Act
+        await enricher.EnrichEpisodes(podcast, [episode], [episode], indexingContext);
+
+        // Assert
+        VerifyEnrichCalls(spotifyEnricher, Times.Never);
+        VerifyEnrichCalls(appleEnricher, Times.Once);
+        VerifyEnrichCalls(youTubeEnricher, Times.Once);
+    }
+
+    public static TheoryData<EpisodeLookupFlow> FlowsOtherThanIndex =>
+        new()
+        {
+            EpisodeLookupFlow.Submit,
+            EpisodeLookupFlow.Discovery,
+            EpisodeLookupFlow.Enrich
+        };
+
+    [Theory(DisplayName =
+        "Outside the Index flow an episode of a podcast with no Spotify show id is still sent to the Spotify enricher, " +
+        "because those flows may search by show name.")]
+    [MemberData(nameof(FlowsOtherThanIndex))]
+    public async Task non_index_flows_still_send_episode_to_spotify_enricher_without_spotify_show_id(
+        EpisodeLookupFlow flow)
+    {
+        // Arrange
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
+        var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
+            spotifyEnricher,
+            appleEnricher,
+            youTubeEnricher);
+        var podcast = CreateNoSpotifyShowPodcast();
+        var episode = CreateEpisodeMissingAllPlatforms(podcast);
+        var indexingContext = new IndexingContext { LookupFlow = flow };
+
+        // Act
+        await enricher.EnrichEpisodes(podcast, [episode], [episode], indexingContext);
+
+        // Assert
+        VerifyEnrichCalls(spotifyEnricher, Times.Once);
+    }
+
+    [Fact(DisplayName =
+        "In the Index flow an episode of a podcast that has a Spotify show id is still sent to the Spotify enricher.")]
+    public async Task index_flow_still_sends_episode_to_spotify_enricher_when_podcast_has_spotify_show_id()
+    {
+        // Arrange
+        var spotifyEnricher = _mocker.GetMock<ISpotifyEpisodeEnricher>();
+        var appleEnricher = _mocker.GetMock<IAppleEpisodeEnricher>();
+        var youTubeEnricher = _mocker.GetMock<IYouTubeEpisodeEnricher>();
+        var enricher = PodcastServicesEpisodeEnricherTestSupport.CreateEnricher(
+            spotifyEnricher,
+            appleEnricher,
+            youTubeEnricher);
+        var podcast = CreateNoSpotifyShowPodcast();
+        podcast.SpotifyId = _fixture.CreateSpotifyId();
+        var episode = CreateEpisodeMissingAllPlatforms(podcast);
+        var indexingContext = new IndexingContext { LookupFlow = EpisodeLookupFlow.Index };
+
+        // Act
+        await enricher.EnrichEpisodes(podcast, [episode], [episode], indexingContext);
+
+        // Assert
+        VerifyEnrichCalls(spotifyEnricher, Times.Once);
+    }
+
+    private Podcast CreateNoSpotifyShowPodcast()
+    {
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        podcast.SpotifyId = string.Empty;
+        podcast.YouTubeChannelId = _fixture.CreateYouTubeChannelId();
+        return podcast;
+    }
+
+    private Episode CreateEpisodeMissingAllPlatforms(Podcast podcast)
+    {
+        var episode = _fixture.CreateEpisode(e =>
+        {
+            e.Length = _fixture.CreateDuration();
+            EpisodeServicePresence.SetYouTubeIdentity(e, null);
+            EpisodeServicePresence.SetSpotifyIdentity(e, null);
+            EpisodeServicePresence.SetAppleIdentity(e, null);
+            e.Urls = new ServiceUrls();
+        });
+        episode.PodcastId = podcast.Id;
+        return episode;
+    }
+
+    private static void VerifyEnrichCalls(Mock<ISpotifyEpisodeEnricher> enricher, Func<Times> times) =>
+        enricher.Verify(x => x.Enrich(
+            It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>(), It.IsAny<EnrichmentContext>()), times);
+
+    private static void VerifyEnrichCalls(Mock<IAppleEpisodeEnricher> enricher, Func<Times> times) =>
+        enricher.Verify(x => x.Enrich(
+            It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>(), It.IsAny<EnrichmentContext>()), times);
+
+    private static void VerifyEnrichCalls(Mock<IYouTubeEpisodeEnricher> enricher, Func<Times> times) =>
+        enricher.Verify(x => x.Enrich(
+            It.IsAny<EnrichmentRequest>(), It.IsAny<IndexingContext>(), It.IsAny<EnrichmentContext>()), times);
 
     private Episode CreateStoredEpisodeAwaitingYouTubeEnrichment(string audioPlatform, DateTime release)
     {

@@ -108,10 +108,23 @@ public sealed class InMemoryEpisodeRepository : IEpisodeRepository
         await Task.CompletedTask;
     }
 
+    private readonly List<Expression<Func<Episode, bool>>> _podcastSelectorQueries = [];
+
+    /// <summary>The selectors passed to <see cref="GetByPodcastId(Guid, Expression{Func{Episode, bool}})"/>, in call order.</summary>
+    public IReadOnlyList<Expression<Func<Episode, bool>>> PodcastSelectorQueries => _podcastSelectorQueries;
+
+    /// <summary>
+    /// How many podcast-scoped selector queries would return <paramref name="probe"/> — lets a test count reads by
+    /// the shape of what they select (for example "episodes with a platform id") without inspecting expression text.
+    /// </summary>
+    public int CountPodcastSelectorQueriesSelecting(Episode probe) =>
+        _podcastSelectorQueries.Count(selector => CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile()(probe));
+
     public async IAsyncEnumerable<Episode> GetByPodcastId(
         Guid podcastId,
         Expression<Func<Episode, bool>> selector)
     {
+        _podcastSelectorQueries.Add(selector);
         var predicate = CosmosLinqInMemoryRewriter.ForInMemory(selector).Compile();
         foreach (var episode in _episodes.Values
                      .Where(x => x.PodcastId == podcastId)
