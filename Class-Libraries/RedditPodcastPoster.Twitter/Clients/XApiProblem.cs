@@ -13,6 +13,8 @@ public sealed class XApiProblem
 {
     public const string UsageCappedType = "https://api.twitter.com/2/problems/usage-capped";
     public const string NotFoundErrorTitle = "Not Found Error";
+    public const string UsageCapExceededTitle = "UsageCapExceeded";
+    public const string TooManyRequestsTitle = "Too Many Requests";
 
     [JsonPropertyName("title")] public string? Title { get; set; }
     [JsonPropertyName("detail")] public string? Detail { get; set; }
@@ -44,17 +46,39 @@ public sealed class XApiProblem
         Messages().Any(m => m.Contains("duplicate content", StringComparison.OrdinalIgnoreCase)) ||
         (Errors?.Any(e => e.Code == 187) ?? false);
 
-    /// <summary>The app's monthly usage / credits cap (distinct from a short rate-limit window).</summary>
+    /// <summary>
+    /// The app's monthly usage / credits cap (distinct from a short rate-limit window). Read from the problem
+    /// <c>type</c> (top level or <c>errors[]</c>) or the <c>UsageCapExceeded</c> title. A "usage cap" phrase in a
+    /// message is kept only as a last-resort fallback for bodies that carry no type (older X responses).
+    /// </summary>
     [JsonIgnore]
     public bool IsUsageCapped =>
-        (Type?.EndsWith("/usage-capped", StringComparison.OrdinalIgnoreCase) ?? false) ||
+        HasProblemType("/usage-capped") ||
+        string.Equals(Title, UsageCapExceededTitle, StringComparison.OrdinalIgnoreCase) ||
+        (Errors?.Any(e => string.Equals(e.Title, UsageCapExceededTitle, StringComparison.OrdinalIgnoreCase)) ?? false) ||
         Messages().Any(m => m.Contains("usage cap", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// A short rate-limit window: the <c>rate-limit-exceeded</c> problem type (top level or <c>errors[]</c>) or the
+    /// exact <c>Too Many Requests</c> title X sends with HTTP 429.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsRateLimitExceeded =>
+        HasProblemType("/rate-limit-exceeded") ||
+        string.Equals(Title, TooManyRequestsTitle, StringComparison.OrdinalIgnoreCase) ||
+        (Errors?.Any(e => string.Equals(e.Title, TooManyRequestsTitle, StringComparison.OrdinalIgnoreCase)) ?? false);
+
+    /// <summary>
+    /// The app or credentials are not allowed to call the endpoint at all (<c>client-forbidden</c> or
+    /// <c>not-authorized-for-resource</c>), so no candidate can be posted this run.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsClientForbidden =>
+        HasProblemType("/client-forbidden") || HasProblemType("/not-authorized-for-resource");
 
     /// <summary>A rate limit or the app's usage cap; nothing more should be posted this run.</summary>
     [JsonIgnore]
-    public bool IsRateOrUsageLimited =>
-        IsUsageCapped ||
-        Messages().Any(m => m.Contains("too many requests", StringComparison.OrdinalIgnoreCase));
+    public bool IsRateOrUsageLimited => IsUsageCapped || IsRateLimitExceeded;
 
     /// <summary>
     /// HTTP status and/or problem that should persist a LookUps skip window: 429, bare 402 (credits gone,
@@ -77,6 +101,10 @@ public sealed class XApiProblem
 
     /// <summary>A one-line summary for logs (no request data).</summary>
     public string Summary() => string.Join(" | ", Messages().Prepend(Type ?? string.Empty).Where(m => m != string.Empty));
+
+    private bool HasProblemType(string suffix) =>
+        (Type?.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ?? false) ||
+        (Errors?.Any(e => e.Type?.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ?? false) ?? false);
 
     private static bool IsResourceNotFoundType(string? type) =>
         type?.EndsWith("/resource-not-found", StringComparison.OrdinalIgnoreCase) ?? false;

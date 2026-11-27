@@ -53,6 +53,59 @@ public class XApiProblemRules
     }
 
     [Theory(DisplayName =
+        "A usage-capped or rate-limit-exceeded problem type or title, at the top level or inside errors[], is recognised from the parsed JSON fields, so the client classifies the failure without searching free text.")]
+    [InlineData("{\"type\":\"https://api.twitter.com/2/problems/rate-limit-exceeded\"}", false, true)]
+    [InlineData("{\"errors\":[{\"type\":\"https://api.x.com/2/problems/rate-limit-exceeded\"}]}", false, true)]
+    [InlineData("{\"title\":\"Too Many Requests\",\"status\":429}", false, true)]
+    [InlineData("{\"errors\":[{\"type\":\"https://api.twitter.com/2/problems/usage-capped\"}]}", true, false)]
+    [InlineData("{\"errors\":[{\"title\":\"UsageCapExceeded\"}]}", true, false)]
+    public void limit_shapes_are_read_from_json_fields(string body, bool usageCapped, bool rateLimited)
+    {
+        // Arrange
+        var responseBody = body;
+
+        // Act
+        var problem = XApiProblem.Parse(responseBody);
+
+        // Assert
+        problem.IsUsageCapped.Should().Be(usageCapped);
+        problem.IsRateLimitExceeded.Should().Be(rateLimited);
+        problem.IsRateOrUsageLimited.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
+        "Free text that merely mentions too many requests in detail is not a rate limit, because the type and title fields are the contract and substring matches misclassify unrelated errors.")]
+    public void free_text_alone_is_not_a_rate_limit()
+    {
+        // Arrange
+        const string body =
+            "{\"title\":\"Forbidden\",\"detail\":\"This looks like a too many requests message.\",\"status\":403}";
+
+        // Act
+        var problem = XApiProblem.Parse(body);
+
+        // Assert
+        problem.IsRateLimitExceeded.Should().BeFalse();
+        problem.IsRateOrUsageLimited.Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "A client-forbidden or not-authorized-for-resource problem type is recognised as client-forbidden, so a refusal that applies to every post stops the run.")]
+    [InlineData("{\"type\":\"https://api.twitter.com/2/problems/client-forbidden\"}")]
+    [InlineData("{\"errors\":[{\"type\":\"https://api.twitter.com/2/problems/not-authorized-for-resource\"}]}")]
+    public void client_forbidden_shapes_are_recognised(string body)
+    {
+        // Arrange
+        var responseBody = body;
+
+        // Act
+        var problem = XApiProblem.Parse(responseBody);
+
+        // Assert
+        problem.IsClientForbidden.Should().BeTrue();
+    }
+
+    [Theory(DisplayName =
         "A resource-not-found problem type (api.twitter.com or api.x.com) or a Not Found Error title is recognised so delete can clear Tweeted only when X says the post is gone.")]
     [InlineData("{\"type\":\"https://api.twitter.com/2/problems/resource-not-found\"}")]
     [InlineData("{\"type\":\"https://api.x.com/2/problems/resource-not-found\",\"title\":\"Not Found Error\"}")]
