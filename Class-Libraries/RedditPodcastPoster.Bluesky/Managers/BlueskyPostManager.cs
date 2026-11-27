@@ -8,6 +8,7 @@ using RedditPodcastPoster.Bluesky.Configuration;
 using RedditPodcastPoster.Bluesky.Factories;
 using RedditPodcastPoster.Bluesky.Models;
 using RedditPodcastPoster.Bluesky.Posters;
+using RedditPodcastPoster.SocialPosting;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.SocialPosting.Templates;
 using RedditPodcastPoster.DependencyInjection;
@@ -51,7 +52,7 @@ public class BlueskyPostManager(
             throw;
         }
 
-        var run = new PostRun();
+        var run = new SocialPostRunBudget(_options.MaxPosts, _options.MaxFailures, "Bluesky posting", logger);
         if (unposted.Any())
         {
             logger.LogWarning(
@@ -79,7 +80,7 @@ public class BlueskyPostManager(
         // TV episodes, news reports and films follow the podcast episodes within the same max-posts and
         // failure budget. Their candidates come from their own containers, not the shared podcast cache.
         var catalogueCount = 0;
-        if (!run.Stopped && run.Posts < _options.MaxPosts)
+        if (run.HasCapacity)
         {
             IReadOnlyList<PodcastEpisode> catalogueUnposted = [];
             try
@@ -119,23 +120,11 @@ public class BlueskyPostManager(
         }
     }
 
-    private sealed class PostRun
-    {
-        public int Posts { get; set; }
-        public int Failures { get; set; }
-        public bool Stopped { get; set; }
-    }
-
     /// <summary>Posts one candidate. Returns false when the run must stop.</summary>
-    private async Task<bool> PostOne(PodcastEpisode podcastEpisode, PostRun run)
+    private async Task<bool> PostOne(PodcastEpisode podcastEpisode, SocialPostRunBudget run)
     {
-        if (run.Posts >= _options.MaxPosts)
+        if (!run.TryReserve())
         {
-            logger.LogWarning(
-                "Stopping Bluesky posting because max-posts limit was reached. Posts: {posts}, Max-posts: {maxPosts}.",
-                run.Posts,
-                _options.MaxPosts);
-            run.Stopped = true;
             return false;
         }
 
@@ -167,7 +156,7 @@ public class BlueskyPostManager(
                 logger.LogInformation("Bluesky Post complete. Bluesky-post-status: '{status}'.", status);
                 if (status == BlueskySendStatus.Success)
                 {
-                    run.Posts++;
+                    run.RecordSent();
                     return true;
                 }
 
@@ -181,25 +170,14 @@ public class BlueskyPostManager(
                 if (status is BlueskySendStatus.Failure or BlueskySendStatus.FailureAuth
                     or BlueskySendStatus.Unknown)
                 {
-                    run.Failures++;
-                    if (run.Failures >= _options.MaxFailures)
-                    {
-                        logger.LogWarning(
-                            "Stopping Bluesky posting because failure threshold was reached. Failures: {failures}, Max-failures: {maxFailures}.",
-                            run.Failures,
-                            _options.MaxFailures);
-                        run.Stopped = true;
-                        return false;
-                    }
-
-                    return true;
+                    return run.RecordFailure();
                 }
 
                 logger.LogWarning(
                     "Stopping Bluesky posting due to non-retriable status '{status}' for episode-id '{episodeId}'.",
                     status,
                     podcastEpisode.Episode.Id);
-                run.Stopped = true;
+                run.Stop();
                 return false;
             }
             catch (EpisodeNotFoundException e)
@@ -217,6 +195,8 @@ public class BlueskyPostManager(
                 podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name);
         }
 
+        // EpisodeNotFound and unexpected exceptions continue without spending the failure budget —
+        // same as before the shared SocialPostRunBudget extraction (#1455).
         return true;
     }
 
