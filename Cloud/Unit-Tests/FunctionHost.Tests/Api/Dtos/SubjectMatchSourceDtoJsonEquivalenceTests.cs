@@ -59,11 +59,7 @@ public class SubjectMatchSourceDtoJsonEquivalenceTests
     public void unknown_subject_match_source_throws()
     {
         // Arrange
-        var unknown = (SubjectMatchSource)_fixture.Create<int>();
-        while (Enum.IsDefined(unknown))
-        {
-            unknown = (SubjectMatchSource)_fixture.Create<int>();
-        }
+        var unknown = (SubjectMatchSource)int.MaxValue;
 
         // Act
         var act = () => unknown.ToDto();
@@ -73,7 +69,7 @@ public class SubjectMatchSourceDtoJsonEquivalenceTests
     }
 
     [Fact(DisplayName =
-        "When a subject match DTO is written for each source, the JSON carries the member name as before, so episode matches and discovery subjectMatches are unchanged.")]
+        "When a subject match DTO is written with PodcastDefault, the JSON carries the member name as before, so episode matches and discovery subjectMatches are unchanged.")]
     public void subject_match_dto_writes_the_source_name()
     {
         // Arrange
