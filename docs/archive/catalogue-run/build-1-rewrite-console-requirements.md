@@ -1,5 +1,7 @@
 # Build 1 blocker — Episode rewrite console requirements
 
+**Status (historical):** `films-refactor/` was deleted in #1406 after GATE 1 succeeded. This file is the archived requirements for that throwaway tool.
+
 **Parent:** [build-1.md](./build-1.md)  
 **Used in:** [gate-1.md](./gate-1.md) steps 4 (dry-run) and 6 (`--apply`)  
 **Not used in:** Build 1 itself (ship only)

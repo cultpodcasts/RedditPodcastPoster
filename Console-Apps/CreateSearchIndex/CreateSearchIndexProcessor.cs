@@ -34,7 +34,7 @@ public partial class CreateSearchIndexProcessor(
     /// <summary>
     /// Excludes an episode whose podcast is removed, stored as the retired <c>podcastRemoved</c> key.
     /// The GATE 1 wire rewrite moved that flag to <c>parentRemoved</c> and the corpus audit found no
-    /// <c>podcastRemoved</c> keys left, but <c>EpisodeWireRewrite</c>'s rollback writes <c>podcastRemoved: true</c>
+    /// <c>podcastRemoved</c> keys left, but the retired GATE 1 wire-rewrite rollback wrote <c>podcastRemoved: true</c>
     /// back. The search pull SQL must never index a removed podcast's episodes in either wire state, so it keeps
     /// this guard even though <see cref="Playable.CosmosParentNotRemovedSql"/> reads <c>parentRemoved</c> only.
     /// </summary>

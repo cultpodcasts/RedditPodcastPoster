@@ -31,6 +31,7 @@ public class CatalogueParentIndexingRules
 
     private readonly DomainTestFixture _fixture = new();
     private readonly AutoMocker _mocker = new();
+    private readonly InterceptingLockStore _lockStore = new(new InMemoryParentIndexingLockStore());
     private readonly List<TvShowEpisode> _savedTvEpisodes = [];
     private readonly List<NewsReport> _savedReports = [];
     private readonly List<(Guid Id, CatalogueParentIndexerPatch Patch)> _showPatches = [];
@@ -51,7 +52,7 @@ public class CatalogueParentIndexingRules
     {
         _mocker.Use(Options.Create(PodcastUpdaterTestHarness.DefaultPostingCriteria));
         _mocker.Use<TimeProvider>(TimeProvider.System);
-        _mocker.Use<IParentIndexingLockStore>(new InMemoryParentIndexingLockStore());
+        _mocker.Use<IParentIndexingLockStore>(_lockStore);
 
         var tvShows = _mocker.GetMock<ITvShowRepository>();
         tvShows.Setup(x => x.GetTvShow(It.IsAny<Guid>()))
@@ -924,9 +925,9 @@ public class CatalogueParentIndexingRules
     }
 
     [Fact(DisplayName =
-        "On-demand parent index: the resolved parent is indexed without reading it again, so a news organisation " +
-        "that shares its id with a TV show indexes the news organisation, because the route's kind is the kind indexed.")]
-    public async Task index_parent_indexes_the_given_kind_without_a_second_lookup()
+        "On-demand parent index: a news organisation that shares its id with a TV show is indexed as news by the " +
+        "route kind, and the re-read under the lease is of that kind only (#1402), never a TV-show lookup.")]
+    public async Task index_parent_rereads_only_the_given_kind_under_the_lease()
     {
         // Arrange
         var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
@@ -941,7 +942,8 @@ public class CatalogueParentIndexingRules
         _savedReports.Should().ContainSingle().Which.NewsOrganisationId.Should().Be(organisation.Id);
         _savedTvEpisodes.Should().BeEmpty();
         _mocker.GetMock<ITvShowRepository>().Verify(x => x.GetTvShow(It.IsAny<Guid>()), Times.Never);
-        _mocker.GetMock<INewsOrganisationRepository>().Verify(x => x.GetNewsOrganisation(It.IsAny<Guid>()), Times.Never);
+        _mocker.GetMock<INewsOrganisationRepository>()
+            .Verify(x => x.GetNewsOrganisation(organisation.Id), Times.Once);
     }
 
     [Fact(DisplayName =
@@ -1056,5 +1058,232 @@ public class CatalogueParentIndexingRules
         _showPatches.Should().BeEmpty();
         _savedReports.Should().ContainSingle().Which.Id.Should().Be(discovered.Id);
         _organisationPatches.Should().ContainSingle().Which.Id.Should().Be(indexable.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation is deleted between the initial read and taking the " +
+        "indexing lease, then nothing is indexed or saved and the lease is released, because the lease must not " +
+        "index a stale in-memory parent into an orphaned partition (#1402).")]
+    public async Task news_organisation_deleted_between_read_and_lease_is_skipped()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+        _lockStore.AfterAcquire = id => _organisations.Remove(id);
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+        _mocker.GetMock<IEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
+            Times.Never);
+        await AssertLeaseReleased(organisation.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a TV show is deleted between the initial read and taking the indexing " +
+        "lease, then nothing is indexed or saved and the lease is released, because the same orphaned-partition " +
+        "risk applies to both parent kinds (#1402).")]
+    public async Task tv_show_deleted_between_read_and_lease_is_skipped()
+    {
+        // Arrange
+        var show = SeedTvShow(AutoIndexedYouTubePodcast());
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+        _lockStore.AfterAcquire = id => _shows.Remove(id);
+
+        // Act
+        var success = await Sut.UpdateParents([show.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedTvEpisodes.Should().BeEmpty();
+        _showPatches.Should().BeEmpty();
+        _mocker.GetMock<IEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
+            Times.Never);
+        await AssertLeaseReleased(show.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a news organisation is flagged removed between the initial read and taking " +
+        "the indexing lease, then nothing is indexed or saved and the lease is released, because a removed parent " +
+        "is never indexed (#1402).")]
+    public async Task news_organisation_removed_between_read_and_lease_is_skipped()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(podcast);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+        _lockStore.AfterAcquire = id =>
+        {
+            var removed = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+            removed.Removed = true;
+            _organisations[id] = removed;
+        };
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+        _mocker.GetMock<IEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
+            Times.Never);
+        await AssertLeaseReleased(organisation.Id);
+    }
+
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when the news organisation document changes between the initial read and taking " +
+        "the indexing lease, then the saved reports carry the re-read document's name, because the run must index " +
+        "the document read under the lease, not the stale one (#1402).")]
+    public async Task news_organisation_indexed_from_the_document_read_under_the_lease()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        var organisation = SeedOrganisation(podcast);
+        var liveName = _fixture.CreateTitleNotContainedIn(organisation.Name);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+        _lockStore.AfterAcquire = id =>
+        {
+            var live = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+            live.Name = liveName;
+            _organisations[id] = live;
+        };
+
+        // Act
+        var success = await Sut.UpdateParents([organisation.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        var saved = _savedReports.Should().ContainSingle().Subject;
+        saved.NewsOrganisationId.Should().Be(organisation.Id);
+        saved.NewsOrganisationName.Should().Be(liveName);
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when the TV show document changes between the curator's read and taking the " +
+        "indexing lease, then the saved episodes carry the re-read document's name, because the run must index the " +
+        "document read under the lease, not the stale one (#1402).")]
+    public async Task index_parent_tv_show_indexed_from_the_document_read_under_the_lease()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        var show = SeedTvShow(podcast);
+        var liveName = _fixture.CreateTitleNotContainedIn(show.Name);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+        _lockStore.AfterAcquire = id =>
+        {
+            var live = CatalogueParentKindMapper.ToTvShow(podcast);
+            live.Name = liveName;
+            _shows[id] = live;
+        };
+
+        // Act
+        var result = await Sut.IndexParent(show, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.Indexed);
+        _savedTvEpisodes.Should().ContainSingle().Which.TvShowName.Should().Be(liveName);
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when the news organisation is deleted between the curator's read and taking the " +
+        "indexing lease, then the result is NotFound (not Indexed), nothing is saved and the lease is released, " +
+        "because the API must not report success or push a vanished parent to search (#1402).")]
+    public async Task index_parent_deleted_under_the_lease_is_not_found()
+    {
+        // Arrange
+        var organisation = SeedOrganisation(AutoIndexedYouTubePodcast());
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+        _lockStore.AfterAcquire = id => _organisations.Remove(id);
+
+        // Act
+        var result = await Sut.IndexParent(organisation, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.NotFound);
+        result.Changed.Should().BeEmpty();
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+        await AssertLeaseReleased(organisation.Id);
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when the TV show is flagged removed between the curator's read and taking the " +
+        "indexing lease, then the result is NotIndexable with reason Removed (as for a show removed before the " +
+        "lease), nothing is saved and the lease is released, because a removed parent is never indexed (#1402).")]
+    public async Task index_parent_removed_under_the_lease_is_not_indexable()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        var show = SeedTvShow(podcast);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+        _lockStore.AfterAcquire = id =>
+        {
+            var removed = CatalogueParentKindMapper.ToTvShow(podcast);
+            removed.Removed = true;
+            _shows[id] = removed;
+        };
+
+        // Act
+        var result = await Sut.IndexParent(show, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.NotIndexable);
+        result.NotIndexableReason.Should().Be(CatalogueParentNotIndexableReason.Removed);
+        _savedTvEpisodes.Should().BeEmpty();
+        _showPatches.Should().BeEmpty();
+        await AssertLeaseReleased(show.Id);
+    }
+
+    private async Task AssertLeaseReleased(Guid parentId)
+    {
+        _lockStore.Inner.IsHeld(parentId).Should().BeFalse("the skip returns inside the lease's try block");
+        var reacquired = await _lockStore.Inner.TryAcquire(
+            parentId, DateTime.UtcNow, CatalogueParentsUpdater.IndexingLockStaleAfter);
+        reacquired.Held.Should().BeTrue("a released lease can be taken again straight away");
+    }
+
+    /// <summary>
+    /// Wraps the in-memory lease store so a test can model the interleaving of a curator's DELETE with the lease:
+    /// <see cref="AfterAcquire"/> runs once the lease has been taken, before the updater re-reads the parent.
+    /// </summary>
+    private sealed class InterceptingLockStore(InMemoryParentIndexingLockStore inner) : IParentIndexingLockStore
+    {
+        public InMemoryParentIndexingLockStore Inner { get; } = inner;
+
+        public Action<Guid>? AfterAcquire { get; set; }
+
+        public async Task<ParentIndexingLockAcquisition> TryAcquire(
+            Guid parentId, DateTime nowUtc, TimeSpan staleAfter, string? source = null)
+        {
+            var acquisition = await Inner.TryAcquire(parentId, nowUtc, staleAfter, source);
+            if (acquisition.Held)
+            {
+                AfterAcquire?.Invoke(parentId);
+            }
+
+            return acquisition;
+        }
+
+        public Task<ParentIndexingLockHandle?> Renew(ParentIndexingLockHandle handle, DateTime nowUtc) =>
+            Inner.Renew(handle, nowUtc);
+
+        public Task Release(ParentIndexingLockHandle handle) => Inner.Release(handle);
+
+        public Task<ParentIndexingLock?> TryGet(Guid parentId) => Inner.TryGet(parentId);
     }
 }

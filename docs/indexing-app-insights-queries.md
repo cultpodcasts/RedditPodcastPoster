@@ -1010,6 +1010,36 @@ AppTraces
 | order by Lookups desc
 ```
 
+### A2. Classification cost per hour (24h, #1557)
+
+`candidates`, `classified` and `classify-ms` are appended after `pages-read`. Compare `classify-ms` with the slow `enrich` seconds from the `IndexerPodcastStage` query below (same hour buckets).
+
+`classify-ms` also covers the ignore-list lookup for lookups with `classified=0` (not enriching a YouTube-discovered episode), so only rows with `classified > 0` measure subject/guest classification. The query filters to them. `classified` counts candidates handed to classification, which may be served from the classifier's per-scope memo.
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(24h)
+| where Message startswith "Catalogue episode lookup:"
+| extend Platform = extract(@"platform='([^']*)'", 1, Message),
+         Flow = extract(@"flow='([^']*)'", 1, Message),
+         Candidates = toint(extract(@"candidates=(\d+)", 1, Message)),
+         Classified = toint(extract(@"classified=(\d+)", 1, Message)),
+         ClassifyMs = tolong(extract(@"classify-ms=(\d+)", 1, Message))
+| where isnotnull(ClassifyMs) and Classified > 0
+| summarize Lookups = count(), Candidates = sum(Candidates), Classified = sum(Classified), ClassifySec = round(sum(ClassifyMs) / 1000.0, 0) by hr = hourofday(TimeGenerated), Platform, Flow
+| order by hr asc
+```
+
+Slow `enrich` seconds per hour to compare against:
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(24h)
+| where Message startswith 'IndexerPodcastStage' and Message has "slow-previous-stage='True'"
+| parse Message with * "previous-stage='" prev "' previous-stage-ms='" ms:long "'" *
+| summarize podcasts=count(), sec=round(sum(ms)/1000.0,0) by hr=hourofday(TimeGenerated), prev
+| order by hr asc
+```
 ### B. One podcast or episode (24h)
 
 ```kusto

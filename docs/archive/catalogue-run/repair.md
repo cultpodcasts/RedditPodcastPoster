@@ -1,11 +1,13 @@
 # Repair evidence (always written on migrate)
 
-Every migrate run (dry-run or `--apply`) **always** writes a repair pack. You do not opt in.
+**Status (historical):** Archived from `films-refactor/REPAIR.md` after GATE 1 succeeded and `films-refactor/` was deleted in #1406. Kept for post-cutover forensics / journal `before` interpretation — not a live runbook to restore the rewrite tool.
+
+Every migrate run (dry-run or `--apply`) **always** wrote a repair pack. You did not opt in.
 
 Default location: `./wire-cutover-evidence/wire-cutover-<utc>.jsonl` (+ siblings).  
-Optional `--journal path` only overrides the path.
+Optional `--journal path` only overrode the path.
 
-Files are written **as each episode is processed** (flushed immediately — a crash mid-run still leaves prior rows):
+Files were written **as each episode is processed** (flushed immediately — a crash mid-run still leaves prior rows):
 
 | File | Purpose |
 |------|---------|

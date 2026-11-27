@@ -6,8 +6,7 @@
   Closes the silent-omit class of bug from #1145: test / library projects that exist on disk
   but never run under `dotnet test RedditPodcastPoster.slnx`.
 
-  Allowlist (documented exclusions — keep in sync with films-refactor/README.md):
-    - films-refactor/**  — throwaway GATE 1 wire rewrite; must not be in the slnx
+  Allowlist (documented exclusions):
     - **/obj/**, **/bin/** — generated WorkerExtensions etc.
     - .tmp*/** — local scratch (gitignored)
 
@@ -37,8 +36,7 @@ foreach ($m in [regex]::Matches($slnx, 'Path="([^"]+\.csproj)"')) {
 
 function Test-IsAllowlisted([string] $rel) {
     $n = $rel -replace '\\', '/'
-    if ($n -match '(^|/)\.tmp|/obj/|/bin/') { return $true }
-    if ($n.StartsWith('films-refactor/', [StringComparison]::OrdinalIgnoreCase)) { return $true }
+    if ($n -match '(^|/)\.tmp|(^|/)obj/|(^|/)bin/') { return $true }
     return $false
 }
 

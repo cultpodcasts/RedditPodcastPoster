@@ -277,6 +277,111 @@ public class CatalogueLookupExecutorRules
             x.Message.Contains("pages-read=1"));
     }
 
+    /// <summary>Classifier whose cost is per candidate, charged to the manual clock so classify-ms is deterministic.</summary>
+    private sealed class PerCandidateCostClassifier(ManualTimeProvider clock, TimeSpan perCandidate)
+        : ICatalogueSubjectClassifier
+    {
+        public Task<IReadOnlyList<string>?> ClassifyAsync(Episode probe, IReadOnlyList<Episode> candidates,
+            CatalogueLookup lookup, CancellationToken cancellationToken)
+        {
+            clock.Advance(perCandidate * candidates.Count);
+            return Task.FromResult(lookup.IgnoredSubjects);
+        }
+    }
+
+    private static CatalogueLookupExecutor SutWithClock(
+        ManualTimeProvider clock, RecordingLogger<CatalogueLookupExecutor> logger, ICatalogueSubjectClassifier? classifier = null) =>
+        CatalogueTestServices.CreateExecutor(subjectClassifier: classifier, timeProvider: clock, logger: logger);
+
+    [Fact(DisplayName =
+        "The lookup line reports candidates handed to the classifier, how many were classified and the classify-ms " +
+        "spent, appended after pages-read, so slow enrich time can be attributed to classification.")]
+    public async Task Logs_candidates_classified_and_classify_ms()
+    {
+        // Arrange
+        var logger = new RecordingLogger<CatalogueLookupExecutor>();
+        var source = new FakeSource(Show(600, targetIndex: 3));
+        var clock = new ManualTimeProvider(Now);
+        var perCandidate = TimeSpan.FromMilliseconds(2);
+        var classifier = new PerCandidateCostClassifier(clock, perCandidate);
+        var lookup = Lookup(EpisodeLookupFlow.Index, 3, storedCount: 600) with { EnrichingYouTubeDiscoveredEpisode = true };
+
+        // Act
+        await SutWithClock(clock, logger, classifier).FindMatch(lookup, source);
+
+        // Assert
+        logger.Entries.Should().ContainSingle(x =>
+            x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix) &&
+            x.Message.EndsWith("pages-read=1 candidates=50 classified=50 classify-ms=100."));
+    }
+
+    [Fact(DisplayName =
+        "A lookup that is not enriching a YouTube-discovered episode reports candidates but classified=0, because the " +
+        "classifier does no subject or guest work for it.")]
+    public async Task Logs_zero_classified_when_not_enriching_youtube_discovered_episode()
+    {
+        // Arrange
+        var logger = new RecordingLogger<CatalogueLookupExecutor>();
+        var source = new FakeSource(Show(600, targetIndex: 3));
+        var clock = new ManualTimeProvider(Now);
+
+        // Act
+        await SutWithClock(clock, logger).FindMatch(Lookup(EpisodeLookupFlow.Index, 3, storedCount: 600), source);
+
+        // Assert
+        logger.Entries.Should().ContainSingle(x =>
+            x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix) &&
+            x.Message.EndsWith("pages-read=1 candidates=50 classified=0 classify-ms=0."));
+    }
+
+    [Fact(DisplayName =
+        "When a lookup misses across several steps (newest page, then title search), the lookup line reports candidates, " +
+        "classified and classify-ms summed over every step, because the tally is per lookup and not reset between steps.")]
+    public async Task Logs_candidates_classified_and_classify_ms_summed_across_steps()
+    {
+        // Arrange
+        var logger = new RecordingLogger<CatalogueLookupExecutor>();
+        var searchHits = new List<Item>
+        {
+            new("hit-a", "Unrelated Search Result A About Paper Lanterns", Now.Date.AddDays(-300)),
+            new("hit-b", "Unrelated Search Result B About Paper Lanterns", Now.Date.AddDays(-301))
+        };
+        // Every page candidate is released days away from the lookup, so release and duration cannot match it.
+        var olderShow = Show(600).Select(x => x with { Release = x.Release.AddDays(-10) }).ToList();
+        var source = new FakeSource(olderShow, searchHits: searchHits);
+        var clock = new ManualTimeProvider(Now);
+        var perCandidate = TimeSpan.FromMilliseconds(2);
+        var classifier = new PerCandidateCostClassifier(clock, perCandidate);
+        var lookup = Lookup(EpisodeLookupFlow.Submit, 2, storedCount: 600) with { EnrichingYouTubeDiscoveredEpisode = true };
+
+        // Act
+        var result = await SutWithClock(clock, logger, classifier).FindMatch(lookup, source);
+
+        // Assert
+        result.Match.Should().BeNull();
+        source.SearchCalls.Should().Be(1, "the title search is the second step that classifies candidates");
+        logger.Entries.Should().ContainSingle(x =>
+            x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix) &&
+            x.Message.EndsWith("pages-read=1 candidates=52 classified=52 classify-ms=104."));
+    }
+
+    [Fact(DisplayName =
+        "An Index lookup skipped for having no show id reports candidates=0 classified=0 classify-ms=0 so the line keeps one shape.")]
+    public async Task Logs_zero_counts_when_skipped()
+    {
+        // Arrange
+        var logger = new RecordingLogger<CatalogueLookupExecutor>();
+        var source = new FakeSource(Show(10), showId: null);
+
+        // Act
+        await Sut(logger: logger).FindMatch(Lookup(EpisodeLookupFlow.Index, 2), source);
+
+        // Assert
+        logger.Entries.Should().ContainSingle(x =>
+            x.Message.StartsWith(CatalogueLookupExecutor.LogMessagePrefix) &&
+            x.Message.EndsWith("pages-read=0 candidates=0 classified=0 classify-ms=0."));
+    }
+
     [Theory(DisplayName =
         "An Index lookup with no show id makes no catalogue calls and logs plan 'none', stage 'skipped-no-show' and " +
         "pages-read=0, so YouTube-only podcasts cost nothing each hour and the skip is still visible in App Insights.")]
