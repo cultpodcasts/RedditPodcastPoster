@@ -48,50 +48,75 @@ public class HourlyOrchestration
             "HourlyOrchestration indexer-operation-ids pass-1='{Pass1OperationId}' pass-2='{Pass2OperationId}' pass-3='{Pass3OperationId}' pass-4='{Pass4OperationId}'",
             indexPassOperationIs[0], indexPassOperationIs[1], indexPassOperationIs[2], indexPassOperationIs[3]);
 
+        // Parallel mode comes from IndexIdProvider (an activity), never from config — orchestrator determinism.
+        var mode = indexIds.ParallelPasses;
+        var (parallel, parallelReason) = HourlyParallelPasses.Decide(mode, hourUtc);
+        logger.LogWarning(
+            "HourlyOrchestration parallel-passes='{Parallel}' mode='{Mode}' reason='{Reason}' hour-utc='{HourUtc}' orchestration-instance-id='{InstanceId}'",
+            parallel, mode, parallelReason, hourUtc, context.InstanceId);
+
         var indexerContext = new IndexerContext(indexPassOperationIs, indexIds.PodcastIdBatches)
         {
             CatalogueParentIndexIds = indexIds.CatalogueParentIdBatches
         };
         var failedPasses = new List<int>();
-        for (var pass = firstPass; pass <= lastPass; pass++)
+
+        if (!parallel)
         {
-            try
+            for (var pass = firstPass; pass <= lastPass; pass++)
             {
-                indexerContext = await context.CallActivityAsync<IndexerContext>(
-                    nameof(global::Indexer.Activities.Indexer), new IndexerContextWrapper(indexerContext, pass));
+                try
+                {
+                    indexerContext = await context.CallActivityAsync<IndexerContext>(
+                        nameof(global::Indexer.Activities.Indexer), new IndexerContextWrapper(indexerContext, pass));
+                }
+                catch (TaskFailedException ex)
+                {
+                    // An Indexer activity that fails (e.g. killed at the function timeout) must not cost the hour its
+                    // homepage publish: log it and carry on with the remaining passes, Categoriser, the thumbnail
+                    // re-check (with YouTube flagged errored, so it re-resolves nothing) and Publisher. Poster, Tweet and
+                    // Bluesky are skipped. The orchestration still ends Failed below so the health check reports the hour.
+                    failedPasses.Add(pass);
+                    LogIndexerPassFailed(logger, pass, hourUtc, indexerContext, ex);
+                    indexerContext = indexerContext with { Success = false };
+                    continue;
+                }
+
+                LogIndexerPassComplete(logger, pass, hourUtc, indexerContext);
             }
-            catch (TaskFailedException ex)
+        }
+        else
+        {
+            var seed = indexerContext;
+            var tasks = Enumerable.Range(firstPass, lastPass - firstPass + 1)
+                .Select(pass => (
+                    Pass: pass,
+                    Task: context.CallActivityAsync<IndexerContext>(
+                        nameof(global::Indexer.Activities.Indexer),
+                        new IndexerContextWrapper(seed, pass))))
+                .ToList();
+
+            var results = new List<IndexerContext>();
+            foreach (var (pass, task) in tasks)
             {
-                // An Indexer activity that fails (e.g. killed at the function timeout) must not cost the hour its
-                // homepage publish: log it and carry on with the remaining passes, Categoriser, the thumbnail
-                // re-check (with YouTube flagged errored, so it re-resolves nothing) and Publisher. Poster, Tweet and
-                // Bluesky are skipped. The orchestration still ends Failed below so the health check reports the hour.
-                failedPasses.Add(pass);
-                logger.LogError(
-                    IndexerPassFailedMessagePrefix +
-                    " pass='{Pass}' hour-utc='{HourUtc}' operation-id='{OperationId}' error-type='{ErrorType}' error='{ErrorMessage}'. Continuing to publish.",
-                    pass, hourUtc, indexerContext.IndexerPassOperationIds?[pass - 1],
-                    ex.FailureDetails?.ErrorType, ex.FailureDetails?.ErrorMessage);
+                try
+                {
+                    var passResult = await task;
+                    results.Add(passResult);
+                    LogIndexerPassComplete(logger, pass, hourUtc, passResult);
+                }
+                catch (TaskFailedException ex)
+                {
+                    failedPasses.Add(pass);
+                    LogIndexerPassFailed(logger, pass, hourUtc, seed, ex);
+                }
+            }
+
+            indexerContext = IndexerContextMerge.Merge(seed, results);
+            if (failedPasses.Count > 0)
+            {
                 indexerContext = indexerContext with { Success = false };
-                continue;
             }
-
-            var batchPodcastCount = indexerContext.IndexIds?[pass - 1]?.Length ?? 0;
-            var operationId = indexerContext.IndexerPassOperationIds?[pass - 1];
-            logger.LogWarning(
-                "HourlyOrchestration indexer-pass-complete pass='{Pass}' hour-utc='{HourUtc}' operation-id='{OperationId}' podcast-count='{PodcastCount}' success='{Success}' skip-youtube='{SkipYouTube}' youtube-error='{YouTubeError}'",
-                pass, hourUtc, operationId, batchPodcastCount, indexerContext.Success,
-                indexerContext.SkipYouTubeUrlResolving, indexerContext.YouTubeError);
-
-            if (pass == 4)
-            {
-                logger.LogWarning(
-                    "HourlyOrchestration batch-4-rollup hour-utc='{HourUtc}' operation-id='{OperationId}' podcast-count='{PodcastCount}' success='{Success}' skip-youtube='{SkipYouTube}' youtube-error='{YouTubeError}'",
-                    hourUtc, operationId, batchPodcastCount, indexerContext.Success,
-                    indexerContext.SkipYouTubeUrlResolving, indexerContext.YouTubeError);
-            }
-
-            logger.LogInformation("{nameofIndexer} complete - Pass {pass}.", nameof(global::Indexer.Activities.Indexer), pass);
         }
 
         if (failedPasses.Count > 0)
@@ -164,6 +189,42 @@ public class HourlyOrchestration
             YouTubeError = true,
             SpotifyError = true
         };
+
+    private static void LogIndexerPassFailed(
+        ILogger logger,
+        int pass,
+        int hourUtc,
+        IndexerContext indexerContext,
+        TaskFailedException ex) =>
+        logger.LogError(
+            IndexerPassFailedMessagePrefix +
+            " pass='{Pass}' hour-utc='{HourUtc}' operation-id='{OperationId}' error-type='{ErrorType}' error='{ErrorMessage}'. Continuing to publish.",
+            pass, hourUtc, indexerContext.IndexerPassOperationIds?[pass - 1],
+            ex.FailureDetails?.ErrorType, ex.FailureDetails?.ErrorMessage);
+
+    private static void LogIndexerPassComplete(
+        ILogger logger,
+        int pass,
+        int hourUtc,
+        IndexerContext indexerContext)
+    {
+        var batchPodcastCount = indexerContext.IndexIds?[pass - 1]?.Length ?? 0;
+        var operationId = indexerContext.IndexerPassOperationIds?[pass - 1];
+        logger.LogWarning(
+            "HourlyOrchestration indexer-pass-complete pass='{Pass}' hour-utc='{HourUtc}' operation-id='{OperationId}' podcast-count='{PodcastCount}' success='{Success}' skip-youtube='{SkipYouTube}' youtube-error='{YouTubeError}'",
+            pass, hourUtc, operationId, batchPodcastCount, indexerContext.Success,
+            indexerContext.SkipYouTubeUrlResolving, indexerContext.YouTubeError);
+
+        if (pass == 4)
+        {
+            logger.LogWarning(
+                "HourlyOrchestration batch-4-rollup hour-utc='{HourUtc}' operation-id='{OperationId}' podcast-count='{PodcastCount}' success='{Success}' skip-youtube='{SkipYouTube}' youtube-error='{YouTubeError}'",
+                hourUtc, operationId, batchPodcastCount, indexerContext.Success,
+                indexerContext.SkipYouTubeUrlResolving, indexerContext.YouTubeError);
+        }
+
+        logger.LogInformation("{nameofIndexer} complete - Pass {pass}.", nameof(global::Indexer.Activities.Indexer), pass);
+    }
 }
 
 /// <summary>
