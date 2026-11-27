@@ -37,7 +37,7 @@ Every pull request into `main` runs **PR gate** (`.github/workflows/pr-gate.yml`
 
 | Job | What it checks |
 |-----|----------------|
-| `build` | The **Build** workflow (`dotnet.yml`, called via `workflow_call`): restore, slnx/slnf asserts, build, all tests, coverage gate, unit-test guardrails, Pester |
+| `build` | The **Build** workflow (`dotnet.yml`, called via `workflow_call`): restore (NuGet cache), slnx/slnf asserts, build, all tests, coverage gate (unless merge-tip `skip_coverage`), unit-test guardrails, Pester |
 | `actionlint` | Pinned actionlint over `.github/workflows/**` (shellcheck/pyflakes off). Catches invalid workflows such as the unknown `permissions: variables: write` scope from #1309, which GitHub rejected before any job ran |
 | `bicep` | Pinned Bicep CLI `bicep build` of every `Infrastructure/**/*.bicep` (no Azure login). `functions.bicepparam` is not built: it reads deploy-time environment variables |
 
@@ -47,9 +47,11 @@ PRs into other branches still run **Build** directly. **Provision and Deploy** i
 
 1. The PR tip is a chain of pure merge-from-base commits (two parents, second parent on `main`, no PR/base file overlap, merge delta equal to the `main` side, at most 10 hops; `.github/scripts/merge-only-tip.cjs`). The compare API lists at most 300 files in a single page, so any listing that reaches 300 is treated as truncated and fails closed.
 2. Walking first parents reaches a commit whose `gate` check-run (GitHub Actions app) concluded `success`. That run built and tested the PR's own code.
-3. Every file the merged-in `main` side touched is on a **non-build allowlist**: `docs/**` (not `docs/contracts/**`), any `*.md`, `.cursor/**`, `.github/scripts/**` and `.github/ISSUE_TEMPLATE/**`. Textual non-overlap does not imply the combination compiles: `main` can rename an API in one file while the PR calls it from another. `main`'s own CI covers `main`'s content on its own, **not** PR plus `main` together, so any merged-in change to code, projects, workflows, scripts or contracts runs the full build.
+3. Every file the merged-in `main` side touched is on a **non-build allowlist**: `docs/**` (not `docs/contracts/**`), any `*.md`, `.cursor/**`, `.github/scripts/**` and `.github/ISSUE_TEMPLATE/**`. Textual non-overlap does not imply the combination compiles: `main` can rename an API in one file while the PR calls it from another. `main`'s own CI covers `main`'s content on its own, **not** PR plus `main` together, so any merged-in change to code, projects, workflows, scripts or contracts still runs restore/build/test.
 
-`actionlint` and `bicep` still run on every tip. The `gate` job accepts a skipped `build` only when `detect` succeeded with `skip_heavy=true`; that verdict lives in `.github/scripts/pr-gate-verdict.cjs` and is unit tested (a failed `detect` still runs the full `build`, a missing required job fails the gate). Rebases, feature commits, evil or overlapping merges, a red, cancelled or missing prior gate, a build-affecting merged-in file and any API error run the full build (`github.event.before` is not used: it is unreliable on `pull_request`).
+When (1) and (2) hold but (3) does not (merge-from-main tip absorbed build-affecting `main` files), `detect` sets `skip_coverage=true`: the Build job still runs restore/build/test for the PR+`main` combo, but skips the episode-domain coverage gate (~2 min of a second instrumented pass). The prior green `gate` already covered the PR's own tip. Feature commits, rebases and non-merge tips always run coverage.
+
+`actionlint` and `bicep` still run on every tip. The `gate` job accepts a skipped `build` only when `detect` succeeded with `skip_heavy=true`; that verdict lives in `.github/scripts/pr-gate-verdict.cjs` and is unit tested (a failed `detect` still runs the full `build`, a missing required job fails the gate). Rebases, feature commits, evil or overlapping merges, a red, cancelled or missing prior gate and any API error run the full build with coverage (`github.event.before` is not used: it is unreliable on `pull_request`).
 
 **Trust.** `PR gate` runs on `pull_request`, so `detect`, `merge-only-tip.cjs`, `pr-gate-verdict.cjs` and `pr-gate.yml` come from the PR's own merge ref: the skip decision runs PR-supplied code. It is only as strong as the existing "`gate` is required on `main`" model, where a PR author already controls the rest of the gate. Unlike `review-gate`, it does not run `main`'s copy.
 

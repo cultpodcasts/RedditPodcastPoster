@@ -11,6 +11,14 @@ on:
   pull_request:
     branches-ignore: [ main ]
   workflow_call:
+    inputs:
+      # Merge-from-main tips that still need build+test (PR gate detect skip_coverage): skip the
+      # episode-domain coverage re-pass. Feature commits leave this false / unset.
+      skip_coverage:
+        description: Skip the episode-domain coverage gate (merge-from-main tip only)
+        type: boolean
+        required: false
+        default: false
 
 env:  
   DOTNET_VERSION: '11.0.x'
@@ -33,6 +41,14 @@ jobs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+        cache: true
+        # No packages.lock.json in this repo; hash project files + Directory.Build.* for the cache key.
+        cache-dependency-path: |
+          **/*.csproj
+          Directory.Build.props
+          Directory.Build.targets
+          **/Directory.Build.props
+          **/Directory.Build.targets
     - name: Restore dependencies
       run: dotnet restore --verbosity minimal
     - name: Solution membership (csproj ↔ slnx)
@@ -63,7 +79,10 @@ jobs:
       run: npm ci && npm run typecheck
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal
+    # Skipped on merge-from-main tips that still need build+test (PR gate skip_coverage): prior green
+    # gate already covered the PR tip; this pass is ~2 min of a second instrumented test run.
     - name: Episode domain coverage gate
+      if: ${{ inputs.skip_coverage != true }}
       shell: pwsh
       run: ./scripts/coverage-gate.ps1 -NoBuild -Verbose
     - name: Unit-test guardrails (changed test files)

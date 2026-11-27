@@ -1,6 +1,9 @@
 'use strict';
 // pr-gate-detect (cultpodcasts/RedditPodcastPoster#1555): decide whether PR gate can skip the
-// heavy `build` job (dotnet.yml). It can only when ALL of these hold:
+// heavy `build` job (dotnet.yml), and whether a merge-from-main tip that still needs build+test
+// can skip the episode-domain coverage gate (~2 min of a second instrumented test pass).
+//
+// skip_heavy=true only when ALL of these hold:
 //   1. the PR tip is a chain of PURE merge-from-base commits (see merge-only-tip.cjs);
 //   2. the chain sits on top of a first-parent commit whose required check-run `gate` (PR gate
 //      workflow, GitHub Actions app) already concluded `success` (that gate built and tested the
@@ -10,6 +13,12 @@
 //      compiles (main can rename an API in file B while the PR calls it from file A), and main's
 //      own CI covers main's content alone, not PR + main together. So any base-side file that
 //      could affect the build or tests means the full build runs.
+//
+// skip_coverage=true when (1) and (2) hold but (3) does not: the tip is still merge-from-main
+// only above a green gate, so restore/build/test still run for the PR+main combo, but the
+// coverage gate (already green on the PR's own tip) is skipped to cut wall time on batch merges.
+// Feature commits, rebases and non-merge tips always run coverage (skip_coverage=false).
+//
 // actionlint and bicep still run on every tip.
 // Trust: this runs on `pull_request` from the PR's own merge ref, so a PR author controls these
 // scripts and pr-gate.yml. The skip decision is only as strong as "PR gate is required on main"
@@ -17,7 +26,8 @@
 // `github.event.before` is NOT used: it is unreliable on `pull_request`. The first-parent
 // chain is walked instead, at most MAX_HOPS commits.
 // Fails closed: any other shape, an unverifiable listing or an API error yields
-// skip_heavy=false (full build). Outputs: skip_heavy ('true' | 'false'), reason.
+// skip_heavy=false and skip_coverage=false. Outputs: skip_heavy, skip_coverage ('true'|'false'),
+// reason.
 // Tests: pr-gate-detect.test.cjs.
 
 const { walkMergeOnlyChain } = require('./merge-only-tip.cjs');
@@ -65,9 +75,11 @@ async function hasGreenGate({ github, owner, repo, sha }) {
     && cr.app && cr.app.slug === GATE_APP_SLUG);
 }
 
-// Pure-ish decision; resolves { skip: boolean, reason: string }.
+// Pure-ish decision; resolves { skip, skipCoverage, reason }.
 async function decide({ github, owner, repo, baseRef, headSha, walk = walkMergeOnlyChain, green = hasGreenGate }) {
-  if (!headSha || !baseRef) return { skip: false, reason: 'pull request head or base unknown' };
+  if (!headSha || !baseRef) {
+    return { skip: false, skipCoverage: false, reason: 'pull request head or base unknown' };
+  }
   let result;
   try {
     result = await walk({
@@ -75,7 +87,11 @@ async function decide({ github, owner, repo, baseRef, headSha, walk = walkMergeO
       classify: async (sha) => ((await green({ github, owner, repo, sha })) ? 'stop' : null),
     });
   } catch (err) {
-    return { skip: false, reason: `error while checking the tip: ${err.message || err}` };
+    return {
+      skip: false,
+      skipCoverage: false,
+      reason: `error while checking the tip: ${err.message || err}`,
+    };
   }
   if (result && result.ok) {
     const n = result.hops.length;
@@ -83,31 +99,45 @@ async function decide({ github, owner, repo, baseRef, headSha, walk = walkMergeO
     if (affecting.length) {
       const shown = affecting.slice(0, 3).join(', ');
       const more = affecting.length > 3 ? ` and ${affecting.length - 3} more` : '';
-      return { skip: false, reason: `merged-in main changes build-affecting files (${shown}${more}); full build runs` };
+      return {
+        skip: false,
+        // Prior gate already covered the PR; this tip only absorbed main. Still build+test the
+        // combo, but skip the ~2 min instrumented coverage re-pass.
+        skipCoverage: true,
+        reason: `merged-in main changes build-affecting files (${shown}${more}); full build runs, coverage skipped`,
+      };
     }
     return {
       skip: true,
+      skipCoverage: true,
       reason: `merge-from-base only (${n} commit${n === 1 ? '' : 's'}, non-build files only) above ${String(result.anchor).slice(0, 7)} with a green gate`,
     };
   }
-  return { skip: false, reason: (result && result.reason) || 'tip is not merge-from-base only' };
+  return {
+    skip: false,
+    skipCoverage: false,
+    reason: (result && result.reason) || 'tip is not merge-from-base only',
+  };
 }
 
 async function run({ github, context, core, walk, green }) {
   const pr = context.payload && context.payload.pull_request;
   const { owner, repo } = context.repo;
-  const { skip, reason } = pr
+  const { skip, skipCoverage, reason } = pr
     ? await decide({ github, owner, repo, baseRef: pr.base && pr.base.ref, headSha: pr.head && pr.head.sha, walk, green })
-    : { skip: false, reason: 'not a pull_request event' };
+    : { skip: false, skipCoverage: false, reason: 'not a pull_request event' };
   core.setOutput('skip_heavy', skip ? 'true' : 'false');
+  core.setOutput('skip_coverage', skipCoverage ? 'true' : 'false');
   core.setOutput('reason', reason);
-  core.info(`PR gate detect: skip_heavy=${skip} (${reason})`);
+  core.info(`PR gate detect: skip_heavy=${skip} skip_coverage=${skipCoverage} (${reason})`);
   if (core.summary) {
     await core.summary
-      .addRaw(`PR gate detect: heavy build **${skip ? 'skipped' : 'runs'}** (${reason})\n`)
+      .addRaw(
+        `PR gate detect: heavy build **${skip ? 'skipped' : 'runs'}**, coverage **${skipCoverage ? 'skipped' : 'runs'}** (${reason})\n`,
+      )
       .write();
   }
-  return { skip, reason };
+  return { skip, skipCoverage, reason };
 }
 
 module.exports = {
