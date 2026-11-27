@@ -63,6 +63,14 @@ still walks essentially the full catalogue (stops only before that floor; Cosmos
 on/after it). Do **not** leave backlog `ReleasedSince` null — `PodcastUpdater.Update` throws.
 The same on-demand HTTP budget still applies — a long walk may return 504 TimedOut.
 
+**Backlog index is admin only, with a dry-run count (#1433):** `POST podcast/index/{name}/backlog` requires the
+`admin` permission (curate is rejected with 401), because a full walk spends provider quota and writes the whole back
+catalogue. Before running it, the website asks `GET podcast/index/{name}/backlog/preview` (also admin only, a query:
+it saves nothing and takes no lease). `PodcastUpdater.Preview` runs the same `DiscoverAndMerge` pass as `Update`
+(short-episode floor, catalogue-owned URL drop, ignore-all, elimination terms) and answers
+`{ newEpisodeCount, ignoredEpisodeCount }`; it runs inside the on-demand budget and a long walk answers 504 TimedOut.
+The count is an estimate: enrichment (which can still drop or alter an episode) is not run.
+
 ### Episode lookup planner (single-episode FindEpisode, Spotify + Apple)
 
 A single-episode lookup is planned by size and flow, and both platforms run the SAME plan through the shared
