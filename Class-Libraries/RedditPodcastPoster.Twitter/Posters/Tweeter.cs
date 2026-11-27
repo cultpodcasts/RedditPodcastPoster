@@ -120,13 +120,10 @@ public class Tweeter(
             }
 
             var tweetStatus = await tweetPoster.PostTweet(podcastEpisode, shortUrl, hasShareImage);
-            if (tweetStatus.TweetSendStatus == TweetSendStatus.SentNotSaved)
+            // Single policy table: count live posts first, then stop when the status forbids continuing.
+            if (CountsAsPosted(tweetStatus.TweetSendStatus))
             {
-                // The post is live, so it counts, but its state could not be saved: stop before posting another.
                 run.Posts++;
-                LogRunStopped(tweetStatus.TweetSendStatus, podcastEpisode);
-                run.Stopped = true;
-                return false;
             }
 
             if (StopsRun(tweetStatus.TweetSendStatus))
@@ -138,7 +135,6 @@ public class Tweeter(
 
             if (tweetStatus.TweetSendStatus == TweetSendStatus.Sent)
             {
-                run.Posts++;
                 return true;
             }
 
@@ -179,10 +175,18 @@ public class Tweeter(
         return true;
     }
 
-    /// <summary>Statuses that mean no further post can succeed in this run.</summary>
+    /// <summary>Statuses that mean a post is (or may be) live on X and counts toward MaxPosts.</summary>
+    public static bool CountsAsPosted(TweetSendStatus status) =>
+        status is TweetSendStatus.Sent or TweetSendStatus.SentNotSaved;
+
+    /// <summary>
+    /// Statuses that mean no further post should be attempted in this run: account-wide refusals,
+    /// uncertain timeouts, or a live post whose tweeted state could not be saved (#1205).
+    /// </summary>
     public static bool StopsRun(TweetSendStatus status) =>
         status is TweetSendStatus.TooManyRequests or TweetSendStatus.PaymentRequired
-            or TweetSendStatus.AuthenticationFailed or TweetSendStatus.ServerError or TweetSendStatus.Timeout;
+            or TweetSendStatus.AuthenticationFailed or TweetSendStatus.ServerError or TweetSendStatus.Timeout
+            or TweetSendStatus.SentNotSaved;
 
     /// <summary>
     /// The document is already persisted as done, so the candidate is a skip, not a failure

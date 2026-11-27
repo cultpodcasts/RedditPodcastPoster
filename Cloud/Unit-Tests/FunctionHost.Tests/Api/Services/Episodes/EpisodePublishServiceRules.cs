@@ -42,10 +42,14 @@ public class EpisodePublishServiceRules
     private PodcastEpisode? _blueskyPosted;
     private Uri? _blueskyPostedUrl;
     private PodcastEpisode? _clearedCatalogue;
+    private PodcastEpisode? _markTweetedItem;
+    private string? _markTweetedPost;
+    private int _markTweetedCalls;
     private bool _episodeSaveCalled;
     private bool _shortnerWriteCalled;
     private int _threeWayCatalogueResolveCalls;
     private int _kindCatalogueResolveCalls;
+    private Exception? _markTweetedFailure;
 
     public EpisodePublishServiceRules()
     {
@@ -92,6 +96,19 @@ public class EpisodePublishServiceRules
         _mocker.GetMock<ICataloguePlayableSocialPosts>()
             .Setup(p => p.ClearIgnoredAndRemoved(It.IsAny<PodcastEpisode>()))
             .Callback<PodcastEpisode>(pe => _clearedCatalogue = pe)
+            .Returns(Task.CompletedTask);
+        _mocker.GetMock<ICataloguePlayableSocialPosts>()
+            .Setup(p => p.MarkTweeted(It.IsAny<PodcastEpisode>(), It.IsAny<string?>()))
+            .Callback<PodcastEpisode, string?>((pe, tweetPost) =>
+            {
+                _markTweetedCalls++;
+                _markTweetedItem = pe;
+                _markTweetedPost = tweetPost;
+                if (_markTweetedFailure != null)
+                {
+                    throw _markTweetedFailure;
+                }
+            })
             .Returns(Task.CompletedTask);
     }
 
@@ -140,9 +157,10 @@ public class EpisodePublishServiceRules
         var podcast = _fixture.CreatePodcast();
         var episode = _fixture.CreateStoredEpisodeWithYouTubeOnly(podcast);
         _podcastResolved = new PodcastEpisodeResolverResponse(episode, podcast, PodcastEpisodeResolveState.Resolved);
+        var tweetId = _fixture.Create<string>();
         _mocker.GetMock<ITweetPoster>()
             .Setup(p => p.PostTweet(It.IsAny<PodcastEpisode>(), It.IsAny<Uri?>(), It.IsAny<bool>()))
-            .ReturnsAsync(new PostTweetResponse(status, _fixture.Create<string>()));
+            .ReturnsAsync(new PostTweetResponse(status, _fixture.Create<string>(), tweetId));
         var sut = _mocker.CreateInstance<EpisodePublishService>();
 
         // Act
@@ -154,6 +172,72 @@ public class EpisodePublishServiceRules
         result.Status.Should().Be(EpisodePublishStatus.Ok);
         result.Outcome!.Tweeted.Should().BeTrue();
         result.Outcome.FailedTweetContent.Should().BeNull();
+        result.Outcome.Message.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "When a film tweet is accepted by X but the poster could not MarkTweeted, then publish retries MarkTweeted with the tweet id and reports Tweeted=true with no Message, because catalogue kinds have no trailing episode Save recovery (#1205).")]
+    public async Task catalogue_sent_not_saved_retries_mark_tweeted()
+    {
+        // Arrange
+        var film = CreateFilm();
+        var projection = CatalogueParentKindMapper.ToPostProjection(film);
+        _catalogueResolved = new CataloguePlayableResolution(
+            nameof(ContentKind.Film), projection, null, null, film.Name.Trim(), Removed: false);
+        var tweetId = _fixture.Create<string>();
+        _mocker.GetMock<ITweetPoster>()
+            .Setup(p => p.PostTweet(It.IsAny<PodcastEpisode>(), It.IsAny<Uri?>(), It.IsAny<bool>()))
+            .Callback<PodcastEpisode, Uri?, bool>((pe, url, _) =>
+            {
+                _tweeted = pe;
+                _tweetedUrl = url;
+            })
+            .ReturnsAsync(new PostTweetResponse(TweetSendStatus.SentNotSaved, _fixture.Create<string>(), tweetId));
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(null, film.Id, new EpisodePublishRequest { Tweet = true }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodePublishStatus.Ok);
+        result.Outcome!.Tweeted.Should().BeTrue();
+        result.Outcome.Message.Should().BeNull();
+        _markTweetedCalls.Should().Be(1);
+        _markTweetedItem.Should().NotBeNull();
+        _markTweetedItem!.Episode.Id.Should().Be(film.Id);
+        _markTweetedPost.Should().Be(tweetId);
+        _episodeSaveCalled.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "When a film tweet is accepted by X and publish-path MarkTweeted recovery also fails, then Tweeted stays true and Message tells ops to set TweetPost before the next hourly run, because Cosmos remaining untweeted would double-post (#1205).")]
+    public async Task catalogue_sent_not_saved_recovery_failure_sets_message()
+    {
+        // Arrange
+        var film = CreateFilm();
+        var projection = CatalogueParentKindMapper.ToPostProjection(film);
+        _catalogueResolved = new CataloguePlayableResolution(
+            nameof(ContentKind.Film), projection, null, null, film.Name.Trim(), Removed: false);
+        _markTweetedFailure = new InvalidOperationException(_fixture.Create<string>());
+        var tweetId = _fixture.Create<string>();
+        _mocker.GetMock<ITweetPoster>()
+            .Setup(p => p.PostTweet(It.IsAny<PodcastEpisode>(), It.IsAny<Uri?>(), It.IsAny<bool>()))
+            .ReturnsAsync(new PostTweetResponse(TweetSendStatus.SentNotSaved, _fixture.Create<string>(), tweetId));
+        var sut = _mocker.CreateInstance<EpisodePublishService>();
+
+        // Act
+        var result = await sut.PublishAsync(
+            new EpisodePublishRequestWrapper(null, film.Id, new EpisodePublishRequest { Tweet = true }),
+            CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(EpisodePublishStatus.Ok);
+        result.Outcome!.Tweeted.Should().BeTrue();
+        result.Outcome.Message.Should().Be(EpisodePublishService.SentNotSavedMessage);
+        _markTweetedCalls.Should().Be(1);
+        _episodeSaveCalled.Should().BeFalse();
     }
 
     [Theory(DisplayName =

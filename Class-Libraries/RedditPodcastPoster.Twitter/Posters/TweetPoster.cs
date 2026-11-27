@@ -123,9 +123,10 @@ public class TweetPoster(
             catch (Exception ex)
             {
                 lastFailure = ex;
+                var contentKind = podcastEpisode.ContentKind ?? "episode";
                 logger.LogError(ex,
-                    "Failure to save episode with podcast-id '{PodcastId}' and episode-id '{EpisodeId}' after tweet update. Attempt {Attempt} of {Attempts}.",
-                    podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id, attempt, MaxSaveAttempts);
+                    "Failure to save {ContentKind} with podcast-id '{PodcastId}' and episode-id '{EpisodeId}' after tweet update. Attempt {Attempt} of {Attempts}.",
+                    contentKind, podcastEpisode.Podcast.Id, podcastEpisode.Episode.Id, attempt, MaxSaveAttempts);
                 if (attempt < MaxSaveAttempts)
                 {
                     await saveBackoff.Delay(attempt);

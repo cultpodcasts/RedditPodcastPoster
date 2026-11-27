@@ -250,12 +250,14 @@ public class TwitterClient(
 
     /// <summary>
     /// <see cref="HttpClient"/> reports its own timeout as a <see cref="TaskCanceledException"/> (inner
-    /// <see cref="TimeoutException"/>) without the caller's token being cancelled; a caller cancellation is not a
-    /// timeout and keeps propagating.
+    /// <see cref="TimeoutException"/>) without the caller's token being cancelled; a bare
+    /// <see cref="TimeoutException"/> is also a timeout. A caller cancellation (or any other
+    /// <see cref="TaskCanceledException"/>) is not a timeout and keeps propagating.
     /// </summary>
     private static bool IsRequestTimeout(Exception exception, CancellationToken cancellationToken) =>
         !cancellationToken.IsCancellationRequested &&
-        exception is TimeoutException or TaskCanceledException;
+        (exception is TimeoutException ||
+         exception is TaskCanceledException { InnerException: TimeoutException });
 
     private async Task<XApiSkipReason?> TryGetActiveSkip(CancellationToken cancellationToken)
     {

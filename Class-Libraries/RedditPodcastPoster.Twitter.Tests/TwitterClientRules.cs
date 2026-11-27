@@ -145,6 +145,22 @@ public class TwitterClientRules
     }
 
     [Fact(DisplayName =
+        "When a TaskCanceledException has no TimeoutException inner and the caller did not cancel, then it propagates instead of becoming Timeout, because only HttpClient's timeout shape means the post may be live.")]
+    public async Task bare_task_canceled_without_timeout_inner_is_not_a_timeout()
+    {
+        // Arrange
+        _x.Throw(new TaskCanceledException(_fixture.Create<string>()));
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var send = () => sut.Send(_tweet);
+
+        // Assert
+        await send.Should().ThrowAsync<TaskCanceledException>();
+        _x.Requests.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
         "A client-forbidden problem type is reported as AuthenticationFailed whatever the HTTP status, because the app may not post at all and the run must stop.")]
     public async Task client_forbidden_problem_type_is_authentication_failed()
     {
