@@ -1,5 +1,6 @@
 using FluentAssertions;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
+using RedditPodcastPoster.Models.ContentKinds;
 using RedditPodcastPoster.UrlShortening.Extensions;
 using Xunit;
 
@@ -131,6 +132,26 @@ public class CatalogueShortIdRules
         // Assert
         path.Should().Be(
             $"/film/Director's%20Cut%20(1984)!*%2B%3F/{CatalogueShortId.Encode(id, CatalogueShortId.Film)}");
+    }
+
+    [Fact(DisplayName =
+        "ContentKind.Episode and the string name Episode both build /podcast with the same short id, " +
+        "because the string overload only parses into the enum (route root is podcast, not Episode).")]
+    public void episode_enum_and_string_paths_match()
+    {
+        // Arrange
+        var id = _fixture.CreateGuid();
+        const string slug = "plain-slug";
+
+        // Act
+        var fromEnum = CatalogueShortId.PlayablePath(slug, id, ContentKind.Episode);
+        var fromName = CatalogueShortId.PlayablePath(slug, id, nameof(ContentKind.Episode));
+        var fromNull = CatalogueShortId.PlayablePath(slug, id, (string?)null);
+
+        // Assert
+        fromEnum.Should().Be(fromName);
+        fromEnum.Should().Be(fromNull);
+        fromEnum.Should().Be($"/podcast/{slug}/{id.ToBase64()}");
     }
 
     private static byte[] DecodeUrlBase64(string shortId)
