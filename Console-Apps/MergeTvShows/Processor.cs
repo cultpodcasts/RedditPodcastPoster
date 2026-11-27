@@ -140,62 +140,69 @@ public class Processor(
             return 0;
         }
 
-        target.FileKey = newFileKey;
-        await tvShowRepository.Save(target);
-
-        var searchDocs = new List<EpisodeSearchRecord>();
-        foreach (var (oldShowId, episode) in toMove)
+        try
         {
-            if (renames.TryGetValue(episode.Id, out var renamed))
+            target.FileKey = newFileKey;
+            await tvShowRepository.Save(target);
+
+            var searchDocs = new List<EpisodeSearchRecord>();
+            foreach (var (oldShowId, episode) in toMove)
             {
-                episode.Title = renamed;
+                if (renames.TryGetValue(episode.Id, out var renamed))
+                {
+                    episode.Title = renamed;
+                }
+
+                episode.SetTvShowProperties(target);
+                await tvShowEpisodeRepository.Save(episode);
+                if (oldShowId != target.Id)
+                {
+                    await tvShowEpisodeRepository.Delete(oldShowId, episode.Id);
+                }
+
+                searchDocs.Add(CataloguePlayableSearchDocument.For(episode));
             }
 
-            episode.SetTvShowProperties(target);
-            await tvShowEpisodeRepository.Save(episode);
-            if (oldShowId != target.Id)
+            var deletedSearchIds = new List<Guid>();
+            foreach (var (showId, episodeId, _) in deleteEpisodes)
             {
-                await tvShowEpisodeRepository.Delete(oldShowId, episode.Id);
+                await tvShowEpisodeRepository.Delete(showId, episodeId);
+                deletedSearchIds.Add(episodeId);
             }
 
-            searchDocs.Add(CataloguePlayableSearchDocument.For(episode));
-        }
+            foreach (var source in sources)
+            {
+                var remaining = await tvShowEpisodeRepository.GetByTvShowId(source.Id).CountAsync(cancellationToken);
+                if (remaining > 0)
+                {
+                    logger.LogError(
+                        "Source show '{showId}' still has {count} episode(s); not deleting the show.",
+                        source.Id, remaining);
+                    return 2;
+                }
 
-        var deletedSearchIds = new List<Guid>();
-        foreach (var (showId, episodeId, _) in deleteEpisodes)
-        {
-            await tvShowEpisodeRepository.Delete(showId, episodeId);
-            deletedSearchIds.Add(episodeId);
-        }
+                await tvShowRepository.Delete(source.Id);
+            }
 
-        foreach (var source in sources)
-        {
-            var remaining = await tvShowEpisodeRepository.GetByTvShowId(source.Id).CountAsync(cancellationToken);
-            if (remaining > 0)
+            var uploaded = searchDocs.Count == 0 || await searchSwap.UploadAsync(searchDocs, cancellationToken);
+            var deleted = deletedSearchIds.Count == 0 ||
+                          await searchSwap.DeleteAsync(deletedSearchIds, cancellationToken);
+            if (!uploaded || !deleted)
             {
                 logger.LogError(
-                    "Source show '{showId}' still has {count} episode(s); not deleting the show.",
-                    source.Id, remaining);
-                return 2;
+                    "Cosmos writes succeeded but search sync failed (uploaded={uploaded}, deleted={deleted}).",
+                    uploaded, deleted);
+                return 3;
             }
 
-            await tvShowRepository.Delete(source.Id);
+            logger.LogWarning("Merge applied. Target '{targetId}' '{name}' fileKey '{fileKey}'.", target.Id, target.Name,
+                target.FileKey);
+            return 0;
         }
-
-        var uploaded = searchDocs.Count == 0 || await searchSwap.UploadAsync(searchDocs, cancellationToken);
-        var deleted = deletedSearchIds.Count == 0 ||
-                      await searchSwap.DeleteAsync(deletedSearchIds, cancellationToken);
-        if (!uploaded || !deleted)
+        finally
         {
-            logger.LogError("Cosmos writes succeeded but search sync failed (uploaded={uploaded}, deleted={deleted}).",
-                uploaded, deleted);
-            return 3;
+            await fileKeyAllocator.DisposeAsync();
         }
-
-        logger.LogWarning("Merge applied. Target '{targetId}' '{name}' fileKey '{fileKey}'.", target.Id, target.Name,
-            target.FileKey);
-        await fileKeyAllocator.DisposeAsync();
-        return 0;
     }
 
     private static Dictionary<Guid, string> ParseRenames(IEnumerable<string> raw)

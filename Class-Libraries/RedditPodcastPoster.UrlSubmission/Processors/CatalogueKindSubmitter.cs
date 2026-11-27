@@ -719,35 +719,15 @@ public class CatalogueKindSubmitter(
     }
 
     /// <summary>
-    /// Projects service URLs for items that hold <paramref name="serviceKey"/> (so a missing sibling key is
-    /// never indexed in-memory), then loads the matching playable by its exact stored URL.
+    /// Point lookup by exact stored service URL. Equality does not need a projected full-key scan;
+    /// keep <see cref="FindByLegacyNetflixTitleUrl{T}"/> for compact-id matching that Cosmos LINQ cannot express.
     /// </summary>
-    private static async Task<T?> FindByStoredServiceUrl<T>(
+    private static Task<T?> FindByStoredServiceUrl<T>(
         IFilterableRepository<T> repository,
         string serviceKey,
         Uri url)
-        where T : class, IPlayable
-    {
-        await foreach (var stored in repository.GetAllBy(
-                           PlayableServiceUrlFilters.HasServiceLink<T>(serviceKey),
-                           PlayableServiceUrlFilters.ServiceUrl<T>(serviceKey)))
-        {
-            if (stored is null || stored != url)
-            {
-                continue;
-            }
-
-            var match = stored;
-            var found = await repository.GetBy(item =>
-                item.Services != null && item.Services[serviceKey].Url == match);
-            if (found != null)
-            {
-                return found;
-            }
-        }
-
-        return null;
-    }
+        where T : class, IPlayable =>
+        repository.GetBy(PlayableServiceUrlFilters.HoldsServiceUrl<T>(serviceKey, url, url));
 
     /// <summary>
     /// #1517: a Netflix title stored before canonicalisation may still carry a country segment
@@ -863,8 +843,18 @@ public class CatalogueKindSubmitter(
         if (!submitOptions.PersistToDatabase)
         {
             var previewChanged = MergeMissingServiceLinks(existing, map);
+            CatalogueSearchSource? previewSearch = null;
+            if (previewChanged)
+            {
+                var show = await tvShows.GetTvShow(existing.TvShowId) ??
+                           throw new InvalidOperationException(
+                               $"No TV show exists for id '{existing.TvShowId}'.");
+                previewSearch = ImmediateSearchSource(show, existing, CatalogueParentKind.TvShow);
+            }
+
             return AlreadyExists(SubmitClassification.TvShowEpisode, existing.Id) with
             {
+                CatalogueSearchSource = previewSearch,
                 EpisodeResult = previewChanged ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
             };
         }
@@ -900,8 +890,18 @@ public class CatalogueKindSubmitter(
             }
         }
 
+        CatalogueSearchSource? searchSource = null;
+        if (changed)
+        {
+            var show = await tvShows.GetTvShow(tagged.Item.TvShowId) ??
+                       throw new InvalidOperationException(
+                           $"No TV show exists for id '{tagged.Item.TvShowId}'.");
+            searchSource = ImmediateSearchSource(show, tagged.Item, CatalogueParentKind.TvShow);
+        }
+
         return AlreadyExists(SubmitClassification.TvShowEpisode, tagged.Item.Id) with
         {
+            CatalogueSearchSource = searchSource,
             EpisodeResult = changed ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
         };
     }
@@ -915,8 +915,19 @@ public class CatalogueKindSubmitter(
         if (!submitOptions.PersistToDatabase)
         {
             var previewChanged = MergeMissingServiceLinks(existing, map);
+            CatalogueSearchSource? previewSearch = null;
+            if (previewChanged)
+            {
+                var organisation = await newsOrganisations.GetNewsOrganisation(existing.NewsOrganisationId) ??
+                                   throw new InvalidOperationException(
+                                       $"No news organisation exists for id '{existing.NewsOrganisationId}'.");
+                previewSearch = ImmediateSearchSource(
+                    organisation, existing, CatalogueParentKind.NewsOrganisation);
+            }
+
             return AlreadyExists(SubmitClassification.NewsReport, existing.Id) with
             {
+                CatalogueSearchSource = previewSearch,
                 EpisodeResult = previewChanged ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
             };
         }
@@ -952,8 +963,19 @@ public class CatalogueKindSubmitter(
             }
         }
 
+        CatalogueSearchSource? searchSource = null;
+        if (changed)
+        {
+            var organisation = await newsOrganisations.GetNewsOrganisation(tagged.Item.NewsOrganisationId) ??
+                               throw new InvalidOperationException(
+                                   $"No news organisation exists for id '{tagged.Item.NewsOrganisationId}'.");
+            searchSource = ImmediateSearchSource(
+                organisation, tagged.Item, CatalogueParentKind.NewsOrganisation);
+        }
+
         return AlreadyExists(SubmitClassification.NewsReport, tagged.Item.Id) with
         {
+            CatalogueSearchSource = searchSource,
             EpisodeResult = changed ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
         };
     }

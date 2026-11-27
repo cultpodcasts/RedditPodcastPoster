@@ -1228,7 +1228,8 @@ public class CatalogueKindSubmitRules
 
     [Fact(DisplayName =
         "Submitting a Max episode URL for a TV episode that already holds only the Discovery+ sibling " +
-        "enriches hboMax on that episode and does not create a second playable.")]
+        "enriches hboMax on that episode, returns CatalogueSearchSource for immediate indexing, " +
+        "and does not create a second playable.")]
     public async Task max_submit_enriches_existing_discoveryplus_sibling()
     {
         // Arrange
@@ -1252,6 +1253,9 @@ public class CatalogueKindSubmitRules
             }
         };
         _episodes.Add(existingEpisode);
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(x => x.GetTvShow(existingShow.Id))
+            .ReturnsAsync(existingShow);
         var source = new ResolvedNonPodcastServiceItem(
             StreamingService.HboMax,
             Url: maxUrl,
@@ -1267,6 +1271,7 @@ public class CatalogueKindSubmitRules
         // Assert
         result!.EpisodeResult.Should().Be(SubmitResultState.Enriched);
         result.PlayableId.Should().Be(existingEpisode.Id);
+        result.CatalogueSearchSource.Should().NotBeNull();
         _episodes.Should().ContainSingle();
         existingEpisode.Services.Should().ContainKey("hboMax");
         existingEpisode.Services!["hboMax"].Url.Should().Be(maxUrl);
