@@ -50,7 +50,7 @@ CI builds the solution (which runs the generator), typechecks the generated pack
 
 Git stores the release line in `contracts/package.json` as `major.minor.0`. The patch in git is always `0`. Change the major for a breaking wire change, or the minor for an intentional compatible line. Do not hand-edit the patch. `scripts/assert-contract-package-version.ps1` rejects any other shape. It does not diff a base ref.
 
-The published patch is assigned on `main` by `.github/workflows/publish-contracts.yml`. The workflow builds `Tools/ContractExporter`, typechecks, then runs `scripts/publish-contracts-package.ps1`. That script hashes `src/index.ts`, `src/zod.ts` and `schemas/contracts.schema.json` (newline-normalised). It reads published versions with `npm view`. When nothing is published, the first version is `major.minor.0`. When the hash matches the highest published version on this same line, the job exits 0. When the hash differs, or the published package has no `contractsContentHash`, the script runs `npm version <version> --no-git-tag-version --allow-same-version` (the flag is required when that version is already `major.minor.0` in git), writes the hash onto that package, and publishes. A move to a higher major or minor publishes `major.minor.0` of the new line. A committed line behind the registry fails the job. An `npm view` error other than package-not-found (`E404`) fails the job. The workflow does not commit the version back to git.
+The published patch is assigned on `main` by `.github/workflows/publish-contracts.yml`. The workflow builds `Tools/ContractExporter`, typechecks, then runs `scripts/publish-contracts-package.ps1`. That script hashes `src/index.ts`, `src/zod.ts` and `schemas/contracts.schema.json` (newline-normalised). It reads published versions with `npm view`, then reads the latest version's `contractsContentHash` from the published **tarball** (`npm pack` + `package/package.json`) — GitHub Packages omits custom `package.json` fields from `npm view` metadata (#1509). When the field is missing from an older tarball, the script re-hashes that tarball's generated files with the same algorithm. When nothing is published, the first version is `major.minor.0`. When the hash matches the highest published version on this same line, the job exits 0. When the hash differs, the script runs `npm version <version> --no-git-tag-version --allow-same-version` (the flag is required when that version is already `major.minor.0` in git), writes the hash onto that package, and publishes. A move to a higher major or minor publishes `major.minor.0` of the new line. A committed line behind the registry fails the job. An `npm view` / `npm pack` error other than package-not-found (`E404`) fails the job. The workflow does not commit the version back to git.
 
 `github.run_number` is not the patch. It does not reset when the release line changes, and a skipped publish would still burn a number. The registry is the source of the next patch. A concurrency group (`cancel-in-progress: false`) stops two main publishes from reading the same highest patch. A retry sees the hash it just published and exits 0.
 
@@ -58,7 +58,8 @@ The published patch is assigned on `main` by `.github/workflows/publish-contract
 flowchart TD
   build[Generate and typecheck]
   hash[Hash the generated files]
-  view{npm view}
+  view{npm view versions}
+  pack[npm pack latest; read contractsContentHash]
   same{Same hash on this release line?}
   skip[Exit 0]
   bump["npm version --no-git-tag-version"]
@@ -67,7 +68,7 @@ flowchart TD
   build --> hash --> view
   view -->|E404, nothing published| bump
   view -->|other error| fail
-  view -->|versions| same
+  view -->|versions| pack --> same
   same -->|yes| skip
   same -->|no, or a higher major.minor| bump
   bump --> publish
