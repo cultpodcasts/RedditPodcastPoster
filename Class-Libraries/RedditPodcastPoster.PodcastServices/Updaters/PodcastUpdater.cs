@@ -83,8 +83,8 @@ public class PodcastUpdater(
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
         var knownYouTubeIndexingHints = podcast.YouTubeIndexingHints?.Copy();
         IList<Episode> episodes;
-        // Set on the discovery branch: the merge read already loaded every platform-identified episode.
-        IList<Episode>? platformIdentified = null;
+        // Discovery branch: Apple/Spotify enrichment membership frozen from the merge read before MergeInPlace.
+        IList<Episode>? episodesWithAssignedPlatformIds = null;
         EpisodeMergeResult mergeResult;
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
 
@@ -143,13 +143,19 @@ public class PodcastUpdater(
             }
 
             PodcastRunScope.Current.ReportStage("merge", $"discovered={newEpisodes.Count}");
-            (episodes, platformIdentified) =
+            var (mergeEpisodes, platformIdentified) =
                 await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes, cancellationToken);
+            // Freeze Apple/Spotify membership before MergeInPlace mutates shared Episode refs from the merge read.
+            // Filtering after merge would widen enrichment vs the old Cosmos re-read of unsaved documents.
+            episodesWithAssignedPlatformIds = platformIdentified.Where(HasAppleOrSpotifyId).ToList();
+            episodes = mergeEpisodes;
             mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
             await DropAddedEpisodesOwnedByCatalogue(podcast, mergeResult, cancellationToken);
 
-            // Merge does not mutate `episodes`; new adds live only on mergeResult until saved. Include them
-            // before enrichment and elimination filtering so new episodes are not evaluated only on a later index pass.
+            // Merge does not change `episodes` list membership, but MergeInPlace mutates existing Episode
+            // objects (fill-missing Apple/Spotify/YouTube). New adds live only on mergeResult until saved.
+            // Include them before enrichment and elimination filtering so new episodes are not evaluated
+            // only on a later index pass.
             episodes = episodes
                 .Concat(mergeResult.AddedEpisodes)
                 .Where(x => EpisodeInIndexingScope(x, podcast, youTubePublishingDelay, releasedSince))
@@ -182,13 +188,7 @@ public class PodcastUpdater(
             }
         }
 
-        IList<Episode> episodesWithAssignedPlatformIds;
-        if (platformIdentified != null)
-        {
-            // Discovery branch: a strict subset of the merge read, filtered in memory with no second Cosmos query.
-            episodesWithAssignedPlatformIds = platformIdentified.Where(HasAppleOrSpotifyId).ToList();
-        }
-        else
+        if (episodesWithAssignedPlatformIds == null)
         {
             PodcastRunScope.Current.ReportStage("cosmos-read-platform-identified");
             episodesWithAssignedPlatformIds = await episodeRepository

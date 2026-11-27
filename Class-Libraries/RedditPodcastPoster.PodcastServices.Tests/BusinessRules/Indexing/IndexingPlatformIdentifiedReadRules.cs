@@ -3,6 +3,7 @@ using Moq;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.Services;
 using RedditPodcastPoster.PodcastServices.Abstractions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Tests.Support;
@@ -107,5 +108,39 @@ public class IndexingPlatformIdentifiedReadRules
         // Assert
         _harness.EpisodeRepository.CountPodcastSelectorQueriesSelecting(_appleOnly).Should().Be(1);
         _enrichmentContext.Select(x => x.Id).Should().BeEquivalentTo([_appleOnly.Id, _spotifyOnly.Id]);
+    }
+
+    [Fact(DisplayName =
+        "When discovery merge fills Spotify onto a YouTube-only outside-window episode, that episode stays out of the " +
+        "enrichment context, because Apple/Spotify membership is the pre-merge Cosmos set (same as the old second read).")]
+    public async Task discovery_enrichment_context_excludes_youtube_only_episode_after_merge_fills_spotify()
+    {
+        // Arrange
+        var youTubeId = EpisodeServicePresence.YouTubeEpisodeId(_youTubeOnly)!;
+        var spotifyInput = _fixture.CreateSpotifyCatalogueInput();
+        var discovered = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithYouTubeId(youTubeId)
+            .WithTitle(_youTubeOnly.Title)
+            .WithDuration(_youTubeOnly.Length)
+            .WithRelease(_youTubeOnly.ReleaseUtc));
+        EpisodeServicePresence.SetSpotifyIdentity(discovered, spotifyInput.SpotifyId);
+        EpisodeServicePresence.Upsert(discovered, ServiceKeys.Spotify, spotifyInput.SpotifyUrl, null);
+
+        _harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(_podcast, It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()))
+            .ReturnsAsync([discovered]);
+
+        var context = PodcastUpdaterTestHarness.DefaultIndexingContext();
+
+        // Act
+        var result = await _harness.Updater.Update(_podcast, enrichOnly: false, context);
+
+        // Assert
+        var mergedExisting = result.MergeResult.MergedEpisodes
+            .Should().ContainSingle(m => m.Existing.Id == _youTubeOnly.Id).Subject.Existing;
+        EpisodeServicePresence.SpotifyEpisodeId(mergedExisting).Should().Be(spotifyInput.SpotifyId,
+            "merge must have filled Spotify onto the shared YouTube-only ref (otherwise this test does not probe widening)");
+        _enrichmentContext.Select(x => x.Id).Should().BeEquivalentTo([_appleOnly.Id, _spotifyOnly.Id]);
+        _enrichmentContext.Select(x => x.Id).Should().NotContain(_youTubeOnly.Id);
     }
 }
