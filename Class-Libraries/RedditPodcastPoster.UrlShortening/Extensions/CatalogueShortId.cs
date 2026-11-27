@@ -54,6 +54,20 @@ public static class CatalogueShortId
     }
 
     /// <summary>
+    /// Same as <see cref="PlayablePath(string, Guid, string?)"/> using the domain
+    /// <see cref="ContentKind"/> so callers stay on the same constants the string path switches on.
+    /// </summary>
+    public static string PlayablePath(string slug, Guid id, ContentKind contentKind) =>
+        PlayablePath(slug, id, contentKind switch
+        {
+            ContentKind.Episode => nameof(ContentKind.Episode),
+            ContentKind.Film => Film,
+            ContentKind.TvShowEpisode => TvShowEpisode,
+            ContentKind.NewsReport => NewsReport,
+            _ => throw UnknownKind(contentKind.ToString())
+        });
+
+    /// <summary>
     /// Match the site <c>encodeURIComponent</c> contract. <see cref="Uri.EscapeDataString"/>
     /// also encodes <c>!</c> <c>'</c> <c>(</c> <c>)</c> <c>*</c>, which the site leaves literal.
     /// </summary>

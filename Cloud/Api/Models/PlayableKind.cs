@@ -32,7 +32,7 @@ public sealed record PlayableKind(
             podcast.Id,
             name,
             name,
-            CatalogueShortId.PlayablePath(name, episodeId, ContentKind.Episode.ToString()));
+            CatalogueShortId.PlayablePath(name, episodeId, ContentKind.Episode));
     }
 
     public static PlayableKind For(CataloguePlayableResolution resolution) =>
@@ -44,7 +44,7 @@ public sealed record PlayableKind(
             CatalogueShortId.PlayablePath(
                 resolution.Slug,
                 resolution.Projection.Episode.Id,
-                resolution.ContentKind.ToString()),
+                resolution.ContentKind),
             resolution.IdentityImage,
             resolution.AlternativeTitles);
 }
