@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Moq.AutoMock;
 using RedditPodcastPoster.Configuration.Options;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 using RedditPodcastPoster.PodcastServices.Abstractions.Updaters;
 using Xunit;
@@ -25,6 +26,9 @@ public class IndexerActivityParentFailureRules
     public IndexerActivityParentFailureRules()
     {
         _mocker.Use(Options.Create(new IndexerOptions { ReleasedDaysAgo = 1 }));
+        // Pass 1 runs at even hours; hour 0 is fine for failure / hints wiring tests.
+        var scheduleUtc = DomainTestFixture.UtcAtTime(0, TimeSpan.Zero);
+        _mocker.Use<IIndexingStrategy>(new IndexingStrategy());
         var reason = "enabled";
         _mocker.GetMock<IActivityOptionsProvider>().Setup(x => x.RunIndex(out reason)).Returns(true);
         _mocker.GetMock<IActivityMarshaller>()
@@ -51,7 +55,7 @@ public class IndexerActivityParentFailureRules
             IndexerPassOperationIds: [_fixture.Create<Guid>()],
             IndexIds: [[_fixture.Create<Guid>()]],
             CatalogueParentIndexIds: [[_fixture.Create<Guid>()]]);
-        _wrapper = new IndexerContextWrapper(context, 1);
+        _wrapper = new IndexerContextWrapper(context, 1, scheduleUtc);
     }
 
     private Task<IndexerContext> Run() =>

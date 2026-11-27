@@ -1,7 +1,6 @@
 using FluentAssertions;
-using Indexer.Orchestrations;
 using Indexer.Services;
-using RedditPodcastPoster.Configuration.Services;
+using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using Xunit;
 
 namespace Indexer.Tests;
@@ -9,6 +8,8 @@ namespace Indexer.Tests;
 public class YouTubeIndexingDaySpreadRules
 {
     private const int IndexPasses = 4;
+
+    private static DateTime DayOrigin => DomainTestFixture.UtcToday;
 
     [Theory(DisplayName =
         "A podcast in a given indexer pass receives YouTube resolving on exactly four UTC hours per day at the expected slots for its batch half.")]
@@ -109,20 +110,9 @@ public class YouTubeIndexingDaySpreadRules
         return Enumerable.Range(0, 24)
             .Where(hour =>
             {
-                var strategy = new IndexingStrategy(new FixedHourDateTimeService(hour));
-                if (!strategy.ResolveYouTube())
-                {
-                    return false;
-                }
-
-                var (firstPass, lastPass) = HourlyIndexingPassSelector.SelectPasses(hour, IndexPasses);
-                return pass >= firstPass && pass <= lastPass;
+                var plan = HourlyIndexingSchedule.ForPass(DayOrigin.AddHours(hour), pass);
+                return plan is { ResolveYouTube: true };
             })
             .ToArray();
-    }
-
-    private sealed class FixedHourDateTimeService(int hour) : IDateTimeService
-    {
-        public int GetHour() => hour;
     }
 }

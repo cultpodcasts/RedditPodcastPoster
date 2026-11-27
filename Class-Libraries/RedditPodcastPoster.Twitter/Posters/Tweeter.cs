@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RedditPodcastPoster.SocialPosting;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Twitter.Configuration;
@@ -39,7 +40,7 @@ public class Tweeter(
             throw;
         }
 
-        var run = new TweetRun();
+        var run = new SocialPostRunBudget(_options.MaxPosts, _options.MaxFailures, "tweet run", logger);
         foreach (var podcastEpisode in untweeted.ToArray())
         {
             if (!await TryTweet(podcastEpisode, run))
@@ -50,7 +51,7 @@ public class Tweeter(
 
         // Podcast episodes go first. TV episodes, news reports and films fill any remaining
         // slots in the same max-posts and failure budget.
-        if (!run.Stopped && run.Posts < _options.MaxPosts)
+        if (run.HasCapacity)
         {
             IReadOnlyList<PodcastEpisode> catalogueUntweeted;
             try
@@ -73,28 +74,16 @@ public class Tweeter(
         }
     }
 
-    private sealed class TweetRun
-    {
-        public int Posts { get; set; }
-        public int Failures { get; set; }
-        public bool Stopped { get; set; }
-    }
-
     /// <summary>
     /// Sends one candidate. Returns false when the run must stop: the post cap was reached, the
     /// failure cap was reached, or X refused for a reason that applies to every candidate
     /// (rate limit, depleted credits, rejected credentials). A run-wide refusal leaves the
     /// candidate with <c>Tweeted=false</c> so it is tried again on the next run.
     /// </summary>
-    private async Task<bool> TryTweet(PodcastEpisode podcastEpisode, TweetRun run)
+    private async Task<bool> TryTweet(PodcastEpisode podcastEpisode, SocialPostRunBudget run)
     {
-        if (run.Posts >= _options.MaxPosts)
+        if (!run.TryReserve())
         {
-            logger.LogInformation(
-                "Stopping tweet run because max-posts limit was reached. Posts: {Posts}, Max-posts: {MaxPosts}.",
-                run.Posts,
-                _options.MaxPosts);
-            run.Stopped = true;
             return false;
         }
 
@@ -123,13 +112,13 @@ public class Tweeter(
             // Single policy table: count live posts first, then stop when the status forbids continuing.
             if (CountsAsPosted(tweetStatus.TweetSendStatus))
             {
-                run.Posts++;
+                run.RecordSent();
             }
 
             if (StopsRun(tweetStatus.TweetSendStatus))
             {
                 LogRunStopped(tweetStatus.TweetSendStatus, podcastEpisode);
-                run.Stopped = true;
+                run.Stop();
                 return false;
             }
 
@@ -144,10 +133,11 @@ public class Tweeter(
                     "Skipping {ContentKind} with id '{EpisodeId}' after {Status}; it is already resolved and does not count against the post or failure budget.",
                     podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id,
                     tweetStatus.TweetSendStatus);
+                run.RecordSkip();
                 return true;
             }
 
-            return RecordFailure(run);
+            return run.RecordFailure();
         }
         catch (Exception ex)
         {
@@ -155,24 +145,8 @@ public class Tweeter(
                 "Unable to tweet {ContentKind} with id '{EpisodeId}' with title '{EpisodeTitle}' from parent with id '{PodcastId}' and name '{PodcastName}'.",
                 podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id, podcastEpisode.Episode.Title,
                 podcastEpisode.Podcast.Id, podcastEpisode.Podcast.Name);
-            return RecordFailure(run);
+            return run.RecordFailure();
         }
-    }
-
-    private bool RecordFailure(TweetRun run)
-    {
-        run.Failures++;
-        if (run.Failures >= _options.MaxFailures)
-        {
-            logger.LogWarning(
-                "Stopping tweet run because failure threshold was reached. Failures: {Failures}, Max-failures: {MaxFailures}.",
-                run.Failures,
-                _options.MaxFailures);
-            run.Stopped = true;
-            return false;
-        }
-
-        return true;
     }
 
     /// <summary>Statuses that mean a post is (or may be) live on X and counts toward MaxPosts.</summary>
