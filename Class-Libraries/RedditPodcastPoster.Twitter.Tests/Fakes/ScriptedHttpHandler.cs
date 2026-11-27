@@ -30,6 +30,13 @@ public sealed class ScriptedHttpHandler : HttpMessageHandler
         return this;
     }
 
+    /// <summary>Queues a transport failure (for example a timeout) instead of a response.</summary>
+    public ScriptedHttpHandler Throw(Exception exception)
+    {
+        _responses.Enqueue(() => throw exception);
+        return this;
+    }
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken)
     {

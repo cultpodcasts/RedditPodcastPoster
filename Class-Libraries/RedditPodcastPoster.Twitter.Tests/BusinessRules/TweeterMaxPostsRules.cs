@@ -187,10 +187,13 @@ public class TweeterMaxPostsRules
     }
 
     [Theory(DisplayName =
-        "When MaxPosts still has room and X refuses a candidate for a run-wide reason, then no later candidate or catalogue item is tried, because every send would be refused the same way.")]
+        "When MaxPosts still has room and X refuses a candidate for a run-wide reason (or a live post could not be saved), then no later candidate or catalogue item is tried, because every send would be refused the same way or persistence is failing.")]
     [InlineData(TweetSendStatus.PaymentRequired)]
     [InlineData(TweetSendStatus.TooManyRequests)]
     [InlineData(TweetSendStatus.AuthenticationFailed)]
+    [InlineData(TweetSendStatus.ServerError)]
+    [InlineData(TweetSendStatus.Timeout)]
+    [InlineData(TweetSendStatus.SentNotSaved)]
     public async Task stop_run_ends_the_run_even_when_max_posts_has_room(TweetSendStatus status)
     {
         // Arrange
