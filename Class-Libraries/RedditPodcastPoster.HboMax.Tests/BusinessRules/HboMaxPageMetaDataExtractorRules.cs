@@ -123,6 +123,52 @@ public class HboMaxPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "An HBO Max episode page parses the Watch/season title into episode Title and show brand, " +
+        "strips the marketing description lead-in, recovers contentDetails runtime, and prefers an episode UUID still at w=2000.")]
+    public async Task episode_page_title_show_clean_desc_runtime_and_episode_still()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var episodeTitle = _fixture.CreateTitle();
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var seriesAssetId = _fixture.CreateGuid();
+        var stillAssetId = _fixture.CreateGuid();
+        var year = DomainTestFixture.UtcDateDaysAgo(20).Year;
+        var url = new Uri(
+            $"https://www.max.com/show/{showId}/s1/e1-slug/{episodeId}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {showName} | Season  1 Episode 1 | HBO Max\" />" +
+            $"<meta property=\"og:image:alt\" content=\"{showName}\" />" +
+            $"<meta property=\"og:description\" content=\"Watch {showName}: Season  1, Episode 1 - {episodeTitle} on HBO Max. Synopsis blurb.\" />" +
+            $"<meta property=\"og:image\" content=\"https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/{showId}/{seriesAssetId}?w=500\" />" +
+            $"<meta property=\"og:video:release_date\" content=\"{year}\" />" +
+            "<meta property=\"og:type\" content=\"video.tv_show\" />" +
+            "</head><body>" +
+            """{"contentDetails":{"runtime":"44m"}}""" +
+            $"<img src=\"https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/{episodeId}/{stillAssetId}?w=2000\" />" +
+            "</body></html>");
+        var sut = _mocker.CreateInstance<HboMaxPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(showName);
+        meta.Title.Should().Be(episodeTitle);
+        meta.Description.Should().Be("Synopsis blurb.");
+        meta.Duration.Should().Be(TimeSpan.FromMinutes(44));
+        meta.Release.Should().Be(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        meta.Image.Should().NotBeNull();
+        meta.Image!.AbsoluteUri.Should().Contain(episodeId.ToString());
+        meta.Image.AbsoluteUri.Should().Contain("w=2000");
+        meta.Image.AbsoluteUri.Should().NotContain(seriesAssetId.ToString());
+        meta.Publisher.Should().Be("HBO Max");
+        meta.MadeAsFilm.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "HBO Max page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {

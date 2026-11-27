@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
-using RedditPodcastPoster.DiscoveryPlus.Matching;
 using RedditPodcastPoster.OpenGraph.Extractors;
 using RedditPodcastPoster.PodcastServices.Abstractions.Exceptions;
 using RedditPodcastPoster.PodcastServices.Abstractions.Models;
@@ -70,26 +69,33 @@ internal static partial class DiscoveryPlusCatalogMeta
         {
             return new NonPodcastServiceItemMetaData(
                 rawTitle,
-                openGraph?.Description ?? string.Empty,
+                WbdCatalogPageMeta.CleanWatchMarketingDescription(openGraph?.Description),
                 duration,
                 release,
-                openGraph?.Image,
+                WbdCatalogPageMeta.TryEpisodeImage(url, html, openGraph?.Image),
                 openGraph?.Explicit,
                 DiscoveryPlusPageMetaDataExtractor.Publisher,
                 ShowName: null,
                 MadeAsFilm: true);
         }
 
-        var description = openGraph?.Description ?? string.Empty;
-        var showName = ResolveShowName(url, html, openGraph, rawTitle);
-        var title = ResolveEpisodeTitle(url, rawTitle, description, showName) ?? rawTitle;
+        var rawDescription = openGraph?.Description ?? string.Empty;
+        var description = WbdCatalogPageMeta.CleanWatchMarketingDescription(rawDescription);
+        var showName = WbdCatalogPageMeta.ResolveShowName(
+            url,
+            html,
+            openGraph,
+            rawTitle,
+            DiscoveryPlusPageMetaDataExtractor.Publisher);
+        var title = WbdCatalogPageMeta.ResolveEpisodeTitle(url, rawTitle, rawDescription, showName) ?? rawTitle;
+        var image = WbdCatalogPageMeta.TryEpisodeImage(url, html, openGraph?.Image);
 
         return new NonPodcastServiceItemMetaData(
             title,
             description,
             duration,
             release,
-            openGraph?.Image,
+            image,
             openGraph?.Explicit,
             DiscoveryPlusPageMetaDataExtractor.Publisher,
             showName,
@@ -160,133 +166,6 @@ internal static partial class DiscoveryPlusCatalogMeta
     }
 
     /// <summary>
-    /// Prefer <c>og:image:alt</c> (clean brand), then JSON-LD TVSeries, then a parsed
-    /// <c>Watch {Show} | Season…</c> title. Never keep the full episode OG title as ShowName —
-    /// that created one TvShow per episode in prod (#1587).
-    /// </summary>
-    private static string? ResolveShowName(
-        Uri url,
-        string html,
-        NonPodcastServiceItemMetaData? openGraph,
-        string cleanedOgTitle)
-    {
-        var fromAlt = FirstGroup(html, OgImageAltRegex());
-        var fromJsonLd = openGraph?.ShowName ?? FirstGroup(html, TvSeriesNameRegex());
-        var fromTitle = ParseShowNameFromWatchTitle(cleanedOgTitle);
-
-        var showName = OpenGraphSeriesName.FromDistinctCandidates(
-            cleanedOgTitle,
-            DiscoveryPlusPageMetaDataExtractor.Publisher,
-            fromAlt,
-            fromJsonLd,
-            fromTitle);
-
-        if (showName is null &&
-            StreamingCataloguePathHints.IsSeriesPath(url) &&
-            !DiscoveryPlusUrlMatcher.IsEpisodePath(url))
-        {
-            // Show hub only: title-as-ShowName after stripping Watch / season tails.
-            showName = fromTitle ?? StripWatchPrefix(cleanedOgTitle);
-        }
-
-        if (string.Equals(showName, DiscoveryPlusPageMetaDataExtractor.Publisher, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return showName;
-    }
-
-    private static string? ResolveEpisodeTitle(
-        Uri url,
-        string cleanedOgTitle,
-        string description,
-        string? showName)
-    {
-        if (!DiscoveryPlusUrlMatcher.IsEpisodePath(url))
-        {
-            return StripWatchPrefix(cleanedOgTitle);
-        }
-
-        var fromDescription = FirstGroup(description, DescriptionEpisodeTitleRegex());
-        if (!string.IsNullOrWhiteSpace(fromDescription))
-        {
-            return fromDescription.Trim().TrimEnd('.');
-        }
-
-        var fromSlug = EpisodeTitleFromPath(url);
-        if (!string.IsNullOrWhiteSpace(fromSlug))
-        {
-            return fromSlug;
-        }
-
-        // Last resort: strip "Watch {show} | Season N Episode M" down to a season label, not the show brand.
-        var afterSeason = SeasonEpisodeTailRegex().Match(cleanedOgTitle);
-        if (afterSeason.Success)
-        {
-            return afterSeason.Groups[1].Value.Trim();
-        }
-
-        if (!string.IsNullOrWhiteSpace(showName) &&
-            cleanedOgTitle.StartsWith(showName, StringComparison.OrdinalIgnoreCase))
-        {
-            var remainder = cleanedOgTitle[showName.Length..].Trim().TrimStart('|', ':', '-').Trim();
-            if (!string.IsNullOrWhiteSpace(remainder))
-            {
-                return remainder;
-            }
-        }
-
-        return StripWatchPrefix(cleanedOgTitle);
-    }
-
-    private static string? ParseShowNameFromWatchTitle(string cleanedOgTitle)
-    {
-        var withoutWatch = StripWatchPrefix(cleanedOgTitle);
-        var beforeSeason = SeasonSplitRegex().Match(withoutWatch);
-        if (beforeSeason.Success)
-        {
-            return beforeSeason.Groups[1].Value.Trim().TrimEnd(':', '|', '-').Trim();
-        }
-
-        return string.IsNullOrWhiteSpace(withoutWatch) ? null : withoutWatch;
-    }
-
-    private static string StripWatchPrefix(string title)
-    {
-        const string watch = "Watch ";
-        if (title.StartsWith(watch, StringComparison.OrdinalIgnoreCase))
-        {
-            return title[watch.Length..].Trim();
-        }
-
-        return title.Trim();
-    }
-
-    private static string? EpisodeTitleFromPath(Uri url)
-    {
-        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts)
-        {
-            var match = EpisodeSlugRegex().Match(part);
-            if (!match.Success)
-            {
-                continue;
-            }
-
-            var slug = match.Groups[1].Value.Replace('-', ' ').Trim();
-            if (string.IsNullOrWhiteSpace(slug))
-            {
-                continue;
-            }
-
-            return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(slug);
-        }
-
-        return null;
-    }
-
-    /// <summary>
     /// True when og:type is a movie, the URL is a film catalogue path, or the
     /// <em>primary</em> catalogue <c>@type</c> is Movie. Series paths win over later
     /// document-wide Movie blobs so recommended/carousel film JSON-LD cannot null ShowName.
@@ -352,38 +231,8 @@ internal static partial class DiscoveryPlusCatalogMeta
     [GeneratedRegex("(?:property|name)=\"og:type\"[^>]*content=\"([^\"]*)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex OgTypeRegex();
 
-    [GeneratedRegex("(?:property|name)=\"og:image:alt\"[^>]*content=\"([^\"]*)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex OgImageAltRegex();
-
     [GeneratedRegex("\"@type\"\\s*:\\s*\"(TVSeries|Movie)\"", RegexOptions.CultureInvariant)]
     private static partial Regex CataloguePrimaryTypeRegex();
-
-    [GeneratedRegex(
-        "\"@type\"\\s*:\\s*\"TVSeries\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"",
-        RegexOptions.CultureInvariant)]
-    private static partial Regex TvSeriesNameRegex();
-
-    [GeneratedRegex(
-        @"^(.*?)\s*\|\s*Season\s+\d+",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex SeasonSplitRegex();
-
-    [GeneratedRegex(
-        @"\|\s*(Season\s+\d+\s+Episode\s+\d+)\s*$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex SeasonEpisodeTailRegex();
-
-    /// <summary>
-    /// Capture after <c>Season N, Episode M - </c> until a structural end: space-dot blurb
-    /// separator, pipe, or end of string — not the first <c>.</c> (titles may contain periods).
-    /// </summary>
-    [GeneratedRegex(
-        @"Season\s+\d+\s*,\s*Episode\s+\d+\s*-\s*(.+?)(?:\s+\.|\||$)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex DescriptionEpisodeTitleRegex();
-
-    [GeneratedRegex(@"^e\d+-(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex EpisodeSlugRegex();
 
     [GeneratedRegex(
         @"""windows""\s*:\s*\{([^}]*)\}",

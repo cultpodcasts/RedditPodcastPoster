@@ -54,45 +54,54 @@ internal static partial class HboMaxCatalogMeta
         string html,
         NonPodcastServiceItemMetaData? openGraph)
     {
-        var title = CleanTitle(openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
-        if (string.IsNullOrWhiteSpace(title))
+        var rawTitle = CleanTitle(openGraph?.Title ?? FirstGroup(html, DocumentTitleRegex()));
+        if (string.IsNullOrWhiteSpace(rawTitle))
         {
             throw new NonPodcastServiceMetaDataExtractionException(
                 url,
                 "HBO Max page has neither og:title nor a usable document title. Geo/login walls often return a non-catalogue shell.");
         }
 
-        var showName = openGraph?.ShowName;
+        var (duration, release) = CatalogPageTimingMeta.Coalesce(
+            openGraph?.Duration,
+            openGraph?.Release,
+            html);
+
         if (IsMovie(url, html))
         {
-            showName = null;
-        }
-        else
-        {
-            showName ??= FirstGroup(html, TvSeriesNameRegex());
-            // Catalogue hubs: title-as-ShowName only on series paths. Ambiguous /watch/{id}
-            // pages without Movie markers must not inherit the title as podcastName.
-            if (showName is null && StreamingCataloguePathHints.IsSeriesPath(url))
-            {
-                showName = title;
-            }
+            return new NonPodcastServiceItemMetaData(
+                rawTitle,
+                WbdCatalogPageMeta.CleanWatchMarketingDescription(openGraph?.Description),
+                duration,
+                release,
+                WbdCatalogPageMeta.TryEpisodeImage(url, html, openGraph?.Image),
+                openGraph?.Explicit,
+                HboMaxPageMetaDataExtractor.Publisher,
+                ShowName: null,
+                MadeAsFilm: true);
         }
 
-        if (string.Equals(showName, HboMaxPageMetaDataExtractor.Publisher, StringComparison.OrdinalIgnoreCase))
-        {
-            showName = null;
-        }
+        var rawDescription = openGraph?.Description ?? string.Empty;
+        var description = WbdCatalogPageMeta.CleanWatchMarketingDescription(rawDescription);
+        var showName = WbdCatalogPageMeta.ResolveShowName(
+            url,
+            html,
+            openGraph,
+            rawTitle,
+            HboMaxPageMetaDataExtractor.Publisher);
+        var title = WbdCatalogPageMeta.ResolveEpisodeTitle(url, rawTitle, rawDescription, showName) ?? rawTitle;
+        var image = WbdCatalogPageMeta.TryEpisodeImage(url, html, openGraph?.Image);
 
         return new NonPodcastServiceItemMetaData(
             title,
-            openGraph?.Description ?? string.Empty,
-            openGraph?.Duration,
-            openGraph?.Release,
-            openGraph?.Image,
+            description,
+            duration,
+            release,
+            image,
             openGraph?.Explicit,
             HboMaxPageMetaDataExtractor.Publisher,
             showName,
-            MadeAsFilm: IsMovie(url, html));
+            MadeAsFilm: false);
     }
 
     /// <summary>
@@ -164,9 +173,4 @@ internal static partial class HboMaxCatalogMeta
 
     [GeneratedRegex("\"@type\"\\s*:\\s*\"(TVSeries|Movie)\"", RegexOptions.CultureInvariant)]
     private static partial Regex CataloguePrimaryTypeRegex();
-
-    [GeneratedRegex(
-        "\"@type\"\\s*:\\s*\"TVSeries\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"",
-        RegexOptions.CultureInvariant)]
-    private static partial Regex TvSeriesNameRegex();
 }

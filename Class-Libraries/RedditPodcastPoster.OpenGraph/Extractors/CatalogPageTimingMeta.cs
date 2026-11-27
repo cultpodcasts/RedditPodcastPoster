@@ -54,6 +54,14 @@ public static partial class CatalogPageTimingMeta
             }
         }
 
+        // HBO Max contentDetails: "runtime":"44m" / "runtime":"1h 28m" (quoted key — not CSS).
+        // Prefer the longest positive clock when trailer/clip freights precede the episode.
+        var quotedClock = TryLongestQuotedClockRuntime(html);
+        if (quotedClock is { TotalSeconds: > 0 })
+        {
+            return quotedClock;
+        }
+
         var bareSeconds = DurationBareSecondsRegex().Match(html);
         if (bareSeconds.Success &&
             int.TryParse(bareSeconds.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds) &&
@@ -204,6 +212,30 @@ public static partial class CatalogPageTimingMeta
         return best;
     }
 
+    private static TimeSpan? TryLongestQuotedClockRuntime(string html)
+    {
+        TimeSpan? best = null;
+        foreach (Match match in QuotedClockRuntimeRegex().Matches(html))
+        {
+            var hours = match.Groups[1].Success
+                ? int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)
+                : 0;
+            var minutes = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+            if (hours <= 0 && minutes <= 0)
+            {
+                continue;
+            }
+
+            var candidate = new TimeSpan(hours, minutes, 0);
+            if (best is null || candidate > best)
+            {
+                best = candidate;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>
     /// Catalogue-node release only: <c>TVEpisode</c> / <c>Movie</c> / <c>TVSeries</c>
     /// <c>datePublished</c>, then that node's <c>uploadDate</c>. Nested trailer
@@ -345,6 +377,15 @@ public static partial class CatalogPageTimingMeta
         @"duration\\*""\s*:\s*\\*""(P[^""\\]+)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex IsoDurationInJsonRegex();
+
+    /// <summary>
+    /// WBD Max <c>contentDetails.runtime</c>: <c>"runtime":"44m"</c> or <c>"runtime":"1h 28m"</c>.
+    /// Requires a quoted JSON property name so CSS <c>transition-duration</c> cannot match.
+    /// </summary>
+    [GeneratedRegex(
+        @"\\*""runtime\\*""\s*:\s*\\*""(?:(\d+)\s*h\s*)?(\d+)\s*m\\*""",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex QuotedClockRuntimeRegex();
 
     [GeneratedRegex(
         @"\\*""duration\\*""\s*:\s*(\d+)",
