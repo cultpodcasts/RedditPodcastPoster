@@ -17,7 +17,16 @@ namespace RedditPodcastPoster.PodcastServices.Tests.BusinessRules.Indexing;
 public class IndexingPlatformIdentifiedReadRules
 {
     // Older than the indexing window, so these episodes only reach the updater through the platform-id reads.
-    private static readonly DateTime OutsideWindowRelease = DomainTestFixture.UtcDateDaysAgo(500);
+    // Distinct calendar days + far-apart durations: same-day release+duration heuristics must not also match the
+    // YouTube-only row when a discovered sibling arrives (that failed the merge as ambiguous and flaked CI).
+    private static readonly DateTime AppleOutsideWindowRelease = DomainTestFixture.UtcDateDaysAgo(520);
+    private static readonly DateTime SpotifyOutsideWindowRelease = DomainTestFixture.UtcDateDaysAgo(510);
+    private static readonly DateTime YouTubeOutsideWindowRelease = DomainTestFixture.UtcDateDaysAgo(500);
+    private static readonly DateTime SpotifyUrlOutsideWindowRelease = DomainTestFixture.UtcDateDaysAgo(490);
+    private static readonly TimeSpan AppleOutsideWindowLength = TimeSpan.FromMinutes(41);
+    private static readonly TimeSpan SpotifyOutsideWindowLength = TimeSpan.FromMinutes(53);
+    private static readonly TimeSpan YouTubeOutsideWindowLength = TimeSpan.FromMinutes(67);
+    private static readonly TimeSpan SpotifyUrlOutsideWindowLength = TimeSpan.FromMinutes(79);
 
     private readonly DomainTestFixture _fixture = new();
     private readonly PodcastUpdaterTestHarness _harness = new();
@@ -33,10 +42,18 @@ public class IndexingPlatformIdentifiedReadRules
         _podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
         _harness.PodcastRepository.Seed(_podcast);
 
-        _appleOnly = _fixture.CreateAppleCatalogueEpisode(b => b.WithRelease(OutsideWindowRelease));
-        _spotifyOnly = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithRelease(OutsideWindowRelease));
-        _youTubeOnly = _fixture.CreateYouTubeCatalogueEpisode(b => b.WithRelease(OutsideWindowRelease));
-        _spotifyUrlOnly = _fixture.CreateSpotifyCatalogueEpisode(b => b.WithRelease(OutsideWindowRelease));
+        _appleOnly = _fixture.CreateAppleCatalogueEpisode(b => b
+            .WithRelease(AppleOutsideWindowRelease)
+            .WithDuration(AppleOutsideWindowLength));
+        _spotifyOnly = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(SpotifyOutsideWindowRelease)
+            .WithDuration(SpotifyOutsideWindowLength));
+        _youTubeOnly = _fixture.CreateYouTubeCatalogueEpisode(b => b
+            .WithRelease(YouTubeOutsideWindowRelease)
+            .WithDuration(YouTubeOutsideWindowLength));
+        _spotifyUrlOnly = _fixture.CreateSpotifyCatalogueEpisode(b => b
+            .WithRelease(SpotifyUrlOutsideWindowRelease)
+            .WithDuration(SpotifyUrlOutsideWindowLength));
         EpisodeServicePresence.SetSpotifyIdentity(_spotifyUrlOnly, null);
 
         foreach (var episode in new[] { _appleOnly, _spotifyOnly, _youTubeOnly, _spotifyUrlOnly })

@@ -1,5 +1,6 @@
 using RedditPodcastPoster.Catalogue.Authority;
 using RedditPodcastPoster.Catalogue.Identity;
+using RedditPodcastPoster.DiscoveryPlus.Matching;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
@@ -272,7 +273,9 @@ public class CatalogueKindSubmitter(
         SubmitOptions submitOptions)
     {
         var name = TvSeriesName(source, submitOptions);
-        var parents = await PublisherNameAttachLookup.FindByName(tvShows, name);
+        // #1587: Discovery+ episodes share a show UUID in the URL. Prefer that over name match so
+        // a prior episode (even under a bad historical show title) still receives siblings.
+        var parents = await FindTvShowsForEpisode(source, name);
         if (parents.Count > 1)
         {
             throw new AmbiguousParentNameException(
@@ -618,6 +621,65 @@ public class CatalogueKindSubmitter(
             ContentKind: contentKind,
             DefaultLanguageFromDetection: setsDefaultLanguage,
             IdentityHold: identityHold);
+
+    private async Task<IReadOnlyList<TvShow>> FindTvShowsForEpisode(
+        ResolvedNonPodcastServiceItem source,
+        string seriesName)
+    {
+        if (source.StreamingService == StreamingService.DiscoveryPlus &&
+            source.Url is { } discoveryUrl &&
+            DiscoveryPlusUrlMatcher.TryGetShowId(discoveryUrl, out var showId))
+        {
+            var byShowId = await FindTvShowsByDiscoveryPlusShowId(showId);
+            if (byShowId.Count > 0)
+            {
+                return byShowId;
+            }
+        }
+
+        return await PublisherNameAttachLookup.FindByName(tvShows, seriesName);
+    }
+
+    /// <summary>
+    /// #1587: project Discovery+ service URLs for TV episodes, match the shared show UUID in memory
+    /// (Cosmos LINQ cannot run string functions on Uri), then load distinct TvShows for matching episodes.
+    /// Multiple distinct parents for one show UUID refuse attach (same as ambiguous name match).
+    /// </summary>
+    private async Task<IReadOnlyList<TvShow>> FindTvShowsByDiscoveryPlusShowId(string showId)
+    {
+        var serviceKey = StreamingServiceWire.ToKey(StreamingService.DiscoveryPlus);
+        var byId = new Dictionary<Guid, TvShow>();
+        await foreach (var stored in tvShowEpisodes.GetAllBy(
+                           PlayableServiceUrlFilters.HasServiceLink<TvShowEpisode>(serviceKey),
+                           PlayableServiceUrlFilters.ServiceUrl<TvShowEpisode>(serviceKey)))
+        {
+            if (stored is null || !DiscoveryPlusUrlMatcher.SameShow(stored, showId))
+            {
+                continue;
+            }
+
+            var match = stored;
+            var episode = await tvShowEpisodes.GetBy(item =>
+                item.Services != null && item.Services[serviceKey].Url == match);
+            if (episode is null)
+            {
+                continue;
+            }
+
+            if (byId.ContainsKey(episode.TvShowId))
+            {
+                continue;
+            }
+
+            var show = await tvShows.GetBy(item => item.Id == episode.TvShowId);
+            if (show != null)
+            {
+                byId[show.Id] = show;
+            }
+        }
+
+        return byId.Values.ToArray();
+    }
 
     private async Task<T?> FindByCanonicalUrl<T>(
         IFilterableRepository<T> repository,

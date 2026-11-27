@@ -86,6 +86,47 @@ public class SubmitContentClassifierRules
     }
 
     [Fact(DisplayName =
+        "A Discovery+ /show/{uuid} hub is rejected with a series-page message, " +
+        "because hubs do not expand episode lists and must not mint a fake TvShow episode (#1587).")]
+    public void discoveryplus_show_hub_is_rejected()
+    {
+        // Arrange
+        var showId = _fixture.CreateGuid();
+        var signals = Signals(
+            new Uri($"https://www.discoveryplus.com/show/{showId}"),
+            series: true);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        result.Reject.Should().BeTrue();
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.RejectionMessage.Should().Be(DiscoveryPlusSeriesHubSubmitRejection.Message);
+    }
+
+    [Fact(DisplayName =
+        "A Discovery+ episode URL under /show/{uuid}/sN/e… is a TvShow episode and is not rejected, " +
+        "so episode submits still create or attach under the series (#1587).")]
+    public void discoveryplus_episode_path_is_tv_show_episode()
+    {
+        // Arrange
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var signals = Signals(
+            new Uri($"https://www.discoveryplus.com/show/{showId}/s1/e1-slug/{episodeId}"),
+            series: true);
+
+        // Act
+        var result = SubmitContentClassifier.Classify(signals);
+
+        // Assert
+        result.Reject.Should().BeFalse();
+        result.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        result.HasParent.Should().BeTrue();
+    }
+
+    [Fact(DisplayName =
         "A Netflix /title/ documentary scraped as a Movie (no show name) is classified as a Film from the submission, " +
         "even though its page says 'This series is…' (#1517).")]
     public void netflix_title_documentary_submission_is_a_film()

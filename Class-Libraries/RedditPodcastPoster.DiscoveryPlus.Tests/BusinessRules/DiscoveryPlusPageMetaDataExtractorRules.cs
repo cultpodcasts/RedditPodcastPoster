@@ -123,6 +123,121 @@ public class DiscoveryPlusPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "A discovery+ episode page uses og:image:alt as ShowName and the description episode title as Title, " +
+        "so siblings share one series instead of each OG title becoming its own TvShow (#1587).")]
+    public async Task episode_page_uses_image_alt_show_name_and_description_episode_title()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var episodeTitle = _fixture.CreateTitle();
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var url = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e1-slug/{episodeId}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {showName} | Season  1 Episode 1 | discovery+\" />" +
+            $"<meta property=\"og:image:alt\" content=\"{showName}\" />" +
+            $"<meta property=\"og:description\" content=\"Watch {showName}: Season  1, Episode 1 - {episodeTitle} . More blurb.\" />" +
+            "<meta property=\"og:type\" content=\"video.tv_show\" />" +
+            "</head></html>");
+        var sut = _mocker.CreateInstance<DiscoveryPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(showName);
+        meta.Title.Should().Be(episodeTitle);
+        meta.Publisher.Should().Be("discovery+");
+        meta.MadeAsFilm.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A discovery+ episode page without og:image:alt still takes ShowName from the Watch {show} | Season… OG title, " +
+        "so missing alt does not leave ShowName as the full Watch|Season string (#1587).")]
+    public async Task episode_page_without_image_alt_parses_show_name_from_watch_season_title()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var url = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e1-slug/{episodeId}");
+        var ogTitle = $"Watch {showName} | Season  1 Episode 1 | discovery+";
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"{ogTitle}\" />" +
+            "<meta property=\"og:type\" content=\"video.tv_show\" />" +
+            "</head></html>");
+        var sut = _mocker.CreateInstance<DiscoveryPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(showName);
+        meta.Title.Should().NotBeNullOrWhiteSpace();
+        meta.Title.Should().NotContain("Watch ", because: "episode title must not stay the full Watch|Season OG string");
+        meta.Title.Should().NotBe(showName);
+        meta.Publisher.Should().Be("discovery+");
+    }
+
+    [Fact(DisplayName =
+        "A discovery+ description episode title that contains a period is kept whole until the space-dot blurb separator, " +
+        "so mid-title abbreviations are not truncated.")]
+    public async Task description_episode_title_keeps_periods_until_space_dot_blurb()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var episodeTitle = $"{_fixture.CreateTitle(2)}. {_fixture.CreateTitle(2)}";
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var url = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e1-slug/{episodeId}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {showName} | Season  1 Episode 1 | discovery+\" />" +
+            $"<meta property=\"og:image:alt\" content=\"{showName}\" />" +
+            $"<meta property=\"og:description\" content=\"Watch {showName}: Season  1, Episode 1 - {episodeTitle} . More blurb.\" />" +
+            "<meta property=\"og:type\" content=\"video.tv_show\" />" +
+            "</head></html>");
+        var sut = _mocker.CreateInstance<DiscoveryPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        episodeTitle.Should().Contain(".");
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(showName);
+    }
+
+    [Fact(DisplayName =
+        "A discovery+ show hub strips the Watch prefix from og:title for ShowName, " +
+        "so the series brand is not stored as 'Watch …'.")]
+    public async Task hub_strips_watch_prefix_for_show_name()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var url = new Uri($"https://www.discoveryplus.com/show/{_fixture.CreateGuid()}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {showName} | discovery+\" />" +
+            $"<meta property=\"og:image:alt\" content=\"{showName}\" />" +
+            "<meta property=\"og:type\" content=\"video.tv_show\" />" +
+            "</head></html>");
+        var sut = _mocker.CreateInstance<DiscoveryPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.ShowName.Should().Be(showName);
+        meta.Title.Should().Be(showName);
+    }
+
+    [Fact(DisplayName =
         "discovery+ page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {

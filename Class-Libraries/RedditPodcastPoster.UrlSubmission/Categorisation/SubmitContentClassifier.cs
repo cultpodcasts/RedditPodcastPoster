@@ -1,5 +1,6 @@
 using RedditPodcastPoster.BBC.Matching;
 using RedditPodcastPoster.Catalogue.Authority;
+using RedditPodcastPoster.DiscoveryPlus.Matching;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.UrlSubmission.Models;
@@ -94,6 +95,17 @@ public static class SubmitContentClassifier
                 Reject: true,
                 RequiresCurator: false,
                 RejectionMessage: NetflixSeriesHubSubmitRejection.Message);
+        }
+
+        // #1587: Discovery+ /show/{id} hubs do not expand episode lists; reject like Netflix series hubs.
+        if (DiscoveryPlusUrlMatcher.IsShowHub(signals.Url) && !IsStandaloneFilm(signals))
+        {
+            return new SubmitClassification(
+                SubmitClassification.TvShowEpisode,
+                HasParent: false,
+                Reject: true,
+                RequiresCurator: false,
+                RejectionMessage: DiscoveryPlusSeriesHubSubmitRejection.Message);
         }
 
         if (IsBbcNews(signals.Url) || signals.YouTubeNewsStation || signals.News)

@@ -1000,6 +1000,125 @@ public class CatalogueKindSubmitRules
     }
 
     [Fact(DisplayName =
+        "A Discovery+ episode whose OG show name differs from an existing sibling still attaches to that TvShow " +
+        "when the Discovery+ show UUID matches a stored episode service URL, so siblings do not mint duplicate series (#1587).")]
+    public async Task discoveryplus_episode_attaches_by_show_uuid_when_names_differ()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var showId = _fixture.CreateGuid();
+        var storedEpisodeId = _fixture.CreateGuid();
+        var newEpisodeId = _fixture.CreateGuid();
+        var existing = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var storedUrl = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e1-slug/{storedEpisodeId}");
+        var newUrl = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e2-slug/{newEpisodeId}");
+        var serviceKey = StreamingServiceWire.ToKey(StreamingService.DiscoveryPlus);
+        _episodes.Add(new TvShowEpisode(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            TvShowId = existing.Id,
+            TvShowName = existing.Name,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [serviceKey] = new() { Url = storedUrl }
+            }
+        });
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
+            .ReturnsAsync((Expression<Func<TvShow, bool>> predicate) =>
+                new[] { existing }.FirstOrDefault(predicate.Compile()));
+        // Different submitted name would create a second series without UUID attach.
+        var source = new ResolvedNonPodcastServiceItem(
+            StreamingService.DiscoveryPlus,
+            Url: newUrl,
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            ShowName: _fixture.CreateTitle());
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), TvOptions(newUrl));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        result.PodcastResult.Should().Be(SubmitResultState.None);
+        _shows.Should().BeEmpty();
+        _episodes.Should().HaveCount(2);
+        _episodes[1].TvShowId.Should().Be(existing.Id);
+        _episodes[1].TvShowName.Should().Be(existing.Name);
+        _episodes[1].Services![serviceKey].Url.Should().Be(newUrl);
+    }
+
+    [Fact(DisplayName =
+        "When two TvShows already hold Discovery+ episodes for the same show UUID, submit refuses UUID attach " +
+        "and does not write a TvShow episode, because the parent is ambiguous (#1587).")]
+    public async Task discoveryplus_show_uuid_with_two_tvshows_is_ambiguous()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var showId = _fixture.CreateGuid();
+        var first = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var second = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var serviceKey = StreamingServiceWire.ToKey(StreamingService.DiscoveryPlus);
+        _episodes.Add(new TvShowEpisode(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            TvShowId = first.Id,
+            TvShowName = first.Name,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [serviceKey] = new()
+                {
+                    Url = new Uri(
+                        $"https://www.discoveryplus.com/show/{showId}/s1/e1-slug/{_fixture.CreateGuid()}")
+                }
+            }
+        });
+        _episodes.Add(new TvShowEpisode(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            TvShowId = second.Id,
+            TvShowName = second.Name,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [serviceKey] = new()
+                {
+                    Url = new Uri(
+                        $"https://www.discoveryplus.com/show/{showId}/s1/e2-slug/{_fixture.CreateGuid()}")
+                }
+            }
+        });
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(x => x.GetBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
+            .ReturnsAsync((Expression<Func<TvShow, bool>> predicate) =>
+                new[] { first, second }.FirstOrDefault(predicate.Compile()));
+        var submittedName = _fixture.CreateTitle();
+        var newUrl = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e3-slug/{_fixture.CreateGuid()}");
+        var source = new ResolvedNonPodcastServiceItem(
+            StreamingService.DiscoveryPlus,
+            Url: newUrl,
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            ShowName: submittedName);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+        var episodeCountBefore = _episodes.Count;
+
+        // Act
+        var act = () => sut.TrySubmit(Categorised(source), TvOptions(newUrl));
+
+        // Assert
+        var ex = await act.Should().ThrowAsync<AmbiguousParentNameException>();
+        ex.Which.ContentKind.Should().Be(SubmitClassification.TvShowEpisode);
+        ex.Which.ParentName.Should().Be(submittedName);
+        ex.Which.ParentIds.Should().BeEquivalentTo([first.Id, second.Id]);
+        _episodes.Should().HaveCount(episodeCountBefore);
+        _shows.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
         "When one TvShow matches the series name ignoring case, submit reuses that show " +
         "and does not create a second parent.")]
     public async Task tv_show_name_match_ignores_case()
