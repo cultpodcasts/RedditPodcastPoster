@@ -29,6 +29,13 @@ public class EpisodePublishService(
     internal const string HeldForApprovalMessage =
         "This episode is awaiting approval or rejected: approve it first, then post it.";
 
+    /// <summary>
+    /// #1205: X accepted the post but Cosmos could not be marked tweeted. Curator/ops must set
+    /// <c>TweetPost</c> before the next Indexer run or the same item can be double-posted.
+    /// </summary>
+    internal const string SentNotSavedMessage =
+        "Tweet was posted to X but could not be saved as tweeted; set TweetPost on the document before the next hourly run.";
+
     public async Task<EpisodePublishResult> PublishAsync(
         EpisodePublishRequestWrapper publishRequest,
         CancellationToken cancellationToken)
@@ -97,15 +104,32 @@ public class EpisodePublishService(
                                 podcastEpisode.Episode.Id);
                         }
 
-                        if (result.TweetSendStatus != TweetSendStatus.Sent)
+                        // X accepted the post (Sent), already holds identical content (DuplicateForbidden: the poster
+                        // persisted it as tweeted), or accepted it but the save failed (SentNotSaved, #1205). In
+                        // every case the content is on X, so reporting Tweeted=false would invite a double post.
+                        if (result.TweetSendStatus is TweetSendStatus.Sent or TweetSendStatus.DuplicateForbidden
+                            or TweetSendStatus.SentNotSaved)
+                        {
+                            if (result.TweetSendStatus == TweetSendStatus.SentNotSaved)
+                            {
+                                // Poster already retried; recover here so catalogue kinds (no trailing episode Save)
+                                // get MarkTweeted before the next Indexer run can double-post (#1205).
+                                if (!await TryPersistTweetedState(podcastEpisode, result.TweetId))
+                                {
+                                    logger.LogError(
+                                        "Tweet for {ContentKind} id '{EpisodeId}' was posted to X but could not be saved as tweeted after publish-path recovery: '{PostTweetResponse}'.",
+                                        podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id, result);
+                                    outcome.Message = SentNotSavedMessage;
+                                }
+                            }
+
+                            outcome.Tweeted = true;
+                        }
+                        else
                         {
                             logger.LogError("Tweet result: '{PostTweetResponse}'.", result);
                             outcome.FailedTweetContent = result.candidateTweet;
                             outcome.Tweeted = false;
-                        }
-                        else
-                        {
-                            outcome.Tweeted = true;
                         }
                     }
                     catch (Exception e)
@@ -178,6 +202,39 @@ public class EpisodePublishService(
         {
             logger.LogError(ex, "{method}: Failed to publish episode.", nameof(PublishAsync));
             return new EpisodePublishResult(EpisodePublishStatus.Failed);
+        }
+    }
+
+    /// <summary>
+    /// Persists tweeted state after a <see cref="TweetSendStatus.SentNotSaved"/> recovery. Ensures the in-memory
+    /// <c>TweetPost</c> is set from the X id when the poster left it only on the response.
+    /// </summary>
+    private async Task<bool> TryPersistTweetedState(PodcastEpisode podcastEpisode, string? tweetId)
+    {
+        if (string.IsNullOrWhiteSpace(podcastEpisode.Episode.TweetPost) && !string.IsNullOrWhiteSpace(tweetId))
+        {
+            podcastEpisode.Episode.TweetPost = tweetId;
+        }
+
+        try
+        {
+            if (podcastEpisode.IsCataloguePlayable)
+            {
+                await cataloguePlayableSocialPosts.MarkTweeted(podcastEpisode, podcastEpisode.Episode.TweetPost);
+            }
+            else
+            {
+                await episodeRepository.Save(podcastEpisode.Episode);
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Publish-path recovery failed to persist tweeted state for {ContentKind} id '{EpisodeId}' (parent '{PodcastId}').",
+                podcastEpisode.ContentKind ?? "episode", podcastEpisode.Episode.Id, podcastEpisode.Podcast.Id);
+            return false;
         }
     }
 

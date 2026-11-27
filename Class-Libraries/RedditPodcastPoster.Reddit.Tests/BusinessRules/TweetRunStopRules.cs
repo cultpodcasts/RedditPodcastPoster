@@ -57,6 +57,8 @@ public class TweetRunStopRules
     [InlineData(TweetSendStatus.PaymentRequired)]
     [InlineData(TweetSendStatus.TooManyRequests)]
     [InlineData(TweetSendStatus.AuthenticationFailed)]
+    [InlineData(TweetSendStatus.ServerError)]
+    [InlineData(TweetSendStatus.Timeout)]
     public async Task run_wide_refusal_stops_the_run(TweetSendStatus status)
     {
         // Arrange
@@ -130,6 +132,8 @@ public class TweetRunStopRules
     [InlineData(TweetSendStatus.PaymentRequired)]
     [InlineData(TweetSendStatus.AuthenticationFailed)]
     [InlineData(TweetSendStatus.TooManyRequests)]
+    [InlineData(TweetSendStatus.ServerError)]
+    [InlineData(TweetSendStatus.Timeout)]
     [InlineData(TweetSendStatus.Failed)]
     public async Task refused_post_keeps_tweeted_false(TweetSendStatus status)
     {
@@ -184,7 +188,9 @@ public class TweetRunStopRules
     [InlineData(HttpStatusCode.Unauthorized, TweetSendStatus.AuthenticationFailed)]
     [InlineData(HttpStatusCode.Forbidden, TweetSendStatus.AuthenticationFailed)]
     [InlineData(HttpStatusCode.BadRequest, TweetSendStatus.Failed)]
-    [InlineData(HttpStatusCode.InternalServerError, TweetSendStatus.Failed)]
+    [InlineData(HttpStatusCode.InternalServerError, TweetSendStatus.ServerError)]
+    [InlineData(HttpStatusCode.BadGateway, TweetSendStatus.ServerError)]
+    [InlineData(HttpStatusCode.ServiceUnavailable, TweetSendStatus.ServerError)]
     public void failure_status_codes_are_classified(HttpStatusCode code, TweetSendStatus expected)
     {
         // Arrange

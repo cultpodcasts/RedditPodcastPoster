@@ -92,6 +92,90 @@ public class TwitterClientRules
         result.TweetSendStatus.Should().Be(TweetSendStatus.AuthenticationFailed);
     }
 
+    [Theory(DisplayName =
+        "A 5xx answer to a post is reported as ServerError, so the run stops instead of posting the next candidate into the same outage, and the post is not re-sent by the client.")]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task server_error_is_reported_and_not_retried(HttpStatusCode status)
+    {
+        // Arrange
+        _x.Respond(status, "{\"title\":\"Service Unavailable\"}");
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var result = await sut.Send(_tweet);
+
+        // Assert
+        result.TweetSendStatus.Should().Be(TweetSendStatus.ServerError);
+        _x.Requests.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "When the request to X times out, then Send reports Timeout without re-sending, because X may have accepted the post and the run must stop.")]
+    public async Task timeout_is_reported_and_not_retried()
+    {
+        // Arrange
+        _x.Throw(new TaskCanceledException(_fixture.Create<string>(), new TimeoutException()));
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var result = await sut.Send(_tweet);
+
+        // Assert
+        result.TweetSendStatus.Should().Be(TweetSendStatus.Timeout);
+        _x.Requests.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "When the caller cancels the send, then the cancellation propagates and is not reported as a timeout, because only X's own timeout means the post may be live.")]
+    public async Task caller_cancellation_is_not_a_timeout()
+    {
+        // Arrange
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+        _x.Throw(new TaskCanceledException());
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var send = () => sut.Send(_tweet, cancelled.Token);
+
+        // Assert
+        await send.Should().ThrowAsync<TaskCanceledException>();
+    }
+
+    [Fact(DisplayName =
+        "When a TaskCanceledException has no TimeoutException inner and the caller did not cancel, then it propagates instead of becoming Timeout, because only HttpClient's timeout shape means the post may be live.")]
+    public async Task bare_task_canceled_without_timeout_inner_is_not_a_timeout()
+    {
+        // Arrange
+        _x.Throw(new TaskCanceledException(_fixture.Create<string>()));
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var send = () => sut.Send(_tweet);
+
+        // Assert
+        await send.Should().ThrowAsync<TaskCanceledException>();
+        _x.Requests.Should().ContainSingle();
+    }
+
+    [Fact(DisplayName =
+        "A client-forbidden problem type is reported as AuthenticationFailed whatever the HTTP status, because the app may not post at all and the run must stop.")]
+    public async Task client_forbidden_problem_type_is_authentication_failed()
+    {
+        // Arrange
+        _x.Respond(HttpStatusCode.BadRequest,
+            "{\"title\":\"Client Forbidden\",\"type\":\"https://api.twitter.com/2/problems/client-forbidden\",\"status\":400}");
+        var sut = _mocker.CreateInstance<TwitterClient>();
+
+        // Act
+        var result = await sut.Send(_tweet);
+
+        // Assert
+        result.TweetSendStatus.Should().Be(TweetSendStatus.AuthenticationFailed);
+    }
+
     [Fact(DisplayName = "A 429 is reported as TooManyRequests even when the reset header is malformed.")]
     public async Task too_many_requests_with_bad_reset_header()
     {
@@ -234,7 +318,7 @@ public class TwitterClientRules
     public async Task non_json_error_is_failed()
     {
         // Arrange
-        _x.Respond(HttpStatusCode.BadGateway, "<html>bad gateway</html>");
+        _x.Respond(HttpStatusCode.BadRequest, "<html>bad request</html>");
         var sut = _mocker.CreateInstance<TwitterClient>();
 
         // Act
