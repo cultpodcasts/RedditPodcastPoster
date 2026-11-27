@@ -41,14 +41,6 @@ jobs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        cache: true
-        # No packages.lock.json in this repo; hash project files + Directory.Build.* for the cache key.
-        cache-dependency-path: |
-          **/*.csproj
-          Directory.Build.props
-          Directory.Build.targets
-          **/Directory.Build.props
-          **/Directory.Build.targets
     - name: Restore dependencies
       run: dotnet restore --verbosity minimal
     - name: Solution membership (csproj ↔ slnx)

@@ -37,7 +37,7 @@ Every pull request into `main` runs **PR gate** (`.github/workflows/pr-gate.yml`
 
 | Job | What it checks |
 |-----|----------------|
-| `build` | The **Build** workflow (`dotnet.yml`, called via `workflow_call`): restore (NuGet cache), slnx/slnf asserts, build, all tests, coverage gate (unless merge-tip `skip_coverage`), unit-test guardrails, Pester |
+| `build` | The **Build** workflow (`dotnet.yml`, called via `workflow_call`): restore, slnx/slnf asserts, build, all tests, coverage gate (unless merge-tip `skip_coverage`), unit-test guardrails, Pester |
 | `actionlint` | Pinned actionlint over `.github/workflows/**` (shellcheck/pyflakes off). Catches invalid workflows such as the unknown `permissions: variables: write` scope from #1309, which GitHub rejected before any job ran |
 | `bicep` | Pinned Bicep CLI `bicep build` of every `Infrastructure/**/*.bicep` (no Azure login). `functions.bicepparam` is not built: it reads deploy-time environment variables |
 
@@ -49,7 +49,11 @@ PRs into other branches still run **Build** directly. **Provision and Deploy** i
 2. Walking first parents reaches a commit whose `gate` check-run (GitHub Actions app) concluded `success`. That run built and tested the PR's own code.
 3. Every file the merged-in `main` side touched is on a **non-build allowlist**: `docs/**` (not `docs/contracts/**`), any `*.md`, `.cursor/**`, `.github/scripts/**` and `.github/ISSUE_TEMPLATE/**`. Textual non-overlap does not imply the combination compiles: `main` can rename an API in one file while the PR calls it from another. `main`'s own CI covers `main`'s content on its own, **not** PR plus `main` together, so any merged-in change to code, projects, workflows, scripts or contracts still runs restore/build/test.
 
-When (1) and (2) hold but (3) does not (merge-from-main tip absorbed build-affecting `main` files), `detect` sets `skip_coverage=true`: the Build job still runs restore/build/test for the PR+`main` combo, but skips the episode-domain coverage gate (~2 min of a second instrumented pass). The prior green `gate` already covered the PR's own tip. Feature commits, rebases and non-merge tips always run coverage.
+When (1) and (2) hold but (3) does not (merge-from-main tip absorbed build-affecting `main` files), `detect` sets `skip_coverage=true`: the Build job still runs restore/build/test for the PR+`main` combo, but skips the episode-domain coverage gate (~2 min of a second instrumented pass). The prior green `gate` already covered the PR's own tip. `skip_coverage` is only ever `true` together with `skip_heavy=false`: when the whole build is skipped there is no coverage pass to skip, so it reads `false`. Feature commits, rebases and non-merge tips always run coverage.
+
+Coverage is also kept when the merged-in `main` side changed the coverage machinery itself: `scripts/coverage-gate.ps1`, `plans/episode-domain-refactor/coverage-baseline.json` or `.github/workflows/dotnet.yml`. The prior green gate judged the PR against the old script and baselines, so the tip must be judged against the new ones (`COVERAGE_MACHINERY_PATTERNS` in `pr-gate-detect.cjs`). The `Build` workflow only skips the coverage step when its `skip_coverage` input is exactly boolean `true` (default `false`), so `push` and `pull_request` runs on other bases, and a failed `detect`, always run coverage; `pr-gate-detect.test.cjs` guards that wiring.
+
+No NuGet cache is configured on `setup-dotnet`: `dotnet.yml` never runs on `main`, so no cache entry exists for a new PR to read (PR caches are scoped to `refs/pull/<n>/merge`), and each PR would write its own ~1 GB entry against the repository quota for a restore that measures about 36 s cold.
 
 `actionlint` and `bicep` still run on every tip. The `gate` job accepts a skipped `build` only when `detect` succeeded with `skip_heavy=true`; that verdict lives in `.github/scripts/pr-gate-verdict.cjs` and is unit tested (a failed `detect` still runs the full `build`, a missing required job fails the gate). Rebases, feature commits, evil or overlapping merges, a red, cancelled or missing prior gate and any API error run the full build with coverage (`github.event.before` is not used: it is unreliable on `pull_request`).
 

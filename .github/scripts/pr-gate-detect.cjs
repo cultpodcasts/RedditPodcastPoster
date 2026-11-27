@@ -14,10 +14,14 @@
 //      own CI covers main's content alone, not PR + main together. So any base-side file that
 //      could affect the build or tests means the full build runs.
 //
-// skip_coverage=true when (1) and (2) hold but (3) does not: the tip is still merge-from-main
-// only above a green gate, so restore/build/test still run for the PR+main combo, but the
-// coverage gate (already green on the PR's own tip) is skipped to cut wall time on batch merges.
-// Feature commits, rebases and non-merge tips always run coverage (skip_coverage=false).
+// skip_coverage=true only when (1) and (2) hold, (3) does not (so skip_heavy=false), and the
+// merged-in side did not touch the coverage machinery (COVERAGE_MACHINERY_PATTERNS): the tip is
+// still merge-from-main only above a green gate, so restore/build/test still run for the PR+main
+// combo, but the coverage gate (already green on the PR's own tip) is skipped to cut wall time on
+// batch merges. skip_coverage is therefore false whenever skip_heavy=true (no build runs, so the
+// output is moot), for feature commits, rebases and non-merge tips, and when main changed the
+// coverage script, its baselines or the Build workflow (the prior gate judged the PR against the
+// old ones, so the tip must be judged against the new ones).
 //
 // actionlint and bicep still run on every tip.
 // Trust: this runs on `pull_request` from the PR's own merge ref, so a PR author controls these
@@ -44,6 +48,20 @@ const NON_BUILD_PATTERNS = [
   /^\.github\/ISSUE_TEMPLATE\//,
   /\.md$/i,
 ];
+
+// The coverage gate's own inputs. A merged-in change here is never judged by the prior green gate
+// (which ran the old script/baselines), so the tip must run coverage.
+const COVERAGE_MACHINERY_PATTERNS = [
+  /^scripts\/coverage-gate\.ps1$/,
+  /^plans\/episode-domain-refactor\/coverage-baseline\.json$/,
+  /^\.github\/workflows\/dotnet\.yml$/,
+];
+
+// True when changing `path` alters how the coverage gate judges the code.
+function isCoverageMachineryPath(path) {
+  const p = String(path || '');
+  return COVERAGE_MACHINERY_PATTERNS.some((re) => re.test(p));
+}
 
 // True when changing `path` cannot affect the heavy build.
 function isNonBuildPath(path) {
@@ -99,6 +117,13 @@ async function decide({ github, owner, repo, baseRef, headSha, walk = walkMergeO
     if (affecting.length) {
       const shown = affecting.slice(0, 3).join(', ');
       const more = affecting.length > 3 ? ` and ${affecting.length - 3} more` : '';
+      if (affecting.some(isCoverageMachineryPath)) {
+        return {
+          skip: false,
+          skipCoverage: false,
+          reason: `merged-in main changes the coverage gate (${affecting.filter(isCoverageMachineryPath).join(', ')}); full build runs with coverage`,
+        };
+      }
       return {
         skip: false,
         // Prior gate already covered the PR; this tip only absorbed main. Still build+test the
@@ -109,7 +134,8 @@ async function decide({ github, owner, repo, baseRef, headSha, walk = walkMergeO
     }
     return {
       skip: true,
-      skipCoverage: true,
+      // No build runs at all, so there is no coverage pass to skip: report "not skipped".
+      skipCoverage: false,
       reason: `merge-from-base only (${n} commit${n === 1 ? '' : 's'}, non-build files only) above ${String(result.anchor).slice(0, 7)} with a green gate`,
     };
   }
@@ -133,7 +159,7 @@ async function run({ github, context, core, walk, green }) {
   if (core.summary) {
     await core.summary
       .addRaw(
-        `PR gate detect: heavy build **${skip ? 'skipped' : 'runs'}**, coverage **${skipCoverage ? 'skipped' : 'runs'}** (${reason})\n`,
+        `PR gate detect: heavy build **${skip ? 'skipped' : 'runs'}**${skip ? '' : `, coverage **${skipCoverage ? 'skipped' : 'runs'}**`} (${reason})\n`,
       )
       .write();
   }
@@ -141,5 +167,5 @@ async function run({ github, context, core, walk, green }) {
 }
 
 module.exports = {
-  GATE_CHECK_NAME, GATE_APP_SLUG, isNonBuildPath, buildAffectingPaths, hasGreenGate, decide, run,
+  GATE_CHECK_NAME, GATE_APP_SLUG, isNonBuildPath, isCoverageMachineryPath, buildAffectingPaths, hasGreenGate, decide, run,
 };

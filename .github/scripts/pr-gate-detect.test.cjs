@@ -45,7 +45,7 @@ test('decide: merge-only tip above a green gate skips the heavy build', async ()
   const github = githubWith({ [PRIOR]: [checkRun()] });
   const r = await d.decide({ ...base, github, walk });
   assert.equal(r.skip, true);
-  assert.equal(r.skipCoverage, true);
+  assert.equal(r.skipCoverage, false, 'no build runs, so there is no coverage pass to skip');
   assert.match(r.reason, /merge-from-base only \(2 commits, non-build files only\) above bbbbbbb with a green gate/);
   assert.equal(await classify(PRIOR), 'stop');
   assert.equal(await classify(HEAD), null);
@@ -103,11 +103,31 @@ test('decide: any hop in the chain touching a build file runs build+test, skips 
   assert.match(r.reason, /\(a\.cs, b\.cs, c\.cs and 1 more\).*coverage skipped/);
 });
 
+test('isCoverageMachineryPath: the coverage script, its baseline JSON and dotnet.yml are coverage machinery; other build files are not', () => {
+  for (const p of ['scripts/coverage-gate.ps1', 'plans/episode-domain-refactor/coverage-baseline.json', '.github/workflows/dotnet.yml']) {
+    assert.equal(d.isCoverageMachineryPath(p), true, p);
+  }
+  for (const p of ['scripts/assert-slnf.ps1', 'Cloud/Api/Foo.cs', '.github/workflows/pr-gate.yml', 'plans/episode-domain-refactor/README.md', '', undefined, null]) {
+    assert.equal(d.isCoverageMachineryPath(p), false, String(p));
+  }
+});
+
+test('decide: merged-in main that changes the coverage script, baseline or Build workflow still runs coverage', async () => {
+  for (const machinery of ['scripts/coverage-gate.ps1', 'plans/episode-domain-refactor/coverage-baseline.json', '.github/workflows/dotnet.yml']) {
+    const walk = async () => ({ ok: true, anchor: PRIOR, hops: [{ paths: ['Cloud/Api/Foo.cs'] }, { paths: [machinery] }] });
+    const r = await d.decide({ ...base, github: githubWith({}), walk });
+    assert.equal(r.skip, false, machinery);
+    assert.equal(r.skipCoverage, false, machinery);
+    assert.match(r.reason, /changes the coverage gate/, machinery);
+    assert.ok(r.reason.includes(machinery), machinery);
+  }
+});
+
 test('decide: an empty merge (no files) above a green gate still skips', async () => {
   const walk = async () => ({ ok: true, anchor: PRIOR, hops: [{ paths: [] }] });
   const r = await d.decide({ ...base, github: githubWith({}), walk });
   assert.equal(r.skip, true);
-  assert.equal(r.skipCoverage, true);
+  assert.equal(r.skipCoverage, false);
 });
 test('decide: a failing, cancelled or missing prior gate (real classify) runs the full build with coverage', async () => {
   // Walk that asks classify about the prior commit, as the real walker does after one hop.
@@ -121,7 +141,7 @@ test('decide: a failing, cancelled or missing prior gate (real classify) runs th
   }
   const green = await d.decide({ ...base, github: githubWith({ [PRIOR]: [checkRun()] }), walk });
   assert.equal(green.skip, true);
-  assert.equal(green.skipCoverage, true);
+  assert.equal(green.skipCoverage, false);
 });
 
 test('decide: an API error from the checks lookup fails closed (full build with coverage)', async () => {
@@ -168,9 +188,9 @@ test('run: publishes skip_heavy=true and a reason for a green-gate merge-only ti
   const walk = async (a) => { seen = a; return { ok: true, anchor: PRIOR, hops: [{ paths: ['README.md'] }] }; };
   const r = await d.run({ github: githubWith({}), context: prCtx(), core, walk });
   assert.equal(r.skip, true);
-  assert.equal(r.skipCoverage, true);
+  assert.equal(r.skipCoverage, false);
   assert.equal(core.outputs.skip_heavy, 'true');
-  assert.equal(core.outputs.skip_coverage, 'true');
+  assert.equal(core.outputs.skip_coverage, 'false');
   assert.match(core.outputs.reason, /merge-from-base only \(1 commit, non-build files only\)/);
   assert.equal(seen.headSha, HEAD);
   assert.equal(seen.baseRef, 'main');
@@ -218,6 +238,28 @@ test('workflow: build passes skip_coverage from detect into the reusable Build w
     code,
     /uses: \.\/\.github\/workflows\/dotnet\.yml\s*\n\s*with:\s*\n\s*skip_coverage: \$\{\{ needs\.detect\.outputs\.skip_coverage == 'true' \}\}/,
   );
+});
+
+// dotnet.yml is the single place that decides whether feature tips lose coverage. Unset (push,
+// pull_request on other bases, a failed detect) must run coverage, so the input needs default
+// false and the step must only be skipped on an explicit boolean true.
+const dotnetWorkflow = fs.readFileSync(path.join(__dirname, '..', 'workflows', 'dotnet.yml'), 'utf8').replace(/\r\n/g, '\n');
+const dotnetCode = dotnetWorkflow.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+
+test('workflow: dotnet.yml declares skip_coverage as an optional workflow_call boolean defaulting to false', () => {
+  assert.match(
+    dotnetCode,
+    /^  workflow_call:\s*\n    inputs:\s*\n      skip_coverage:\s*\n(?:        description: .*\n)?        type: boolean\s*\n        required: false\s*\n        default: false\s*$/m,
+  );
+});
+
+test('workflow: dotnet.yml skips the coverage gate step only when skip_coverage is exactly boolean true', () => {
+  assert.match(
+    dotnetCode,
+    /- name: Episode domain coverage gate\s*\n      if: \$\{\{ inputs\.skip_coverage != true \}\}\s*\n      shell: pwsh\s*\n      run: \.\/scripts\/coverage-gate\.ps1/,
+  );
+  // No other step may be gated on skip_coverage: only the coverage pass is skippable.
+  assert.equal([...dotnetCode.matchAll(/inputs\.skip_coverage/g)].length, 1);
 });
 
 test('workflow: gate waits for detect and accepts a skipped build only when skip_heavy=true', () => {
