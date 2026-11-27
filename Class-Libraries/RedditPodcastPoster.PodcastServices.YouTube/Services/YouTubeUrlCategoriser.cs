@@ -20,9 +20,6 @@ using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using RedditPodcastPoster.PodcastServices.YouTube.Resolvers;
 using RedditPodcastPoster.PodcastServices.YouTube.Thumbnails;
 using RedditPodcastPoster.PodcastServices.YouTube.Video;
-using RedditPodcastPoster.Text;
-using RedditPodcastPoster.Text.Matchers;
-
 namespace RedditPodcastPoster.PodcastServices.YouTube.Services;
 
 public class YouTubeUrlCategoriser(
@@ -32,15 +29,12 @@ public class YouTubeUrlCategoriser(
     IYouTubeChannelReleaseBandSearch youTubeChannelReleaseBandSearch,
     IYouTubeChannelVideoRetrievalPolicy youTubeChannelVideoRetrievalPolicy,
     ITolerantYouTubePlaylistService youTubePlaylistService,
+    IPlaylistItemFinder playlistItemFinder,
     IYouTubeThumbnailResolver youTubeThumbnailResolver,
     IEpisodeRepository episodeRepository,
     ILogger<YouTubeUrlCategoriser> logger)
     : IYouTubeUrlCategoriser
 {
-    private const int MultiplePublicationDateMatchTitleThreshold = 60;
-    private const int TitleThreshold = 80;
-    private const int SameTitleThreshold = 95;
-    private static readonly long SameTitleDurationThreshold = TimeSpan.FromMinutes(2).Ticks;
     private static readonly TimeSpan PublishThreshold = TimeSpan.FromDays(2);
 
     public async Task<ResolvedYouTubeItem?> Resolve(
@@ -236,93 +230,64 @@ public class YouTubeUrlCategoriser(
                 .ToHashSet(StringComparer.Ordinal);
             // Compare video ids: a playlist item's Id is the playlist-item id, not the video id.
             var unassignedChannelUploads =
-                items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Snippet?.ResourceId?.VideoId ?? x.Id)).ToArray();
-            var publishedWithin = PublishedWithinThreshold(unassignedChannelUploads, expectedPublish);
-            PlaylistItem? match;
-            if (publishedWithin.Any())
+                items.Where(x => !podcastEpisodeYouTubeIds.Contains(x.Snippet?.ResourceId?.VideoId ?? x.Id)).ToList();
+            if (unassignedChannelUploads.Count == 0)
             {
-                match = FuzzyMatcher.Match(criteria.EpisodeTitle, publishedWithin, x => x.Snippet.Title,
-                    MultiplePublicationDateMatchTitleThreshold);
-            }
-            else
-            {
-                match = FuzzyMatcher.Match(criteria.EpisodeTitle, unassignedChannelUploads, x => x.Snippet.Title,
-                    TitleThreshold);
+                return null;
             }
 
-            if (match == null)
+            // Same matcher as index/enrich (duration shortfall, CrossPlatformMatchScorer, preference).
+            var audioProbe = ToAudioProbeEpisode(criteria);
+            var matched = await playlistItemFinder.FindMatchingYouTubeVideo(
+                audioProbe,
+                unassignedChannelUploads,
+                matchingPodcast.YouTubePublishingDelay(),
+                indexingContext,
+                matchingPodcast);
+            if (matched?.PlaylistItem is null)
             {
-                match = FuzzyMatcher.Match(criteria.EpisodeTitle, unassignedChannelUploads, x => x.Snippet.Title,
-                    SameTitleThreshold);
-                if (match != null)
-                {
-                    var videoContent =
-                        await youTubeVideoService.GetVideoContentDetails(
-                            youTubeService,
-                            [match.Snippet.ResourceId.VideoId],
-                            indexingContext
-                        );
-                    if (videoContent is { Count: 1 })
-                    {
-                        var duration = videoContent.Single().GetLength();
-                        if (duration.HasValue)
-                        {
-                            var diff = Math.Abs((duration.Value - criteria.Duration).Ticks);
-                            if (diff > SameTitleDurationThreshold)
-                            {
-                                match = null;
-                            }
-                        }
-                        else
-                        {
-                            match = null;
-                        }
-                    }
-                    else
-                    {
-                        match = null;
-                    }
-                }
+                return null;
             }
 
-            if (match != null)
+            var match = matched.PlaylistItem;
+            var channel = await youTubeChannelService.GetChannel(
+                new YouTubeChannelId(match.Snippet.ChannelId),
+                indexingContext,
+                true,
+                true);
+            if (channel != null)
             {
-                var channel = await youTubeChannelService.GetChannel(
-                    new YouTubeChannelId(match.Snippet.ChannelId),
-                    indexingContext,
-                    true,
-                    true);
-                if (channel != null)
-                {
-                    channelDescription = channel.Snippet.Description;
-                    channelContentOwner = channel.ContentOwnerDetails.ContentOwner;
-                }
+                channelDescription = channel.Snippet.Description;
+                channelContentOwner = channel.ContentOwnerDetails.ContentOwner;
+            }
 
-                var video = await youTubeVideoService.GetVideoContentDetails(youTubeService,
+            var videoContent = matched.Video;
+            if (videoContent is null)
+            {
+                var videos = await youTubeVideoService.GetVideoContentDetails(
+                    youTubeService,
                     [match.Snippet.ResourceId.VideoId],
                     indexingContext,
                     true);
-                if (video != null)
-                {
-                    var videoContent = video.SingleOrDefault();
-                    return new ResolvedYouTubeItem(
-                        match.Snippet.ChannelId,
-                        match.Snippet.ResourceId.VideoId,
-                        match.Snippet.ChannelTitle,
-                        channelDescription, //
-                        channelContentOwner, //
-                        match.Snippet.Title,
-                        match.Snippet.Description,
-                        match.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
-                        videoContent?.GetLength() ?? TimeSpan.Zero,
-                        match.Snippet.ToYouTubeUrl(),
-                        videoContent?.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
-                        videoContent != null
-                            ? await youTubeThumbnailResolver.GetImageUrlAsync(videoContent)
-                            : null,
-                        string.Empty);
-                }
+                videoContent = videos?.SingleOrDefault();
             }
+
+            return new ResolvedYouTubeItem(
+                match.Snippet.ChannelId,
+                match.Snippet.ResourceId.VideoId,
+                match.Snippet.ChannelTitle,
+                channelDescription,
+                channelContentOwner,
+                match.Snippet.Title,
+                match.Snippet.Description,
+                match.Snippet.PublishedAtDateTimeOffset!.Value.UtcDateTime,
+                videoContent?.GetLength() ?? TimeSpan.Zero,
+                match.Snippet.ToYouTubeUrl(),
+                videoContent?.ContentDetails.ContentRating.YtRating == "ytAgeRestricted",
+                videoContent != null
+                    ? await youTubeThumbnailResolver.GetImageUrlAsync(videoContent)
+                    : null,
+                string.Empty);
         }
         else
         {
@@ -463,6 +428,19 @@ public class YouTubeUrlCategoriser(
             YouTubePlaylistIdSource.ChannelUploads,
             matchingPodcast.YouTubeChannelId);
     }
+
+    /// <summary>
+    /// Probe episode for <see cref="IPlaylistItemFinder"/> — same duration/title/release signals
+    /// the enrich path scores via <see cref="YouTubeEnrichmentCandidate"/>.
+    /// </summary>
+    private static EpisodeModel ToAudioProbeEpisode(PodcastServiceSearchCriteria criteria) =>
+        new()
+        {
+            Title = criteria.EpisodeTitle,
+            Description = criteria.EpisodeDescription,
+            ReleaseUtc = criteria.Release,
+            Length = criteria.Duration
+        };
 
     private static IList<PlaylistItem>? WithinSubmitMatchBand(
         IList<PlaylistItem>? items,
