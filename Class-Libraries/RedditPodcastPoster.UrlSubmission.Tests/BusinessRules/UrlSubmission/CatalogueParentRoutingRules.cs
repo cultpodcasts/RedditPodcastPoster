@@ -608,6 +608,179 @@ public class CatalogueParentRoutingRules
     }
 
     [Fact(DisplayName =
+        "Times Radio shape (#1568): when a channel-wide parent holds the YouTube channel id but its name is not the " +
+        "channel title, and exactly one live parent has that exact title (even with a stale other channel id), the " +
+        "title-named parent gets the URL.")]
+    public async Task channel_wide_owner_whose_name_mismatches_channel_title_defers_to_exact_title_parent()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var titleName = "Synthetic Radio " + _fixture.CreateTitle();
+        var mismatchedHolder = AddOrganisation(
+            i => i.YouTubeChannelId = channelId,
+            name: "Synthetic Broadsheet " + _fixture.CreateTitle());
+        var titleNamed = AddOrganisation(
+            i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+            name: titleName);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var match = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId, YouTubeChannelTitle: titleName));
+
+        // Assert
+        match!.Parent.Id.Should().Be(titleNamed.Id);
+        match.Parent.Id.Should().NotBe(mismatchedHolder.Id);
+    }
+
+    [Fact(DisplayName =
+        "A playlist-scoped parent whose playlist contains the video keeps it even when another parent is named " +
+        "exactly like the YouTube channel title (#1568 must not steal Times Investigates / show-on-shared-channel).")]
+    public async Task playlist_membership_winner_is_not_overridden_by_channel_title_name()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var titleName = "Synthetic Radio " + _fixture.CreateTitle();
+        var url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}");
+        AddOrganisation(i => i.YouTubeChannelId = channelId, name: "Synthetic Broadsheet " + _fixture.CreateTitle());
+        var playlistScoped = AddOrganisation(
+            i =>
+            {
+                i.YouTubeChannelId = channelId;
+                i.YouTubePlaylistId = playlistId;
+            },
+            name: "Synthetic Investigates " + _fixture.CreateTitle());
+        AddOrganisation(i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId(), name: titleName);
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(), playlistId, It.IsAny<Uri>(), It.IsAny<bool>()))
+            .ReturnsAsync(true);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var match = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId, YouTubeChannelTitle: titleName),
+            url,
+            new IndexingContext());
+
+        // Assert
+        match!.Parent.Id.Should().Be(playlistScoped.Id);
+    }
+
+    [Fact(DisplayName =
+        "Times Radio submit path (#1568): when a playlist-scoped peer on the shared channel misses membership " +
+        "(IsVideoInPlaylist false), the channel-wide mismatched holder would win the channel-id tie, but the " +
+        "exact-title parent with a different channel id still takes the URL.")]
+    public async Task playlist_miss_then_channel_wide_mismatched_defers_to_exact_title_parent()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var playlistId = _fixture.CreateYouTubePlaylistId();
+        var titleName = "Synthetic Radio " + _fixture.CreateTitle();
+        var url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}");
+        var mismatchedHolder = AddOrganisation(
+            i => i.YouTubeChannelId = channelId,
+            name: "Synthetic Broadsheet " + _fixture.CreateTitle());
+        AddOrganisation(
+            i =>
+            {
+                i.YouTubeChannelId = channelId;
+                i.YouTubePlaylistId = playlistId;
+            },
+            name: "Synthetic Investigates " + _fixture.CreateTitle());
+        var titleNamed = AddOrganisation(
+            i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+            name: titleName);
+        _mocker.GetMock<IYouTubePlaylistMembership>()
+            .Setup(m => m.IsVideoInPlaylist(
+                It.IsAny<IYouTubeServiceWrapper>(), playlistId, It.IsAny<Uri>(), It.IsAny<bool>()))
+            .ReturnsAsync(false);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var match = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId, YouTubeChannelTitle: titleName),
+            url,
+            new IndexingContext());
+
+        // Assert
+        match!.Parent.Id.Should().Be(titleNamed.Id);
+        match.Parent.Id.Should().NotBe(mismatchedHolder.Id);
+    }
+
+    [Fact(DisplayName =
+        "When a channel-wide holder name mismatches the YouTube channel title, ambiguous exact-title names keep " +
+        "the channel-id owner (#1568 fail-closed).")]
+    public async Task ambiguous_exact_title_names_keep_channel_id_owner()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var titleName = "Synthetic Radio " + _fixture.CreateTitle();
+        var channelWideHolder = AddOrganisation(
+            i => i.YouTubeChannelId = channelId,
+            name: "Synthetic Broadsheet " + _fixture.CreateTitle());
+        AddOrganisation(i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId(), name: titleName);
+        AddShow(i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId(), name: titleName);
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var match = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId, YouTubeChannelTitle: titleName));
+
+        // Assert
+        match!.Parent.Id.Should().Be(channelWideHolder.Id);
+    }
+
+    [Fact(DisplayName =
+        "When a channel-wide holder name mismatches the YouTube channel title, a sole removed exact-title " +
+        "namesake keeps the channel-id owner (#1568 fail-closed).")]
+    public async Task sole_removed_exact_title_namesake_keeps_channel_id_owner()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var titleName = "Synthetic Radio " + _fixture.CreateTitle();
+        var channelWideHolder = AddOrganisation(
+            i => i.YouTubeChannelId = channelId,
+            name: "Synthetic Broadsheet " + _fixture.CreateTitle());
+        var removedNamesake = AddOrganisation(
+            i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+            name: titleName);
+        removedNamesake.Removed = true;
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var match = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId, YouTubeChannelTitle: titleName));
+
+        // Assert
+        match!.Parent.Id.Should().Be(channelWideHolder.Id);
+        match.Parent.Id.Should().NotBe(removedNamesake.Id);
+    }
+
+    [Fact(DisplayName =
+        "When the channel-wide owner's name already equals the YouTube channel title, it keeps the URL even if " +
+        "another parent also claims a different channel.")]
+    public async Task channel_wide_owner_matching_channel_title_is_not_overridden()
+    {
+        // Arrange
+        var channelId = _fixture.CreateYouTubeChannelId();
+        var titleName = "Synthetic Outlet " + _fixture.CreateTitle();
+        var owner = AddOrganisation(i => i.YouTubeChannelId = channelId, name: titleName);
+        AddOrganisation(
+            i => i.YouTubeChannelId = _fixture.CreateYouTubeChannelId(),
+            name: "Synthetic Other " + _fixture.CreateTitle());
+        var sut = _mocker.Get<ICatalogueParentLookup>();
+
+        // Act
+        var match = await sut.FindByOwner(
+            new EpisodeUrlOwnerIds(YouTubeChannelId: channelId, YouTubeChannelTitle: titleName));
+
+        // Assert
+        match!.Parent.Id.Should().Be(owner.Id);
+    }
+
+    [Fact(DisplayName =
         "With a video URL, when playlist membership cannot be checked, owner lookup fails closed so a submit does not guess the wrong parent.")]
     public async Task owner_lookup_with_url_unknown_membership_fails_closed()
     {
