@@ -6,7 +6,9 @@ namespace RedditPodcastPoster.ContentPublisher.Models;
 /// One row of the flat typeahead index. <see cref="Type"/> is <c>subject</c>, <c>podcast</c>,
 /// <c>tvShow</c>, <c>newsOrganisation</c> or <c>film</c>. <see cref="Id"/> is set on film rows only
 /// (film names can repeat, so the website links <c>/film/{name}/{shortId}</c> from it) and is
-/// omitted from JSON when null.
+/// omitted from JSON when null. Film rows may also index an IMDb or TMDB id as
+/// <see cref="SearchText"/> (with <see cref="Alias"/> holding the original casing), the same shape
+/// as a subject alias row.
 /// </summary>
 public record SearchSuggestionEntry(
     [property: JsonPropertyName("type")] string Type,
