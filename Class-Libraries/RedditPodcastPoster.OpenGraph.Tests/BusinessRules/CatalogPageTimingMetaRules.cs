@@ -164,4 +164,65 @@ public class CatalogPageTimingMetaRules
         // Assert
         recovered.Should().Be(airDate);
     }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta recovers Duration from HBO Max contentDetails runtime 44m, " +
+        "so Max episode SSR that only embeds a clock string still fills Length.")]
+    public void quoted_clock_runtime_minutes_only()
+    {
+        // Arrange
+        const string html = """{"contentDetails":{"runtime":"44m"}}""";
+
+        // Act
+        var duration = CatalogPageTimingMeta.TryDurationFromHtml(html);
+
+        // Assert
+        duration.Should().Be(TimeSpan.FromMinutes(44));
+    }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta recovers Duration from HBO Max contentDetails runtime 1h 28m, " +
+        "so Max film/episode clock strings with hours still fill Length.")]
+    public void quoted_clock_runtime_hours_and_minutes()
+    {
+        // Arrange
+        const string html = """{"contentDetails":{"runtime":"1h 28m"}}""";
+
+        // Act
+        var duration = CatalogPageTimingMeta.TryDurationFromHtml(html);
+
+        // Assert
+        duration.Should().Be(new TimeSpan(1, 28, 0));
+    }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta does not treat CSS transition-duration as episode Length, " +
+        "so stylesheet freights cannot coerce Duration when Max runtime is absent.")]
+    public void css_transition_duration_does_not_win()
+    {
+        // Arrange — unquoted CSS clock must not satisfy the Max "runtime":"…" parser.
+        const string html = ".fade { transition-duration: 44m; }";
+
+        // Act
+        var duration = CatalogPageTimingMeta.TryDurationFromHtml(html);
+
+        // Assert
+        duration.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta prefers the longest quoted-clock runtime when a short trailer clock " +
+        "precedes a longer episode clock, so Max Length is the episode not the trailer.")]
+    public void quoted_clock_prefers_longest_when_trailer_precedes_episode()
+    {
+        // Arrange
+        const string html =
+            """{"trailer":{"runtime":"2m"},"contentDetails":{"runtime":"44m"}}""";
+
+        // Act
+        var duration = CatalogPageTimingMeta.TryDurationFromHtml(html);
+
+        // Assert
+        duration.Should().Be(TimeSpan.FromMinutes(44));
+    }
 }

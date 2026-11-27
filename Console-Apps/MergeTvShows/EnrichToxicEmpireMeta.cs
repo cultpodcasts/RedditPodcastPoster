@@ -12,7 +12,8 @@ namespace MergeTvShows;
 
 /// <summary>
 /// One-shot prod patch for #1587 Toxic Empire episodes: identity, air date, duration,
-/// episode stills, and HBO Max sibling URLs (same WBD ids as discovery+).
+/// cleaned synopsis (no Watch lead-in), episode landscape stills at w=2000 on discovery+,
+/// and HBO Max sibling URLs (URL-only; same WBD ids as discovery+).
 /// </summary>
 public class EnrichToxicEmpireMeta(
     ITvShowRepository tvShowRepository,
@@ -40,11 +41,18 @@ public class EnrichToxicEmpireMeta(
     private static readonly Uri Episode2MaxUrl = new(
         "https://www.max.com/show/205d71fa-f5c5-46f7-80bd-b6350c107fa7/s1/e2-pimping-hoes-degree/d82e68d7-e47c-4aeb-914d-65584412e707");
 
-    // Landscape episode stills (500×281) — not portrait posters; image on discoveryPlus only (no Max/identity dup).
+    // Landscape episode stills at w=2000 — not series cover / not portrait; discoveryPlus only (no Max/identity dup).
     private static readonly Uri Episode1Image = new(
-        "https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/e1d03033-ad8c-4b9a-9305-2042fedc750c/896e6c56-7d94-4f0b-ab91-c2fda2bdcbf1.jpeg?host=wbd-images.prod-vod.h264.io&partner=beamcom&w=500");
+        "https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/e1d03033-ad8c-4b9a-9305-2042fedc750c/896e6c56-7d94-4f0b-ab91-c2fda2bdcbf1.jpeg?host=wbd-images.prod-vod.h264.io&partner=beamcom&w=2000");
     private static readonly Uri Episode2Image = new(
-        "https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/d82e68d7-e47c-4aeb-914d-65584412e707/18eebf3e-e467-11f1-a763-02ffe6ac1e43.jpeg?host=wbd-images.prod-vod.h264.io&partner=beamcom&w=500");
+        "https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/d82e68d7-e47c-4aeb-914d-65584412e707/18eebf3e-e467-11f1-a763-02ffe6ac1e43.jpeg?host=wbd-images.prod-vod.h264.io&partner=beamcom&w=2000");
+
+    /// <summary>
+    /// Shared WBD synopsis after stripping <c>Watch … Season N, Episode M - {title} .</c>
+    /// (both episode OG descriptions use the same blurb).
+    /// </summary>
+    private const string CleanedSynopsis =
+        "Andrew Tate promises wealth, power and brotherhood. Followers, insiders, alleged victims, whistleblowers and investigative journalists offer a rare look behind his empire as international investigations threaten his extraordinary rise.";
 
     private static readonly TimeSpan Episode1Length = TimeSpan.FromMinutes(42);
     private static readonly TimeSpan Episode2Length = TimeSpan.FromMinutes(44);
@@ -67,7 +75,7 @@ public class EnrichToxicEmpireMeta(
         }
 
         logger.LogWarning(
-            "Plan: show identity; episodes air={air}, lengths 42m/44m, Max URLs (no image), landscape still on discoveryPlus only, clear identity image. Apply={apply}.",
+            "Plan: show identity; episodes air={air}, lengths 42m/44m, cleaned synopsis, Max URLs (no image), landscape still w=2000 on discoveryPlus only, clear identity image. Apply={apply}.",
             AirDate, apply);
 
         if (!apply)
@@ -98,7 +106,7 @@ public class EnrichToxicEmpireMeta(
         }
 
         logger.LogWarning(
-            "Toxic Empire meta enrichment applied (identity, release, duration, Max URL-only, landscape discoveryPlus still).");
+            "Toxic Empire meta enrichment applied (identity, release, duration, cleaned synopsis, Max URL-only, landscape discoveryPlus still w=2000).");
         return 0;
     }
 
@@ -117,6 +125,7 @@ public class EnrichToxicEmpireMeta(
         episode.SeriesImdbId = show.ImdbId;
         episode.SeriesTvdbId = show.TvdbId;
         episode.Length = length;
+        episode.Description = CleanedSynopsis;
         // Identity image cleared: still lives on discoveryPlus only (avoids duplicate Images-tab entries).
         episode.Image = null;
         episode.SetTvShowProperties(show);
