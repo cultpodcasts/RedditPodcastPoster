@@ -15,5 +15,6 @@ public class SubjectMatchDto
     public string Term { get; set; } = string.Empty;
 
     [JsonPropertyName("source")]
-    public string Source { get; set; } = string.Empty;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public SubjectMatchSourceDto Source { get; set; }
 }
