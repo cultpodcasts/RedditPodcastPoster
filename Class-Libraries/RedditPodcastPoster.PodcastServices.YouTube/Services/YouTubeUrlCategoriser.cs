@@ -261,15 +261,18 @@ public class YouTubeUrlCategoriser(
                 channelContentOwner = channel.ContentOwnerDetails.ContentOwner;
             }
 
+            // PlaylistItemFinder usually attaches contentDetails-only videos (no snippet). Thumbnails
+            // live on snippet, so re-fetch with snippets whenever the matched video lacks them —
+            // same as the pre-PlaylistItemFinder submit enrich path.
             var videoContent = matched.Video;
-            if (videoContent is null)
+            if (videoContent?.Snippet is null)
             {
                 var videos = await youTubeVideoService.GetVideoContentDetails(
                     youTubeService,
                     [match.Snippet.ResourceId.VideoId],
                     indexingContext,
-                    true);
-                videoContent = videos?.SingleOrDefault();
+                    withSnippets: true);
+                videoContent = videos?.SingleOrDefault() ?? videoContent;
             }
 
             return new ResolvedYouTubeItem(
