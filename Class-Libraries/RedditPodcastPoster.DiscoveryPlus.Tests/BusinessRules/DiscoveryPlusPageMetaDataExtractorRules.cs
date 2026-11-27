@@ -185,9 +185,47 @@ public class DiscoveryPlusPageMetaDataExtractorRules
         // Assert
         meta.ShowName.Should().Be(showName);
         meta.Title.Should().Be(episodeTitle);
-        meta.Description.Should().Be("More blurb.");
+        meta.Description.Should().BeEmpty(
+            "episode paths without SSR Season/Episode synopsis must not store the series OG blurb");
         meta.Publisher.Should().Be("discovery+");
         meta.MadeAsFilm.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
+        "A discovery+ episode page prefers the SSR Season/Episode rich-text synopsis over the shared series og:description blurb, " +
+        "so siblings do not all get the same series marketing copy.")]
+    public async Task episode_page_uses_ssr_synopsis_not_series_og_blurb()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var episodeTitle = _fixture.CreateTitle();
+        var seriesBlurb = $"{_fixture.CreateTitle(5)} {_fixture.CreateTitle(4)}.";
+        var episodeSynopsis = $"{_fixture.CreateTitle(4)} {_fixture.CreateTitle(5)} {_fixture.CreateTitle(3)}.";
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var url = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e1-slug/{episodeId}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {showName} | Season  1 Episode 1 | discovery+\" />" +
+            $"<meta property=\"og:image:alt\" content=\"{showName}\" />" +
+            $"<meta property=\"og:description\" content=\"Watch {showName}: Season  1, Episode 1 - {episodeTitle} . {seriesBlurb}\" />" +
+            "<meta property=\"og:type\" content=\"video.tv_show\" />" +
+            "</head><body>" +
+            "<h1><strong>Season  1, Episode 1</strong></h1>" +
+            $"<p class=\"text-left\">: {episodeSynopsis}</p>" +
+            "<p class=\"text-left\">Plans start at $6.99/month.</p>" +
+            "</body></html>");
+        var sut = _mocker.CreateInstance<DiscoveryPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.Description.Should().Be(episodeSynopsis);
+        meta.Description.Should().NotBe(seriesBlurb);
+        meta.Description.Should().NotContain("Plans start at");
     }
 
     [Fact(DisplayName =
@@ -221,7 +259,8 @@ public class DiscoveryPlusPageMetaDataExtractorRules
 
         // Assert
         meta.Title.Should().Be(episodeTitle);
-        meta.Description.Should().Be("Synopsis blurb.");
+        meta.Description.Should().BeEmpty(
+            "still-only fixture has no SSR Season/Episode synopsis — series OG blurb must not be stored");
         meta.Image.Should().NotBeNull();
         meta.Image!.AbsoluteUri.Should().Contain(episodeId.ToString());
         meta.Image.AbsoluteUri.Should().Contain(stillAssetId.ToString());

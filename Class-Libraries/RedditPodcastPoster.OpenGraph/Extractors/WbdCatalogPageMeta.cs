@@ -191,6 +191,47 @@ public static partial class WbdCatalogPageMeta
         return fromDescription.Groups[1].Value.Trim().TrimEnd('.');
     }
 
+    /// <summary>
+    /// Episode synopsis from SSR rich-text after a <c>Season N, Episode M</c> heading (not the
+    /// series <c>og:description</c> blurb). Strips a leading <c>:</c>; rejects pricing CTAs.
+    /// </summary>
+    public static string? TryEpisodeSynopsis(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return null;
+        }
+
+        var match = SeasonEpisodeSynopsisRegex().Match(html);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var synopsis = WebUtility.HtmlDecode(match.Groups[1].Value).Trim().TrimStart(':').Trim();
+        if (string.IsNullOrWhiteSpace(synopsis) ||
+            synopsis.StartsWith("Plans start at", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return synopsis;
+    }
+
+    /// <summary>
+    /// Episode-path Description: SSR synopsis when present, otherwise empty — never the cleaned
+    /// series <c>og:description</c> blurb. Non-episode paths keep the cleaned OG description.
+    /// </summary>
+    public static string ResolveEpisodeDescription(Uri url, string html, string? openGraphDescription)
+    {
+        if (!IsEpisodePath(url))
+        {
+            return CleanWatchMarketingDescription(openGraphDescription);
+        }
+
+        return TryEpisodeSynopsis(html) ?? string.Empty;
+    }
+
     /// <summary>Show brand from <c>Watch {show} | Season…</c> OG titles.</summary>
     public static string? ParseShowNameFromWatchTitle(string cleanedOgTitle)
     {
@@ -401,13 +442,25 @@ public static partial class WbdCatalogPageMeta
     [GeneratedRegex(@"^s\d+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SeasonSegmentRegex();
 
-    [GeneratedRegex(@"^e\d+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    /// <summary>
+    /// Path segment <c>e1</c> or <c>e1-slug</c> — not a Guid that merely starts with <c>e</c>+digit
+    /// (e.g. <c>e1d03033-…</c>), which would mis-classify show hubs as episode paths.
+    /// </summary>
+    [GeneratedRegex(@"^e\d+(-|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex EpisodeSegmentRegex();
 
     [GeneratedRegex(
         @"Season\s+\d+\s*,\s*Episode\s+\d+\s*-\s*(.+?)(?:\s+\.|\s+on\s+HBO\s+Max\s*\.|\||$)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DescriptionEpisodeTitleRegex();
+
+    /// <summary>
+    /// SSR band: <c>Season N, Episode M</c> heading then the first following <c>&lt;p&gt;</c> body.
+    /// </summary>
+    [GeneratedRegex(
+        @"Season\s+\d+\s*,\s*Episode\s+\d+[\s\S]{0,400}?<p\b[^>]*>\s*([^<]+)\s*</p>",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SeasonEpisodeSynopsisRegex();
 
     [GeneratedRegex(
         @"^(.*?)\s*\|\s*Season\s+\d+",

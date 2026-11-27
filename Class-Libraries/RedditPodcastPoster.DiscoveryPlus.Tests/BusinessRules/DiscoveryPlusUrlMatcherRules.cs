@@ -126,6 +126,26 @@ public class DiscoveryPlusUrlMatcherRules
     }
 
     [Fact(DisplayName =
+        "A discovery+ show UUID that starts with e+digit (e.g. e1d03033-…) is still a show hub, " +
+        "because episode path segments are eN or eN-slug — not Guids that merely prefix-match ^e\\d+.")]
+    public void show_uuid_starting_with_e_digit_is_still_show_hub()
+    {
+        // Arrange — little-endian first group yields a D-string starting with e1
+        var showId = new Guid(
+            [0x33, 0x30, 0xd0, 0xe1, 0x8c, 0xad, 0x9a, 0x4b, 0x93, 0x05, 0x20, 0x42, 0xfe, 0xdc, 0x75, 0x0c]);
+        showId.ToString("D").Should().MatchRegex("^e[0-9]");
+        var url = new Uri($"https://www.discoveryplus.com/show/{showId}");
+
+        // Act
+        var hub = DiscoveryPlusUrlMatcher.IsShowHub(url);
+        var episode = DiscoveryPlusUrlMatcher.IsEpisodePath(url);
+
+        // Assert
+        hub.Should().BeTrue();
+        episode.Should().BeFalse();
+    }
+
+    [Fact(DisplayName =
         "A discovery+ episode path under /show/{uuid}/sN/e… shares the show UUID with the hub, " +
         "so later episode submits can attach to the same TvShow (#1587).")]
     public void episode_path_shares_show_id_with_hub()
