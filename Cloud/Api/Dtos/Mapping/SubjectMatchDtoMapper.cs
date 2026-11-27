@@ -9,7 +9,7 @@ public static class SubjectMatchDtoMapper
         {
             Subject = match.Subject,
             Term = match.Term,
-            Source = match.Source.ToString()
+            Source = match.Source.ToDto()
         };
 
     /// <summary>Preserves null (not recorded) versus empty (recorded, no evidence).</summary>
