@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using RedditPodcastPoster.Episodes.Matching.Candidates;
 using RedditPodcastPoster.SocialPosting.Episodes;
 using RedditPodcastPoster.Models.Episodes;
 using RedditPodcastPoster.Models.Podcasts;
@@ -36,8 +37,13 @@ public class PodcastServicesEpisodeEnricher(
             var enrichmentContext = new EnrichmentContext();
             var enrichmentRequest = new EnrichmentRequest(podcast, episodes, episode);
 
-            if (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) == null ||
-                string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode)))
+            // In the Index flow the planner plans nothing for a podcast with no Spotify show id (stage 'skipped-no-show'),
+            // so the call does no work and only writes a miss Warning. Other flows may search by show name.
+            var skipSpotifyNoShow = indexingContext.LookupFlow == EpisodeLookupFlow.Index &&
+                                    string.IsNullOrWhiteSpace(podcast.SpotifyId);
+            if (!skipSpotifyNoShow &&
+                (EpisodeServicePresence.TryGetUrl(episode, ServiceKeys.Spotify) == null ||
+                 string.IsNullOrWhiteSpace(EpisodeServicePresence.SpotifyEpisodeId(episode))))
             {
                 await spotifyEpisodeEnricher.Enrich(enrichmentRequest, indexingContext, enrichmentContext);
             }
