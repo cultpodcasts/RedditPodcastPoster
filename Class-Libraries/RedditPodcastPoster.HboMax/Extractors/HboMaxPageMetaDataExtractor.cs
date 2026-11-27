@@ -83,8 +83,13 @@ internal static partial class HboMaxCatalogMeta
 
         var rawDescription = openGraph?.Description ?? string.Empty;
         var description = WbdCatalogPageMeta.CleanWatchMarketingDescription(rawDescription);
-        var showName = ResolveShowName(url, html, openGraph, rawTitle);
-        var title = ResolveEpisodeTitle(url, rawTitle, rawDescription, showName) ?? rawTitle;
+        var showName = WbdCatalogPageMeta.ResolveShowName(
+            url,
+            html,
+            openGraph,
+            rawTitle,
+            HboMaxPageMetaDataExtractor.Publisher);
+        var title = WbdCatalogPageMeta.ResolveEpisodeTitle(url, rawTitle, rawDescription, showName) ?? rawTitle;
         var image = WbdCatalogPageMeta.TryEpisodeImage(url, html, openGraph?.Image);
 
         return new NonPodcastServiceItemMetaData(
@@ -97,107 +102,6 @@ internal static partial class HboMaxCatalogMeta
             HboMaxPageMetaDataExtractor.Publisher,
             showName,
             MadeAsFilm: false);
-    }
-
-    /// <summary>
-    /// Prefer <c>og:image:alt</c>, then JSON-LD TVSeries, then a parsed
-    /// <c>Watch {Show} | Season…</c> title (discovery+ parity).
-    /// </summary>
-    private static string? ResolveShowName(
-        Uri url,
-        string html,
-        NonPodcastServiceItemMetaData? openGraph,
-        string cleanedOgTitle)
-    {
-        var fromAlt = FirstGroup(html, OgImageAltRegex());
-        var fromJsonLd = openGraph?.ShowName ?? FirstGroup(html, TvSeriesNameRegex());
-        var fromTitle = WbdCatalogPageMeta.ParseShowNameFromWatchTitle(cleanedOgTitle);
-
-        var showName = OpenGraphSeriesName.FromDistinctCandidates(
-            cleanedOgTitle,
-            HboMaxPageMetaDataExtractor.Publisher,
-            fromAlt,
-            fromJsonLd,
-            fromTitle);
-
-        if (showName is null &&
-            StreamingCataloguePathHints.IsSeriesPath(url) &&
-            !WbdCatalogPageMeta.IsEpisodePath(url))
-        {
-            showName = fromTitle ?? WbdCatalogPageMeta.StripWatchPrefix(cleanedOgTitle);
-        }
-
-        if (string.Equals(showName, HboMaxPageMetaDataExtractor.Publisher, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return showName;
-    }
-
-    private static string? ResolveEpisodeTitle(
-        Uri url,
-        string cleanedOgTitle,
-        string? description,
-        string? showName)
-    {
-        if (!WbdCatalogPageMeta.IsEpisodePath(url))
-        {
-            return WbdCatalogPageMeta.StripWatchPrefix(cleanedOgTitle);
-        }
-
-        var fromDescription = WbdCatalogPageMeta.TryEpisodeTitleFromDescription(description);
-        if (!string.IsNullOrWhiteSpace(fromDescription))
-        {
-            return fromDescription;
-        }
-
-        var fromSlug = EpisodeTitleFromPath(url);
-        if (!string.IsNullOrWhiteSpace(fromSlug))
-        {
-            return fromSlug;
-        }
-
-        var afterSeason = SeasonEpisodeTailRegex().Match(cleanedOgTitle);
-        if (afterSeason.Success)
-        {
-            return afterSeason.Groups[1].Value.Trim();
-        }
-
-        if (!string.IsNullOrWhiteSpace(showName) &&
-            cleanedOgTitle.StartsWith(showName, StringComparison.OrdinalIgnoreCase))
-        {
-            var remainder = cleanedOgTitle[showName.Length..].Trim().TrimStart('|', ':', '-').Trim();
-            if (!string.IsNullOrWhiteSpace(remainder))
-            {
-                return remainder;
-            }
-        }
-
-        return WbdCatalogPageMeta.StripWatchPrefix(cleanedOgTitle);
-    }
-
-    private static string? EpisodeTitleFromPath(Uri url)
-    {
-        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts)
-        {
-            var match = EpisodeSlugRegex().Match(part);
-            if (!match.Success)
-            {
-                continue;
-            }
-
-            var slug = match.Groups[1].Value.Replace('-', ' ').Trim();
-            if (string.IsNullOrWhiteSpace(slug))
-            {
-                continue;
-            }
-
-            return System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(slug);
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -267,22 +171,6 @@ internal static partial class HboMaxCatalogMeta
     [GeneratedRegex("(?:property|name)=\"og:type\"[^>]*content=\"([^\"]*)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex OgTypeRegex();
 
-    [GeneratedRegex("(?:property|name)=\"og:image:alt\"[^>]*content=\"([^\"]*)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex OgImageAltRegex();
-
     [GeneratedRegex("\"@type\"\\s*:\\s*\"(TVSeries|Movie)\"", RegexOptions.CultureInvariant)]
     private static partial Regex CataloguePrimaryTypeRegex();
-
-    [GeneratedRegex(
-        "\"@type\"\\s*:\\s*\"TVSeries\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"",
-        RegexOptions.CultureInvariant)]
-    private static partial Regex TvSeriesNameRegex();
-
-    [GeneratedRegex(
-        @"\|\s*(Season\s+\d+\s+Episode\s+\d+)\s*$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex SeasonEpisodeTailRegex();
-
-    [GeneratedRegex(@"^e\d+-(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex EpisodeSlugRegex();
 }

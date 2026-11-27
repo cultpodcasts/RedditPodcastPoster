@@ -1,16 +1,20 @@
 using System.Globalization;
 using System.Net;
 using System.Text.RegularExpressions;
+using RedditPodcastPoster.PodcastServices.Abstractions.Models;
 
 namespace RedditPodcastPoster.OpenGraph.Extractors;
 
 /// <summary>
 /// Shared discovery+ / HBO Max (WBD) catalogue HTML helpers: clean Watch marketing descriptions,
-/// prefer episode beam stills over series OG covers, and upgrade beam <c>w=</c> to a high-res size.
+/// prefer episode beam stills over series OG covers, upgrade beam <c>w=</c> to a high-res size,
+/// and resolve show / episode titles from the same WBD watch URL shape.
 /// </summary>
 public static partial class WbdCatalogPageMeta
 {
     public const int PreferredBeamWidth = 2000;
+
+    private const string BeamDeliverablesSegment = "/BEAM_LWM_DELIVERABLES/";
 
     /// <summary>
     /// Strips <c>Watch {show}: Season N, Episode M - {title} .</c> (and Max's <c>on HBO Max</c>) so
@@ -51,6 +55,92 @@ public static partial class WbdCatalogPageMeta
         }
 
         return openGraphImage is null ? null : PreferFullBeamWidth(openGraphImage);
+    }
+
+    /// <summary>
+    /// Prefer <c>og:image:alt</c> (clean brand), then JSON-LD TVSeries / Open Graph show name,
+    /// then a parsed <c>Watch {Show} | Season…</c> title. Never keep the full episode OG title as
+    /// ShowName — that created one TvShow per episode in prod (#1587).
+    /// </summary>
+    public static string? ResolveShowName(
+        Uri url,
+        string html,
+        NonPodcastServiceItemMetaData? openGraph,
+        string cleanedOgTitle,
+        string publisher)
+    {
+        var fromAlt = FirstGroup(html, OgImageAltRegex());
+        var fromJsonLd = openGraph?.ShowName ?? FirstGroup(html, TvSeriesNameRegex());
+        var fromTitle = ParseShowNameFromWatchTitle(cleanedOgTitle);
+
+        var showName = OpenGraphSeriesName.FromDistinctCandidates(
+            cleanedOgTitle,
+            publisher,
+            fromAlt,
+            fromJsonLd,
+            fromTitle);
+
+        if (showName is null &&
+            StreamingCataloguePathHints.IsSeriesPath(url) &&
+            !IsEpisodePath(url))
+        {
+            // Show hub only: title-as-ShowName after stripping Watch / season tails.
+            showName = fromTitle ?? StripWatchPrefix(cleanedOgTitle);
+        }
+
+        if (string.Equals(showName, publisher, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return showName;
+    }
+
+    /// <summary>
+    /// Episode title from the Watch marketing description, then the <c>eN-slug</c> path segment,
+    /// then a season-tail / show-prefix strip of the cleaned OG title.
+    /// </summary>
+    public static string? ResolveEpisodeTitle(
+        Uri url,
+        string cleanedOgTitle,
+        string? description,
+        string? showName)
+    {
+        if (!IsEpisodePath(url))
+        {
+            return StripWatchPrefix(cleanedOgTitle);
+        }
+
+        var fromDescription = TryEpisodeTitleFromDescription(description);
+        if (!string.IsNullOrWhiteSpace(fromDescription))
+        {
+            return fromDescription;
+        }
+
+        var fromSlug = EpisodeTitleFromPath(url);
+        if (!string.IsNullOrWhiteSpace(fromSlug))
+        {
+            return fromSlug;
+        }
+
+        // Last resort: strip "Watch {show} | Season N Episode M" down to a season label, not the show brand.
+        var afterSeason = SeasonEpisodeTailRegex().Match(cleanedOgTitle);
+        if (afterSeason.Success)
+        {
+            return afterSeason.Groups[1].Value.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(showName) &&
+            cleanedOgTitle.StartsWith(showName, StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = cleanedOgTitle[showName.Length..].Trim().TrimStart('|', ':', '-').Trim();
+            if (!string.IsNullOrWhiteSpace(remainder))
+            {
+                return remainder;
+            }
+        }
+
+        return StripWatchPrefix(cleanedOgTitle);
     }
 
     /// <summary>
@@ -126,12 +216,12 @@ public static partial class WbdCatalogPageMeta
     }
 
     /// <summary>
-    /// Rewrites beam CDN <c>w=</c> to <see cref="PreferredBeamWidth"/> when present or missing;
-    /// leaves non-beam URLs unchanged.
+    /// Rewrites beam deliverable CDN <c>w=</c> to <see cref="PreferredBeamWidth"/> when present or
+    /// missing; leaves non-beam / non-deliverable URLs unchanged.
     /// </summary>
     public static Uri PreferFullBeamWidth(Uri image)
     {
-        if (!IsBeamHost(image.Host))
+        if (!IsBeamHost(image.Host) || !IsBeamDeliverablePath(image.AbsolutePath))
         {
             return image;
         }
@@ -141,6 +231,29 @@ public static partial class WbdCatalogPageMeta
             Query = UpsertQueryParameter(image.Query, "w", PreferredBeamWidth.ToString(CultureInfo.InvariantCulture))
         };
         return builder.Uri;
+    }
+
+    private static string? EpisodeTitleFromPath(Uri url)
+    {
+        var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var match = EpisodeSlugRegex().Match(part);
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var slug = match.Groups[1].Value.Replace('-', ' ').Trim();
+            if (string.IsNullOrWhiteSpace(slug))
+            {
+                continue;
+            }
+
+            return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(slug);
+        }
+
+        return null;
     }
 
     private static Uri? FindBestBeamStillForEpisode(string html, string episodeId)
@@ -157,7 +270,8 @@ public static partial class WbdCatalogPageMeta
 
             if (!Uri.TryCreate(raw.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? raw : $"https://{raw}",
                     UriKind.Absolute, out var uri) ||
-                !IsBeamHost(uri.Host))
+                !IsBeamHost(uri.Host) ||
+                !IsBeamDeliverablePath(uri.AbsolutePath))
             {
                 continue;
             }
@@ -246,6 +360,9 @@ public static partial class WbdCatalogPageMeta
         return string.Join('&', pairs);
     }
 
+    /// <summary>
+    /// Hosts we rewrite for beam stills — not every <c>*.warnermediacdn.com</c> asset.
+    /// </summary>
     private static bool IsBeamHost(string host)
     {
         var h = host.Trim().TrimEnd('.').ToLowerInvariant();
@@ -254,9 +371,16 @@ public static partial class WbdCatalogPageMeta
             h = h[4..];
         }
 
-        return h == "beam-images.warnermediacdn.com" ||
-               h.EndsWith(".warnermediacdn.com", StringComparison.Ordinal) ||
-               h == "wbd-images.prod-vod.h264.io";
+        return h is "beam-images.warnermediacdn.com" or "wbd-images.prod-vod.h264.io";
+    }
+
+    private static bool IsBeamDeliverablePath(string absolutePath) =>
+        absolutePath.Contains(BeamDeliverablesSegment, StringComparison.OrdinalIgnoreCase);
+
+    private static string? FirstGroup(string html, Regex regex)
+    {
+        var match = regex.Match(html);
+        return match.Success ? WebUtility.HtmlDecode(match.Groups[1].Value).Trim() : null;
     }
 
     /// <summary>
@@ -270,7 +394,7 @@ public static partial class WbdCatalogPageMeta
     private static partial Regex WatchMarketingLeadInRegex();
 
     [GeneratedRegex(
-        @"https?://(?:beam-images\.warnermediacdn\.com|[\w.-]+\.warnermediacdn\.com)/BEAM_LWM_DELIVERABLES/[^\s""'<>)\\]+",
+        @"https?://(?:beam-images\.warnermediacdn\.com|wbd-images\.prod-vod\.h264\.io)/BEAM_LWM_DELIVERABLES/[^\s""'<>)\\]+",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex BeamDeliverableUrlRegex();
 
@@ -289,4 +413,20 @@ public static partial class WbdCatalogPageMeta
         @"^(.*?)\s*\|\s*Season\s+\d+",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SeasonSplitRegex();
+
+    [GeneratedRegex(
+        @"\|\s*(Season\s+\d+\s+Episode\s+\d+)\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SeasonEpisodeTailRegex();
+
+    [GeneratedRegex(@"^e\d+-(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex EpisodeSlugRegex();
+
+    [GeneratedRegex("(?:property|name)=\"og:image:alt\"[^>]*content=\"([^\"]*)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex OgImageAltRegex();
+
+    [GeneratedRegex(
+        "\"@type\"\\s*:\\s*\"TVSeries\"[\\s\\S]{0,400}?\"name\"\\s*:\\s*\"([^\"]+)\"",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex TvSeriesNameRegex();
 }

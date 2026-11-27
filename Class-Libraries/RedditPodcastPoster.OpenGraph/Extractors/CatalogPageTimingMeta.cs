@@ -55,17 +55,11 @@ public static partial class CatalogPageTimingMeta
         }
 
         // HBO Max contentDetails: "runtime":"44m" / "runtime":"1h 28m" (quoted key — not CSS).
-        var quotedClock = QuotedClockRuntimeRegex().Match(html);
-        if (quotedClock.Success)
+        // Prefer the longest positive clock when trailer/clip freights precede the episode.
+        var quotedClock = TryLongestQuotedClockRuntime(html);
+        if (quotedClock is { TotalSeconds: > 0 })
         {
-            var clockHours = quotedClock.Groups[1].Success
-                ? int.Parse(quotedClock.Groups[1].Value, CultureInfo.InvariantCulture)
-                : 0;
-            var clockMinutes = int.Parse(quotedClock.Groups[2].Value, CultureInfo.InvariantCulture);
-            if (clockHours > 0 || clockMinutes > 0)
-            {
-                return new TimeSpan(clockHours, clockMinutes, 0);
-            }
+            return quotedClock;
         }
 
         var bareSeconds = DurationBareSecondsRegex().Match(html);
@@ -212,6 +206,30 @@ public static partial class CatalogPageTimingMeta
                 {
                     best = parsed;
                 }
+            }
+        }
+
+        return best;
+    }
+
+    private static TimeSpan? TryLongestQuotedClockRuntime(string html)
+    {
+        TimeSpan? best = null;
+        foreach (Match match in QuotedClockRuntimeRegex().Matches(html))
+        {
+            var hours = match.Groups[1].Success
+                ? int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)
+                : 0;
+            var minutes = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+            if (hours <= 0 && minutes <= 0)
+            {
+                continue;
+            }
+
+            var candidate = new TimeSpan(hours, minutes, 0);
+            if (best is null || candidate > best)
+            {
+                best = candidate;
             }
         }
 

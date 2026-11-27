@@ -209,4 +209,20 @@ public class CatalogPageTimingMetaRules
         // Assert
         duration.Should().BeNull();
     }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta prefers the longest quoted-clock runtime when a short trailer clock " +
+        "precedes a longer episode clock, so Max Length is the episode not the trailer.")]
+    public void quoted_clock_prefers_longest_when_trailer_precedes_episode()
+    {
+        // Arrange
+        const string html =
+            """{"trailer":{"runtime":"2m"},"contentDetails":{"runtime":"44m"}}""";
+
+        // Act
+        var duration = CatalogPageTimingMeta.TryDurationFromHtml(html);
+
+        // Assert
+        duration.Should().Be(TimeSpan.FromMinutes(44));
+    }
 }

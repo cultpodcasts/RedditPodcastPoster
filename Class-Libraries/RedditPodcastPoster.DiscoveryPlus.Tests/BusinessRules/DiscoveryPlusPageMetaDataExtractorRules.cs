@@ -123,6 +123,42 @@ public class DiscoveryPlusPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "A discovery+ film with a Watch-style marketing description and a w=500 beam cover stores the cleaned " +
+        "synopsis and upgrades the image to w=2000, matching Max film submit cleaning.")]
+    public async Task movie_page_cleans_watch_description_and_upgrades_beam_cover()
+    {
+        // Arrange
+        var filmTitle = _fixture.CreateTitle();
+        var episodeLabel = _fixture.CreateTitle();
+        var blurb = $"{_fixture.CreateTitle(4)} {_fixture.CreateTitle(3)}.";
+        var filmId = _fixture.CreateGuid();
+        var coverAssetId = _fixture.CreateGuid();
+        var url = new Uri($"https://www.discoveryplus.com/movie/{filmId}");
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"{filmTitle}\" />" +
+            $"<meta property=\"og:description\" content=\"Watch {filmTitle}: Season  1, Episode 1 - {episodeLabel} . {blurb}\" />" +
+            $"<meta property=\"og:image\" content=\"https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/{filmId}/{coverAssetId}?w=500\" />" +
+            "<meta property=\"og:type\" content=\"video.movie\" />" +
+            "<script type=\"application/ld+json\">" +
+            $"{{\"@type\":\"Movie\",\"name\":\"{filmTitle}\"}}" +
+            "</script></head></html>");
+        var sut = _mocker.CreateInstance<DiscoveryPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.MadeAsFilm.Should().BeTrue();
+        meta.ShowName.Should().BeNull();
+        meta.Description.Should().Be(blurb);
+        meta.Description.Should().NotStartWith("Watch ");
+        meta.Image.Should().NotBeNull();
+        meta.Image!.AbsoluteUri.Should().Contain("w=2000");
+        meta.Image.AbsoluteUri.Should().Contain(coverAssetId.ToString());
+    }
+
+    [Fact(DisplayName =
         "A discovery+ episode page uses og:image:alt as ShowName and the description episode title as Title, " +
         "so siblings share one series instead of each OG title becoming its own TvShow (#1587).")]
     public async Task episode_page_uses_image_alt_show_name_and_description_episode_title()

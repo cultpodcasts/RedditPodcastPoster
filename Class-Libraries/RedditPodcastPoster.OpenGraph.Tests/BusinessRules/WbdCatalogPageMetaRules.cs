@@ -103,4 +103,23 @@ public class WbdCatalogPageMetaRules
         image!.AbsoluteUri.Should().Contain("w=2000");
         image.AbsoluteUri.Should().Contain(coverAssetId.ToString());
     }
+
+    [Fact(DisplayName =
+        "WbdCatalogPageMeta leaves a non-deliverable Warner CDN asset's w= unchanged, " +
+        "so PreferFullBeamWidth only rewrites beam-images / wbd-images deliverable paths.")]
+    public void prefer_full_beam_width_ignores_non_deliverable_warner_cdn()
+    {
+        // Arrange
+        var assetId = _fixture.CreateGuid();
+        var nonDeliverable = new Uri(
+            $"https://static.warnermediacdn.com/assets/{assetId}?w=500");
+
+        // Act
+        var image = WbdCatalogPageMeta.PreferFullBeamWidth(nonDeliverable);
+
+        // Assert
+        image.Should().Be(nonDeliverable);
+        image.AbsoluteUri.Should().Contain("w=500");
+        image.AbsoluteUri.Should().NotContain("w=2000");
+    }
 }
