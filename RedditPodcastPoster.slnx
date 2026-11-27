@@ -59,6 +59,7 @@
     <Project Path="Class-Libraries/RedditPodcastPoster.Catalogue/RedditPodcastPoster.Catalogue.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.SocialPosting/RedditPodcastPoster.SocialPosting.csproj" />
+    <Project Path="Class-Libraries/RedditPodcastPoster.SocialPosting.Tests/RedditPodcastPoster.SocialPosting.Tests.csproj" />
 
     <Project Path="Class-Libraries/RedditPodcastPoster.Configuration/RedditPodcastPoster.Configuration.csproj" />
 
