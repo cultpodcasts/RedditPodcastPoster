@@ -124,12 +124,15 @@ public class HboMaxPageMetaDataExtractorRules
 
     [Fact(DisplayName =
         "An HBO Max episode page parses the Watch/season title into episode Title and show brand, " +
-        "strips the marketing description lead-in, recovers contentDetails runtime, and prefers an episode UUID still at w=2000.")]
+        "stores the SSR Season/Episode synopsis (not the series OG blurb), recovers contentDetails runtime, " +
+        "and prefers an episode UUID still at w=2000.")]
     public async Task episode_page_title_show_clean_desc_runtime_and_episode_still()
     {
         // Arrange
         var showName = _fixture.CreateTitle();
         var episodeTitle = _fixture.CreateTitle();
+        var seriesBlurb = $"{_fixture.CreateTitle(5)} {_fixture.CreateTitle(3)}.";
+        var episodeSynopsis = $"{_fixture.CreateTitle(4)} {_fixture.CreateTitle(5)}.";
         var showId = _fixture.CreateGuid();
         var episodeId = _fixture.CreateGuid();
         var seriesAssetId = _fixture.CreateGuid();
@@ -141,12 +144,14 @@ public class HboMaxPageMetaDataExtractorRules
             "<html><head>" +
             $"<meta property=\"og:title\" content=\"Watch {showName} | Season  1 Episode 1 | HBO Max\" />" +
             $"<meta property=\"og:image:alt\" content=\"{showName}\" />" +
-            $"<meta property=\"og:description\" content=\"Watch {showName}: Season  1, Episode 1 - {episodeTitle} on HBO Max. Synopsis blurb.\" />" +
+            $"<meta property=\"og:description\" content=\"Watch {showName}: Season  1, Episode 1 - {episodeTitle} on HBO Max. {seriesBlurb}\" />" +
             $"<meta property=\"og:image\" content=\"https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/{showId}/{seriesAssetId}?w=500\" />" +
             $"<meta property=\"og:video:release_date\" content=\"{year}\" />" +
             "<meta property=\"og:type\" content=\"video.tv_show\" />" +
             "</head><body>" +
             """{"contentDetails":{"runtime":"44m"}}""" +
+            "<h1><strong>Season  1, Episode 1</strong></h1>" +
+            $"<p class=\"text-left\">: {episodeSynopsis}</p>" +
             $"<img src=\"https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/{episodeId}/{stillAssetId}?w=2000\" />" +
             "</body></html>");
         var sut = _mocker.CreateInstance<HboMaxPageMetaDataExtractor>();
@@ -157,7 +162,8 @@ public class HboMaxPageMetaDataExtractorRules
         // Assert
         meta.ShowName.Should().Be(showName);
         meta.Title.Should().Be(episodeTitle);
-        meta.Description.Should().Be("Synopsis blurb.");
+        meta.Description.Should().Be(episodeSynopsis);
+        meta.Description.Should().NotBe(seriesBlurb);
         meta.Duration.Should().Be(TimeSpan.FromMinutes(44));
         meta.Release.Should().Be(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         meta.Image.Should().NotBeNull();
