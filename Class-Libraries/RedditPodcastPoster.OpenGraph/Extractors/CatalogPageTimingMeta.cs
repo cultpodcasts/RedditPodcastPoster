@@ -122,6 +122,26 @@ public static partial class CatalogPageTimingMeta
             return fromBegin;
         }
 
+        // discovery+ / WBD catalogues: og:video:release_date is often a full ISO date, else a year.
+        var ogVideoRelease = OgVideoReleaseDateRegex().Match(html);
+        if (ogVideoRelease.Success)
+        {
+            var raw = WebUtilityHtmlDecode(
+                ogVideoRelease.Groups[1].Success
+                    ? ogVideoRelease.Groups[1].Value
+                    : ogVideoRelease.Groups[2].Value);
+            if (TryParseIsoUtc(raw, out var fromOgVideo))
+            {
+                return fromOgVideo;
+            }
+
+            if (int.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out var ogYear) &&
+                ogYear is >= 1900 and <= 2100)
+            {
+                return new DateTime(ogYear, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            }
+        }
+
         // Generic SEO: "Release Date 2022" (year only → UTC midnight Jan 1).
         var yearLabel = ReleaseDateYearLabelRegex().Match(html);
         if (yearLabel.Success &&
@@ -133,6 +153,9 @@ public static partial class CatalogPageTimingMeta
 
         return null;
     }
+
+    private static string WebUtilityHtmlDecode(string value) =>
+        System.Net.WebUtility.HtmlDecode(value).Trim();
 
     private static bool TryParseIsoUtc(string raw, out DateTime release) =>
         DateTime.TryParse(
@@ -365,4 +388,13 @@ public static partial class CatalogPageTimingMeta
         @"Release\s*Date\s*(?:[:\-]|\s|<[^>]+>)*(\d{4})",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ReleaseDateYearLabelRegex();
+
+    /// <summary>
+    /// WBD / discovery+ Open Graph: <c>og:video:release_date</c> is often a calendar year only
+    /// (series release year), sometimes a full ISO date.
+    /// </summary>
+    [GeneratedRegex(
+        @"property\s*=\s*[""']og:video:release_date[""'][^>]*content\s*=\s*[""']([^""']+)[""']|content\s*=\s*[""']([^""']+)[""'][^>]*property\s*=\s*[""']og:video:release_date[""']",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex OgVideoReleaseDateRegex();
 }

@@ -175,7 +175,12 @@ public static class IdentityMetadataFill
             changed = true;
         }
 
-        if (!skip.Image && episode.Image is null && metadata.Still is { } still)
+        // Same as film: a streaming service image already covers the tile — do not also store a
+        // TMDB still on identity (that duplicates the Images tab / search prefer-service path).
+        if (!skip.Image &&
+            episode.Image is null &&
+            !HasServiceImage(episode.Services) &&
+            metadata.Still is { } still)
         {
             episode.Image = still;
             changed = true;
