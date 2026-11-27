@@ -307,8 +307,12 @@ internal static partial class DiscoveryPlusCatalogMeta
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SeasonEpisodeTailRegex();
 
+    /// <summary>
+    /// Capture after <c>Season N, Episode M - </c> until a structural end: space-dot blurb
+    /// separator, pipe, or end of string — not the first <c>.</c> (titles may contain periods).
+    /// </summary>
     [GeneratedRegex(
-        @"Season\s+\d+\s*,\s*Episode\s+\d+\s*-\s*([^.|]+)",
+        @"Season\s+\d+\s*,\s*Episode\s+\d+\s*-\s*(.+?)(?:\s+\.|\||$)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DescriptionEpisodeTitleRegex();
 

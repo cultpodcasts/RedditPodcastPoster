@@ -630,10 +630,10 @@ public class CatalogueKindSubmitter(
             source.Url is { } discoveryUrl &&
             DiscoveryPlusUrlMatcher.TryGetShowId(discoveryUrl, out var showId))
         {
-            var byShowId = await FindTvShowByDiscoveryPlusShowId(showId);
-            if (byShowId != null)
+            var byShowId = await FindTvShowsByDiscoveryPlusShowId(showId);
+            if (byShowId.Count > 0)
             {
-                return [byShowId];
+                return byShowId;
             }
         }
 
@@ -642,11 +642,13 @@ public class CatalogueKindSubmitter(
 
     /// <summary>
     /// #1587: project Discovery+ service URLs for TV episodes, match the shared show UUID in memory
-    /// (Cosmos LINQ cannot run string functions on Uri), then load that episode's TvShow.
+    /// (Cosmos LINQ cannot run string functions on Uri), then load distinct TvShows for matching episodes.
+    /// Multiple distinct parents for one show UUID refuse attach (same as ambiguous name match).
     /// </summary>
-    private async Task<TvShow?> FindTvShowByDiscoveryPlusShowId(string showId)
+    private async Task<IReadOnlyList<TvShow>> FindTvShowsByDiscoveryPlusShowId(string showId)
     {
         var serviceKey = StreamingServiceWire.ToKey(StreamingService.DiscoveryPlus);
+        var byId = new Dictionary<Guid, TvShow>();
         await foreach (var stored in tvShowEpisodes.GetAllBy(
                            PlayableServiceUrlFilters.HasServiceLink<TvShowEpisode>(serviceKey),
                            PlayableServiceUrlFilters.ServiceUrl<TvShowEpisode>(serviceKey)))
@@ -664,14 +666,19 @@ public class CatalogueKindSubmitter(
                 continue;
             }
 
+            if (byId.ContainsKey(episode.TvShowId))
+            {
+                continue;
+            }
+
             var show = await tvShows.GetBy(item => item.Id == episode.TvShowId);
             if (show != null)
             {
-                return show;
+                byId[show.Id] = show;
             }
         }
 
-        return null;
+        return byId.Values.ToArray();
     }
 
     private async Task<T?> FindByCanonicalUrl<T>(

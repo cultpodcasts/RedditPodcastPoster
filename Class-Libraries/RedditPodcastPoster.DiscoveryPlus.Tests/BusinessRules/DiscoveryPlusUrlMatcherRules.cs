@@ -148,4 +148,23 @@ public class DiscoveryPlusUrlMatcherRules
         episodeShowId.Should().Be(hubId);
         DiscoveryPlusUrlMatcher.SameShow(episode, hubId).Should().BeTrue();
     }
+
+    [Fact(DisplayName =
+        "A discovery+ /show/{uuid}/… path without a season (sN) or episode (e…) segment is not an episode path, " +
+        "so a non-watch deep link is treated as a hub rather than episode ingest.")]
+    public void show_path_without_season_or_episode_segment_is_not_episode()
+    {
+        // Arrange
+        var showId = _fixture.CreateGuid();
+        var trailing = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.discoveryplus.com/show/{showId}/{trailing}");
+
+        // Act
+        var episode = DiscoveryPlusUrlMatcher.IsEpisodePath(url);
+        var hub = DiscoveryPlusUrlMatcher.IsShowHub(url);
+
+        // Assert
+        episode.Should().BeFalse();
+        hub.Should().BeTrue();
+    }
 }

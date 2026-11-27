@@ -41,20 +41,15 @@ public static partial class DiscoveryPlusUrlMatcher
     }
 
     /// <summary>
-    /// Episode watch pages keep the show UUID then add season/episode path segments
-    /// (<c>/show/{uuid}/s1/e1-slug/{episodeUuid}</c>).
+    /// Episode watch pages keep the show UUID then add a season (<c>sN</c>) and/or episode
+    /// (<c>e…</c>) segment (<c>/show/{uuid}/s1/e1-slug/{episodeUuid}</c>). Trailing path after
+    /// the show id without those segments is not an episode (treat as hub / reject).
     /// </summary>
     public static bool IsEpisodePath(Uri url)
     {
         var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
         for (var i = 0; i < parts.Length; i++)
         {
-            if (parts[i].Equals("show", StringComparison.OrdinalIgnoreCase) &&
-                i + 2 < parts.Length)
-            {
-                return true;
-            }
-
             if (SeasonSegmentRegex().IsMatch(parts[i]) || EpisodeSegmentRegex().IsMatch(parts[i]))
             {
                 return true;
