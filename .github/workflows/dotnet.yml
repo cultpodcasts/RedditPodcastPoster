@@ -23,7 +23,7 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
-      # #1504: Directory.Build.props turns on TreatWarningsAsErrors (and NU1901-NU1904 as errors) for
+      # #1504: Directory.Build.targets turns on TreatWarningsAsErrors (and NU1901-NU1904 as errors) for
       # restore and build, so a new compiler, analyzer or NuGet audit warning fails the PR gate.
       CiWarningsAsErrors: 'true'
 
