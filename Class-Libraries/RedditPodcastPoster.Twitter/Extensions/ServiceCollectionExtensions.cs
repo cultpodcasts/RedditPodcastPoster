@@ -31,6 +31,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<ITweeter, Tweeter>()
             .AddScoped<ITweetBuilder, TweetBuilder>()
             .AddScoped<ITweetPoster, TweetPoster>()
+            .AddSingleton<ITweetSaveBackoff, ExponentialTweetSaveBackoff>()
             .AddScoped<ITweetManager, TweetManager>();
         services.AddXOAuth2TokenServices();
         services.AddTwitterOptionsValidation(validateOnStart: true);

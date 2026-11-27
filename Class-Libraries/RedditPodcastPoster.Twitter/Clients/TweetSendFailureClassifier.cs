@@ -15,6 +15,7 @@ public static class TweetSendFailureClassifier
         {
             HttpStatusCode.PaymentRequired => TweetSendStatus.PaymentRequired,
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => TweetSendStatus.AuthenticationFailed,
+            >= HttpStatusCode.InternalServerError => TweetSendStatus.ServerError,
             _ => TweetSendStatus.Failed
         };
 }
