@@ -22,6 +22,17 @@ function coreStub() {
   };
 }
 
+function reviewGateStub() {
+  const calls = [];
+  return {
+    calls,
+    run: async (opts) => {
+      calls.push(opts);
+      return { state: 'success', description: `gated #${opts.pullNumber}`, headSha: 'g'.repeat(40) };
+    },
+  };
+}
+
 /**
  * @param {object} opts
  * @param {Array} opts.pulls
@@ -33,6 +44,7 @@ function githubStub({ pulls, updateResults, getResults }) {
   const listCalls = [];
   const updateCalls = [];
   const getCalls = [];
+  const advancedTips = new Map();
   const errorQueues = new Map();
   for (const [n, result] of updateResults) {
     if (result?.errors) errorQueues.set(n, [...result.errors]);
@@ -41,6 +53,7 @@ function githubStub({ pulls, updateResults, getResults }) {
     listCalls,
     updateCalls,
     getCalls,
+    advancedTips,
     paginate: async (fn, params) => {
       listCalls.push(params);
       return typeof fn === 'function' ? pulls : pulls;
@@ -50,6 +63,15 @@ function githubStub({ pulls, updateResults, getResults }) {
         list: async () => ({ data: pulls }),
         get: async (args) => {
           getCalls.push(args);
+          if (advancedTips.has(args.pull_number)) {
+            const fromList = pulls.find((p) => p.number === args.pull_number) || { number: args.pull_number, draft: false, head: { ref: 'feat' } };
+            return {
+              data: {
+                ...fromList,
+                head: { ...fromList.head, sha: advancedTips.get(args.pull_number) },
+              },
+            };
+          }
           if (getResults?.has(args.pull_number)) {
             return { data: getResults.get(args.pull_number) };
           }
@@ -76,6 +98,9 @@ function githubStub({ pulls, updateResults, getResults }) {
             err.status = result.error.status;
             throw err;
           }
+          // Simulate async Update Branch completing: next get sees a new tip.
+          const nextSha = `${'9'.repeat(39)}${(args.pull_number % 10)}`;
+          advancedTips.set(args.pull_number, nextSha);
           return { data: { message: 'Updating pull request branch.', url: 'https://example.test' } };
         },
       },
@@ -85,8 +110,21 @@ function githubStub({ pulls, updateResults, getResults }) {
 
 const context = { repo: { owner: 'cultpodcasts', repo: 'RedditPodcastPoster' } };
 
+function runOpts(extra = {}) {
+  return {
+    github: extra.github,
+    context,
+    core: extra.core || coreStub(),
+    reviewGate: extra.reviewGate || reviewGateStub(),
+    sleep: async () => {},
+    tipWaitMs: 5_000,
+    tipPollMs: 0,
+    ...extra,
+  };
+}
+
 describe('update-open-prs-from-main', () => {
-  it('updates each open non-draft PR targeting main', async () => {
+  it('updates each open non-draft PR targeting main and republishes review-gate', async () => {
     const pulls = [
       { number: 10, draft: false, head: { ref: 'feat/a', sha: 'a'.repeat(40) } },
       { number: 11, draft: true, head: { ref: 'feat/draft', sha: 'b'.repeat(40) } },
@@ -94,14 +132,20 @@ describe('update-open-prs-from-main', () => {
     ];
     const github = githubStub({ pulls, updateResults: new Map() });
     const core = coreStub();
+    const reviewGate = reviewGateStub();
 
-    const result = await run({ github, context, core });
+    const result = await run(runOpts({ github, core, reviewGate }));
 
     assert.deepEqual(result.updated, [10, 12]);
     assert.equal(github.updateCalls.length, 2);
     assert.equal(github.updateCalls[0].pull_number, 10);
     assert.equal(github.updateCalls[0].expected_head_sha, 'a'.repeat(40));
     assert.equal(core.logs.failed, null);
+    assert.equal(reviewGate.calls.length, 2);
+    assert.equal(reviewGate.calls[0].pullNumber, 10);
+    assert.equal(reviewGate.calls[0].pushed, true);
+    assert.equal(reviewGate.calls[1].pullNumber, 12);
+    assert.equal(reviewGate.calls[1].pushed, true);
   });
 
   it('skips when update-branch says the PR is already current (422 already up to date)', async () => {
@@ -115,13 +159,15 @@ describe('update-open-prs-from-main', () => {
       ]),
     });
     const core = coreStub();
+    const reviewGate = reviewGateStub();
 
-    const result = await run({ github, context, core });
+    const result = await run(runOpts({ github, core, reviewGate }));
 
     assert.deepEqual(result.updated, []);
     assert.equal(result.skipped.length, 1);
     assert.equal(result.failed.length, 0);
     assert.equal(core.logs.failed, null);
+    assert.equal(reviewGate.calls.length, 0);
   });
 
   it('skips when update-branch says no new commits on the base branch (422)', async () => {
@@ -141,7 +187,7 @@ describe('update-open-prs-from-main', () => {
     });
     const core = coreStub();
 
-    const result = await run({ github, context, core });
+    const result = await run(runOpts({ github, core }));
 
     assert.equal(result.skipped.length, 1);
     assert.equal(result.failed.length, 0);
@@ -160,13 +206,16 @@ describe('update-open-prs-from-main', () => {
       ]),
     });
     const core = coreStub();
+    const reviewGate = reviewGateStub();
 
-    const result = await run({ github, context, core });
+    const result = await run(runOpts({ github, core, reviewGate }));
 
     assert.deepEqual(result.updated, [30]);
     assert.equal(result.failed.length, 1);
     assert.equal(result.failed[0].number, 31);
     assert.equal(core.logs.failed, null);
+    assert.equal(reviewGate.calls.length, 1);
+    assert.equal(reviewGate.calls[0].pullNumber, 30);
   });
 
   it('records undocumented 409 conflict as failed (belt-and-suspenders)', async () => {
@@ -181,7 +230,7 @@ describe('update-open-prs-from-main', () => {
     });
     const core = coreStub();
 
-    const result = await run({ github, context, core });
+    const result = await run(runOpts({ github, core }));
 
     assert.equal(result.failed.length, 1);
     assert.match(core.logs.failed, /Could not update/);
@@ -207,16 +256,19 @@ describe('update-open-prs-from-main', () => {
       ]),
     });
     const core = coreStub();
+    const reviewGate = reviewGateStub();
 
-    const result = await run({ github, context, core });
+    const result = await run(runOpts({ github, core, reviewGate }));
 
     assert.deepEqual(result.updated, [60]);
     assert.equal(result.failed.length, 0);
-    assert.equal(github.getCalls.length, 1);
+    // One get for SHA refresh retry + at least one get while waiting for tip advance.
+    assert.ok(github.getCalls.length >= 1);
     assert.equal(github.updateCalls.length, 2);
     assert.equal(github.updateCalls[0].expected_head_sha, stale);
     assert.equal(github.updateCalls[1].expected_head_sha, fresh);
     assert.equal(core.logs.failed, null);
+    assert.equal(reviewGate.calls.length, 1);
   });
 
   it('fails when expected_head_sha mismatch persists after one retry', async () => {
@@ -239,7 +291,7 @@ describe('update-open-prs-from-main', () => {
     });
     const core = coreStub();
 
-    const result = await run({ github, context, core });
+    const result = await run(runOpts({ github, core }));
 
     assert.equal(result.updated.length, 0);
     assert.equal(result.failed.length, 1);
@@ -259,7 +311,7 @@ describe('update-open-prs-from-main', () => {
     });
     const core = coreStub();
 
-    const result = await run({ github, context, core });
+    const result = await run(runOpts({ github, core }));
 
     assert.equal(result.skipped.length, 0);
     assert.equal(result.failed.length, 1);
@@ -278,7 +330,7 @@ describe('update-open-prs-from-main', () => {
     });
     const core = coreStub();
 
-    await run({ github, context, core });
+    await run(runOpts({ github, core }));
 
     assert.match(core.logs.failed, /Could not update/);
   });
@@ -289,12 +341,33 @@ describe('update-open-prs-from-main', () => {
       updateResults: new Map(),
     });
     const core = coreStub();
+    const reviewGate = reviewGateStub();
 
-    const result = await run({ github, context, core });
+    const result = await run(runOpts({ github, core, reviewGate }));
 
     assert.deepEqual(result.updated, []);
     assert.equal(github.updateCalls.length, 0);
     assert.equal(core.logs.failed, null);
+    assert.equal(reviewGate.calls.length, 0);
+  });
+
+  it('does not fail the update job when review-gate republish reports failure', async () => {
+    const pulls = [
+      { number: 80, draft: false, head: { ref: 'feat/gate-red', sha: '8'.repeat(40) } },
+    ];
+    const github = githubStub({ pulls, updateResults: new Map() });
+    const core = coreStub();
+    const reviewGate = {
+      run: async () => {
+        throw new Error('status API down');
+      },
+    };
+
+    const result = await run(runOpts({ github, core, reviewGate }));
+
+    assert.deepEqual(result.updated, [80]);
+    assert.equal(core.logs.failed, null);
+    assert.match(core.logs.warning.join('\n'), /Failed republishing review-gate/);
   });
 });
 
@@ -305,9 +378,21 @@ const workflow = fs.readFileSync(
 const workflowCode = workflow.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
 
 describe('update-open-prs-from-main workflow YAML', () => {
-  it('grants contents: write and pull-requests: write', () => {
+  it('grants contents, pull-requests, and statuses write', () => {
     assert.match(workflowCode, /^  contents: write$/m);
     assert.match(workflowCode, /^  pull-requests: write$/m);
+    assert.match(workflowCode, /^  statuses: write$/m);
+  });
+
+  it('uses OPEN_PR_UPDATE_TOKEN for github-script, not github.token', () => {
+    assert.match(workflowCode, /github-token:\s*\$\{\{\s*secrets\.OPEN_PR_UPDATE_TOKEN\s*\}\}/);
+    assert.doesNotMatch(workflowCode, /github-token:\s*\$\{\{\s*github\.token\s*\}\}/);
+    assert.match(workflowCode, /OPEN_PR_UPDATE_TOKEN:\s*\$\{\{\s*secrets\.OPEN_PR_UPDATE_TOKEN\s*\}\}/);
+    assert.match(workflowCode, /OPEN_PR_UPDATE_TOKEN is not set/);
+  });
+
+  it('disables checkout persist-credentials so GITHUB_TOKEN cannot override the PAT', () => {
+    assert.match(workflowCode, /persist-credentials:\s*false/);
   });
 
   it('serialises runs per repository with cancel-in-progress', () => {
