@@ -10,8 +10,8 @@ namespace RedditPodcastPoster.ContentPublisher.Builders;
 
 /// <summary>
 /// Builds the flat typeahead match index from subjects (name + aliases), non-removed podcast,
-/// TV show and news organisation names, and non-removed, non-ignored film names (with the film id).
-/// AssociatedSubjects are intentionally excluded.
+/// TV show and news organisation names, and non-removed, non-ignored films (name plus IMDb / TMDB
+/// id rows when present, each carrying the film id). AssociatedSubjects are intentionally excluded.
 /// </summary>
 public class SearchSuggestionsIndexBuilder(
     ISubjectRepository subjectRepository,
@@ -131,7 +131,27 @@ public class SearchSuggestionsIndexBuilder(
 
         foreach (var film in films.Where(f => !f.IsRemoved() && !f.Ignored))
         {
-            AddName(FilmType, film.Name, film.Id.ToString());
+            if (string.IsNullOrWhiteSpace(film.Name))
+            {
+                continue;
+            }
+
+            var name = film.Name.Trim();
+            var filmId = film.Id.ToString();
+            Add(FilmType, name, name, id: filmId);
+
+            // Extra rows so typeahead / move-to-film can match a pasted IMDb or TMDB id (#1534).
+            if (!string.IsNullOrWhiteSpace(film.ImdbId))
+            {
+                var imdbId = film.ImdbId.Trim();
+                Add(FilmType, name, imdbId, imdbId, filmId);
+            }
+
+            if (film.TmdbId is > 0)
+            {
+                var tmdbId = film.TmdbId.Value.ToString();
+                Add(FilmType, name, tmdbId, tmdbId, filmId);
+            }
         }
 
         var ordered = entries
