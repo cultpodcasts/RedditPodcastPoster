@@ -22,6 +22,24 @@
   </PropertyGroup>
 
   <!--
+    #1504: warnings guard. The solution builds with 0 warnings (#1501 cleared CS8602, CS8604 and NU1903),
+    so the Build workflow (.github/workflows/dotnet.yml, the PR gate) sets CiWarningsAsErrors=true and any
+    new compiler, analyzer or NuGet audit warning (NU1901-NU1904) fails the restore and the build.
+    TreatWarningsAsErrors stays unset by default (the untracked local Directory.Build.props does not set
+    it either), so local builds, deploy.yml and publish scripts are unaffected and a newly published
+    advisory cannot block a deploy; it surfaces on the next PR and is fixed there (bump or pin the
+    package, as below). Reproduce CI locally:
+      $env:CiWarningsAsErrors='true'; dotnet restore; dotnet build -c Release
+    There is no allowlist today: add a code to NoWarn (with a reason and a ticket) only as a deliberate,
+    reviewed ratchet exception.
+  -->
+  <PropertyGroup Condition="'$(CiWarningsAsErrors)' == 'true'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Restore (NuGet audit) warnings are covered by TreatWarningsAsErrors; name the audit codes so the intent is explicit. -->
+    <WarningsAsErrors>$(WarningsAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsAsErrors>
+  </PropertyGroup>
+
+  <!--
     Historical NuGet audit suppressions (previously needed for vendored Reddit.NET).
     Kept harmless; remove if advisory IDs no longer appear in restores.
   -->
