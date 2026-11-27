@@ -1,4 +1,4 @@
-﻿#Requires -Version 7
+#Requires -Version 7
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0' }
 
 BeforeAll {
@@ -108,12 +108,6 @@ Describe 'npm view parsing' {
     It 'reads one version or many' {
         (ConvertFrom-NpmVersionsOutput -ExitCode 0 -Output '"0.1.0"').Versions | Should -Be @('0.1.0')
         (ConvertFrom-NpmVersionsOutput -ExitCode 0 -Output '["0.1.0","0.1.1"]').Versions | Should -Be @('0.1.0', '0.1.1')
-    }
-
-    It 'reads a hash and treats a missing field as no hash' {
-        (ConvertFrom-NpmHashOutput -ExitCode 0 -Output '"abc"').Hash | Should -Be 'abc'
-        (ConvertFrom-NpmHashOutput -ExitCode 0 -Output '').Hash | Should -BeNullOrEmpty
-        (ConvertFrom-NpmHashOutput -ExitCode 1 -Output 'npm error code E500').Ok | Should -BeFalse
     }
 }
 

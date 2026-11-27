@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   Publishes contracts/ when the generated wire files differ from the latest GitHub Packages version.
 
@@ -83,29 +83,6 @@ function ConvertFrom-NpmVersionsOutput {
 
     $parsed = $trimmed | ConvertFrom-Json
     return [pscustomobject]@{ Ok = $true; Versions = @($parsed | ForEach-Object { "$_" }) }
-}
-
-function ConvertFrom-NpmHashOutput {
-    param([int] $ExitCode, [string] $Output)
-
-    if ($ExitCode -ne 0) {
-        if ($Output -match 'E404') {
-            return [pscustomobject]@{ Ok = $true; Hash = $null }
-        }
-
-        return [pscustomobject]@{ Ok = $false; Hash = $null; Error = $Output }
-    }
-
-    $trimmed = $Output.Trim()
-    if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed -eq 'undefined') {
-        return [pscustomobject]@{ Ok = $true; Hash = $null }
-    }
-
-    if ($trimmed.StartsWith('"')) {
-        return [pscustomobject]@{ Ok = $true; Hash = [string]($trimmed | ConvertFrom-Json) }
-    }
-
-    return [pscustomobject]@{ Ok = $true; Hash = $trimmed }
 }
 
 function Get-ContractsContentHashFromPackageJson {
