@@ -238,6 +238,44 @@ public class DiscoveryPlusPageMetaDataExtractorRules
     }
 
     [Fact(DisplayName =
+        "A discovery+ episode page prefers the earliest geo availability window start over a year-only " +
+        "og:video:release_date, so SSR shells that omit JSON-LD air dates still get a calendar Release.")]
+    public async Task episode_page_uses_availability_window_over_year_only_og_release()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var episodeTitle = _fixture.CreateTitle();
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var url = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e1-slug/{episodeId}");
+        var yearOnly = DomainTestFixture.UtcDateDaysAgo(40).Year;
+        var usStart = DomainTestFixture.UtcAtTime(-3, TimeSpan.FromHours(2));
+        var deStart = DomainTestFixture.UtcAtTime(-3, TimeSpan.FromHours(23));
+        var expectedRelease = DateTime.SpecifyKind(usStart.Date, DateTimeKind.Utc);
+        _handler.Response = OkHtml(
+            "<html><head>" +
+            $"<meta property=\"og:title\" content=\"Watch {showName} | Season  1 Episode 1 | discovery+\" />" +
+            $"<meta property=\"og:image:alt\" content=\"{showName}\" />" +
+            $"<meta property=\"og:description\" content=\"Watch {showName}: Season  1, Episode 1 - {episodeTitle} . More blurb.\" />" +
+            "<meta property=\"og:type\" content=\"video.tv_show\" />" +
+            $"<meta property=\"og:video:release_date\" content=\"{yearOnly}\" />" +
+            "</head><body>" +
+            $"<script>{{\"pageLocales\":{{\"windows\":{{\"us/en\":[\"{usStart:yyyy-MM-dd'T'HH:mm:ss'Z'}\",\"2099-12-31T23:59:00Z\"],\"de/de\":[\"{deStart:yyyy-MM-dd'T'HH:mm:ss'Z'}\",\"2036-10-31T22:59:00Z\"]}}}}}}</script>" +
+            "</body></html>");
+        var sut = _mocker.CreateInstance<DiscoveryPlusPageMetaDataExtractor>();
+
+        // Act
+        var meta = await sut.GetMetaData(url);
+
+        // Assert
+        meta.Title.Should().Be(episodeTitle);
+        meta.ShowName.Should().Be(showName);
+        meta.Release.Should().Be(expectedRelease);
+        meta.Duration.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "discovery+ page extract fails when the HTTP status is not OK, because the page cannot be scraped.")]
     public async Task non_ok_status_fails_extract()
     {

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -63,13 +64,15 @@ internal static partial class DiscoveryPlusCatalogMeta
                 "discovery+ page has neither og:title nor a usable document title. Geo/login walls often return a non-catalogue shell.");
         }
 
+        var (duration, release) = ResolveTiming(openGraph, html);
+
         if (IsMovie(url, html))
         {
             return new NonPodcastServiceItemMetaData(
                 rawTitle,
                 openGraph?.Description ?? string.Empty,
-                openGraph?.Duration,
-                openGraph?.Release,
+                duration,
+                release,
                 openGraph?.Image,
                 openGraph?.Explicit,
                 DiscoveryPlusPageMetaDataExtractor.Publisher,
@@ -84,13 +87,76 @@ internal static partial class DiscoveryPlusCatalogMeta
         return new NonPodcastServiceItemMetaData(
             title,
             description,
-            openGraph?.Duration,
-            openGraph?.Release,
+            duration,
+            release,
             openGraph?.Image,
             openGraph?.Explicit,
             DiscoveryPlusPageMetaDataExtractor.Publisher,
             showName,
             MadeAsFilm: false);
+    }
+
+    /// <summary>
+    /// Open Graph / JSON-LD first (<see cref="CatalogPageTimingMeta"/>), then discovery+ geo
+    /// availability windows when release is still missing or year-only (SSR omits episode air dates).
+    /// Duration is often absent from discovery+ HTML shells — leave null rather than inventing.
+    /// </summary>
+    private static (TimeSpan? Duration, DateTime? Release) ResolveTiming(
+        NonPodcastServiceItemMetaData? openGraph,
+        string html)
+    {
+        var (duration, release) = CatalogPageTimingMeta.Coalesce(
+            openGraph?.Duration,
+            openGraph?.Release,
+            html);
+
+        var availability = TryEarliestAvailabilityWindowStart(html);
+        if (availability is null)
+        {
+            return (duration, release);
+        }
+
+        if (release is null || IsYearOnlyUtcMidnight(release.Value))
+        {
+            // Availability is a datetime; catalogue air dates are calendar dates (UTC midnight).
+            release = DateTime.SpecifyKind(availability.Value.Date, DateTimeKind.Utc);
+        }
+
+        return (duration, release);
+    }
+
+    private static bool IsYearOnlyUtcMidnight(DateTime release) =>
+        release.Kind == DateTimeKind.Utc &&
+        release is { Month: 1, Day: 1, TimeOfDay: { Ticks: 0 } };
+
+    /// <summary>
+    /// discovery+ geo-redirect embeds <c>pageLocales.windows</c> like
+    /// <c>"us/en":["2026-11-26T02:00:00Z","2099-…"]</c> — the earliest start is the best SSR air hint.
+    /// </summary>
+    private static DateTime? TryEarliestAvailabilityWindowStart(string html)
+    {
+        DateTime? earliest = null;
+        foreach (Match windows in AvailabilityWindowsObjectRegex().Matches(html))
+        {
+            foreach (Match startMatch in AvailabilityWindowStartRegex().Matches(windows.Groups[1].Value))
+            {
+                if (!DateTime.TryParse(
+                        startMatch.Groups[1].Value,
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                        out var start))
+                {
+                    continue;
+                }
+
+                if (earliest is null || start < earliest)
+                {
+                    earliest = start;
+                }
+            }
+        }
+
+        return earliest;
     }
 
     /// <summary>
@@ -318,4 +384,14 @@ internal static partial class DiscoveryPlusCatalogMeta
 
     [GeneratedRegex(@"^e\d+-(.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex EpisodeSlugRegex();
+
+    [GeneratedRegex(
+        @"""windows""\s*:\s*\{([^}]*)\}",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex AvailabilityWindowsObjectRegex();
+
+    [GeneratedRegex(
+        @"""[^""]+""\s*:\s*\[\s*""(\d{4}-\d{2}-\d{2}T[^""]+)""",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex AvailabilityWindowStartRegex();
 }
