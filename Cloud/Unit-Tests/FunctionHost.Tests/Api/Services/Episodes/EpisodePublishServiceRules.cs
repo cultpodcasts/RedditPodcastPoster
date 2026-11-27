@@ -183,7 +183,7 @@ public class EpisodePublishServiceRules
         var film = CreateFilm();
         var projection = CatalogueParentKindMapper.ToPostProjection(film);
         _catalogueResolved = new CataloguePlayableResolution(
-            nameof(ContentKind.Film), projection, null, null, film.Name.Trim(), Removed: false);
+            ContentKind.Film, projection, null, null, film.Name.Trim(), Removed: false);
         var tweetId = _fixture.Create<string>();
         _mocker.GetMock<ITweetPoster>()
             .Setup(p => p.PostTweet(It.IsAny<PodcastEpisode>(), It.IsAny<Uri?>(), It.IsAny<bool>()))
@@ -219,7 +219,7 @@ public class EpisodePublishServiceRules
         var film = CreateFilm();
         var projection = CatalogueParentKindMapper.ToPostProjection(film);
         _catalogueResolved = new CataloguePlayableResolution(
-            nameof(ContentKind.Film), projection, null, null, film.Name.Trim(), Removed: false);
+            ContentKind.Film, projection, null, null, film.Name.Trim(), Removed: false);
         _markTweetedFailure = new InvalidOperationException(_fixture.Create<string>());
         var tweetId = _fixture.Create<string>();
         _mocker.GetMock<ITweetPoster>()
