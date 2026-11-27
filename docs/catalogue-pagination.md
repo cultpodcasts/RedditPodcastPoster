@@ -202,24 +202,32 @@ Both flags are **nullable**. Helpers `HasExpensiveSpotifyEpisodesQuery()` /
 
 | Flag | Default | Hourly indexer allows expensive when |
 |------|---------|--------------------------------------|
-| `SkipExpensiveSpotifyQueries` | `true` | Primary pass **and** `hour % 6 == 0` |
-| `SkipExpensiveYouTubeQueries` | `true` | Primary pass **and** `hour % 24 == 0` (midnight UTC) |
+| `SkipExpensiveSpotifyQueries` | `true` | That batch's turn on `HourlyIndexingSchedule` (8 runs/day; each batch twice) |
+| `SkipExpensiveYouTubeQueries` | `true` | That batch's turn on `HourlyIndexingSchedule` (1 run/day; rotates over 4 batches) |
 
 Console / API submit / discovery curation often set these to `false`.
 
-`IndexingStrategy` owns the hour formulas; `Indexer` combines them with
-`IsPrimaryPass(pass, totalPasses)`.
+`HourlyIndexingSchedule.For(utcNow)` is the single source of truth for pass pairing, Spotify
+discovery (`IndexSpotify` every run), YouTube resolving (`hour % 3 == 0`), and expensive Spotify /
+YouTube turns. `IndexingStrategy.GetPassPlan(pass)` and `Indexer` read from it; pass pairing is
+unchanged (even hours → passes 1–2, odd → 3–4).
 
-**Batches 2–4 do not get an expensive-allowed YouTube pass, and do not need a daily full walk from that gate.**
-Expensive YouTube queries are midnight UTC only. That hour is even, so passes 1–2 run, and the primary pass is 1.
-Batches 2, 3 and 4 therefore always have `SkipExpensiveYouTubeQueries` set. The hourly indexer still sets
-`UseYouTubeIndexingHints` on every pass. A large oldest-first playlist with fresh hints is checked from the channel
-uploads head (newest-first) on every YouTube-enabled hour for its batch — four times a day, including those
-skip-expensive hours — so a video appended to the tail is found without waiting for an expensive-allowed pass.
-When the last full walk is older than `FullWalkDueAfter` (24h less 1h of slack), the next YouTube-enabled pass
-walks the playlist in full even though expensive queries are skipped. Playlists at or under the uploads-head
-item threshold are paginated to the end on every YouTube-enabled pass; the expensive flag no longer changes that
-walk.
+**Expensive Spotify (2b):** hours `0/6/12/18` (lower pair) and `3/9/15/21` (upper pair); within the
+pair, `(hour / 6) % 2` picks which pass gets the turn — each batch twice a day.
+
+**Expensive YouTube (2c):** still once a day (same quota as before), rotating by `DayOfYear % 4`:
+pass 1 at hour 0, pass 2 at hour 0, pass 3 at hour 3, pass 4 at hour 3. Each batch gets a turn every
+4 days, always on a YouTube-resolving hour.
+
+**Uploads-head still covers skip-expensive hours.** Batches that are not on today's expensive-YouTube
+turn keep `SkipExpensiveYouTubeQueries` set. The hourly indexer still sets `UseYouTubeIndexingHints`
+on every pass. A large oldest-first playlist with fresh hints is checked from the channel uploads
+head (newest-first) on every YouTube-enabled hour for its batch — four times a day, including those
+skip-expensive hours — so a video appended to the tail is found without waiting for an
+expensive-allowed pass. When the last full walk is older than `FullWalkDueAfter` (24h less 1h of
+slack), the next YouTube-enabled pass walks the playlist in full even though expensive queries are
+skipped. Playlists at or under the uploads-head item threshold are paginated to the end on every
+YouTube-enabled pass; the expensive flag no longer changes that walk.
 
 ---
 
@@ -473,8 +481,8 @@ have an owner do not re-Validate.
 (`--released-since` backfills) always walk in full, so they recover an in-window episode the uploads
 check would never offer again (an earlier failed pass, or a window wider than the watermark). Their
 complete walks still refresh the hints.
-The uploads-head check is **not** gated on `SkipExpensiveYouTubeQueries`. Batches 2–4, which never
-get an expensive-allowed pass (see §2), still run it on every YouTube-enabled hour, so a new item
+The uploads-head check is **not** gated on `SkipExpensiveYouTubeQueries`. Batches that are not on
+today's expensive-YouTube turn (see §2) still run it on every YouTube-enabled hour, so a new item
 appended to the tail of an oldest-first playlist is discovered for a podcast in any batch. The
 age-based full walk (`full-walk-due`) also runs on a skip-expensive pass.
 
@@ -621,7 +629,7 @@ pass `null` today. It is **not** the cross-service early-stop pattern; date-scop
 | Order probe sample | Lead-in ≤ 3 episodes | First page sample (≥ 2 dated) | First page sample (equal dates = newest-first) |
 | Expensive-query flag | Yes | Yes | **No** |
 | Flag cleared on flip to newest-first | Yes | Yes | N/A |
-| Expensive allowed (hourly) | `hour % 6 == 0` + primary pass | `hour % 24 == 0` + primary pass | N/A |
+| Expensive allowed (hourly) | `HourlyIndexingSchedule` (each batch 2×/day) | `HourlyIndexingSchedule` (1×/day, rotates over 4 batches) | N/A |
 | SkipExpensive + ReleasedSince still walks | Provider: **yes** | Arbitrary: always; ascending known-expensive: still may full-walk on live probe | N/A |
 | Circuit-breaker log level | **Error** | **Error** (Arbitrary) | **Error** (unordered + window) |
 | Flag-flip log level | **Warning** | **Warning** | N/A |
@@ -637,7 +645,7 @@ pass `null` today. It is **not** the cross-service early-stop pattern; date-scop
 | YouTube episode public today but not indexed, and its playlist item was added days ago | Scheduled upload — added-at is outside the window, video-published-at is inside | `contentDetails.videoPublishedAt` vs `snippet.publishedAt` on the playlist item |
 | SubmitUrl `-m` pages entire Apple catalogue | Broken newest-first probe (fixed: equal dates) or missing `ReleasedSince`; or unordered head hit MaxPages | Apple circuit-breaker Error; MatchOtherServices ReleasedSince |
 | Expensive flag stuck `true` forever | Probe never returned conclusive newest-first (should not happen — Apply clears) | Flag-flip Warning history |
-| Quota spike on YouTube | Mis-tagged Arbitrary on a huge playlist; or many ascending full walks | Arbitrary circuit-breaker; hour-0 expensive YouTube pass; `YouTubeIndexingHints` fallback reasons |
+| Quota spike on YouTube | Mis-tagged Arbitrary on a huge playlist; or many ascending full walks | Arbitrary circuit-breaker; today's expensive YouTube pass (rotating batch); `YouTubeIndexingHints` fallback reasons |
 
 ---
 
@@ -674,5 +682,5 @@ Before changing pagination, order probes, flags, or `PlaylistOrder`:
 - [ ] Do not make expensive-query flags sticky-true-only
 - [ ] Keep single-episode lookups on the shared planner: no platform-specific strategy, every page read bounded
 - [ ] Do not treat equal Apple release timestamps as “not newest-first”
-- [ ] If changing hourly gates, update `IndexingStrategy` tests / cost-analysis notes
+- [ ] If changing hourly gates, update `HourlyIndexingSchedule` / `HourlyIndexingScheduleRules` / cost-analysis notes
 - [ ] Run `dotnet test` on affected `*Tests` projects + `pwsh ./scripts/assert-unit-test-guardrails.ps1 -GitChanged`

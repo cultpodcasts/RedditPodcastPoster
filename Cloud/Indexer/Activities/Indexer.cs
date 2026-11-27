@@ -61,15 +61,18 @@ public class Indexer(
 
         logger.LogInformation("Pre: {indexerContext} {indexerOptions}", indexerContext.ToString(),
             _indexerOptions.ToString());
-        var isPrimaryPass = indexingStrategy.IsPrimaryPass(indexerContextWrapper.Pass, passes);
-        var youTubeEnabledThisPass = indexingStrategy.ResolveYouTube();
+        // Use the orchestration-frozen ScheduleUtc — never wall clock — so a late activity after
+        // the hour rolls still gets the pass plan the orchestration selected.
+        var passPlan = indexingStrategy.GetPassPlan(
+            indexerContextWrapper.ScheduleUtc, indexerContextWrapper.Pass);
+        var youTubeEnabledThisPass = passPlan.ResolveYouTube;
         var indexingContext = _indexerOptions.ToIndexingContext() with
         {
-            IndexSpotify = indexingStrategy.IndexSpotify(),
+            IndexSpotify = passPlan.IndexSpotify,
             SkipSpotifyUrlResolving = false,
             SkipYouTubeUrlResolving = !youTubeEnabledThisPass,
-            SkipExpensiveYouTubeQueries = !isPrimaryPass || !indexingStrategy.ExpensiveYouTubeQueries(),
-            SkipExpensiveSpotifyQueries = !isPrimaryPass || !indexingStrategy.ExpensiveSpotifyQueries(),
+            SkipExpensiveYouTubeQueries = !passPlan.ExpensiveYouTube,
+            SkipExpensiveSpotifyQueries = !passPlan.ExpensiveSpotify,
             SkipPodcastDiscovery = true,
             // Only the hourly indexer may read large playlists from the uploads head; every other caller full-walks.
             UseYouTubeIndexingHints = true
@@ -103,7 +106,7 @@ public class Indexer(
         idsToIndexCount = idsToIndex.Length;
 
         logger.LogWarning(
-            "IndexerPassStart instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' youtube-enabled-pass='{YouTubeEnabledPass}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' skip-expensive-spotify='{SkipExpensiveSpotify}'",
+            "IndexerPassStart instance-id='{InstanceId}' pass='{Pass}' operation-id='{OperationId}' podcast-count='{PodcastCount}' youtube-enabled-pass='{YouTubeEnabledPass}' skip-youtube='{SkipYouTube}' skip-expensive-youtube='{SkipExpensiveYouTube}' skip-expensive-spotify='{SkipExpensiveSpotify}' index-spotify='{IndexSpotify}'",
             functionContext.InvocationId,
             indexerContextWrapper.Pass,
             indexerOperationId,
@@ -111,7 +114,8 @@ public class Indexer(
             youTubeEnabledThisPass,
             indexingContext.SkipYouTubeUrlResolving,
             indexingContext.SkipExpensiveYouTubeQueries,
-            indexingContext.SkipExpensiveSpotifyQueries);
+            indexingContext.SkipExpensiveSpotifyQueries,
+            indexingContext.IndexSpotify);
 
         if (youTubeEnabledThisPass)
         {

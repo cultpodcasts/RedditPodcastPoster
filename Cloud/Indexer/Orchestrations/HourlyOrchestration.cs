@@ -3,6 +3,7 @@ using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 using Indexer.Activities;
 using Indexer.Models;
+using Indexer.Services;
 
 namespace Indexer.Orchestrations;
 
@@ -39,8 +40,10 @@ public class HourlyOrchestration
         logger.LogInformation("{nameofIndexIdProvider} complete.", nameof(IndexIdProvider));
 
         var hourUtc = context.CurrentUtcDateTime.Hour;
-        var (firstPass, lastPass) = HourlyIndexingPassSelector.SelectPasses(hourUtc, indexPasses);
-        var youtubeEnabledHour = hourUtc % 3 == 0;
+        var passPlans = HourlyIndexingSchedule.For(context.CurrentUtcDateTime);
+        var firstPass = passPlans[0].Pass;
+        var lastPass = passPlans[^1].Pass;
+        var youtubeEnabledHour = passPlans[0].ResolveYouTube;
         logger.LogWarning(
             "HourlyOrchestration pass-selection hour-utc='{HourUtc}' first-pass='{FirstPass}' last-pass='{LastPass}' youtube-enabled-hour='{YouTubeEnabledHour}' orchestration-instance-id='{OrchestrationInstanceId}'",
             hourUtc, firstPass, lastPass, youtubeEnabledHour, context.InstanceId);
@@ -68,7 +71,8 @@ public class HourlyOrchestration
                 try
                 {
                     indexerContext = await context.CallActivityAsync<IndexerContext>(
-                        nameof(global::Indexer.Activities.Indexer), new IndexerContextWrapper(indexerContext, pass));
+                        nameof(global::Indexer.Activities.Indexer),
+                        new IndexerContextWrapper(indexerContext, pass, context.CurrentUtcDateTime));
                 }
                 catch (TaskFailedException ex)
                 {
@@ -93,7 +97,7 @@ public class HourlyOrchestration
                     Pass: pass,
                     Task: context.CallActivityAsync<IndexerContext>(
                         nameof(global::Indexer.Activities.Indexer),
-                        new IndexerContextWrapper(seed, pass))))
+                        new IndexerContextWrapper(seed, pass, context.CurrentUtcDateTime))))
                 .ToList();
 
             var results = new List<IndexerContext>();
