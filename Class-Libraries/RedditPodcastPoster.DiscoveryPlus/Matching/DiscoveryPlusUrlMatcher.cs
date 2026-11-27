@@ -97,6 +97,6 @@ public static partial class DiscoveryPlusUrlMatcher
     [GeneratedRegex(@"^s\d+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SeasonSegmentRegex();
 
-    [GeneratedRegex(@"^e\d+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^e\d+(-|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex EpisodeSegmentRegex();
 }

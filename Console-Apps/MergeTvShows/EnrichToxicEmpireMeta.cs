@@ -12,8 +12,8 @@ namespace MergeTvShows;
 
 /// <summary>
 /// One-shot prod patch for #1587 Toxic Empire episodes: identity, air date, duration,
-/// cleaned synopsis (no Watch lead-in), episode landscape stills at w=2000 on discovery+,
-/// and HBO Max sibling URLs (URL-only; same WBD ids as discovery+).
+/// per-episode SSR synopses (not the shared series OG blurb), episode landscape stills at
+/// w=2000 on discovery+, and HBO Max sibling URLs (URL-only; same WBD ids as discovery+).
 /// </summary>
 public class EnrichToxicEmpireMeta(
     ITvShowRepository tvShowRepository,
@@ -48,11 +48,13 @@ public class EnrichToxicEmpireMeta(
         "https://beam-images.warnermediacdn.com/BEAM_LWM_DELIVERABLES/d82e68d7-e47c-4aeb-914d-65584412e707/18eebf3e-e467-11f1-a763-02ffe6ac1e43.jpeg?host=wbd-images.prod-vod.h264.io&partner=beamcom&w=2000");
 
     /// <summary>
-    /// Shared WBD synopsis after stripping <c>Watch … Season N, Episode M - {title} .</c>
-    /// (both episode OG descriptions use the same blurb).
+    /// Discovery+ SSR Season/Episode rich-text (not the shared series og:description blurb).
     /// </summary>
-    private const string CleanedSynopsis =
-        "Andrew Tate promises wealth, power and brotherhood. Followers, insiders, alleged victims, whistleblowers and investigative journalists offer a rare look behind his empire as international investigations threaten his extraordinary rise.";
+    private const string Episode1Synopsis =
+        "Andrew Tate promises wealth, confidence, and brotherhood. Former followers offer a rare look inside the exclusive War Room as Andrew and Tristan build their empire and alleged victims share accounts that challenge their public image.";
+
+    private const string Episode2Synopsis =
+        "The Tate brothers' upbringing offers insight into their ambitions. A former member explores the PHD program, an alleged victim shares her account and Coconut Kitty's family offers a closer look at her life and connection to Tristan.";
 
     private static readonly TimeSpan Episode1Length = TimeSpan.FromMinutes(42);
     private static readonly TimeSpan Episode2Length = TimeSpan.FromMinutes(44);
@@ -75,7 +77,7 @@ public class EnrichToxicEmpireMeta(
         }
 
         logger.LogWarning(
-            "Plan: show identity; episodes air={air}, lengths 42m/44m, cleaned synopsis, Max URLs (no image), landscape still w=2000 on discoveryPlus only, clear identity image. Apply={apply}.",
+            "Plan: show identity; episodes air={air}, lengths 42m/44m, per-episode SSR synopses, Max URLs (no image), landscape still w=2000 on discoveryPlus only, clear identity image. Apply={apply}.",
             AirDate, apply);
 
         if (!apply)
@@ -89,8 +91,8 @@ public class EnrichToxicEmpireMeta(
         show.TvdbId = ShowTvdbId;
         await tvShowRepository.Save(show);
 
-        ApplyEpisode(e1, show, Episode1TmdbId, Episode1TvdbId, Episode1Length, Episode1MaxUrl, Episode1Image);
-        ApplyEpisode(e2, show, Episode2TmdbId, Episode2TvdbId, Episode2Length, Episode2MaxUrl, Episode2Image);
+        ApplyEpisode(e1, show, Episode1TmdbId, Episode1TvdbId, Episode1Length, Episode1MaxUrl, Episode1Image, Episode1Synopsis);
+        ApplyEpisode(e2, show, Episode2TmdbId, Episode2TvdbId, Episode2Length, Episode2MaxUrl, Episode2Image, Episode2Synopsis);
         await tvShowEpisodeRepository.Save(e1);
         await tvShowEpisodeRepository.Save(e2);
 
@@ -106,7 +108,7 @@ public class EnrichToxicEmpireMeta(
         }
 
         logger.LogWarning(
-            "Toxic Empire meta enrichment applied (identity, release, duration, cleaned synopsis, Max URL-only, landscape discoveryPlus still w=2000).");
+            "Toxic Empire meta enrichment applied (identity, release, duration, per-episode SSR synopses, Max URL-only, landscape discoveryPlus still w=2000).");
         return 0;
     }
 
@@ -117,7 +119,8 @@ public class EnrichToxicEmpireMeta(
         long tvdbId,
         TimeSpan length,
         Uri maxUrl,
-        Uri episodeImage)
+        Uri episodeImage,
+        string synopsis)
     {
         episode.TmdbId = tmdbId;
         episode.TvdbId = tvdbId;
@@ -125,7 +128,7 @@ public class EnrichToxicEmpireMeta(
         episode.SeriesImdbId = show.ImdbId;
         episode.SeriesTvdbId = show.TvdbId;
         episode.Length = length;
-        episode.Description = CleanedSynopsis;
+        episode.Description = synopsis;
         // Identity image cleared: still lives on discoveryPlus only (avoids duplicate Images-tab entries).
         episode.Image = null;
         episode.SetTvShowProperties(show);
