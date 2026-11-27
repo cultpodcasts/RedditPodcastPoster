@@ -70,7 +70,7 @@ public static partial class DiscoveryPlusUrlMatcher
             // Slug-style show ids (legacy gold-rush style) are still a show key.
             if (!string.IsNullOrWhiteSpace(candidate) &&
                 !SeasonSegmentRegex().IsMatch(candidate) &&
-                !EpisodeSegmentRegex().IsMatch(candidate))
+                !WbdCatalogPageMeta.IsEpisodeSegment(candidate))
             {
                 showId = candidate;
                 return true;
@@ -96,7 +96,4 @@ public static partial class DiscoveryPlusUrlMatcher
 
     [GeneratedRegex(@"^s\d+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SeasonSegmentRegex();
-
-    [GeneratedRegex(@"^e\d+(-|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex EpisodeSegmentRegex();
 }
