@@ -127,6 +127,7 @@ Deployed or pending (diagnostic logging work — `HourlyOrchestration`, `Orchest
 | `OrchestrationTrigger hourly-scheduled` | `OrchestrationTrigger` | Durable instance scheduled (`trigger`, `hour-utc`, `instance-id`) |
 | `RunHourly skipped. Existing 'HourlyOrchestration' instance` | `OrchestrationTrigger` | Overlap — hourly skipped |
 | `HourlyOrchestration pass-selection` | `HourlyOrchestration` | `first-pass`, `last-pass`, `youtube-enabled-hour` |
+| `HourlyOrchestration parallel-passes=` | `HourlyOrchestration` | Soak switch (#1560): `parallel-passes`, `mode` (`Off`/`OddHours`/`All`), `reason` (empty, or `youtube-hour` when YouTube quota flush forces sequential), `hour-utc` |
 | `HourlyOrchestration indexer-operation-ids` | `HourlyOrchestration` | Maps pass 1–4 → `operation_Id` for deep-dive |
 | `HourlyOrchestration indexer-pass-complete` | `HourlyOrchestration` | Per-pass rollup: `success`, `skip-youtube`, `youtube-error` |
 | `HourlyOrchestration batch-4-rollup` | `HourlyOrchestration` | Batch 4 only — same fields as pass-complete |
@@ -1060,6 +1061,47 @@ AppTraces
 | project TimeGenerated, AppRoleName, Message, OperationId
 | order by TimeGenerated desc
 ```
+
+---
+
+## Parallel-passes soak (#1560)
+
+App setting `indexer__ParallelPasses`: `Off` (default / absent), `OddHours`, `All`. Jon flips the setting; agents do not. YouTube-enabled hours (`hourUtc % 3 == 0`) stay sequential with `reason='youtube-hour'` so absolute YouTube quota flush cannot race.
+
+### Parallel decision log
+
+```kusto
+AppTraces
+| where TimeGenerated > ago(2d)
+| where AppRoleName == "indexer-infra"
+| where Message startswith "HourlyOrchestration parallel-passes="
+| project TimeGenerated, Message, OperationId
+| order by TimeGenerated desc
+```
+
+### Soak error rollup (replace `<stage start>`)
+
+```kusto
+let start = datetime(<stage start>);
+let par = AppTraces
+| where TimeGenerated > start and Message startswith 'HourlyOrchestration parallel-passes='
+| parse Message with * "parallel-passes='" parallel "'" * "hour-utc='" hr:int "'" *
+| project slot = bin(TimeGenerated, 1h), parallel;
+AppTraces
+| where TimeGenerated > start
+| extend kind = case(
+    Message has 'Too-Many-Requests Failure with Spotify-API', 'spotify-429',
+    Message startswith 'IndexerPassComplete' and Message has "spotify-error='True'", 'pass-spotify-error',
+    Message startswith 'Failure calling apple-api', 'apple-http-failure',
+    Message startswith 'IndexerPodcastBudgetExceeded', 'budget-exceeded',
+    Message startswith 'HourlyOrchestration indexer-pass-failed', 'pass-failed', '')
+| where kind != ''
+| extend slot = bin(TimeGenerated, 1h)
+| join kind=leftouter par on slot
+| summarize n = count() by kind, parallel
+```
+
+Pass/fail criteria and stages: GitHub issue #1560. Also compare `orchestration:HourlyOrchestration` p50/p95 from `AppRequests` split by `parallel`.
 
 ---
 
