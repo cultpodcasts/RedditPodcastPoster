@@ -151,8 +151,15 @@ public static partial class WbdCatalogPageMeta
     {
         var parts = url.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
         return parts.Any(part =>
-            SeasonSegmentRegex().IsMatch(part) || EpisodeSegmentRegex().IsMatch(part));
+            SeasonSegmentRegex().IsMatch(part) || IsEpisodeSegment(part));
     }
+
+    /// <summary>
+    /// Path segment <c>e1</c> or <c>e1-slug</c> — not a Guid that merely starts with <c>e</c>+digit
+    /// (e.g. <c>e1d03033-…</c>). Shared with Discovery+ slug-style show-id exclusion.
+    /// </summary>
+    public static bool IsEpisodeSegment(string segment) =>
+        !string.IsNullOrEmpty(segment) && EpisodeSegmentRegex().IsMatch(segment);
 
     /// <summary>Last Guid segment in the path (episode id on WBD watch URLs).</summary>
     public static bool TryGetEpisodeId(Uri url, out string episodeId)
@@ -455,10 +462,12 @@ public static partial class WbdCatalogPageMeta
     private static partial Regex DescriptionEpisodeTitleRegex();
 
     /// <summary>
-    /// SSR band: <c>Season N, Episode M</c> heading then the first following <c>&lt;p&gt;</c> body.
+    /// SSR heading band only: <c>Season N, Episode M</c> must close a heading/strong before the
+    /// following <c>&lt;p&gt;</c> — ignores the same text in <c>og:description</c> / meta that
+    /// would otherwise latch onto an early cookie/nav paragraph.
     /// </summary>
     [GeneratedRegex(
-        @"Season\s+\d+\s*,\s*Episode\s+\d+[\s\S]{0,400}?<p\b[^>]*>\s*([^<]+)\s*</p>",
+        @"Season\s+\d+\s*,\s*Episode\s+\d+\s*</(?:strong|b|h[1-6])>[\s\S]{0,200}?<p\b[^>]*>\s*([^<]+)\s*</p>",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SeasonEpisodeSynopsisRegex();
 

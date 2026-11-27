@@ -135,9 +135,13 @@ public class WbdCatalogPageMetaRules
         var episode = new Uri(
             $"https://www.discoveryplus.com/show/{showId}/s1/e1-rise-of-top-g/{_fixture.CreateGuid()}");
 
-        // Act / Assert
-        WbdCatalogPageMeta.IsEpisodePath(hub).Should().BeFalse();
-        WbdCatalogPageMeta.IsEpisodePath(episode).Should().BeTrue();
+        // Act
+        var hubIsEpisode = WbdCatalogPageMeta.IsEpisodePath(hub);
+        var episodeIsEpisode = WbdCatalogPageMeta.IsEpisodePath(episode);
+
+        // Assert
+        hubIsEpisode.Should().BeFalse();
+        episodeIsEpisode.Should().BeTrue();
     }
 
     [Fact(DisplayName =
@@ -159,6 +163,35 @@ public class WbdCatalogPageMetaRules
 
         // Assert
         got.Should().Be(synopsis);
+    }
+
+    [Fact(DisplayName =
+        "WbdCatalogPageMeta.TryEpisodeSynopsis ignores Season N, Episode M text in og:description and an early cookie " +
+        "<p>, and returns the synopsis after the SSR h1 heading instead.")]
+    public void try_episode_synopsis_ignores_og_season_text_and_early_cookie_paragraph()
+    {
+        // Arrange
+        var showName = _fixture.CreateTitle();
+        var episodeTitle = _fixture.CreateTitle();
+        var seriesBlurb = $"{_fixture.CreateTitle(4)} {_fixture.CreateTitle(3)}.";
+        var cookieCopy = "Accept all cookies";
+        var synopsis = $"{_fixture.CreateTitle(4)} {_fixture.CreateTitle(5)}.";
+        var html =
+            "<html><head>" +
+            $"<meta property=\"og:description\" content=\"Watch {showName}: Season 1, Episode 2 - {episodeTitle} . {seriesBlurb}\" />" +
+            "</head><body>" +
+            $"<p class=\"cookie\">{cookieCopy}</p>" +
+            "<h1><strong>Season 1, Episode 2</strong></h1>" +
+            $"<p class=\"text-left\">: {synopsis}</p>" +
+            "</body></html>";
+
+        // Act
+        var got = WbdCatalogPageMeta.TryEpisodeSynopsis(html);
+
+        // Assert
+        got.Should().Be(synopsis);
+        got.Should().NotBe(cookieCopy);
+        got.Should().NotContain(seriesBlurb);
     }
 
     [Fact(DisplayName =
