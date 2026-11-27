@@ -9,10 +9,16 @@ public class IndexerOptions
     public int? ReleasedDaysAgo { get; set; }
     public bool ByPassYouTube { get; set; }
 
+    /// <summary>
+    /// App setting <c>indexer__ParallelPasses</c>. Absent binds as <see cref="ParallelPassesMode.Off"/>.
+    /// Read only from the <c>IndexIdProvider</c> activity — orchestrators must not read configuration.
+    /// </summary>
+    public ParallelPassesMode ParallelPasses { get; set; } = ParallelPassesMode.Off;
+
     public override string ToString()
     {
         return
-            $"{nameof(IndexerOptions)} released-days-ago: '{ReleasedDaysAgo}', bypass-youtube: '{ByPassYouTube}'.";
+            $"{nameof(IndexerOptions)} released-days-ago: '{ReleasedDaysAgo}', bypass-youtube: '{ByPassYouTube}', parallel-passes: '{ParallelPasses}'.";
     }
 
     public IndexingContext ToIndexingContext()
