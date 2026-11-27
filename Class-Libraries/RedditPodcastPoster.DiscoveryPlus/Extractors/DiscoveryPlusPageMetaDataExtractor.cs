@@ -80,7 +80,7 @@ internal static partial class DiscoveryPlusCatalogMeta
         }
 
         var rawDescription = openGraph?.Description ?? string.Empty;
-        var description = WbdCatalogPageMeta.CleanWatchMarketingDescription(rawDescription);
+        var description = WbdCatalogPageMeta.ResolveEpisodeDescription(url, html, rawDescription);
         var showName = WbdCatalogPageMeta.ResolveShowName(
             url,
             html,
