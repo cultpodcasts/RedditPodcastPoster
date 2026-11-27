@@ -25,6 +25,8 @@ public interface ICatalogueParentLookup
     /// <c>youTubeChannelId</c> or one of a news organisation's own <c>additionalYouTubeChannels</c>, #1370). Many → after the podcast tie-breaks
     /// (no playlist, then the single auto-indexed one) → <see cref="AmbiguousParentNameException"/>.
     /// Without a video URL, a channel-wide claim wins over playlist-scoped peers (same as podcasts).
+    /// A channel-wide holder whose name is not the YouTube channel title loses to the single live parent with that
+    /// exact title (#1568).
     /// </summary>
     Task<CatalogueParentMatch?> FindByOwner(EpisodeUrlOwnerIds ids);
 
@@ -131,7 +133,9 @@ public class CatalogueParentLookup(
                 matches = await ResolveYouTubeChannelTie(matches, channelId, url, indexingContext);
             }
 
-            return Single(matches, channelId);
+            var owner = Single(matches, channelId);
+            return await PreferExactChannelTitleOverMismatchedChannelWide(
+                owner, channelId, ids.YouTubeChannelTitle);
         }
 
         if (!string.IsNullOrWhiteSpace(ids.SpotifyShowId))
@@ -232,6 +236,56 @@ public class CatalogueParentLookup(
         }
 
         return matches;
+    }
+
+    /// <summary>
+    /// When a channel-wide parent holds the YouTube channel id but its name is not the channel title, and exactly
+    /// one live news organisation / TV show has that exact title, prefer the name match (Times Radio shape: the
+    /// real Times Radio channel id was stored on The Times and The Sunday Times while Times Radio held a stale
+    /// id — #1568). Playlist-scoped owners that already won via membership are left alone. Ambiguous title names
+    /// keep the channel-id owner.
+    /// </summary>
+    private async Task<CatalogueParentMatch?> PreferExactChannelTitleOverMismatchedChannelWide(
+        CatalogueParentMatch? owner,
+        string channelId,
+        string? channelTitle)
+    {
+        if (owner == null || string.IsNullOrWhiteSpace(channelTitle))
+        {
+            return owner;
+        }
+
+        if (!string.IsNullOrWhiteSpace(owner.YouTubeChannels.PlaylistIdOn(channelId)))
+        {
+            return owner;
+        }
+
+        var title = channelTitle.Trim();
+        if (string.Equals(owner.Parent.Name.Trim(), title, StringComparison.OrdinalIgnoreCase))
+        {
+            return owner;
+        }
+
+        CatalogueParentMatch? byName;
+        try
+        {
+            byName = await FindByName(title);
+        }
+        catch (AmbiguousParentNameException)
+        {
+            return owner;
+        }
+
+        if (byName == null || byName.Parent.Id == owner.Parent.Id || byName.Parent.IsRemoved())
+        {
+            return owner;
+        }
+
+        logger.LogWarning(
+            "YouTube channel '{ChannelId}' titled '{Title}' is claimed channel-wide by {OwnerKind} '{OwnerName}' ({OwnerId}), but exact name match {TitleKind} '{TitleName}' ({TitleId}) takes the URL. Channel ids look misassigned — fix indexing via admin API.",
+            channelId, title, owner.Kind, owner.Parent.Name, owner.Parent.Id, byName.Kind, byName.Parent.Name,
+            byName.Parent.Id);
+        return byName;
     }
 
     public async Task<CatalogueParentMatch?> FindUnclaimedByYouTubeChannelTitle(string channelTitle)
