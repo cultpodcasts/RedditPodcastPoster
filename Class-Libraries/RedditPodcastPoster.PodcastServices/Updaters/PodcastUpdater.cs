@@ -83,6 +83,8 @@ public class PodcastUpdater(
         var knownSpotifyExpensiveQuery = podcast.HasExpensiveSpotifyEpisodesQuery();
         var knownYouTubeIndexingHints = podcast.YouTubeIndexingHints?.Copy();
         IList<Episode> episodes;
+        // Set on the discovery branch: the merge read already loaded every platform-identified episode.
+        IList<Episode>? platformIdentified = null;
         EpisodeMergeResult mergeResult;
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
 
@@ -141,7 +143,8 @@ public class PodcastUpdater(
             }
 
             PodcastRunScope.Current.ReportStage("merge", $"discovered={newEpisodes.Count}");
-            episodes = await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes, cancellationToken);
+            (episodes, platformIdentified) =
+                await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes, cancellationToken);
             mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
             await DropAddedEpisodesOwnedByCatalogue(podcast, mergeResult, cancellationToken);
 
@@ -179,13 +182,23 @@ public class PodcastUpdater(
             }
         }
 
-        PodcastRunScope.Current.ReportStage("cosmos-read-platform-identified");
-        var episodesWithAssignedPlatformIds = await episodeRepository
-            .GetByPodcastId(
-                podcast.Id,
-                x => (x.Ids != null && x.Ids.Apple != null && x.Ids.Apple > 0) ||
-                     (x.Ids != null && x.Ids.Spotify != null && x.Ids.Spotify != string.Empty))
-            .ToListAsync(cancellationToken);
+        IList<Episode> episodesWithAssignedPlatformIds;
+        if (platformIdentified != null)
+        {
+            // Discovery branch: a strict subset of the merge read, filtered in memory with no second Cosmos query.
+            episodesWithAssignedPlatformIds = platformIdentified.Where(HasAppleOrSpotifyId).ToList();
+        }
+        else
+        {
+            PodcastRunScope.Current.ReportStage("cosmos-read-platform-identified");
+            episodesWithAssignedPlatformIds = await episodeRepository
+                .GetByPodcastId(
+                    podcast.Id,
+                    x => (x.Ids != null && x.Ids.Apple != null && x.Ids.Apple > 0) ||
+                         (x.Ids != null && x.Ids.Spotify != null && x.Ids.Spotify != string.Empty))
+                .ToListAsync(cancellationToken);
+        }
+
         var enrichmentEpisodeContext =
             BuildEnrichmentEpisodeContext(episodes, episodesWithAssignedPlatformIds);
 
@@ -567,10 +580,19 @@ public class PodcastUpdater(
         await youTubeQuotaUsageTracker.RecordPodcastNotIndexedDueToQuotaAsync();
     }
 
-    private async Task<IList<Episode>> IncludePlatformIdentifiedEpisodesForMerge(
-        Guid podcastId,
-        IList<Episode> releaseScopedEpisodes,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// The in-memory equivalent of the Cosmos predicate for episodes that carry an Apple or Spotify id.
+    /// Must stay identical to the predicate used on the enrich-only branch.
+    /// </summary>
+    private static bool HasAppleOrSpotifyId(Episode episode) =>
+        episode.Ids is { } ids &&
+        (ids.Apple is > 0 || !string.IsNullOrEmpty(ids.Spotify));
+
+    private async Task<(IList<Episode> Episodes, IList<Episode> PlatformIdentified)>
+        IncludePlatformIdentifiedEpisodesForMerge(
+            Guid podcastId,
+            IList<Episode> releaseScopedEpisodes,
+            CancellationToken cancellationToken)
     {
         var platformIdentifiedEpisodes = await episodeRepository
             .GetByPodcastId(
@@ -583,13 +605,14 @@ public class PodcastUpdater(
 
         if (platformIdentifiedEpisodes.Count == 0)
         {
-            return releaseScopedEpisodes;
+            return (releaseScopedEpisodes, platformIdentifiedEpisodes);
         }
 
         var knownIds = releaseScopedEpisodes.Select(x => x.Id).ToHashSet();
-        return releaseScopedEpisodes
+        var merged = releaseScopedEpisodes
             .Concat(platformIdentifiedEpisodes.Where(x => !knownIds.Contains(x.Id)))
             .ToList();
+        return (merged, platformIdentifiedEpisodes);
     }
 
     private static IList<Episode> BuildEnrichmentEpisodeContext(
