@@ -7,6 +7,7 @@ on:
       - ".github/workflows/issue-close-sibling-guard.yml"
       - ".github/workflows/review-gate.yml"
       - ".github/workflows/pr-gate.yml"
+      - ".github/workflows/update-open-prs-from-main.yml"
       - ".github/workflows/workflow-scripts-test.yml"
   push:
     branches: [main, master]
