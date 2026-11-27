@@ -13,10 +13,12 @@
 # parents reaches a commit whose `gate` check-run (this workflow, GitHub Actions app) concluded success, AND every file
 # the merged-in main side touched is on the non-build allowlist (docs, markdown, .cursor, workflow scripts;
 # .github/scripts/pr-gate-detect.cjs), `build` is skipped entirely. Merged-in code, project, workflow or contract
-# changes run the full build: main's own CI does not cover PR + main together. actionlint and bicep always run.
-# `gate` accepts a skipped `build` only when detect succeeded with skip_heavy=true (.github/scripts/pr-gate-verdict.cjs,
-# unit tested). Rebases, feature commits, evil/overlapping merges, a red/cancelled/missing prior gate and API errors run
-# the full build. github.event.before is not used (unreliable on pull_request).
+# changes still run restore/build/test (main's own CI does not cover PR + main together) but skip the episode-domain
+# coverage gate (`skip_coverage=true`) — the prior green gate already covered the PR's own tip. actionlint and bicep
+# always run. `gate` accepts a skipped `build` only when detect succeeded with skip_heavy=true
+# (.github/scripts/pr-gate-verdict.cjs, unit tested). Rebases, feature commits, evil/overlapping merges, a
+# red/cancelled/missing prior gate and API errors run the full build with coverage. github.event.before is not used
+# (unreliable on pull_request).
 # Trust: on `pull_request` these scripts and this file come from the PR's own merge ref, so the skip decision is only
 # as strong as "gate is required on main" (docs/deployment.md § PR gate).
 #
@@ -44,7 +46,7 @@ env:
   BICEP_SHA256: '0ab9de90c2493f206f8281bae74f9ee2d5ed3605548dab1adf41fef185e1f7c5'
 
 jobs:
-  # Cheap and early: skip_heavy=true only for a merge-from-base-only tip above a green `gate`. Fails closed (false).
+  # Cheap and early: skip_heavy / skip_coverage for merge-from-base-only tips above a green `gate`. Fails closed (false).
   detect:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -53,6 +55,7 @@ jobs:
       checks: read
     outputs:
       skip_heavy: ${{ steps.detect.outputs.skip_heavy }}
+      skip_coverage: ${{ steps.detect.outputs.skip_coverage }}
       reason: ${{ steps.detect.outputs.reason }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,6 +76,8 @@ jobs:
     needs: detect
     if: ${{ !cancelled() && needs.detect.outputs.skip_heavy != 'true' }}
     uses: ./.github/workflows/dotnet.yml
+    with:
+      skip_coverage: ${{ needs.detect.outputs.skip_coverage == 'true' }}
 
   actionlint:
     runs-on: ubuntu-latest
