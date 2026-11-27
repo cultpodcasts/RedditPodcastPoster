@@ -1066,7 +1066,12 @@ AppTraces
 
 ## Parallel-passes soak (#1560)
 
-App setting `indexer__ParallelPasses`: `Off` (default / absent), `OddHours`, `All`. Jon flips the setting; agents do not. YouTube-enabled hours (`hourUtc % 3 == 0`) stay sequential with `reason='youtube-hour'` so absolute YouTube quota flush cannot race.
+App setting `indexer__ParallelPasses`: `Off` (default / absent), `OddHours`, `All`. Jon flips the setting; agents do not. YouTube-enabled hours (`hourUtc % 3 == 0`) stay sequential with `reason='youtube-hour'` so absolute YouTube quota flush cannot race across instances.
+
+| Stage | Setting | Length | Coverage |
+| --- | --- | --- | --- |
+| A | `OddHours` | 3 days | **24** parallel odd non-YouTube runs (8/day × 3); 4 odd YouTube hours/day stay sequential; 12 even sequential controls/day × 3 |
+| B | `All` | 7 days | Non-YouTube hours parallel (incl. even); YouTube hours sequential |
 
 ### Parallel decision log
 

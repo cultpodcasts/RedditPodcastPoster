@@ -4,8 +4,10 @@ namespace Indexer.Orchestrations;
 
 /// <summary>
 /// Pure decision for whether the hour's two Indexer activities run side by side.
-/// YouTube-enabled hours (<c>hourUtc % 3 == 0</c>) stay sequential so two workers cannot
-/// overwrite each other's absolute YouTube quota flush.
+/// YouTube-enabled hours (<c>hourUtc % 3 == 0</c>) stay sequential: the quota tracker is a
+/// singleton per Flex instance (same-instance accumulate is safe under its lock), but Durable
+/// may dispatch the two activities to different workers — each would hydrate the same Cosmos
+/// baseline and last-write-wins on absolute <c>FlushToCosmosAsync</c>.
 /// </summary>
 public static class HourlyParallelPasses
 {

@@ -130,6 +130,38 @@ public class HourlyParallelPassesRules
         }
     }
 
+    public static TheoryData<int, bool> AllModeHourRows()
+    {
+        var data = new TheoryData<int, bool>();
+        for (var hour = 0; hour < 24; hour++)
+        {
+            data.Add(hour, hour % 3 != 0);
+        }
+
+        return data;
+    }
+
+    [Theory(DisplayName =
+        "In All mode every non-YouTube hour runs in parallel, including even hours (Stage B soak).")]
+    [MemberData(nameof(AllModeHourRows))]
+    public void all_mode_parallels_non_youtube_hours_including_even(int hourUtc, bool expectParallel)
+    {
+        // Arrange
+        // Act
+        var (parallel, reason) = HourlyParallelPasses.Decide(ParallelPassesMode.All, hourUtc);
+
+        // Assert
+        parallel.Should().Be(expectParallel);
+        if (hourUtc % 3 == 0)
+        {
+            reason.Should().Be(HourlyParallelPasses.YouTubeHourReason);
+        }
+        else
+        {
+            reason.Should().BeEmpty();
+        }
+    }
+
     [Fact(DisplayName =
         "Parallel passes never index the same podcast or catalogue parent.")]
     public void parallel_passes_never_share_podcast_or_parent_ids()
