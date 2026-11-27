@@ -48,9 +48,10 @@ public class CatalogPageTimingMetaRules
     public void seo_runtime_and_release_date_year_labels()
     {
         // Arrange — mirrors movie-details SSR labels (not OG / not JSON-LD).
-        const string html =
-            "<html><body>Documentary 2022 1h 28m" +
-            "<dt>Release Date</dt><dd>2022</dd>" +
+        var year = DomainTestFixture.UtcDateDaysAgo(400).Year;
+        var html =
+            $"<html><body>Documentary {year} 1h 28m" +
+            $"<dt>Release Date</dt><dd>{year}</dd>" +
             "<dt>Runtime</dt><dd>1h 28m</dd>" +
             "</body></html>";
 
@@ -59,7 +60,7 @@ public class CatalogPageTimingMetaRules
 
         // Assert
         duration.Should().Be(new TimeSpan(1, 28, 0));
-        release.Should().Be(new DateTime(2022, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        release.Should().Be(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc));
     }
 
     [Fact(DisplayName =
@@ -110,22 +111,57 @@ public class CatalogPageTimingMetaRules
     public void peacock_json_ld_episode_date_published_wins_over_trailer()
     {
         // Arrange
-        const string html =
-            """
-            <script type="application/ld+json">
-            {"@context":"http://schema.org","@graph":[{
-              "@type":"TVEpisode","name":"Episode 1","duration":"PT56M",
-              "datePublished":"2020-07-14T00:00:00.000Z",
-              "video":[{"@type":"VideoObject","name":"Trailer","duration":"PT116S","uploadDate":"2024-10-10T16:40:38.166Z"}]
-            }]}
-            </script>
-            """;
+        var published = DomainTestFixture.UtcDateDaysAgo(90);
+        var trailerUpload = DomainTestFixture.UtcAtTime(-10, _fixture.CreateNonMidnightTimeOfDay());
+        var publishedIso = published.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'");
+        var trailerIso = trailerUpload.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'");
+        var html =
+            "<script type=\"application/ld+json\">" +
+            "{\"@context\":\"http://schema.org\",\"@graph\":[{" +
+            "\"@type\":\"TVEpisode\",\"name\":\"Episode 1\",\"duration\":\"PT56M\"," +
+            "\"datePublished\":\"" + publishedIso + "\"," +
+            "\"video\":[{\"@type\":\"VideoObject\",\"name\":\"Trailer\",\"duration\":\"PT116S\"," +
+            "\"uploadDate\":\"" + trailerIso + "\"}" +
+            "]}]}</script>";
 
         // Act
         var (duration, release) = CatalogPageTimingMeta.Coalesce(null, null, html);
 
         // Assert
         duration.Should().Be(TimeSpan.FromMinutes(56));
-        release.Should().Be(new DateTime(2020, 7, 14, 0, 0, 0, DateTimeKind.Utc));
+        release.Should().Be(published);
+    }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta recovers Release from og:video:release_date when it is a calendar year, " +
+        "so discovery+/WBD SSR pages that only stamp the series year still get a Release.")]
+    public void og_video_release_date_year_recovers_release()
+    {
+        // Arrange
+        var year = DomainTestFixture.UtcDateDaysAgo(30).Year;
+        var html = $"""<meta property="og:video:release_date" content="{year}"/>""";
+
+        // Act
+        var recovered = CatalogPageTimingMeta.TryReleaseFromHtml(html);
+
+        // Assert
+        recovered.Should().Be(new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    [Fact(DisplayName =
+        "CatalogPageTimingMeta recovers Release from og:video:release_date when it is an ISO date, " +
+        "so catalogues that stamp a full air day are not coerced to January 1.")]
+    public void og_video_release_date_iso_recovers_release()
+    {
+        // Arrange
+        var airDate = DomainTestFixture.UtcDateDaysAgo(12);
+        var html =
+            $"""<meta property="og:video:release_date" content="{airDate:yyyy-MM-dd}"/>""";
+
+        // Act
+        var recovered = CatalogPageTimingMeta.TryReleaseFromHtml(html);
+
+        // Assert
+        recovered.Should().Be(airDate);
     }
 }

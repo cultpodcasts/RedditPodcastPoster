@@ -76,11 +76,24 @@ public class CatalogueKindSubmitRules
         _mocker.GetMock<IFilmRepository>()
             .Setup(x => x.GetBy(It.IsAny<Expression<Func<Film, bool>>>()))
             .ReturnsAsync((Expression<Func<Film, bool>> predicate) =>
-                _films.FirstOrDefault(predicate.Compile()));
+                FirstOrDefaultIgnoringMissingServiceKey(_films, predicate));
         _mocker.GetMock<IFilmRepository>()
             .Setup(x => x.Save(It.IsAny<Film>()))
             .Callback<Film>(_films.Add)
             .Returns(Task.CompletedTask);
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(x => x.Update(It.IsAny<Guid>(), It.IsAny<Func<Film, bool>>()))
+            .ReturnsAsync((Guid id, Func<Film, bool> mutate) =>
+            {
+                var film = _films.FirstOrDefault(item => item.Id == id);
+                if (film is null)
+                {
+                    return null;
+                }
+
+                mutate(film);
+                return film;
+            });
         _mocker.GetMock<ITvShowRepository>()
             .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
             .Returns(Empty<TvShow>());
@@ -91,11 +104,22 @@ public class CatalogueKindSubmitRules
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(x => x.GetBy(It.IsAny<Expression<Func<TvShowEpisode, bool>>>()))
             .ReturnsAsync((Expression<Func<TvShowEpisode, bool>> predicate) =>
-                _episodes.FirstOrDefault(predicate.Compile()));
+                FirstOrDefaultIgnoringMissingServiceKey(_episodes, predicate));
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(x => x.Save(It.IsAny<TvShowEpisode>()))
             .Callback<TvShowEpisode>(_episodes.Add)
             .Returns(Task.CompletedTask);
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(x => x.GetTvShowEpisodeWithETag(It.IsAny<Guid>(), It.IsAny<Guid>()))
+            .ReturnsAsync((Guid showId, Guid episodeId) =>
+            {
+                var episode = _episodes.FirstOrDefault(item =>
+                    item.TvShowId == showId && item.Id == episodeId);
+                return episode is null ? null : new ETagged<TvShowEpisode>(episode, "etag-1");
+            });
+        _mocker.GetMock<ITvShowEpisodeRepository>()
+            .Setup(x => x.TryReplace(It.IsAny<TvShowEpisode>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
         _mocker.GetMock<INewsOrganisationRepository>()
             .Setup(x => x.GetAllBy(It.IsAny<Expression<Func<NewsOrganisation, bool>>>()))
             .Returns(Empty<NewsOrganisation>());
@@ -106,11 +130,22 @@ public class CatalogueKindSubmitRules
         _mocker.GetMock<INewsReportRepository>()
             .Setup(x => x.GetBy(It.IsAny<Expression<Func<NewsReport, bool>>>()))
             .ReturnsAsync((Expression<Func<NewsReport, bool>> predicate) =>
-                _reports.FirstOrDefault(predicate.Compile()));
+                FirstOrDefaultIgnoringMissingServiceKey(_reports, predicate));
         _mocker.GetMock<INewsReportRepository>()
             .Setup(x => x.Save(It.IsAny<NewsReport>()))
             .Callback<NewsReport>(_reports.Add)
             .Returns(Task.CompletedTask);
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(x => x.GetNewsReportWithETag(It.IsAny<Guid>(), It.IsAny<Guid>()))
+            .ReturnsAsync((Guid organisationId, Guid reportId) =>
+            {
+                var report = _reports.FirstOrDefault(item =>
+                    item.NewsOrganisationId == organisationId && item.Id == reportId);
+                return report is null ? null : new ETagged<NewsReport>(report, "etag-1");
+            });
+        _mocker.GetMock<INewsReportRepository>()
+            .Setup(x => x.TryReplace(It.IsAny<NewsReport>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
         TakenFileKeys<IFilmRepository, Film>(_films);
         StoredServiceUrls<IFilmRepository, Film>(_films);
         StoredServiceUrls<ITvShowEpisodeRepository, TvShowEpisode>(_episodes);
@@ -495,7 +530,42 @@ public class CatalogueKindSubmitRules
                 It.IsAny<Expression<Func<TEntity, bool>>>(),
                 It.IsAny<Expression<Func<TEntity, Uri?>>>()))
             .Returns((Expression<Func<TEntity, bool>> selector, Expression<Func<TEntity, Uri?>> projection) =>
-                Yield(store.Where(selector.Compile()).Select(projection.Compile())));
+            {
+                var project = projection.Compile();
+                return Yield(WhereIgnoringMissingServiceKey(store, selector).Select(project));
+            });
+
+    /// <summary>
+    /// Cosmos treats a missing <c>services[key]</c> as non-matching; in-memory Dictionary indexers throw.
+    /// </summary>
+    private static TEntity? FirstOrDefaultIgnoringMissingServiceKey<TEntity>(
+        IEnumerable<TEntity> store,
+        Expression<Func<TEntity, bool>> predicate) =>
+        WhereIgnoringMissingServiceKey(store, predicate).FirstOrDefault();
+
+    private static IEnumerable<TEntity> WhereIgnoringMissingServiceKey<TEntity>(
+        IEnumerable<TEntity> store,
+        Expression<Func<TEntity, bool>> predicate)
+    {
+        var compiled = predicate.Compile();
+        foreach (var item in store)
+        {
+            bool matches;
+            try
+            {
+                matches = compiled(item);
+            }
+            catch (KeyNotFoundException)
+            {
+                matches = false;
+            }
+
+            if (matches)
+            {
+                yield return item;
+            }
+        }
+    }
 
     private void TakenFileKeys<TRepository, TEntity>(List<TEntity> store)
         where TRepository : class, IFilterableRepository<TEntity> =>
@@ -1116,6 +1186,92 @@ public class CatalogueKindSubmitRules
         ex.Which.ParentIds.Should().BeEquivalentTo([first.Id, second.Id]);
         _episodes.Should().HaveCount(episodeCountBefore);
         _shows.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "Submitting a Discovery+ episode UUID URL stores the Max sibling URL as well, " +
+        "with the scraped image only on discoveryPlus, because the hosts share WBD catalogue GUIDs.")]
+    public async Task discoveryplus_create_stores_max_sibling_url_without_image()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var slug = _fixture.CreateYouTubeId();
+        var url = new Uri($"https://www.discoveryplus.com/show/{showId}/s1/e1-{slug}/{episodeId}");
+        var poster = new Uri($"https://example.com/{_fixture.CreateYouTubeId()}.jpg");
+        var series = _fixture.CreateTitle();
+        var source = new ResolvedNonPodcastServiceItem(
+            StreamingService.DiscoveryPlus,
+            Url: url,
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            ShowName: series,
+            Image: poster);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), TvOptions(url));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        _episodes.Should().ContainSingle();
+        var services = _episodes[0].Services!;
+        services.Should().ContainKey("discoveryPlus");
+        services.Should().ContainKey("hboMax");
+        services["discoveryPlus"].Url.Should().Be(url);
+        services["discoveryPlus"].Image.Should().Be(poster);
+        services["hboMax"].Url.Should().Be(
+            new Uri($"https://www.max.com/show/{showId}/s1/e1-{slug}/{episodeId}"));
+        services["hboMax"].Image.Should().BeNull();
+    }
+
+    [Fact(DisplayName =
+        "Submitting a Max episode URL for a TV episode that already holds only the Discovery+ sibling " +
+        "enriches hboMax on that episode and does not create a second playable.")]
+    public async Task max_submit_enriches_existing_discoveryplus_sibling()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var showId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var slug = _fixture.CreateYouTubeId();
+        var discoveryUrl = new Uri(
+            $"https://www.discoveryplus.com/show/{showId}/s1/e1-{slug}/{episodeId}");
+        var maxUrl = new Uri($"https://www.max.com/show/{showId}/s1/e1-{slug}/{episodeId}");
+        var existingShow = new TvShow(_fixture.CreateTitle()) { Id = _fixture.CreateGuid() };
+        var existingEpisode = new TvShowEpisode(_fixture.CreateTitle())
+        {
+            Id = _fixture.CreateGuid(),
+            TvShowId = existingShow.Id,
+            TvShowName = existingShow.Name,
+            Services = new Dictionary<string, ServiceLink>
+            {
+                [StreamingServiceWire.ToKey(StreamingService.DiscoveryPlus)] =
+                    new() { Url = discoveryUrl }
+            }
+        };
+        _episodes.Add(existingEpisode);
+        var source = new ResolvedNonPodcastServiceItem(
+            StreamingService.HboMax,
+            Url: maxUrl,
+            Title: _fixture.CreateTitle(),
+            Description: _fixture.Create<string>(),
+            ShowName: existingShow.Name,
+            Image: new Uri($"https://example.com/{_fixture.CreateYouTubeId()}.jpg"));
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), TvOptions(maxUrl));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Enriched);
+        result.PlayableId.Should().Be(existingEpisode.Id);
+        _episodes.Should().ContainSingle();
+        existingEpisode.Services.Should().ContainKey("hboMax");
+        existingEpisode.Services!["hboMax"].Url.Should().Be(maxUrl);
+        existingEpisode.Services["hboMax"].Image.Should().Be(source.Image);
+        existingEpisode.Services["discoveryPlus"].Url.Should().Be(discoveryUrl);
     }
 
     [Fact(DisplayName =

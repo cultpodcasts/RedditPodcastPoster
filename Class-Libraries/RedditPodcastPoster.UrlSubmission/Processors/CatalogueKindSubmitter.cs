@@ -96,7 +96,7 @@ public class CatalogueKindSubmitter(
             var existing = await FindByCanonicalUrl(films, source);
             if (existing != null)
             {
-                return AlreadyExists(SubmitClassification.Film, existing.Id);
+                return await EnrichExistingFilmServices(existing, source, submitOptions);
             }
 
             if (submitOptions.TargetFilmId is Guid targetFilmId)
@@ -156,7 +156,7 @@ public class CatalogueKindSubmitter(
             var existing = await FindByCanonicalUrl(tvShowEpisodes, source);
             if (existing != null)
             {
-                return AlreadyExists(SubmitClassification.TvShowEpisode, existing.Id);
+                return await EnrichExistingTvEpisodeServices(existing, source, submitOptions);
             }
 
             var saved = await SaveTvShowEpisode(source, categorisedItem, submitOptions);
@@ -179,7 +179,7 @@ public class CatalogueKindSubmitter(
             var existing = await FindByCanonicalUrl(newsReports, source);
             if (existing != null)
             {
-                return AlreadyExists(SubmitClassification.NewsReport, existing.Id);
+                return await EnrichExistingNewsReportServices(existing, source, submitOptions);
             }
 
             if (submitOptions.TargetNewsOrganisationId is Guid targetOrgId &&
@@ -693,14 +693,60 @@ public class CatalogueKindSubmitter(
 
         var serviceKey = StreamingServiceWire.ToKey(source.StreamingService.Value);
         var canonical = CanonicalStoredUrl(source.Url);
-        var exact = await repository.GetBy(item =>
-            item.Services != null && item.Services[serviceKey].Url == canonical);
-        if (exact != null || source.StreamingService != StreamingService.Netflix)
+        var exact = await FindByStoredServiceUrl(repository, serviceKey, canonical);
+        if (exact != null)
         {
             return exact;
         }
 
+        if (WbdCatalogueSiblingUrls.TryGet(
+                source.StreamingService.Value, canonical, out var sibling, out var siblingUrl))
+        {
+            var bySibling = await FindByStoredServiceUrl(
+                repository, StreamingServiceWire.ToKey(sibling), siblingUrl);
+            if (bySibling != null)
+            {
+                return bySibling;
+            }
+        }
+
+        if (source.StreamingService != StreamingService.Netflix)
+        {
+            return null;
+        }
+
         return await FindByLegacyNetflixTitleUrl(repository, serviceKey, canonical);
+    }
+
+    /// <summary>
+    /// Projects service URLs for items that hold <paramref name="serviceKey"/> (so a missing sibling key is
+    /// never indexed in-memory), then loads the matching playable by its exact stored URL.
+    /// </summary>
+    private static async Task<T?> FindByStoredServiceUrl<T>(
+        IFilterableRepository<T> repository,
+        string serviceKey,
+        Uri url)
+        where T : class, IPlayable
+    {
+        await foreach (var stored in repository.GetAllBy(
+                           PlayableServiceUrlFilters.HasServiceLink<T>(serviceKey),
+                           PlayableServiceUrlFilters.ServiceUrl<T>(serviceKey)))
+        {
+            if (stored is null || stored != url)
+            {
+                continue;
+            }
+
+            var match = stored;
+            var found = await repository.GetBy(item =>
+                item.Services != null && item.Services[serviceKey].Url == match);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -752,16 +798,198 @@ public class CatalogueKindSubmitter(
             return new Dictionary<string, ServiceLink>();
         }
 
-        var link = new ServiceLink { Url = CanonicalStoredUrl(source.Url) };
+        var canonical = CanonicalStoredUrl(source.Url);
+        var link = new ServiceLink { Url = canonical };
         if (source.Image is not null)
         {
             link.Image = source.Image;
         }
 
-        return new Dictionary<string, ServiceLink>
+        var map = new Dictionary<string, ServiceLink>
         {
             [StreamingServiceWire.ToKey(source.StreamingService.Value)] = link
         };
+
+        // Discovery+ / HBO Max share WBD catalogue UUIDs — store the sibling URL without copying the image.
+        if (WbdCatalogueSiblingUrls.TryGet(
+                source.StreamingService.Value, canonical, out var sibling, out var siblingUrl))
+        {
+            map[StreamingServiceWire.ToKey(sibling)] = new ServiceLink { Url = siblingUrl };
+        }
+
+        return map;
+    }
+
+    private async Task<SubmitResult> EnrichExistingFilmServices(
+        Film existing,
+        ResolvedNonPodcastServiceItem source,
+        SubmitOptions submitOptions)
+    {
+        var map = ServiceMap(source);
+        if (!submitOptions.PersistToDatabase)
+        {
+            var previewChanged = MergeMissingServiceLinks(existing, map);
+            return AlreadyExists(SubmitClassification.Film, existing.Id) with
+            {
+                FilmSearchSource = existing,
+                EpisodeResult = previewChanged ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
+            };
+        }
+
+        var changed = false;
+        var updated = await films.Update(existing.Id, film =>
+        {
+            changed = MergeMissingServiceLinks(film, map);
+            return changed;
+        });
+        if (updated is null)
+        {
+            return AlreadyExists(SubmitClassification.Film, existing.Id);
+        }
+
+        return AlreadyExists(SubmitClassification.Film, updated.Id) with
+        {
+            FilmSearchSource = updated,
+            EpisodeResult = changed ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
+        };
+    }
+
+    private async Task<SubmitResult> EnrichExistingTvEpisodeServices(
+        TvShowEpisode existing,
+        ResolvedNonPodcastServiceItem source,
+        SubmitOptions submitOptions)
+    {
+        var map = ServiceMap(source);
+        if (!submitOptions.PersistToDatabase)
+        {
+            var previewChanged = MergeMissingServiceLinks(existing, map);
+            return AlreadyExists(SubmitClassification.TvShowEpisode, existing.Id) with
+            {
+                EpisodeResult = previewChanged ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
+            };
+        }
+
+        var tagged = await tvShowEpisodes.GetTvShowEpisodeWithETag(existing.TvShowId, existing.Id);
+        if (tagged is null)
+        {
+            return AlreadyExists(SubmitClassification.TvShowEpisode, existing.Id);
+        }
+
+        var changed = MergeMissingServiceLinks(tagged.Item, map);
+        if (changed)
+        {
+            var replaced = await tvShowEpisodes.TryReplace(tagged.Item, tagged.ETag);
+            if (!replaced)
+            {
+                tagged = await tvShowEpisodes.GetTvShowEpisodeWithETag(existing.TvShowId, existing.Id);
+                if (tagged is null)
+                {
+                    return AlreadyExists(SubmitClassification.TvShowEpisode, existing.Id);
+                }
+
+                changed = MergeMissingServiceLinks(tagged.Item, map);
+                if (changed)
+                {
+                    replaced = await tvShowEpisodes.TryReplace(tagged.Item, tagged.ETag);
+                    if (!replaced)
+                    {
+                        throw new InvalidOperationException(
+                            $"Could not save TV episode '{existing.Id}' because it changed while the sibling URL was being attached.");
+                    }
+                }
+            }
+        }
+
+        return AlreadyExists(SubmitClassification.TvShowEpisode, tagged.Item.Id) with
+        {
+            EpisodeResult = changed ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
+        };
+    }
+
+    private async Task<SubmitResult> EnrichExistingNewsReportServices(
+        NewsReport existing,
+        ResolvedNonPodcastServiceItem source,
+        SubmitOptions submitOptions)
+    {
+        var map = ServiceMap(source);
+        if (!submitOptions.PersistToDatabase)
+        {
+            var previewChanged = MergeMissingServiceLinks(existing, map);
+            return AlreadyExists(SubmitClassification.NewsReport, existing.Id) with
+            {
+                EpisodeResult = previewChanged ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
+            };
+        }
+
+        var tagged = await newsReports.GetNewsReportWithETag(existing.NewsOrganisationId, existing.Id);
+        if (tagged is null)
+        {
+            return AlreadyExists(SubmitClassification.NewsReport, existing.Id);
+        }
+
+        var changed = MergeMissingServiceLinks(tagged.Item, map);
+        if (changed)
+        {
+            var replaced = await newsReports.TryReplace(tagged.Item, tagged.ETag);
+            if (!replaced)
+            {
+                tagged = await newsReports.GetNewsReportWithETag(existing.NewsOrganisationId, existing.Id);
+                if (tagged is null)
+                {
+                    return AlreadyExists(SubmitClassification.NewsReport, existing.Id);
+                }
+
+                changed = MergeMissingServiceLinks(tagged.Item, map);
+                if (changed)
+                {
+                    replaced = await newsReports.TryReplace(tagged.Item, tagged.ETag);
+                    if (!replaced)
+                    {
+                        throw new InvalidOperationException(
+                            $"Could not save news report '{existing.Id}' because it changed while the sibling URL was being attached.");
+                    }
+                }
+            }
+        }
+
+        return AlreadyExists(SubmitClassification.NewsReport, tagged.Item.Id) with
+        {
+            EpisodeResult = changed ? SubmitResultState.Enriched : SubmitResultState.EpisodeAlreadyExists
+        };
+    }
+
+    /// <summary>
+    /// Fills missing service URLs (and images only when the target has none) from a submit ServiceMap.
+    /// Returns true when the playable's services changed.
+    /// </summary>
+    private static bool MergeMissingServiceLinks(
+        IPlayable playable,
+        IReadOnlyDictionary<string, ServiceLink> map)
+    {
+        playable.Services ??= new Dictionary<string, ServiceLink>(StringComparer.Ordinal);
+        var changed = false;
+        foreach (var (key, link) in map)
+        {
+            if (link?.Url is null)
+            {
+                continue;
+            }
+
+            if (!playable.Services.TryGetValue(key, out var existing) || existing?.Url is null)
+            {
+                playable.Services[key] = new ServiceLink { Url = link.Url, Image = link.Image };
+                changed = true;
+                continue;
+            }
+
+            if (existing.Image is null && link.Image is not null)
+            {
+                existing.Image = link.Image;
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     private Uri CanonicalStoredUrl(Uri url) =>
