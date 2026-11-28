@@ -526,6 +526,204 @@ public class FilmCreateServiceRules
         // Assert
         result.Status.Should().Be(FilmCreateStatus.BadRequest);
         _created.Should().BeEmpty();
+        _mocker.GetMock<IIdentityMetadataEnricher>().Verify(
+            e => e.FetchFilmAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mocker.GetMock<IFilmRepository>().Verify(
+            r => r.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()), Times.Never);
+    }
+
+    [Theory(DisplayName =
+        "A TMDB id that is not positive is a bad request and never reaches TMDB, because no movie has that id.")]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task non_positive_tmdb_id_is_bad_request(int tmdbId)
+    {
+        // Arrange
+        ArrangeIdentity(_fixture.CreateTmdbId());
+
+        // Act
+        var result = await Create(new FilmCreateRequest { TmdbId = tmdbId });
+
+        // Assert
+        result.Status.Should().Be(FilmCreateStatus.BadRequest);
+        _created.Should().BeEmpty();
+        _mocker.GetMock<IIdentityMetadataEnricher>().Verify(
+            e => e.FetchFilmAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When both a TMDB id and an IMDb id are sent and they name the same movie, the film is stored with both ids, because the pair agrees.")]
+    public async Task both_ids_naming_the_same_movie_are_stored()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var imdbId = _fixture.CreateImdbId();
+        var identity = ArrangeIdentity(tmdbId);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchFilmAsync(null, imdbId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(identity);
+
+        // Act
+        var result = await Create(new FilmCreateRequest { TmdbId = tmdbId, ImdbId = imdbId });
+
+        // Assert
+        result.Status.Should().Be(FilmCreateStatus.Accepted);
+        var film = Stored(result.FilmId!.Value)!;
+        film.TmdbId.Should().Be(tmdbId);
+        film.ImdbId.Should().Be(imdbId);
+    }
+
+    [Fact(DisplayName =
+        "When both a TMDB id and an IMDb id are sent and the IMDb id names a different movie, the create is a bad request and writes nothing, because a film must not hold two identities that disagree.")]
+    public async Task both_ids_naming_different_movies_are_rejected()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var otherTmdbId = tmdbId + 1;
+        var imdbId = _fixture.CreateImdbId();
+        var identity = ArrangeIdentity(tmdbId);
+        var other = identity with { Id = otherTmdbId };
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchFilmAsync(null, imdbId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(other);
+
+        // Act
+        var result = await Create(new FilmCreateRequest { TmdbId = tmdbId, ImdbId = imdbId });
+
+        // Assert
+        result.Status.Should().Be(FilmCreateStatus.BadRequest);
+        result.Error.Should().Contain("different films");
+        _created.Should().BeEmpty();
+        _uploads.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When both ids are sent and TMDB does not know the IMDb id, the create is IdentityNotFound and writes nothing, because the pair cannot be verified.")]
+    public async Task both_ids_with_unknown_imdb_id_is_not_found()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var imdbId = _fixture.CreateImdbId();
+        ArrangeIdentity(tmdbId);
+        _mocker.GetMock<IIdentityMetadataEnricher>()
+            .Setup(e => e.FetchFilmAsync(null, imdbId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TmdbMovieMetadata?)null);
+
+        // Act
+        var result = await Create(new FilmCreateRequest { TmdbId = tmdbId, ImdbId = imdbId });
+
+        // Assert
+        result.Status.Should().Be(FilmCreateStatus.IdentityNotFound);
+        _created.Should().BeEmpty();
+        _uploads.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A title with no ids whose identity lookup finds nothing is IdentityNotFound and writes nothing, because a blank film would hold the name and could never be completed by a re-send.")]
+    public async Task title_with_no_identity_found_is_not_found()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+
+        // Act
+        var result = await Create(new FilmCreateRequest { Title = title });
+
+        // Assert
+        result.Status.Should().Be(FilmCreateStatus.IdentityNotFound);
+        result.Error.Should().Contain("identityDecision=continue");
+        _created.Should().BeEmpty();
+        _uploads.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A title with no ids whose identity lookup fails is IdentityNotFound and writes nothing, because a transient authority error must not leave a permanent blank film.")]
+    public async Task title_with_failed_identity_lookup_is_not_found()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(e => e.ResolveFilmAsync(
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<TimeSpan?>()))
+            .ThrowsAsync(new InvalidOperationException(_fixture.Create<string>()));
+
+        // Act
+        var result = await Create(new FilmCreateRequest { Title = title });
+
+        // Assert
+        result.Status.Should().Be(FilmCreateStatus.IdentityNotFound);
+        _created.Should().BeEmpty();
+        _uploads.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "A title with identityDecision continue creates the film with no identity, because that is the curator's explicit opt-in to a film nothing could be matched to.")]
+    public async Task continue_creates_film_without_identity()
+    {
+        // Arrange
+        var title = _fixture.CreateTitle();
+
+        // Act
+        var result = await Create(new FilmCreateRequest { Title = title, IdentityDecision = "continue" });
+
+        // Assert
+        result.Status.Should().Be(FilmCreateStatus.Accepted);
+        var film = Stored(result.FilmId!.Value)!;
+        film.Name.Should().Be(title);
+        film.TmdbId.Should().BeNull();
+        film.ImdbId.Should().BeNull();
+        _mocker.GetMock<IIdentityMetadataEnricher>().Verify(
+            e => e.FetchFilmAsync(It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "When the film holding the name-derived id was renamed after it was created, a lost create is a conflict naming the film under its current name, because telling the curator a film with this name exists would be wrong.")]
+    public async Task lost_create_race_with_renamed_winner_names_the_renamed_film()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var identity = ArrangeIdentity(tmdbId);
+        var winnerId = EpisodeTrailerAttachService.NewFilmId(identity.Title);
+        var renamed = _fixture.CreateTitleNotContainedIn(identity.Title);
+        _films[winnerId] = JsonSerializer.Serialize(new Film(renamed) { Id = winnerId });
+        _mocker.GetMock<IFilmRepository>()
+            .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<Film, bool>>>()))
+            .Returns(Query(_ => false));
+
+        // Act
+        var result = await Create(new FilmCreateRequest { TmdbId = tmdbId });
+
+        // Assert
+        result.Status.Should().Be(FilmCreateStatus.Conflict);
+        result.FilmId.Should().Be(winnerId);
+        result.Name.Should().Be(renamed);
+        result.Error.Should().Contain(identity.Title).And.Contain(renamed);
+        _created.Should().BeEmpty();
+        _uploads.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName =
+        "When the winner of a lost create has been deleted before it is read, the create is a retryable conflict with no film, because there is no film to name.")]
+    public async Task lost_create_race_with_deleted_winner_asks_to_send_again()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        ArrangeIdentity(tmdbId);
+        _createSucceeds = false;
+
+        // Act
+        var result = await Create(new FilmCreateRequest { TmdbId = tmdbId });
+
+        // Assert
+        result.Status.Should().Be(FilmCreateStatus.Conflict);
+        result.FilmId.Should().BeNull();
+        result.Error.Should().Contain("send again");
+        _created.Should().BeEmpty();
+        _uploads.Should().BeEmpty();
     }
 
     [Fact(DisplayName =

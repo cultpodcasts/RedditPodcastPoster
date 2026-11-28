@@ -395,21 +395,18 @@ public class EpisodeTrailerAttachService(
         string filmName)
     {
         var existing = await filmRepository.GetFilm(filmId);
-        if (existing is null)
+        switch (Films.FilmCreateRace.Classify(existing, filmName))
         {
-            return (null, false, new EpisodeTrailerAttachResult(
-                EpisodeTrailerAttachStatus.Failed, Error: "The film changed while it was created; send again"));
-        }
-
-        if (!string.Equals(existing.Name.Trim(), filmName, StringComparison.OrdinalIgnoreCase))
-        {
-            return (null, false, Conflict(existing.Id,
-                $"A film first created as '{filmName}' is now named '{existing.Name}'; attach to it by id or choose another name"));
+            case Films.FilmCreateRaceKind.Gone:
+                return (null, false, new EpisodeTrailerAttachResult(
+                    EpisodeTrailerAttachStatus.Failed, Error: Films.FilmCreateRace.GoneMessage));
+            case Films.FilmCreateRaceKind.Renamed:
+                return (null, false, Conflict(existing!.Id, Films.FilmCreateRace.RenamedMessage(filmName, existing.Name)));
         }
 
         logger.LogInformation(
             "{method}: Film '{filmId}' '{name}' was created by another request; attaching to it.",
-            nameof(ResolveCreateConflict), existing.Id, existing.Name);
+            nameof(ResolveCreateConflict), existing!.Id, existing.Name);
         return (existing, false, null);
     }
 

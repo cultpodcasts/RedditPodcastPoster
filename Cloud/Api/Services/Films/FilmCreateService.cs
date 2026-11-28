@@ -20,16 +20,20 @@ namespace Api.Services.Films;
 /// video, trailers or episode: it indexes and renders without a main video.
 /// <list type="number">
 /// <item>With <c>tmdbId</c> / <c>imdbId</c>: refuse when a film already has either id (409 naming that film), read the
-/// TMDB movie (<see cref="IIdentityMetadataEnricher"/>; none is 404), then name, description, release, runtime, image,
+/// TMDB movie (<see cref="IIdentityMetadataEnricher"/>; none is 404; when both ids are sent they must name the same
+/// movie, else 400), then name, description, release, runtime, image,
 /// publisher and alternative titles come from it (<see cref="IdentityMetadataFill"/>, the same fill as Move to film
 /// and the film PATCH, so the release is the identity's date, or its year when only the year is known; RPP #1410).</item>
 /// <item>With a <c>title</c> and no ids: the same identity gate as Move to film (<see cref="FilmMoveTarget"/>): a
 /// confident match supplies ids; an ambiguous one returns the candidates and writes nothing; <c>select</c> /
-/// <c>continue</c> / <c>cancel</c> are honoured on a re-POST.</item>
+/// <c>continue</c> / <c>cancel</c> are honoured on a re-POST. When the lookup yields no TMDB or IMDb id (nothing
+/// matched, or it failed) the result is 404 and nothing is written, unless the request says <c>continue</c>, the
+/// curator's explicit opt-in to a film with no identity.</item>
 /// <item>The name is the request title, else the identity title (no '/'). A film with the same name (case-insensitive)
 /// is a 409 naming it.</item>
 /// <item>One conditional create under an id derived from the name (<see cref="EpisodeTrailerAttachService.NewFilmId"/>),
-/// so overlapping creates converge on one document; the loser is a 409 naming the winner.</item>
+/// so overlapping creates converge on one document; the loser is a 409 naming the winner (or the film renamed since;
+/// a deleted winner is a retryable 409 with no film; see <see cref="FilmCreateRace"/>).</item>
 /// <item>Push the film's search document. On failure the film is kept and the result reports
 /// <c>FailureIndexing</c>; a film save, the Indexer's scheduled film push or FilmSearchPusher puts it in search.</item>
 /// </list>
@@ -61,6 +65,12 @@ public partial class FilmCreateService(
             if (imdbId is not null && !ImdbIdPattern().IsMatch(imdbId))
             {
                 return BadRequest("imdbId must be 'tt' followed by digits");
+            }
+
+            // The request title is the film name (or the lookup title): refuse a bad one before any TMDB or Cosmos call.
+            if (title is not null && ValidateName(title) is { } badTitle)
+            {
+                return badTitle;
             }
 
             var hasIdentity = request.TmdbId is not null || imdbId is not null;
@@ -100,6 +110,24 @@ public partial class FilmCreateService(
             return new FilmCreateResult(
                 FilmCreateStatus.IdentityNotFound,
                 Error: "No film was found for that TMDB / IMDb id");
+        }
+
+        // Both ids sent: the read above used the TMDB id only. Confirm the IMDb id names the same movie, so a film is
+        // never stored with two identities that disagree.
+        if (tmdbId is not null && imdbId is not null)
+        {
+            var byImdb = await identityMetadata.FetchFilmAsync(null, imdbId, cancellationToken);
+            if (byImdb is null)
+            {
+                return new FilmCreateResult(
+                    FilmCreateStatus.IdentityNotFound,
+                    Error: "No film was found for that IMDb id, so it cannot be checked against the TMDB id");
+            }
+
+            if (byImdb.Id != metadata.Id)
+            {
+                return BadRequest("tmdbId and imdbId identify different films");
+            }
         }
 
         // An IMDb-only request learns its TMDB id from the lookup; check that one too.
@@ -163,6 +191,20 @@ public partial class FilmCreateService(
         }
 
         FilmMoveTarget.ApplyIdentity(film, admission, identityEnricher, logger);
+
+        // This endpoint creates a film from an identity. A lookup that finds nothing (or fails) must not leave a blank
+        // film under a name-derived id that a re-send could never complete (the name would clash): it is a 404 unless the
+        // curator explicitly chose to continue without an identity.
+        if (film.TmdbId is null && string.IsNullOrWhiteSpace(film.ImdbId) &&
+            CatalogueIdentityChoices.Parse(request.IdentityDecision) != CatalogueIdentityChoice.Continue)
+        {
+            logger.LogWarning(
+                "{method}: No identity found for new film '{name}'; nothing written.", nameof(CreateFromTitleAsync), name);
+            return new FilmCreateResult(
+                FilmCreateStatus.IdentityNotFound,
+                Error: "No film was found for that title; send tmdbId/imdbId, or identityDecision=continue to create without identity");
+        }
+
         if (await FindIdentityClash(film.TmdbId, film.ImdbId, cancellationToken) is { } clash)
         {
             return IdentityClash(clash);
@@ -180,15 +222,7 @@ public partial class FilmCreateService(
 
         if (!await filmRepository.TryCreate(film))
         {
-            var existing = await filmRepository.GetFilm(film.Id);
-            logger.LogWarning(
-                "{method}: Film '{filmId}' '{name}' was created by another request.",
-                nameof(PersistAsync), film.Id, film.Name);
-            return new FilmCreateResult(
-                FilmCreateStatus.Conflict,
-                film.Id,
-                existing?.Name ?? film.Name,
-                "A film with this name already exists");
+            return await LostCreate(film);
         }
 
         logger.LogInformation(
@@ -204,6 +238,41 @@ public partial class FilmCreateService(
         }
 
         return new FilmCreateResult(FilmCreateStatus.Accepted, film.Id, film.Name);
+    }
+
+    /// <summary>
+    /// The conditional create lost. The id is derived from the name, so what holds it now is the winner of the race, a
+    /// film renamed since (a 409 naming it under its current name), or nothing (deleted: a retryable 409 with no film).
+    /// </summary>
+    private async Task<FilmCreateResult> LostCreate(Film film)
+    {
+        var existing = await filmRepository.GetFilm(film.Id);
+        switch (FilmCreateRace.Classify(existing, film.Name))
+        {
+            case FilmCreateRaceKind.Gone:
+                logger.LogWarning(
+                    "{method}: Film '{filmId}' '{name}' vanished after a lost create.",
+                    nameof(LostCreate), film.Id, film.Name);
+                return new FilmCreateResult(FilmCreateStatus.Conflict, Error: FilmCreateRace.GoneMessage);
+            case FilmCreateRaceKind.Renamed:
+                logger.LogWarning(
+                    "{method}: Film '{filmId}' created as '{name}' is now named '{currentName}'.",
+                    nameof(LostCreate), film.Id, film.Name, existing!.Name);
+                return new FilmCreateResult(
+                    FilmCreateStatus.Conflict,
+                    existing.Id,
+                    existing.Name,
+                    FilmCreateRace.RenamedMessage(film.Name, existing.Name));
+            default:
+                logger.LogWarning(
+                    "{method}: Film '{filmId}' '{name}' was created by another request.",
+                    nameof(LostCreate), film.Id, film.Name);
+                return new FilmCreateResult(
+                    FilmCreateStatus.Conflict,
+                    existing!.Id,
+                    existing.Name,
+                    "A film with this name already exists");
+        }
     }
 
     private async Task<Film?> FindIdentityClash(int? tmdbId, string? imdbId, CancellationToken cancellationToken)
