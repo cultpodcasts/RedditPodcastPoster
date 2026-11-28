@@ -61,6 +61,12 @@ public static class CatalogueShortId
     }
 
     /// <summary>
+    /// The TV show page path, <c>/tv/{name}</c> (the site's <c>tv/:slug</c> route). A TV show is addressed by name only,
+    /// so there is no short id; the slug is encoded like <see cref="PlayablePath(string, Guid, ContentKind)"/>.
+    /// </summary>
+    public static string TvShowPath(string name) => $"/tv/{EncodePlayableSlug(name)}";
+
+    /// <summary>
     /// Parses a kind name (or null = Episode) then builds the path. Prefer
     /// <see cref="PlayablePath(string, Guid, ContentKind)"/> when the caller already has the enum.
     /// </summary>

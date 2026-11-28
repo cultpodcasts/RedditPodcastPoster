@@ -27,9 +27,7 @@ public class TvShowCanonicalUpdateRules
         _mocker.Use(NullLogger<TvShowService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<ITvShowRepository>()
-            .Setup(r => r.Save(It.IsAny<TvShow>()))
-            .Callback<TvShow>(show => _saved = show)
-            .Returns(Task.CompletedTask);
+            .SetupSaveViaReplace(show => _saved = show);
         _mocker.GetMock<ITvShowRepository>()
             .Setup(r => r.GetAllBy(It.IsAny<Expression<Func<TvShow, bool>>>()))
             .Returns((Expression<Func<TvShow, bool>> selector) => FilterAsync(_catalogue, selector));

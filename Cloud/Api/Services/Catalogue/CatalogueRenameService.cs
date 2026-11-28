@@ -6,6 +6,7 @@ using RedditPodcastPoster.CloudflareRedirect.Services;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Cosmos;
 using RedditPodcastPoster.Models.Films;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
@@ -80,9 +81,28 @@ public class CatalogueRenameService(
                 searchIndexCleanup,
                 logger,
                 ct)).ChildIds,
-            tvShowRepository.Save,
+            SaveRenamedTvShow,
             PlayableSearchRename.SeriesNameField,
             c);
+
+    /// <summary>
+    /// The name (and a repaired file key) is copied onto a freshly read TV show. A trailer attached after the rename loaded the
+    /// show stays, because the replace is ETag-guarded and retried on 412 (RPP #1412).
+    /// </summary>
+    private async Task SaveRenamedTvShow(TvShow show)
+    {
+        var name = show.Name;
+        var fileKey = show.FileKey;
+        if (await tvShowRepository.Update(show.Id, latest =>
+            {
+                latest.Name = name;
+                latest.FileKey = fileKey;
+                return true;
+            }) is null)
+        {
+            throw new InvalidOperationException($"TV show '{show.Id}' was deleted during the rename.");
+        }
+    }
 
     public Task<CatalogueRenameResult> RenameFilm(CatalogueRenameCommand command, CancellationToken c) =>
         Rename(

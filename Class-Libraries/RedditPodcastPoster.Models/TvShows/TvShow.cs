@@ -44,6 +44,15 @@ public sealed class TvShow : Publisher, ITvCanonical, IHasYouTubeIndexingSetting
     public int? TmdbId { get; set; }
 
     /// <summary>
+    /// Trailers, teasers and clips of this show, in display order (RPP #1412). Omitted when there are none. Same
+    /// shape as <c>Film.trailers</c>. A trailer is not a TV episode: it has no search document and no episode page.
+    /// </summary>
+    [JsonPropertyName("trailers")]
+    [JsonPropertyOrder(153)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<TvShowTrailer>? Trailers { get; set; }
+
+    /// <summary>
     /// Episode-discovery settings kept from the migrated podcast (JSON <c>indexing</c>). When
     /// <see cref="CatalogueIndexingSource.IsAutoIndexed"/>, the hourly indexer finds new playables.
     /// Omitted when unset.
@@ -52,6 +61,32 @@ public sealed class TvShow : Publisher, ITvCanonical, IHasYouTubeIndexingSetting
     [JsonPropertyOrder(300)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CatalogueIndexingSource? Indexing { get; set; }
+
+    /// <summary>True when a trailer came from the episode with this id.</summary>
+    public bool HasTrailer(Guid episodeId) => Trailers?.Any(trailer => trailer.Id == episodeId) == true;
+
+    /// <summary>
+    /// Appends the trailers of <paramref name="source"/> that this show does not hold yet (by <see cref="TvShowTrailer.Id"/>),
+    /// keeping this show's own order first and then the source's order. Used when a show is merged into this one so
+    /// deleting the source does not lose its trailers (RPP #1412). Returns the trailers that were added.
+    /// </summary>
+    public IReadOnlyList<TvShowTrailer> AdoptTrailersFrom(TvShow source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var adopted = new List<TvShowTrailer>();
+        foreach (var trailer in source.Trailers ?? [])
+        {
+            if (HasTrailer(trailer.Id))
+            {
+                continue;
+            }
+
+            (Trailers ??= []).Add(trailer);
+            adopted.Add(trailer);
+        }
+
+        return adopted;
+    }
 
     /// <summary>The YouTube discovery settings and hints live on <see cref="Indexing"/>.</summary>
     [JsonIgnore]

@@ -306,6 +306,7 @@
     <Project Path="Console-Apps/MigrateLanguageIgnoredSubjects/MigrateLanguageIgnoredSubjects.csproj" />
 
     <Project Path="Console-Apps/MergeTvShows/MergeTvShows.csproj" />
+    <Project Path="Console-Apps/MergeTvShows.Tests/MergeTvShows.Tests.csproj" />
 
     <Project Path="Console-Apps/Poster/Poster.csproj" />
 
