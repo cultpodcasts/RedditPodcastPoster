@@ -16,4 +16,20 @@ public class TvShowChangeRequest : ServiceIdsChangeRequest
     /// <summary>TMDB series id. <c>0</c> clears; negative is a 400.</summary>
     [JsonPropertyName("tmdbId")]
     public int? TmdbId { get; set; }
+
+    /// <summary>
+    /// The trailers to keep, in display order, each with an optional new title. Trailers left out are removed;
+    /// [] removes all. An id the show does not have is a 400. Trailers are added by POST
+    /// episode/.../tvshow-trailer. Send <see cref="ExpectedTrailerIds"/> with this field. A stored trailer whose id is
+    /// not in that list is a 409.
+    /// </summary>
+    [JsonPropertyName("trailers")]
+    public TvShowTrailerChangeRequest[]? Trailers { get; set; }
+
+    /// <summary>
+    /// Trailer ids the client last saw. When <see cref="Trailers"/> is sent, a stored trailer whose id is not in this
+    /// list is a 409 and nothing is saved. Omitted or empty means the client listed no trailer ids.
+    /// </summary>
+    [JsonPropertyName("expectedTrailerIds")]
+    public Guid[]? ExpectedTrailerIds { get; set; }
 }

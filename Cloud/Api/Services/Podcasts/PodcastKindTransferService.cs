@@ -321,10 +321,36 @@ public class PodcastKindTransferService(
             SearchContentKind.TvShowEpisode,
             CatalogueParentKindMapper.ToTvShow,
             CatalogueParentKindMapper.ToTvShowEpisode,
-            tvShowRepository.Save,
+            SaveTransferredTvShow,
             tvShowEpisodeRepository.Save,
             tvShowEpisodeRepository.Delete,
             tvShowRepository.Delete);
+
+    /// <summary>
+    /// Writes the mapped TV show. When none is stored it is created. On a resumed transfer the stored show is replaced
+    /// while keeping its <see cref="TvShow.Trailers"/>. The replace is ETag-guarded and retried on 412, so a trailer
+    /// attached since the stored show was read is not dropped by a full-document upsert (RPP #1412).
+    /// </summary>
+    private async Task SaveTransferredTvShow(TvShow mapped)
+    {
+        for (var attempt = 1; attempt <= TvShowDocumentUpdate.MaxAttempts; attempt++)
+        {
+            var stored = await tvShowRepository.GetTvShowForUpdate(mapped.Id);
+            if (stored is null)
+            {
+                await tvShowRepository.Save(mapped);
+                return;
+            }
+
+            mapped.Trailers = stored.TvShow.Trailers;
+            if (await tvShowRepository.TryReplace(mapped, stored.ETag))
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException($"TV show '{mapped.Id}' kept changing; not saved.");
+    }
 
     private TransferTarget<NewsOrganisation, NewsReport> NewsOrganisationTarget(Podcast podcast) =>
         new(

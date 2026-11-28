@@ -86,10 +86,14 @@ public class EnrichToxicEmpireMeta(
             return 0;
         }
 
-        show.TmdbId = ShowTmdbId;
-        show.ImdbId = ShowImdbId;
-        show.TvdbId = ShowTvdbId;
-        await tvShowRepository.Save(show);
+        // ETag-guarded write of only the identity ids, so a trailer attached since the read is kept (RPP #1412).
+        show = await tvShowRepository.Update(show.Id, latest =>
+        {
+            latest.TmdbId = ShowTmdbId;
+            latest.ImdbId = ShowImdbId;
+            latest.TvdbId = ShowTvdbId;
+            return true;
+        }) ?? throw new InvalidOperationException($"Show '{show.Id}' was deleted during the enrich.");
 
         ApplyEpisode(e1, show, Episode1TmdbId, Episode1TvdbId, Episode1Length, Episode1MaxUrl, Episode1Image, Episode1Synopsis);
         ApplyEpisode(e2, show, Episode2TmdbId, Episode2TvdbId, Episode2Length, Episode2MaxUrl, Episode2Image, Episode2Synopsis);

@@ -10,6 +10,7 @@ using Api.Services.Podcasts;
 using Api.Services.TvShows;
 using Api.Services.YouTube;
 using Azure.Search.Documents;
+using FunctionHost.Tests.Api.Services.TvShows;
 using RedditPodcastPoster.Episodes.TestSupport.Fixtures;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.News;
@@ -259,6 +260,7 @@ public class ParentEditPlaylistOwnerChannelRules
         _mocker.Use(NullLogger<TvShowService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<ITvShowRepository>().Setup(r => r.GetTvShow(show.Id)).ReturnsAsync(show);
+        _mocker.GetMock<ITvShowRepository>().SetupSaveViaReplace(_ => { });
         GuardReturnsValid(requestedPlaylist, ownerChannelId);
 
         // Act
@@ -272,7 +274,7 @@ public class ParentEditPlaylistOwnerChannelRules
         show.Indexing!.YouTubePlaylistId.Should().Be(requestedPlaylist);
         show.Indexing.YouTubeChannelId.Should().Be(ownerChannelId);
         show.Indexing.YouTubePlaylistOwnerChannelId.Should().Be(ownerChannelId);
-        _mocker.GetMock<ITvShowRepository>().Verify(r => r.Save(show), Times.Once);
+        _mocker.GetMock<ITvShowRepository>().Verify(r => r.TryReplace(show, It.IsAny<string>()), Times.Once);
     }
 
     [Fact(DisplayName =
@@ -297,6 +299,7 @@ public class ParentEditPlaylistOwnerChannelRules
         _mocker.Use(NullLogger<TvShowService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<ITvShowRepository>().Setup(r => r.GetTvShow(show.Id)).ReturnsAsync(show);
+        _mocker.GetMock<ITvShowRepository>().SetupSaveViaReplace(_ => { });
         GuardReturnsValid(storedPlaylist, playlistOwnerChannelId);
 
         // Act
@@ -308,7 +311,7 @@ public class ParentEditPlaylistOwnerChannelRules
         result.Status.Should().Be(TvShowUpdateStatus.Accepted);
         show.Indexing!.YouTubePlaylistOwnerChannelId.Should().Be(playlistOwnerChannelId);
         show.Indexing.YouTubeChannelId.Should().Be(storedChannelId);
-        _mocker.GetMock<ITvShowRepository>().Verify(r => r.Save(show), Times.Once);
+        _mocker.GetMock<ITvShowRepository>().Verify(r => r.TryReplace(show, It.IsAny<string>()), Times.Once);
     }
 
     [Fact(DisplayName =
@@ -397,6 +400,7 @@ public class ParentEditPlaylistOwnerChannelRules
         _mocker.Use(NullLogger<TvShowService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<ITvShowRepository>().Setup(r => r.GetTvShow(show.Id)).ReturnsAsync(show);
+        _mocker.GetMock<ITvShowRepository>().SetupSaveViaReplace(_ => { });
         GuardReturnsValid(requestedPlaylist, ownerChannelId);
 
         // Act
@@ -408,7 +412,7 @@ public class ParentEditPlaylistOwnerChannelRules
         result.Status.Should().Be(TvShowUpdateStatus.Accepted);
         show.Indexing!.YouTubePlaylistId.Should().Be(requestedPlaylist);
         show.Indexing.YouTubeChannelId.Should().Be(storedChannelId);
-        _mocker.GetMock<ITvShowRepository>().Verify(r => r.Save(show), Times.Once);
+        _mocker.GetMock<ITvShowRepository>().Verify(r => r.TryReplace(show, It.IsAny<string>()), Times.Once);
     }
 
     [Fact(DisplayName =

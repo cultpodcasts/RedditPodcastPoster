@@ -35,8 +35,8 @@ public class CatalogueOwnedDiscoveryUrlSubmitter(
                 continue;
             }
 
-            // Only a TV episode / news report can continue, and only under its own parent: route just this URL.
-            var parent = owner.ContentKind == SubmitClassification.Film
+            // Only a TV episode / news report (not a film or a trailer) can continue, and only under its own parent: route just this URL.
+            var parent = owner.AlwaysStopsSubmit
                 ? null
                 : (await episodeUrlRouter.RouteByOwner(url, indexingContext)).Parent;
             if (CatalogueOwnershipGuard.Blocks(owner, parent))
