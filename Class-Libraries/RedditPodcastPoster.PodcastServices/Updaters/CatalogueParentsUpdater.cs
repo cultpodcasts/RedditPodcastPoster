@@ -202,7 +202,7 @@ public class CatalogueParentsUpdater(
                     if (IsIndexable(tvShow) && !await SourcePodcastStillExists("TvShow", tvShow))
                     {
                         var run = await IndexWithinBudget("TvShow", tvShow, tvShowRepository.GetTvShow,
-                            (context, live) => IndexTvShow(live, context), indexingContext, expensivePass);
+                            (context, live, _) => IndexTvShow(live, context), indexingContext, expensivePass);
                         if (run.Status == ParentIndexRunStatus.TimedOut)
                         {
                             success = false;
@@ -218,7 +218,7 @@ public class CatalogueParentsUpdater(
                 {
                     var run = await IndexWithinBudget("NewsOrganisation", organisation,
                         newsOrganisationRepository.GetNewsOrganisation,
-                        (context, live) => IndexNewsOrganisation(live, context), indexingContext, expensivePass);
+                        (context, live, _) => IndexNewsOrganisation(live, context), indexingContext, expensivePass);
                     if (run.Status == ParentIndexRunStatus.TimedOut)
                     {
                         success = false;
@@ -322,11 +322,14 @@ public class CatalogueParentsUpdater(
         var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
         var catchUp = new AudioCatchUpReport();
         var run = await IndexWithinBudget(kind, parent, reload,
-            (context, live) => index(live, context, enrichOnly, catchUp),
+            (context, live, liveEnrichOnly) => index(live, context, liveEnrichOnly, catchUp),
             indexingContext,
             expensivePass,
             new BudgetPlan(_budget.OnDemandBudget, _budget.OnDemandAbandonGrace, _budget.OnDemandAbandonDrain),
             ParentIndexingLock.SourceOnDemand);
+        // Prefer the under-lease enrichOnly (recomputed from the live document); fall back to the pre-lease
+        // decision only when the run never reached that recompute (deleted / already-running / etc.).
+        var effectiveEnrichOnly = run.EnrichOnly ?? enrichOnly;
         return run.Status switch
         {
             ParentIndexRunStatus.AlreadyRunning =>
@@ -341,13 +344,20 @@ public class CatalogueParentsUpdater(
                 new CatalogueParentIndexResult(
                     CatalogueParentIndexStatus.NotIndexable,
                     NotIndexableReason: CatalogueParentNotIndexableReason.Removed),
+            ParentIndexRunStatus.NotAutoIndexed =>
+                new CatalogueParentIndexResult(
+                    CatalogueParentIndexStatus.NotIndexable,
+                    NotIndexableReason: CatalogueParentNotIndexableReason.NotAutoIndexed),
+            ParentIndexRunStatus.SourcePodcastStillExists =>
+                new CatalogueParentIndexResult(CatalogueParentIndexStatus.SourcePodcastStillExists),
             // A catch-up that threw, was cut off by its budget or had Spotify skipped / rate-limited did not finish
             // its lookups, so saving nothing does not mean nothing could be filled: that is retryable (EnrichFailed).
-            _ when enrichOnly && run.Changed is not { Count: > 0 } && catchUp.Incomplete =>
+            _ when effectiveEnrichOnly && run.Changed is not { Count: > 0 } && catchUp.Incomplete =>
                 new CatalogueParentIndexResult(CatalogueParentIndexStatus.EnrichFailed, EnrichOnly: true),
-            _ when enrichOnly && run.Changed is not { Count: > 0 } =>
+            _ when effectiveEnrichOnly && run.Changed is not { Count: > 0 } =>
                 new CatalogueParentIndexResult(CatalogueParentIndexStatus.NothingToEnrich, EnrichOnly: true),
-            _ => new CatalogueParentIndexResult(CatalogueParentIndexStatus.Indexed, run.Changed, EnrichOnly: enrichOnly)
+            _ => new CatalogueParentIndexResult(
+                CatalogueParentIndexStatus.Indexed, run.Changed, EnrichOnly: effectiveEnrichOnly)
         };
     }
 
@@ -359,7 +369,7 @@ public class CatalogueParentsUpdater(
         string kind,
         TParent parent,
         Func<Guid, Task<TParent?>> reload,
-        Func<IndexingContext, TParent, Task<IReadOnlyList<Playable>>> index,
+        Func<IndexingContext, TParent, bool, Task<IReadOnlyList<Playable>>> index,
         IndexingContext indexingContext,
         bool expensivePass,
         BudgetPlan? plan = null,
@@ -394,11 +404,9 @@ public class CatalogueParentsUpdater(
 
         try
         {
-            // DELETE can finish between the caller's read and this lease (#1402). Re-read under the lease and
-            // index that document (or skip) so we never save into a partition that no longer exists.
-            // Known residual (not #1402): only deleted / removed is re-checked. The callers' IsIndexable /
-            // enrichOnly / SourcePodcastStillExists decisions were made on the pre-lease document, so a curator edit
-            // to auto-indexing or the Spotify / Apple id in the same window is indexed under the earlier decision.
+            // DELETE / curator edits can finish between the caller's read and this lease (#1402 / #1566).
+            // Re-read under the lease and re-evaluate IsIndexable / enrichOnly / SourcePodcastStillExists on that
+            // document so we never index under a stale pre-lease decision or into a vanished partition.
             var live = await reload(parent.Id);
             if (live is null || live.IsRemoved())
             {
@@ -409,13 +417,42 @@ public class CatalogueParentsUpdater(
                 return deleted ? ParentIndexRun.ParentDeleted() : ParentIndexRun.ParentRemoved();
             }
 
+            if (await SourcePodcastStillExists(kind, live))
+            {
+                return ParentIndexRun.SourcePodcastStillExistsResult();
+            }
+
+            var enrichOnly = !IsIndexable(live);
+            if (source == ParentIndexingLock.SourceHourly && enrichOnly)
+            {
+                logger.LogInformation(
+                    "Catalogue parent indexing: kind='{Kind}' parent-id='{ParentId}' parent-name='{ParentName}' is no longer auto-indexed under the lease; skipping hourly pass.",
+                    kind, parent.Id, parent.Name);
+                return ParentIndexRun.SkippedNotAutoIndexed();
+            }
+
+            if (source == ParentIndexingLock.SourceOnDemand && enrichOnly && !HasAudioCatalogueId(live))
+            {
+                logger.LogWarning(
+                    "On-demand index: catalogue parent kind='{Kind}' id='{ParentId}' name='{ParentName}' is not auto-indexed under the lease and has no Spotify or Apple id to enrich from.",
+                    kind, parent.Id, parent.Name);
+                return ParentIndexRun.NotAutoIndexed();
+            }
+
+            if (source == ParentIndexingLock.SourceOnDemand && enrichOnly)
+            {
+                logger.LogInformation(
+                    "On-demand index: catalogue parent kind='{Kind}' id='{ParentId}' name='{ParentName}' is not auto-indexed under the lease; running an enrich-only pass (Spotify / Apple links only).",
+                    kind, parent.Id, parent.Name);
+            }
+
             stageLog.Stage("start", $"catalogue-parent-kind={kind}");
             var parentContext = indexingContext.ForPodcastUpdate();
             // The run scope (budget token + stage log) belongs to this parent only: the update captures it when it
             // starts, and leaving the block restores the loop's scope before the next parent.
             using (PodcastRunScope.Enter(new PodcastRunScope(budgetCts.Token, stageLog)))
             {
-                updateTask = index(parentContext, live);
+                updateTask = index(parentContext, live, enrichOnly);
             }
 
             var changed = budget.HasValue
@@ -424,7 +461,7 @@ public class CatalogueParentsUpdater(
 
             stageLog.Stage("complete");
             budgetCutTracker.RecordCompleted(parent.Id);
-            return ParentIndexRun.Completed(changed);
+            return ParentIndexRun.Completed(changed, enrichOnly);
         }
         catch (Exception ex) when (budgetCts.IsCancellationRequested &&
                                    ex is OperationCanceledException or TimeoutException)
@@ -463,13 +500,28 @@ public class CatalogueParentsUpdater(
         ParentDeleted,
 
         /// <summary>Flagged removed between the caller's read and the lease (#1402); nothing was indexed.</summary>
-        ParentRemoved
+        ParentRemoved,
+
+        /// <summary>
+        /// Hourly: live document is no longer auto-indexed under the lease (#1566). On-demand uses
+        /// <see cref="NotAutoIndexed"/> when there is also no audio catalogue id.
+        /// </summary>
+        SkippedNotAutoIndexed,
+
+        /// <summary>On-demand: not auto-indexed under the lease and no Spotify/Apple id to enrich (#1566).</summary>
+        NotAutoIndexed,
+
+        /// <summary>Same-id podcast still indexed by the podcast pass under the lease (#1566).</summary>
+        SourcePodcastStillExists
     }
 
-    private sealed record ParentIndexRun(ParentIndexRunStatus Status, IReadOnlyList<Playable>? Changed = null)
+    private sealed record ParentIndexRun(
+        ParentIndexRunStatus Status,
+        IReadOnlyList<Playable>? Changed = null,
+        bool? EnrichOnly = null)
     {
-        public static ParentIndexRun Completed(IReadOnlyList<Playable> changed) =>
-            new(ParentIndexRunStatus.Completed, changed);
+        public static ParentIndexRun Completed(IReadOnlyList<Playable> changed, bool enrichOnly = false) =>
+            new(ParentIndexRunStatus.Completed, changed, enrichOnly);
 
         public static ParentIndexRun TimedOut() => new(ParentIndexRunStatus.TimedOut);
 
@@ -478,6 +530,13 @@ public class CatalogueParentsUpdater(
         public static ParentIndexRun ParentDeleted() => new(ParentIndexRunStatus.ParentDeleted);
 
         public static ParentIndexRun ParentRemoved() => new(ParentIndexRunStatus.ParentRemoved);
+
+        public static ParentIndexRun SkippedNotAutoIndexed() => new(ParentIndexRunStatus.SkippedNotAutoIndexed);
+
+        public static ParentIndexRun NotAutoIndexed() => new(ParentIndexRunStatus.NotAutoIndexed);
+
+        public static ParentIndexRun SourcePodcastStillExistsResult() =>
+            new(ParentIndexRunStatus.SourcePodcastStillExists);
     }
 
     /// <summary>

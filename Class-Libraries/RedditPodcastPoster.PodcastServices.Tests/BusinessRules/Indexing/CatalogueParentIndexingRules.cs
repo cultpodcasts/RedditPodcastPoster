@@ -1249,6 +1249,75 @@ public class CatalogueParentIndexingRules
         await AssertLeaseReleased(show.Id);
     }
 
+    [Fact(DisplayName =
+        "Catalogue parent indexing: when a TV show is turned off auto-indexing between the initial read and taking " +
+        "the indexing lease, then nothing is discovered or saved and the lease is released, because the hourly pass " +
+        "must re-evaluate IsIndexable on the live document under the lease (#1566).")]
+    public async Task tv_show_auto_index_cleared_under_the_lease_is_skipped_hourly()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        var show = SeedTvShow(podcast);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+        _lockStore.AfterAcquire = id =>
+        {
+            var live = CatalogueParentKindMapper.ToTvShow(podcast);
+            live.Indexing!.IndexAllEpisodes = false;
+            live.Indexing.EpisodeIncludeTitleRegex = null;
+            _shows[id] = live;
+        };
+
+        // Act
+        var success = await Sut.UpdateParents([show.Id], Context());
+
+        // Assert
+        success.Should().BeTrue();
+        _savedTvEpisodes.Should().BeEmpty();
+        _showPatches.Should().BeEmpty();
+        _mocker.GetMock<IEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
+            Times.Never);
+        await AssertLeaseReleased(show.Id);
+    }
+
+    [Fact(DisplayName =
+        "On-demand parent index: when a news organisation loses auto-indexing and has no Spotify or Apple id " +
+        "between the curator's read and the lease, then the result is NotIndexable with reason NotAutoIndexed, " +
+        "nothing is saved and the lease is released, because enrichOnly is recomputed on the live document (#1566).")]
+    public async Task index_parent_not_auto_indexed_without_audio_under_the_lease_is_not_indexable()
+    {
+        // Arrange
+        var podcast = AutoIndexedYouTubePodcast();
+        podcast.SpotifyId = null;
+        podcast.AppleId = null;
+        var organisation = SeedOrganisation(podcast);
+        _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
+            b.WithRelease(DomainTestFixture.UtcDateDaysAgo(1)).WithDuration(PostableDuration))];
+        _lockStore.AfterAcquire = id =>
+        {
+            var live = CatalogueParentKindMapper.ToNewsOrganisation(podcast);
+            live.Indexing!.IndexAllEpisodes = false;
+            live.Indexing.EpisodeIncludeTitleRegex = null;
+            live.Indexing.SpotifyId = null;
+            live.Indexing.AppleId = null;
+            _organisations[id] = live;
+        };
+
+        // Act
+        var result = await Sut.IndexParent(organisation, Context());
+
+        // Assert
+        result.Status.Should().Be(CatalogueParentIndexStatus.NotIndexable);
+        result.NotIndexableReason.Should().Be(CatalogueParentNotIndexableReason.NotAutoIndexed);
+        _savedReports.Should().BeEmpty();
+        _organisationPatches.Should().BeEmpty();
+        _mocker.GetMock<IEpisodeProvider>().Verify(
+            x => x.GetEpisodes(It.IsAny<Podcast>(), It.IsAny<IEnumerable<Episode>>(), It.IsAny<IndexingContext>()),
+            Times.Never);
+        await AssertLeaseReleased(organisation.Id);
+    }
+
     private async Task AssertLeaseReleased(Guid parentId)
     {
         _lockStore.Inner.IsHeld(parentId).Should().BeFalse("the skip returns inside the lease's try block");
