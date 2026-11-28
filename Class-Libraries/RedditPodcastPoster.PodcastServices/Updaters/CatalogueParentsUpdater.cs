@@ -312,12 +312,8 @@ public class CatalogueParentsUpdater(
             return new CatalogueParentIndexResult(CatalogueParentIndexStatus.SourcePodcastStillExists);
         }
 
-        if (enrichOnly)
-        {
-            logger.LogInformation(
-                "On-demand index: catalogue parent kind='{Kind}' id='{ParentId}' name='{ParentName}' is not auto-indexed; running an enrich-only pass (Spotify / Apple links only).",
-                kind, parent.Id, parent.Name);
-        }
+        // Enrich-only Information is logged once under the lease (IndexWithinBudget) after enrichOnly is
+        // recomputed on the live document, so an unchanged document does not double-log in App Insights.
 
         var expensivePass = !indexingContext.SkipExpensiveYouTubeQueries || !indexingContext.SkipExpensiveSpotifyQueries;
         var catchUp = new AudioCatchUpReport();
