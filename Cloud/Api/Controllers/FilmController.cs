@@ -18,6 +18,7 @@ namespace Api.Controllers;
 public class FilmController(
     IGetFilmHandler getFilmHandler,
     IPostFilmHandler postFilmHandler,
+    IPostFilmCreateHandler postFilmCreateHandler,
     IDeleteFilmHandler deleteFilmHandler,
     ICatalogueRenameHandler catalogueRenameHandler,
     IPublishEpisodeHandler publishEpisodeHandler,
@@ -43,6 +44,25 @@ public class FilmController(
         string filmIdentifier,
         CancellationToken ct) =>
         Get(req, filmIdentifier, ct);
+
+    /// <summary>
+    /// Creates an empty film from a TMDB / IMDb identity (RPP #1413), without moving an episode. Body: <c>tmdbId</c>
+    /// and / or <c>imdbId</c>, or <c>title</c> with the identity prompt answer; optional <c>title</c> (name) and
+    /// <c>publisher</c>. 202 <c>{ filmId, name }</c>: the client GETs the film (docs/create-film-from-identity.md).
+    /// </summary>
+    [Function("FilmCreate")]
+    public Task<HttpResponseData> Create(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "film")]
+        HttpRequestData req,
+        [FromBody] Dtos.FilmCreateRequest? request,
+        CancellationToken ct) =>
+        HandleRequest(
+            req,
+            ["curate"],
+            new FilmCreateCommand(request.ToModel()),
+            postFilmCreateHandler.Handle,
+            Unauthorised,
+            ct);
 
     [Function("FilmPatch")]
     public Task<HttpResponseData> Patch(

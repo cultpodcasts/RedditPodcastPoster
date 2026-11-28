@@ -245,6 +245,37 @@ public class EpisodeTrailerAttachServiceRules
     }
 
     [Fact(DisplayName =
+        "#1413: A film created from an identity (ids and release, no services, trailers or episode) accepts a trailer by id, and the pushed film document lists it, because a channel may upload only the trailer of a film.")]
+    public async Task attach_to_identity_created_film_with_no_main_video()
+    {
+        // Arrange
+        var tmdbId = _fixture.CreateTmdbId();
+        var imdbId = _fixture.CreateImdbId();
+        var film = SeedFilm(f =>
+        {
+            f.TmdbId = tmdbId;
+            f.ImdbId = imdbId;
+            f.Description = string.Empty;
+            f.SetRelease(CatalogueRelease.FromYear(DomainTestFixture.UtcDateDaysAgo(60).Year));
+        });
+        var (podcast, episode) = SeedEpisode();
+
+        // Act
+        var result = await Attach(podcast.Id, episode.Id, film.Id);
+
+        // Assert
+        result.Status.Should().Be(EpisodeTrailerAttachStatus.Accepted);
+        var stored = Stored(film.Id)!;
+        stored.Trailers.Should().ContainSingle().Which.Id.Should().Be(episode.Id);
+        stored.TmdbId.Should().Be(tmdbId);
+        stored.ImdbId.Should().Be(imdbId);
+        stored.Services.Should().BeNullOrEmpty();
+        _uploads.Should().ContainSingle().Which.Should().ContainSingle()
+            .Which.Trailers.Should().ContainSingle();
+        (await _episodes.GetEpisode(podcast.Id, episode.Id)).Should().BeNull();
+    }
+
+    [Fact(DisplayName =
         "A title in the request names the trailer, so a curator can rename the clip as it is attached.")]
     public async Task attach_uses_request_title()
     {

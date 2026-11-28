@@ -174,6 +174,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IFilmService, FilmService>()
             .AddScoped<IGetFilmHandler, GetFilmHandler>()
             .AddScoped<IPostFilmHandler, PostFilmHandler>()
+            .AddScoped<IFilmCreateService, FilmCreateService>()
+            .AddScoped<IPostFilmCreateHandler, PostFilmCreateHandler>()
             .AddScoped<IDeleteFilmHandler, DeleteFilmHandler>();
 
     public static IServiceCollection AddApiPeople(this IServiceCollection services) =>
