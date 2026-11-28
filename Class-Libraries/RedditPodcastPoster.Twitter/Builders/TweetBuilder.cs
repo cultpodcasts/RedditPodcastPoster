@@ -33,6 +33,13 @@ public class TweetBuilder(
 {
     private const int MinTitleLength = 10;
 
+    /// <summary>
+    /// X Help recommends at most two hashtags per post. Title enrichment and end-line tags share this
+    /// budget. When <see cref="TwitterOptions.HashTag"/> is set (e.g. #Cult), that brand tag keeps one
+    /// reserved slot and at most one subject/other tag fills the rest.
+    /// </summary>
+    public const int MaxHashTags = 2;
+
     /// <summary>X's published tweet character limit.</summary>
     public const int XTweetCharacterLimit = 280;
 
@@ -69,14 +76,29 @@ public class TweetBuilder(
         {
             episodeHashtags = episodeHashtags.Union(podcastEpisode.Episode.HashTag.ToHashTags()).ToList();
         }
+        var brandHashtagBody = NormalizeHashtagBody(_twitterOptions.HashTag);
         if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
         {
             episodeHashtags.Add(new HashTag(_twitterOptions.HashTag, null));
         }
 
+        var brandReserved = brandHashtagBody is not null ? 1 : 0;
         var hashtagsAdded = new List<string>();
         foreach (var hashtag in episodeHashtags)
         {
+            if (hashtagsAdded.Count >= MaxHashTags)
+            {
+                break;
+            }
+
+            var isBrand = brandHashtagBody is not null &&
+                          IsSameHashtagBody(hashtag.Tag, brandHashtagBody);
+            // Reserve one slot for the brand tag so subject/other tags cannot exhaust the budget alone.
+            if (!isBrand && hashtagsAdded.Count >= MaxHashTags - brandReserved)
+            {
+                continue;
+            }
+
             if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
             {
                 // Multi-word enrichment tags: MatchingText holds the compacted permitted form
@@ -96,6 +118,10 @@ public class TweetBuilder(
                 if (addedHashTag)
                 {
                     hashtagsAdded.Add(hashtag.Tag);
+                    if (isBrand)
+                    {
+                        brandReserved = 0;
+                    }
                 }
             }
         }
@@ -135,14 +161,13 @@ public class TweetBuilder(
 
         tweetBuilder.AppendLine(SocialPostKindTemplate.ReleaseLine(podcastEpisode));
 
-        var endHashTags = string.Join(" ",
-            episodeHashtags
-                .Where(x => x.MatchingText == null)
-                .Select(x => x.Tag)
-                .Distinct()
-                .Where(x => !hashtagsAdded.Contains(x))
-                .Where(HashtagText.IsReproducedAsIs)
-                .Select(x => $"#{x.TrimStart('#')}"));
+        var endHashTagSlots = MaxHashTags - hashtagsAdded.Count;
+        var endHashTags = endHashTagSlots <= 0
+            ? string.Empty
+            : string.Join(" ",
+                SelectEndHashTags(episodeHashtags, hashtagsAdded, brandHashtagBody)
+                    .Take(endHashTagSlots)
+                    .Select(x => $"#{x.TrimStart('#')}"));
         if (!string.IsNullOrWhiteSpace(endHashTags))
         {
             tweetBuilder.AppendLine(endHashTags);
@@ -216,4 +241,37 @@ public class TweetBuilder(
 
         return tweetBuilder.ToString();
     }
+
+    /// <summary>
+    /// End-line candidates: unreproduced-as-title tags not already linked. When a brand body is
+    /// configured, that tag is ordered first so it keeps a slot under <see cref="MaxHashTags"/>.
+    /// </summary>
+    private static IEnumerable<string> SelectEndHashTags(
+        IEnumerable<HashTag> episodeHashtags,
+        ICollection<string> hashtagsAdded,
+        string? brandHashtagBody)
+    {
+        var candidates = episodeHashtags
+            .Where(x => x.MatchingText == null)
+            .Select(x => x.Tag)
+            .Distinct()
+            .Where(x => !hashtagsAdded.Contains(x))
+            .Where(HashtagText.IsReproducedAsIs)
+            .ToList();
+
+        if (brandHashtagBody is null)
+        {
+            return candidates;
+        }
+
+        return candidates
+            .OrderByDescending(tag => IsSameHashtagBody(tag, brandHashtagBody))
+            .ThenBy(tag => candidates.IndexOf(tag));
+    }
+
+    private static string? NormalizeHashtagBody(string? tag) =>
+        string.IsNullOrWhiteSpace(tag) ? null : tag.Trim().TrimStart('#');
+
+    private static bool IsSameHashtagBody(string tag, string normalizedBody) =>
+        string.Equals(NormalizeHashtagBody(tag), normalizedBody, StringComparison.OrdinalIgnoreCase);
 }
