@@ -25,4 +25,3 @@ public sealed class EpisodeTvShowTrailerAttachResponse
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool ShowCreated { get; init; }
 }
-

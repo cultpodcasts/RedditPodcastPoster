@@ -27,4 +27,3 @@ public sealed class TvShowTrailerDto
     [JsonPropertyName("duration")]
     public string Duration { get; set; } = string.Empty;
 }
-

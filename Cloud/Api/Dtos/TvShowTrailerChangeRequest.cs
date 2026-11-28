@@ -15,4 +15,3 @@ public sealed class TvShowTrailerChangeRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Title { get; set; }
 }
-
