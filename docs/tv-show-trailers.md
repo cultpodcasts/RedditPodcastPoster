@@ -43,8 +43,9 @@ A show holds the URL as a trailer, and the source episode row is gone, so member
 
 The owner returned is a catalogue owner of kind `TvShowEpisode` with the show's name and id as parent, no playable id
 and `IsTrailer = true`. A trailer has no resubmit path, so `CatalogueServiceUrlOwner.AlwaysStopsSubmit` is true and
-`CatalogueOwnershipGuard.Blocks` stops a submit even when it is routed to the same show. The indexer's YouTube holder
-check (`FindYouTubeHolderExcluding`) sees trailers too, except for shows in the excluded ids.
+`CatalogueOwnershipGuard.Blocks` stops a submit even when it is routed to the same show. Submit and the indexer reach
+this through `FindCatalogueServiceUrlOwner` and `CatalogueOwnershipGuard`. The curator YouTube-alternate uniqueness check
+(`FindYouTubeHolderExcluding`, RPP #1411) sees trailers too, except for shows in the excluded ids.
 
 ## Attach as trailer
 
@@ -82,6 +83,24 @@ first, holding the trailer, with a conditional create (`ITvShowRepository.TryCre
 trimmed, lower-case name. Every episode check runs before the create. Identity (name, publisher) is validated with
 `TvShowMoveTarget`, shared with Move to TV show. Overlapping creates of one name converge on one document; the claim
 decides which of two different names wins. No attach path deletes a show.
+
+## Other writers keep trailers
+
+`ITvShowRepository.Save` is create-only for a TV show: a full-document upsert of a show read earlier drops a trailer
+attached since the read, and the source episode row is already gone. Writers that change an existing show use
+`ITvShowRepository.Update(id, mutate)` (an ETag-guarded read, mutate, replace, retried on 412; the twin of
+`IFilmRepository.Update`) and change only their own fields:
+
+- Rename (`CatalogueRenameService.RenameTvShow`) copies `Name` and `FileKey` onto the freshly read show.
+- Submit (`CatalogueKindSubmitter`) enriches an existing show's identity ids on the freshly read show.
+- Kind transfer (`PodcastKindTransferService`) creates the show, or on a resumed transfer replaces it with the stored
+  `Trailers` carried over (ETag-guarded).
+- `MergeTvShows` moves each source's trailers onto the target (appended, de-duplicated by `Id`, the target's order
+  first) before the source is deleted, and the dry-run plan lists each trailer move. A trailer attached to a source
+  after the plan is read is moved too, just before that source is deleted. The target is written with `Update`.
+
+`TvShowTrailer` and `FilmTrailer` have the same JSON shape; a business rule fails when their property names or
+`JsonPropertyName`s drift. A shared trailer type or applier would remove the copies (follow-up).
 
 ## TV show edit (PATCH tvshow/{id})
 

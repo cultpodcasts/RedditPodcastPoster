@@ -41,6 +41,16 @@ public interface ITvShowRepository : IRepository<TvShow>, IFilterableRepository<
     /// the caller re-reads it. Lets concurrent creates of the same deterministic id converge on one document.
     /// </summary>
     Task<bool> TryCreate(TvShow tvShow);
+
+    /// <summary>
+    /// Reads the TV show, applies <paramref name="mutate"/>, and replaces it only while the ETag still matches.
+    /// On a 412, reads again and applies <paramref name="mutate"/> to that newer show, so a trailer attached in
+    /// between is not overwritten. Null when the show does not exist. <paramref name="mutate"/> may run more than
+    /// once and must change only the fields this writer owns; return false to leave the stored show unchanged.
+    /// Writers that already hold an existing show must use this, not <see cref="IRepository{TEntity}.Save"/>,
+    /// which is create-only for a TV show (a full-document upsert drops a trailer attached since the read).
+    /// </summary>
+    Task<TvShow?> Update(Guid id, Func<TvShow, bool> mutate);
 }
 
 /// <summary>A TV show as read, plus the ETag a <see cref="ITvShowRepository.TryReplace"/> must match.</summary>

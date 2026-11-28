@@ -65,6 +65,29 @@ public sealed class TvShow : Publisher, ITvCanonical, IHasYouTubeIndexingSetting
     /// <summary>True when a trailer came from the episode with this id.</summary>
     public bool HasTrailer(Guid episodeId) => Trailers?.Any(trailer => trailer.Id == episodeId) == true;
 
+    /// <summary>
+    /// Appends the trailers of <paramref name="source"/> that this show does not hold yet (by <see cref="TvShowTrailer.Id"/>),
+    /// keeping this show's own order first and then the source's order. Used when a show is merged into this one so
+    /// deleting the source does not lose its trailers (RPP #1412). Returns the trailers that were added.
+    /// </summary>
+    public IReadOnlyList<TvShowTrailer> AdoptTrailersFrom(TvShow source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var adopted = new List<TvShowTrailer>();
+        foreach (var trailer in source.Trailers ?? [])
+        {
+            if (HasTrailer(trailer.Id))
+            {
+                continue;
+            }
+
+            (Trailers ??= []).Add(trailer);
+            adopted.Add(trailer);
+        }
+
+        return adopted;
+    }
+
     /// <summary>The YouTube discovery settings and hints live on <see cref="Indexing"/>.</summary>
     [JsonIgnore]
     public IYouTubeIndexingSettings? YouTubeIndexing => Indexing;

@@ -30,9 +30,14 @@ public class TvShowRepository(
 
     public async Task Save(TvShow tvShow)
     {
+        // Create, or a full document that was not read-modify-written here. An existing show a caller has read
+        // and changed goes through Update, so this upsert cannot drop a trailer attached since that read.
         await tvShowsContainer.UpsertItemAsync(tvShow, new PartitionKey(tvShow.Id.ToString()));
         await fileKeyClaims.Acknowledge(tvShow.FileKey);
     }
+
+    public Task<TvShow?> Update(Guid id, Func<TvShow, bool> mutate) =>
+        TvShowDocumentUpdate.Apply(id, mutate, GetTvShowForUpdate, TryReplace);
 
     public Task<bool> PatchIndexerState(Guid tvShowId, CatalogueParentIndexerPatch patch) =>
         CatalogueParentIndexerPatchOperations.Apply(tvShowsContainer, tvShowId, patch);
