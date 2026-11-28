@@ -37,6 +37,16 @@ test('deltaMatchesBaseSide: order independent; any difference in file, status or
   assert.equal(m.deltaMatchesBaseSide([{ ...x, previous_filename: 'w' }], [x]), false);
 });
 
+test('deltaSubsetOfBaseSide: empty or exact subset passes; extras or tampered blobs fail', () => {
+  const x = { filename: 'x', status: 'modified', sha: '1' };
+  const y = { filename: 'y', status: 'added', sha: '2' };
+  assert.equal(m.deltaSubsetOfBaseSide([], [x, y]), true);
+  assert.equal(m.deltaSubsetOfBaseSide([x], [x, y]), true);
+  assert.equal(m.deltaSubsetOfBaseSide([x, y], [y, x]), true);
+  assert.equal(m.deltaSubsetOfBaseSide([x, y], [x]), false);
+  assert.equal(m.deltaSubsetOfBaseSide([{ ...x, sha: '9' }], [x, y]), false);
+});
+
 // A GitHub compare returns at most 300 files, on page 1 only (page 2+ come back empty), whatever
 // per_page says. These doubles mirror that, so a clipped listing looks exactly like the real one.
 const githubReturning = (files, extra = {}) => ({
@@ -190,22 +200,33 @@ test('assessMergeOnlyHop: a merge that reverts a PR-side change is not merge-onl
   assert.equal(r.ok, false);
 });
 
-test('assessMergeOnlyHop: PR and base touching the same file is not merge-only, even when merged cleanly', async () => {
+test('assessMergeOnlyHop: overlapping paths with a tip that diverges from main are not merge-only', async () => {
   const { repo, root } = scenario();
   const pr = repo.commit(root, { 'src/a.txt': 'a-pr' });
   const main = repo.commit(repo.branches.main, { 'src/b.txt': 'b2' });
   repo.branches.main = main;
   const r = await m.assessMergeOnlyHop(hopArgs(repo, repo.merge(pr, main, { 'src/a.txt': 'a-resolved' })));
   assert.equal(r.ok, false);
-  assert.match(r.reason, /same files/);
+  assert.match(r.reason, /differ from the base side|tip diverged from base/);
 });
 
-test('assessMergeOnlyHop: both sides making the identical change to a file still counts as overlap', async () => {
+test('assessMergeOnlyHop: both sides making the identical change to a file is merge-only (stack / cherry-pick)', async () => {
   const { repo, root } = scenario();
   const pr = repo.commit(root, { 'src/a.txt': 'a1' });
   const r = await m.assessMergeOnlyHop(hopArgs(repo, repo.merge(pr, repo.branches.main)));
-  assert.equal(r.ok, false);
-  assert.match(r.reason, /same files/);
+  assert.equal(r.ok, true);
+  assert.equal(r.files, 0);
+  assert.deepEqual(r.paths, []);
+});
+
+test('assessMergeOnlyHop: stacked tip with PR-only work plus identical main blobs is merge-only', async () => {
+  const { repo, root, main1 } = scenario();
+  const pr = repo.commit(root, { 'src/a.txt': 'a1', 'src/feature.txt': 'f1' });
+  const main2 = repo.commit(main1, { 'src/b.txt': 'b2' });
+  repo.branches.main = main2;
+  const r = await m.assessMergeOnlyHop(hopArgs(repo, repo.merge(pr, main2)));
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.paths, ['src/b.txt']);
 });
 
 // Main moves on by `extra` generated files on top of the scenario's one-file change (src/a.txt).
