@@ -5,6 +5,7 @@ using Api.Dtos;
 using Api.Dtos.Extensions;
 using Api.Models;
 using Api.Services.Podcasts;
+using RedditPodcastPoster.Indexing.Models;
 
 namespace Api.Handlers.Podcasts;
 
@@ -23,6 +24,37 @@ public class IndexPodcastHandler(
         string podcastName,
         CancellationToken c) =>
         Respond(ctx, () => podcastIndexService.IndexBacklogAsync(podcastName, c), c);
+
+    /// <summary>Query: counts what a backlog Index would add. Changes nothing (CQRS).</summary>
+    public async Task<HttpResponseData> HandleBacklogPreview(
+        IHandlerContext ctx,
+        string podcastName,
+        CancellationToken c)
+    {
+        var result = await podcastIndexService.PreviewBacklogAsync(podcastName, c);
+        var indexStatus = result.Preview?.IndexStatus ?? IndexStatus.Unset;
+
+        return result.Status switch
+        {
+            PodcastIndexStatus.Ok =>
+                await ctx.Ok(new IndexPodcastBacklogPreviewResponse
+                {
+                    NewEpisodeCount = result.Preview!.NewEpisodeCount,
+                    IgnoredEpisodeCount = result.Preview.IgnoredEpisodeCount
+                }, c),
+            PodcastIndexStatus.NotFound =>
+                await ctx.NotFound(new IndexPodcastResponse { IndexStatus = indexStatus }, c),
+            PodcastIndexStatus.BadRequest =>
+                await ctx.BadRequest(new IndexPodcastResponse { IndexStatus = indexStatus }, c),
+            PodcastIndexStatus.TimedOut =>
+                await ctx.Json(HttpStatusCode.GatewayTimeout, new CatalogueIndexRejection
+                {
+                    Reason = CatalogueIndexRejection.TimedOut,
+                    Message = CatalogueIndexRejection.TimedOutMessage
+                }, c),
+            _ => await LogAndFail(ctx, c)
+        };
+    }
 
     private async Task<HttpResponseData> Respond(
         IHandlerContext ctx,

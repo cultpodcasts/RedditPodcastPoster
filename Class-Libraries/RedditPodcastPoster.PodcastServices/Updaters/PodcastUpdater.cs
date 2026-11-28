@@ -88,78 +88,24 @@ public class PodcastUpdater(
         EpisodeMergeResult mergeResult;
         var youTubePublishingDelay = podcast.YouTubePublishingDelay();
 
-        if (!indexingContext.ReleasedSince.HasValue)
-        {
-            throw new InvalidOperationException($"Cannot index podcast with id '{podcast.Id}' without a released-since");
-        }
-
-        var releasedSince = indexingContext.ReleasedSince.Value;
-        if (podcast.ReleaseAuthority == Service.YouTube)
-        {
-            releasedSince += youTubePublishingDelay;
-        }
-
-        var repositoryReleasedSince = youTubePublishingDelay < TimeSpan.Zero
-            ? releasedSince
-            : releasedSince - youTubePublishingDelay;
+        var (releasedSince, repositoryReleasedSince) =
+            ReleaseWindow(podcast, indexingContext, youTubePublishingDelay);
 
         logger.LogInformation("'{method}': Podcast '{podcastName}' {nameOfEnrichOnly}= '{enrichOnly}'.", 
             nameof(Update), podcast.Name, nameof(enrichOnly), enrichOnly);
         var cancellationToken = PodcastRunScope.Current.CancellationToken;
         if (!enrichOnly)
         {
-            PodcastRunScope.Current.ReportStage("cosmos-read-episodes");
-            var releaseScopedEpisodes = await episodeRepository
-                .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
-                .ToListAsync(cancellationToken);
-
-            PodcastRunScope.Current.ReportStage("discover-episodes", $"stored-in-window={releaseScopedEpisodes.Count}");
-            var newEpisodes = await episodeProvider.GetEpisodes(podcast, releaseScopedEpisodes, indexingContext);
-            cancellationToken.ThrowIfCancellationRequested();
-            // Explicit podcast MinimumDuration always applies. Bypass only skips the global posting-criteria floor.
-            var bypassGlobalShortCheck = podcast.BypassShortEpisodeChecking == true;
-            var enforceMinimumDuration = podcast.MinimumDuration.HasValue || !bypassGlobalShortCheck;
-            logger.LogInformation(
-                "Podcast '{podcastName}' has enforceMinimumDuration= '{enforceMinimumDuration}' (bypassGlobalShortCheck= '{bypassGlobalShortCheck}', podcastMinimumDuration= '{podcastMinimumDuration}').",
-                podcast.Name,
-                enforceMinimumDuration,
-                bypassGlobalShortCheck,
-                podcast.MinimumDuration);
-            if (enforceMinimumDuration)
-            {
-                var threshold = podcast.MinimumDuration ?? _postingCriteria.MinimumDuration;
-                foreach (var newEpisode in newEpisodes)
-                {
-                    newEpisode.Ignored = newEpisode.Length < threshold;
-                }
-
-                logger.LogInformation("Podcast '{podcastName}' has SkipShortEpisodes= '{SkipShortEpisodes}'.",
-                    podcast.Name, indexingContext.SkipShortEpisodes);
-                // Podcast-level floor always drops under-duration episodes on index; otherwise honour SkipShortEpisodes.
-                if (indexingContext.SkipShortEpisodes || podcast.MinimumDuration.HasValue)
-                {
-                    RemoveIgnoredEpisodes(newEpisodes);
-                }
-            }
-
-            PodcastRunScope.Current.ReportStage("merge", $"discovered={newEpisodes.Count}");
-            var (mergeEpisodes, platformIdentified) =
-                await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes, cancellationToken);
-            // Freeze Apple/Spotify membership before MergeInPlace mutates shared Episode refs from the merge read.
-            // Filtering after merge would widen enrichment vs the old Cosmos re-read of unsaved documents.
-            episodesWithAssignedPlatformIds = platformIdentified.Where(HasAppleOrSpotifyId).ToList();
-            episodes = mergeEpisodes;
-            mergeResult = episodeMerger.MergeEpisodes(podcast, episodes, newEpisodes);
-            await DropAddedEpisodesOwnedByCatalogue(podcast, mergeResult, cancellationToken);
-
-            // Merge does not change `episodes` list membership, but MergeInPlace mutates existing Episode
-            // objects (fill-missing Apple/Spotify/YouTube). New adds live only on mergeResult until saved.
-            // Include them before enrichment and elimination filtering so new episodes are not evaluated
-            // only on a later index pass.
-            episodes = episodes
-                .Concat(mergeResult.AddedEpisodes)
-                .Where(x => EpisodeInIndexingScope(x, podcast, youTubePublishingDelay, releasedSince))
-                .ToList();
+            var discovered = await DiscoverAndMerge(
+                podcast,
+                indexingContext,
+                releasedSince,
+                repositoryReleasedSince,
+                youTubePublishingDelay,
+                cancellationToken);
+            episodesWithAssignedPlatformIds = discovered.EpisodesWithAssignedPlatformIds;
+            episodes = discovered.Episodes;
+            mergeResult = discovered.MergeResult;
         }
         else
         {
@@ -440,6 +386,141 @@ public class PodcastUpdater(
             enrichmentResult,
             spotifyBypassed,
             youTubeBypassed);
+    }
+
+    /// <summary>
+    /// Dry run of a full <see cref="Update"/> pass (cultpodcasts/RedditPodcastPoster#1433): same discovery, short-episode
+    /// floor, merge and catalogue-ownership drop as <see cref="Update"/> (one shared <see cref="DiscoverAndMerge"/>), then
+    /// the elimination terms a real pass would apply to what it adds. Nothing is saved: no episodes, no podcast row, no
+    /// hero promotion and no YouTube quota record. In-memory mutations of the loaded podcast are discarded with it.
+    /// </summary>
+    public async Task<IndexPreviewResult> Preview(Podcast podcast, IndexingContext indexingContext)
+    {
+        EpisodeLookupUseCases.ForIndex(indexingContext);
+        var youTubePublishingDelay = podcast.YouTubePublishingDelay();
+        var (releasedSince, repositoryReleasedSince) =
+            ReleaseWindow(podcast, indexingContext, youTubePublishingDelay);
+
+        logger.LogInformation("'{method}': Podcast '{podcastName}' dry run.", nameof(Preview), podcast.Name);
+        var cancellationToken = PodcastRunScope.Current.CancellationToken;
+        var discovered = await DiscoverAndMerge(
+            podcast,
+            indexingContext,
+            releasedSince,
+            repositoryReleasedSince,
+            youTubePublishingDelay,
+            cancellationToken);
+
+        var added = discovered.MergeResult.AddedEpisodes;
+        if (podcast.HasIgnoreAllEpisodes())
+        {
+            foreach (var episode in added)
+            {
+                episode.Ignored = true;
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var eliminationTermsProvider = await eliminationTermsProviderInstance.GetAsync();
+        var eliminationTerms = eliminationTermsProvider.GetEliminationTerms();
+        var filterResult = podcastFilter.Filter(podcast, added, eliminationTerms.Terms);
+        var removedIds = filterResult.FilteredEpisodes.Select(x => x.Episode.Id).ToHashSet();
+        var wouldAdd = added.Where(x => !removedIds.Contains(x.Id)).ToList();
+
+        return new IndexPreviewResult(wouldAdd.Count, wouldAdd.Count(x => x.Ignored));
+    }
+
+    private static (DateTime ReleasedSince, DateTime RepositoryReleasedSince) ReleaseWindow(
+        Podcast podcast,
+        IndexingContext indexingContext,
+        TimeSpan youTubePublishingDelay)
+    {
+        if (!indexingContext.ReleasedSince.HasValue)
+        {
+            throw new InvalidOperationException($"Cannot index podcast with id '{podcast.Id}' without a released-since");
+        }
+
+        var releasedSince = indexingContext.ReleasedSince.Value;
+        if (podcast.ReleaseAuthority == Service.YouTube)
+        {
+            releasedSince += youTubePublishingDelay;
+        }
+
+        var repositoryReleasedSince = youTubePublishingDelay < TimeSpan.Zero
+            ? releasedSince
+            : releasedSince - youTubePublishingDelay;
+        return (releasedSince, repositoryReleasedSince);
+    }
+
+    private sealed record DiscoveredAndMerged(
+        IList<Episode> Episodes,
+        IList<Episode> EpisodesWithAssignedPlatformIds,
+        EpisodeMergeResult MergeResult);
+
+    /// <summary>
+    /// The read-only front half of a full pass, shared by <see cref="Update"/> and <see cref="Preview"/>: read stored
+    /// episodes in the window, discover, apply the short-episode floor, merge, and drop catalogue-owned URLs.
+    /// </summary>
+    private async Task<DiscoveredAndMerged> DiscoverAndMerge(
+        Podcast podcast,
+        IndexingContext indexingContext,
+        DateTime releasedSince,
+        DateTime repositoryReleasedSince,
+        TimeSpan youTubePublishingDelay,
+        CancellationToken cancellationToken)
+    {
+        PodcastRunScope.Current.ReportStage("cosmos-read-episodes");
+        var releaseScopedEpisodes = await episodeRepository
+            .GetByPodcastId(podcast.Id, EpisodeCosmosFilters.ReleasedOnOrAfter(repositoryReleasedSince))
+            .ToListAsync(cancellationToken);
+
+        PodcastRunScope.Current.ReportStage("discover-episodes", $"stored-in-window={releaseScopedEpisodes.Count}");
+        var newEpisodes = await episodeProvider.GetEpisodes(podcast, releaseScopedEpisodes, indexingContext);
+        cancellationToken.ThrowIfCancellationRequested();
+        // Explicit podcast MinimumDuration always applies. Bypass only skips the global posting-criteria floor.
+        var bypassGlobalShortCheck = podcast.BypassShortEpisodeChecking == true;
+        var enforceMinimumDuration = podcast.MinimumDuration.HasValue || !bypassGlobalShortCheck;
+        logger.LogInformation(
+            "Podcast '{podcastName}' has enforceMinimumDuration= '{enforceMinimumDuration}' (bypassGlobalShortCheck= '{bypassGlobalShortCheck}', podcastMinimumDuration= '{podcastMinimumDuration}').",
+            podcast.Name,
+            enforceMinimumDuration,
+            bypassGlobalShortCheck,
+            podcast.MinimumDuration);
+        if (enforceMinimumDuration)
+        {
+            var threshold = podcast.MinimumDuration ?? _postingCriteria.MinimumDuration;
+            foreach (var newEpisode in newEpisodes)
+            {
+                newEpisode.Ignored = newEpisode.Length < threshold;
+            }
+
+            logger.LogInformation("Podcast '{podcastName}' has SkipShortEpisodes= '{SkipShortEpisodes}'.",
+                podcast.Name, indexingContext.SkipShortEpisodes);
+            // Podcast-level floor always drops under-duration episodes on index; otherwise honour SkipShortEpisodes.
+            if (indexingContext.SkipShortEpisodes || podcast.MinimumDuration.HasValue)
+            {
+                RemoveIgnoredEpisodes(newEpisodes);
+            }
+        }
+
+        PodcastRunScope.Current.ReportStage("merge", $"discovered={newEpisodes.Count}");
+        var (mergeEpisodes, platformIdentified) =
+            await IncludePlatformIdentifiedEpisodesForMerge(podcast.Id, releaseScopedEpisodes, cancellationToken);
+        // Freeze Apple/Spotify membership before MergeInPlace mutates shared Episode refs from the merge read.
+        // Filtering after merge would widen enrichment vs the old Cosmos re-read of unsaved documents.
+        var episodesWithAssignedPlatformIds = platformIdentified.Where(HasAppleOrSpotifyId).ToList();
+        var mergeResult = episodeMerger.MergeEpisodes(podcast, mergeEpisodes, newEpisodes);
+        await DropAddedEpisodesOwnedByCatalogue(podcast, mergeResult, cancellationToken);
+
+        // Merge does not change `episodes` list membership, but MergeInPlace mutates existing Episode
+        // objects (fill-missing Apple/Spotify/YouTube). New adds live only on mergeResult until saved.
+        // Include them before enrichment and elimination filtering so new episodes are not evaluated
+        // only on a later index pass.
+        var episodes = mergeEpisodes
+            .Concat(mergeResult.AddedEpisodes)
+            .Where(x => EpisodeInIndexingScope(x, podcast, youTubePublishingDelay, releasedSince))
+            .ToList();
+        return new DiscoveredAndMerged(episodes, episodesWithAssignedPlatformIds, mergeResult);
     }
 
     private async Task DropAddedEpisodesOwnedByCatalogue(
