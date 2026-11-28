@@ -67,7 +67,10 @@ public static class FindSpotifyEpisodeRequestFactory
             EpisodeLanguageResolution.ForEpisode(episode),
             podcast.SpotifyEpisodeCount,
             enrichingYouTubeDiscoveredEpisode ? episode.ReleaseUtc : null,
-            podcast.DescriptionRegex);
+            podcast.DescriptionRegex,
+            podcast.Id,
+            episode.Id,
+            podcast.LookupMisses);
     }
 
     public static FindSpotifyEpisodeRequest Create(string episodeSpotifyId)

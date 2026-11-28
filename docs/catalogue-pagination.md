@@ -142,6 +142,13 @@ counts as missing (a clean miss, never an exception). Caller cancellation is sti
 writes them onto `spotifyEpisodeCount` / `appleEpisodeCount` when they change (no backfill job; historic
 records fill in as the indexer runs).
 
+**Miss memory (#1558).** Index only: after a miss, `Podcast.lookupMisses` remembers the page-0 fingerprint
+`(newest catalogue id, show total)`. While that fingerprint is unchanged and `LastFullAttemptUtc` is within
+`missMemory.missRetryAfter` (default 24 h), the next Index lookup logs `stage='skipped-unchanged'` (one page
+read, no search/classifier). Submit, discovery and enrich always run the full plan. Mutations are scoped in
+`ICatalogueLookupMisses` and applied next to show-count refresh on the existing podcast save (prune out-of-scope,
+cap 50).
+
 **Logging.** One line per lookup: `Catalogue episode lookup: platform=… flow=… plan=… stage=… show-episodes=… pages-read=… candidates=… classified=… classify-ms=…`.
 The last three fields (#1557 step 1) measure classification: `candidates` handed to `ICatalogueSubjectClassifier` (sum over
 steps, including budgeted full-read pages), `classified` (those handed to subject/guest classification: all of them when
@@ -149,12 +156,13 @@ enriching a YouTube-discovered episode, none otherwise; some may be served from 
 `classify-ms` (time inside `ClassifyAsync`, measured with the injected `TimeProvider`; for `classified=0` lookups it is
 only the ignore-list lookup). If the classifier throws, no lookup line is logged. Existing fields keep their order; new
 fields are only ever appended.
-Stage values are `full-show-read`, `newest-pages`, `title-search`, `bounded-walk` and `miss`
-(`CatalogueLookupExecutor.StageMiss`).
+Stage values are `full-show-read`, `newest-pages`, `title-search`, `bounded-walk`, `miss`, `skipped-no-show` and
+`skipped-unchanged` (`CatalogueLookupExecutor.StageSkippedUnchanged`).
 
 **Options** (`episodeLookup` section, validated at startup with `ValidateOnStart`): `FullShowReadMaxEpisodes`
 (default 200, 0..1000), `FullShowReadMaxPages` (default 20, 1..100), `RecentWindow` (default 14 days, > 0), `IndexMaxPages` (default 20, 1..100),
-`SpotifyBoundedWalkPages` (4) and `AppleBoundedWalkPages` (5) (1..20), `RequestTimeout` (10 s, 1..120 s).
+`SpotifyBoundedWalkPages` (4) and `AppleBoundedWalkPages` (5) (1..20), `RequestTimeout` (10 s, 1..120 s),
+`missMemory.missMemoryEnabled` (true), `missMemory.missRetryAfter` (24 h, 1 s..7 d).
 
 **History.** PR #1017 (7 Oct 2026) replaced the Spotify show walk in `SpotifyEpisodeResolver` with a title search
 in every flow, including the indexer's enrichment; a recent episode whose YouTube title differed from its audio

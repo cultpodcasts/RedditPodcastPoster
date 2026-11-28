@@ -32,7 +32,10 @@ public static class FindAppleEpisodeRequestFactory
             EpisodeLanguageResolution.ForEpisode(episode),
             podcast.AppleEpisodeCount,
             enrichingYouTubeDiscoveredEpisode ? episode.ReleaseUtc : null,
-            podcast.DescriptionRegex);
+            podcast.DescriptionRegex,
+            podcast.Id,
+            episode.Id,
+            podcast.LookupMisses);
     }
 
     public static FindAppleEpisodeRequest Create(

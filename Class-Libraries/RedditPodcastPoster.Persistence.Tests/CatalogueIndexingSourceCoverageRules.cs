@@ -21,7 +21,9 @@ public class CatalogueIndexingSourceCoverageRules
     /// </summary>
     private static readonly string[] PodcastOnlyFields =
     [
-        "youTubeNotificationSubscriptionLeaseExpiry"
+        "youTubeNotificationSubscriptionLeaseExpiry",
+        // Index miss memory (#1558): podcast Indexer state only; TV/news parents do not index via PodcastUpdater.
+        "lookupMisses"
     ];
 
     private readonly DomainTestFixture _fixture = new();

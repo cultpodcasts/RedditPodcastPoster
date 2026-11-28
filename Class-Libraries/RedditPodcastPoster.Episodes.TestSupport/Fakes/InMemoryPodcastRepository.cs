@@ -124,6 +124,16 @@ public sealed class InMemoryPodcastRepository : IPodcastRepository
             SpotifyEpisodesQueryIsExpensive = podcast.SpotifyEpisodesQueryIsExpensive,
             SpotifyEpisodeCount = podcast.SpotifyEpisodeCount,
             AppleEpisodeCount = podcast.AppleEpisodeCount,
+            LookupMisses = podcast.LookupMisses?
+                .Select(m => new EpisodeLookupMiss
+                {
+                    EpisodeId = m.EpisodeId,
+                    Platform = m.Platform,
+                    NewestCatalogueId = m.NewestCatalogueId,
+                    ShowTotal = m.ShowTotal,
+                    LastFullAttemptUtc = m.LastFullAttemptUtc
+                })
+                .ToList(),
             YouTubePlaylistQueryIsExpensive = podcast.YouTubePlaylistQueryIsExpensive,
             YouTubeChannelSearchForbidden = podcast.YouTubeChannelSearchForbidden,
             LastIndexed = podcast.LastIndexed,

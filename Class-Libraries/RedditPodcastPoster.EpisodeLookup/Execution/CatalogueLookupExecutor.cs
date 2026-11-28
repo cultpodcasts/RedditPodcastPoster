@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RedditPodcastPoster.Models.Episodes;
 
 using RedditPodcastPoster.Episodes.Matching;
@@ -13,17 +14,22 @@ namespace RedditPodcastPoster.EpisodeLookup;
 /// <item>Show size: the podcast's stored count for this platform, else the source's cheap probe (recorded in
 /// <see cref="ICatalogueShowEpisodeCounts"/>).</item>
 /// <item>Plan: <see cref="IEpisodeLookupPlanner"/> picks the strategy chain.</item>
+/// <item>Index miss memory: when enabled, skip while the page-0 fingerprint matches a remembered miss within
+/// <see cref="LookupEpisodeMissOptions.MissRetryAfter"/> (#1558).</item>
 /// <item>Run: each step's new candidates (ids already tried are skipped; pages already read are reused) are
 /// subject-classified and matched with <see cref="ICatalogueEpisodeMatcher"/>; the first match wins.</item>
 /// </list>
 /// Logs one line per lookup with the stage that matched (or <see cref="StageMiss"/>, or
-/// <see cref="StageSkippedNoShow"/> with plan <see cref="PlanNone"/> when the planner plans nothing).
+/// <see cref="StageSkippedNoShow"/> / <see cref="StageSkippedUnchanged"/> with plan <see cref="PlanNone"/> when
+/// the planner plans nothing / miss memory skips).
 /// </summary>
 public sealed class CatalogueLookupExecutor(
     IEpisodeLookupPlanner planner,
     ICatalogueEpisodeMatcher matcher,
     ICatalogueSubjectClassifier subjectClassifier,
     ICatalogueShowEpisodeCounts showEpisodeCounts,
+    ICatalogueLookupMisses lookupMisses,
+    IOptions<EpisodeLookupOptions> options,
     TimeProvider timeProvider,
     ILogger<CatalogueLookupExecutor> logger) : ICatalogueLookupExecutor
 {
@@ -33,9 +39,15 @@ public sealed class CatalogueLookupExecutor(
     /// plans nothing for another reason needs its own stage value.
     /// </summary>
     public const string StageSkippedNoShow = "skipped-no-show";
+    /// <summary>
+    /// Index miss memory: catalogue fingerprint unchanged since the last full miss and still within the retry window.
+    /// </summary>
+    public const string StageSkippedUnchanged = "skipped-unchanged";
     public const string PlanNone = "none";
     public const string LogMessagePrefix = "Catalogue episode lookup:";
     public const string BudgetLogMessagePrefix = "Catalogue episode lookup budget spent:";
+
+    private readonly LookupEpisodeMissOptions _missMemory = options.Value.MissMemory;
 
     public async Task<CatalogueLookupResult<TItem>> FindMatch<TItem>(
         CatalogueLookup lookup,
@@ -61,6 +73,87 @@ public sealed class CatalogueLookupExecutor(
 
         var run = new LookupRun<TItem>(source);
         var tally = new ClassifyTally();
+
+        if (_missMemory.MissMemoryEnabled &&
+            lookup.Flow == EpisodeLookupFlow.Index &&
+            lookup.EpisodeId is { } episodeId &&
+            lookup.PodcastId is { } podcastId &&
+            hasShow)
+        {
+            var page0Items = await run.ReadPages(
+                new CatalogueLookupStep(CatalogueLookupStrategy.NewestPages, PageCap: 1),
+                cancellationToken);
+            // Page 0 unreadable (guard / null): never skip — still run the plan, then clear/record.
+            string? newestId = null;
+            var showTotal = run.ReportedTotal ?? count;
+            if (run.PagesRead > 0)
+            {
+                newestId = page0Items.Count > 0 ? source.GetId(page0Items[0]) : null;
+                showTotal = run.ReportedTotal ?? count;
+                var known = lookup.KnownMisses?.FirstOrDefault(m =>
+                    m.EpisodeId == episodeId &&
+                    string.Equals(m.Platform, source.Platform, StringComparison.Ordinal));
+                var now = timeProvider.GetUtcNow().UtcDateTime;
+                if (known != null &&
+                    newestId != null &&
+                    known.NewestCatalogueId == newestId &&
+                    known.ShowTotal == showTotal &&
+                    now - known.LastFullAttemptUtc < _missMemory.MissRetryAfter)
+                {
+                    Log(lookup, source, steps, StageSkippedUnchanged, count, run.PagesRead, tally);
+                    return new CatalogueLookupResult<TItem>(null, StageSkippedUnchanged);
+                }
+            }
+
+            var fullResult = await RunPlan(lookup, source, run, steps, tally, count, reducer, cancellationToken);
+            ApplyMissMemoryOutcome(
+                podcastId, episodeId, source.Platform, newestId, showTotal, fullResult);
+            return fullResult;
+        }
+
+        return await RunPlan(lookup, source, run, steps, tally, count, reducer, cancellationToken);
+    }
+
+    /// <summary>
+    /// After an Index plan finishes under miss memory: clear on match, record on miss (newest id may be null when
+    /// page 0 was unreadable — the skip gate already requires a non-null newest id).
+    /// </summary>
+    private void ApplyMissMemoryOutcome<TItem>(
+        Guid podcastId,
+        Guid episodeId,
+        string platform,
+        string? newestCatalogueId,
+        int? showTotal,
+        CatalogueLookupResult<TItem> result)
+        where TItem : class
+    {
+        if (result.Match != null)
+        {
+            lookupMisses.Clear(podcastId, episodeId, platform);
+        }
+        else if (result.Stage == StageMiss)
+        {
+            lookupMisses.RecordMiss(
+                podcastId,
+                episodeId,
+                platform,
+                newestCatalogueId,
+                showTotal,
+                timeProvider.GetUtcNow().UtcDateTime);
+        }
+    }
+
+    private async Task<CatalogueLookupResult<TItem>> RunPlan<TItem>(
+        CatalogueLookup lookup,
+        ICatalogueCandidateSource<TItem> source,
+        LookupRun<TItem> run,
+        IReadOnlyList<CatalogueLookupStep> steps,
+        ClassifyTally tally,
+        int? count,
+        Func<TItem, bool>? reducer,
+        CancellationToken cancellationToken)
+        where TItem : class
+    {
         var fullReadCompleted = false;
         foreach (var step in steps)
         {

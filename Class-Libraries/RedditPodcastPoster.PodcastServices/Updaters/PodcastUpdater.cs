@@ -42,6 +42,7 @@ public class PodcastUpdater(
     IYouTubeQuotaUsageTracker youTubeQuotaUsageTracker,
     IHeroEpisodePromoter heroEpisodePromoter,
     ICatalogueShowEpisodeCounts showEpisodeCounts,
+    ICatalogueLookupMisses lookupMisses,
     IUrlMembershipLookup urlMembershipLookup,
     ITvShowRepository tvShowRepository,
     INewsOrganisationRepository newsOrganisationRepository,
@@ -302,6 +303,8 @@ public class PodcastUpdater(
         // A changed show size marks the podcast changed, so spotifyEpisodeCount / appleEpisodeCount stay fresh for the
         // episode lookup planner. A successful index pass saves the podcast anyway (LastIndexed), so this rarely adds a write.
         var showEpisodeCountsChanged = ApplyObservedShowEpisodeCounts(podcast);
+        // Index miss memory (#1558): apply recorded/cleared misses, drop out-of-scope entries, cap at 50 — same save.
+        var lookupMissesChanged = ApplyLookupMisses(podcast, episodes.Select(x => x.Id));
 
         // The YouTube handler refreshes the hints after a full walk or uploads check; a bypassed pass still saves them.
         // A pass where an episode failed to merge keeps the previous hints, so the next pass offers that episode again
@@ -335,7 +338,7 @@ public class PodcastUpdater(
                              discoveredYouTubeExpensiveQuery || clearedYouTubeExpensiveQuery ||
                              discoveredYouTubeChannelSearchForbidden ||
                              discoveredSpotifyExpensiveQuery || clearedSpotifyExpensiveQuery ||
-                             showEpisodeCountsChanged || youTubeIndexingHintsChanged;
+                             showEpisodeCountsChanged || lookupMissesChanged || youTubeIndexingHintsChanged;
 
         if (indexSucceeded)
         {
@@ -786,6 +789,66 @@ public class PodcastUpdater(
             podcast.AppleEpisodeCount != appleCount)
         {
             podcast.AppleEpisodeCount = appleCount;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    /// <summary>
+    /// Applies Index miss-memory mutations onto <see cref="Podcast.LookupMisses"/>, drops entries whose episode left
+    /// this pass's enrichment scope, and caps the list at 50 newest by <see cref="EpisodeLookupMiss.LastFullAttemptUtc"/>.
+    /// Runs before the existing podcast save — no second write (#1558).
+    /// </summary>
+    private bool ApplyLookupMisses(Podcast podcast, IEnumerable<Guid> enrichmentScopeEpisodeIds)
+    {
+        const int maxMisses = 50;
+        var changed = false;
+        var list = podcast.LookupMisses ?? [];
+        var beforeCount = list.Count;
+
+        if (lookupMisses.TryGetChanges(podcast.Id, out var mutations))
+        {
+            foreach (var mutation in mutations)
+            {
+                list.RemoveAll(m =>
+                    m.EpisodeId == mutation.EpisodeId &&
+                    string.Equals(m.Platform, mutation.Platform, StringComparison.Ordinal));
+                if (!mutation.Clear)
+                {
+                    list.Add(new EpisodeLookupMiss
+                    {
+                        EpisodeId = mutation.EpisodeId,
+                        Platform = mutation.Platform,
+                        NewestCatalogueId = mutation.NewestCatalogueId,
+                        ShowTotal = mutation.ShowTotal,
+                        LastFullAttemptUtc = mutation.LastFullAttemptUtc ?? timeProvider.GetUtcNow().UtcDateTime
+                    });
+                }
+
+                changed = true;
+            }
+        }
+
+        var inScope = enrichmentScopeEpisodeIds as HashSet<Guid> ?? enrichmentScopeEpisodeIds.ToHashSet();
+        var pruned = list.Where(m => inScope.Contains(m.EpisodeId)).ToList();
+        if (pruned.Count != list.Count)
+        {
+            changed = true;
+        }
+
+        if (pruned.Count > maxMisses)
+        {
+            pruned = pruned
+                .OrderByDescending(m => m.LastFullAttemptUtc)
+                .Take(maxMisses)
+                .ToList();
+            changed = true;
+        }
+
+        podcast.LookupMisses = pruned.Count == 0 ? null : pruned;
+        if (!changed && beforeCount != (podcast.LookupMisses?.Count ?? 0))
+        {
             changed = true;
         }
 

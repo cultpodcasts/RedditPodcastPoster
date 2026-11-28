@@ -20,14 +20,20 @@ public static class CatalogueTestServices
         EpisodeLookupOptions? options = null,
         IEpisodePlatformMatcher? platformMatcher = null,
         ICatalogueShowEpisodeCounts? showEpisodeCounts = null,
-        ILogger<CatalogueLookupExecutor>? logger = null) =>
-        new(
-            CreatePlanner(timeProvider, options),
+        ICatalogueLookupMisses? lookupMisses = null,
+        ILogger<CatalogueLookupExecutor>? logger = null)
+    {
+        var resolvedOptions = options ?? new EpisodeLookupOptions();
+        return new(
+            CreatePlanner(timeProvider, resolvedOptions),
             new CatalogueEpisodeMatcher(platformMatcher ?? EpisodeDomainTestServices.CreatePlatformMatcher()),
             subjectClassifier ?? new NoCatalogueSubjectClassifier(),
             showEpisodeCounts ?? new CatalogueShowEpisodeCounts(),
+            lookupMisses ?? new CatalogueLookupMisses(),
+            Options.Create(resolvedOptions),
             timeProvider ?? TimeProvider.System,
             logger ?? NullLogger<CatalogueLookupExecutor>.Instance);
+    }
 
     /// <summary>Guard with the configured (default 10 s) timeout and a null logger.</summary>
     public static CatalogueRequestGuard CreateGuard(TimeProvider? timeProvider = null, EpisodeLookupOptions? options = null) =>

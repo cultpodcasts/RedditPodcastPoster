@@ -104,6 +104,15 @@ public class Podcast : Publisher, IYouTubeIndexingSettings, IHasYouTubeIndexingS
     [JsonPropertyOrder(121)]
     public int? AppleEpisodeCount { get; set; }
 
+    /// <summary>
+    /// Index-flow Spotify/Apple episode-lookup misses remembered while the catalogue fingerprint is unchanged
+    /// (#1558). Omitted when null or empty. Never on Episode or API DTOs.
+    /// </summary>
+    [JsonPropertyName("lookupMisses")]
+    [JsonPropertyOrder(122)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<EpisodeLookupMiss>? LookupMisses { get; set; }
+
     [JsonPropertyName("youTubeChannelId")]
     [JsonPropertyOrder(130)]
     public string YouTubeChannelId { get; set; } = string.Empty;

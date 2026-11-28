@@ -28,6 +28,8 @@ public class EpisodeLookupOptionsTests
         options.AppleBoundedWalkPages.Should().Be(5);
         options.RequestTimeout.Should().Be(TimeSpan.FromSeconds(10));
         options.FullShowReadBudget.Should().Be(TimeSpan.FromSeconds(20));
+        options.MissMemory.MissMemoryEnabled.Should().BeTrue();
+        options.MissMemory.MissRetryAfter.Should().Be(TimeSpan.FromHours(24));
     }
 
     [Theory(DisplayName = "Out-of-range values are invalid.")]
@@ -54,6 +56,25 @@ public class EpisodeLookupOptionsTests
             AppleBoundedWalkPages = appleWalk,
             RequestTimeout = TimeSpan.FromSeconds(timeoutSeconds),
             FullShowReadBudget = TimeSpan.FromSeconds(budgetSeconds)
+        };
+
+        // Assert
+        EpisodeLookupOptions.IsValid(options).Should().BeFalse();
+    }
+
+    [Theory(DisplayName =
+        "MissMemory.MissRetryAfter outside 1 second..7 days makes episodeLookup invalid even when other tunables are defaults.")]
+    [InlineData(0)]
+    [InlineData(8)]
+    public void Out_of_range_miss_retry_after_is_invalid(int retryAfterDays)
+    {
+        // Arrange
+        var options = new EpisodeLookupOptions
+        {
+            MissMemory = new LookupEpisodeMissOptions
+            {
+                MissRetryAfter = TimeSpan.FromDays(retryAfterDays)
+            }
         };
 
         // Assert
