@@ -1,63 +1,53 @@
 using System.Globalization;
+using System.Text;
 
 namespace RedditPodcastPoster.Discovery.ML.Services;
 
+/// <summary><c>show-accept-rates.csv</c>: <c>showName,total,accepted,rejected,acceptRate</c> (rate in percent).</summary>
 public static class ShowAcceptRateLookup
 {
-    public static IReadOnlyDictionary<string, float> Load(string path)
+    public static IReadOnlyDictionary<string, ShowAcceptCounts> Load(string path)
     {
+        var counts = new Dictionary<string, ShowAcceptCounts>(StringComparer.OrdinalIgnoreCase);
         if (!File.Exists(path))
         {
-            return new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            return counts;
         }
 
-        var rates = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
-        using var reader = new StreamReader(path);
-        _ = reader.ReadLine();
-        while (reader.ReadLine() is { } line)
+        foreach (var parts in TrainingCsv.ReadRows(path))
         {
-            var parts = ParseCsvLine(line);
             if (parts.Length < 5)
             {
                 continue;
             }
 
-            var showName = parts[0].Trim('"');
-            if (!float.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out var acceptRate))
+            var key = ShowAcceptHistory.Key(parts[0]);
+            if (key == null ||
+                !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var total) ||
+                !int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var accepted))
             {
                 continue;
             }
 
-            rates[showName] = acceptRate / 100f;
+            counts[key] = new ShowAcceptCounts(accepted, total);
         }
 
-        return rates;
+        return counts;
     }
 
-    private static string[] ParseCsvLine(string line)
+    public static void Write(string path, IReadOnlyDictionary<string, ShowAcceptCounts> counts)
     {
-        var fields = new List<string>();
-        var current = new System.Text.StringBuilder();
-        var inQuotes = false;
-        for (var i = 0; i < line.Length; i++)
+        using var writer = new StreamWriter(path, false, Encoding.UTF8);
+        writer.WriteLine("showName,total,accepted,rejected,acceptRate");
+        foreach (var (showName, c) in counts.Where(x => x.Value.Total > 0).OrderByDescending(x => x.Value.Total))
         {
-            var c = line[i];
-            if (c == '"')
-            {
-                inQuotes = !inQuotes;
-            }
-            else if (c == ',' && !inQuotes)
-            {
-                fields.Add(current.ToString());
-                current.Clear();
-            }
-            else
-            {
-                current.Append(c);
-            }
+            var rate = 100.0 * c.Accepted / c.Total;
+            writer.WriteLine(string.Join(',',
+                TrainingCsv.Escape(showName),
+                c.Total.ToString(CultureInfo.InvariantCulture),
+                c.Accepted.ToString(CultureInfo.InvariantCulture),
+                (c.Total - c.Accepted).ToString(CultureInfo.InvariantCulture),
+                rate.ToString("F1", CultureInfo.InvariantCulture)));
         }
-
-        fields.Add(current.ToString());
-        return fields.ToArray();
     }
 }
