@@ -4,6 +4,9 @@ function bookActivity(req) {
     var collection = context.getCollection();
 	var collectionLink = collection.getSelfLink();	
 	const initiate= 'initiate', complete= 'complete', type= 'Activity';
+	// Keep in sync with Azure.ActivityBookingTtl (Cloud/Azure/ActivityBookingTtl.cs).
+	const initiateTtlSeconds = 172800;
+	const completeTtlSeconds = 604800;
 
     var isAccepted = collection.queryDocuments(
         collection.getSelfLink(),
@@ -23,7 +26,8 @@ function bookActivity(req) {
 					'id': req.id, 
 					'status': req.status, 
 					'type': type, 
-					'operationType': req.operationType
+					'operationType': req.operationType,
+					'ttl': initiateTtlSeconds
 				};
 				var isAccepted = collection.createDocument(
 					collectionLink, 
@@ -46,6 +50,7 @@ function bookActivity(req) {
 					if (doc.status === initiate) {
 						if (req.status == complete) {
 							doc.status= req.status;
+							doc.ttl = completeTtlSeconds;
 							collection.replaceDocument(doc._self, doc, function (err, updatedDoc) {
 								if (err) throw new Error("Error: " + err.message);
 								context.getResponse().setBody(updatedDoc);

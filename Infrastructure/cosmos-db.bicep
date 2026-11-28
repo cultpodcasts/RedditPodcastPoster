@@ -312,6 +312,8 @@ resource discoverySubmissionsContainer 'Microsoft.DocumentDB/databaseAccounts/sq
   }
 }
 
+// Opt-in TTL: bookActivity sets item `ttl` (initiate 2d / complete 7d — ActivityBookingTtl).
+// Items without `ttl` (legacy stock) never expire; do not bulk-delete without explicit apply.
 resource activityContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
   parent: database
   name: 'Activity'
@@ -322,6 +324,7 @@ resource activityContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/c
         paths: ['/id']
         kind: 'Hash'
       }
+      defaultTtl: -1
     }
     options: {}
   }
@@ -338,6 +341,9 @@ resource bookActivity 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/contai
     var collection = context.getCollection();
     var collectionLink = collection.getSelfLink();
     const initiate= "initiate", complete= "complete", type= "Activity";
+    // Keep in sync with Azure.ActivityBookingTtl (Cloud/Azure/ActivityBookingTtl.cs).
+    const initiateTtlSeconds = 172800;
+    const completeTtlSeconds = 604800;
     var isAccepted = collection.queryDocuments(
         collection.getSelfLink(),
         "SELECT * FROM root r where r.type='"+type+"' and r.id='"+req.id+"'",
@@ -353,7 +359,8 @@ resource bookActivity 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/contai
                     id: req.id,
                     status: req.status,
                     type: type,
-                    operationType: req.operationType
+                    operationType: req.operationType,
+                    ttl: initiateTtlSeconds
                 };
                 var isAccepted = collection.createDocument(
                     collectionLink,
@@ -375,6 +382,7 @@ resource bookActivity 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/contai
                     if (doc.status === initiate) {
                         if (req.status == complete) {
                             doc.status= req.status;
+                            doc.ttl = completeTtlSeconds;
                             collection.replaceDocument(doc._self, doc, function (err, updatedDoc) {
                                 if (err) throw new Error("Error: " + err.message);
                                 context.getResponse().setBody(updatedDoc);

@@ -18,4 +18,10 @@ public sealed class Activity : CosmosSelector
 
     [JsonPropertyName("operationType")]
     public required string OperationType { get; set; }
+
+    /// <summary>
+    /// Cosmos item TTL (seconds). Set by <c>bookActivity</c> — see <see cref="ActivityBookingTtl"/>.
+    /// </summary>
+    [JsonPropertyName("ttl")]
+    public int? TimeToLiveSeconds { get; set; }
 }
