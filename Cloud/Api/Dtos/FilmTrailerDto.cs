@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
+using Api.Contracts;
 
 namespace Api.Dtos;
 
 /// <summary>A trailer on <see cref="FilmDto"/>. <c>id</c> is the id of the episode it was attached from.</summary>
+[ExportContract]
 public sealed class FilmTrailerDto
 {
     [JsonPropertyName("id")]
