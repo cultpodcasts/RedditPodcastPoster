@@ -60,7 +60,7 @@ test('decide: a merge-only tip whose chain never reaches a green gate runs the f
 });
 
 test('decide: a feature commit, rebase, evil merge or overlap runs the full build with coverage', async () => {
-  for (const reason of ['not a two-parent merge commit', 'merge changes differ from the base side', 'PR and base changed the same files']) {
+  for (const reason of ['not a two-parent merge commit', 'merge changes differ from the base side', 'tip diverged from base on a main-touched file']) {
     const walk = async () => ({ ok: false, reason, hops: [] });
     const r = await d.decide({ ...base, github: githubWith({}), walk });
     assert.equal(r.skip, false);

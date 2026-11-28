@@ -9,10 +9,11 @@
 //      workflow, GitHub Actions app) already concluded `success` (that gate built and tested the
 //      PR's own code); and
 //   3. every file the merged-in base side touched is on the NON-BUILD allowlist below (docs,
-//      markdown, .cursor, workflow scripts). Textual non-overlap does not imply the combination
-//      compiles (main can rename an API in file B while the PR calls it from file A), and main's
-//      own CI covers main's content alone, not PR + main together. So any base-side file that
-//      could affect the build or tests means the full build runs.
+//      markdown, .cursor, workflow scripts). A clean absorption of main (including stacked tips
+//      that already held some of main's blobs) does not imply the combination compiles (main can
+//      rename an API in file B while the PR calls it from file A), and main's own CI covers
+//      main's content alone, not PR + main together. So any base-side file that could affect the
+//      build or tests means the full build runs.
 //
 // skip_coverage=true only when (1) and (2) hold, (3) does not (so skip_heavy=false), and the
 // merged-in side did not touch the coverage machinery (COVERAGE_MACHINERY_PATTERNS): the tip is

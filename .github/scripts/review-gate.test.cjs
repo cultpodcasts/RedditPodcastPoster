@@ -118,7 +118,7 @@ test('carry: a failed carry on a push reports why, and never passes', () => {
 
 test('carry: a failed carry on a non-push run keeps the older-commit failure', () => {
   const r = g.evaluate({ labels: LABELLED, headSha: SHA, entries: [e(ok(OLD))],
-    carry: { ok: false, reason: 'PR and base changed the same files', hops: [] } });
+    carry: { ok: false, reason: 'tip diverged from base on a main-touched file', hops: [] } });
   assert.equal(r.state, 'failure');
   assert.match(r.description, /older commit/);
 });
@@ -491,7 +491,7 @@ test('run: a dropped push run self-heals: a later comment run removes the stale 
 const pushCtx = () => ctx('pull_request_target', 'synchronize', { pull_request: { number: 1 } });
 const commentCtx = () => ctx('issue_comment', 'created', { issue: { number: 1, pull_request: {} } });
 const walkOk = async () => carryOk(2);
-const walkFail = async () => ({ ok: false, reason: 'PR and base changed the same files', hops: [] });
+const walkFail = async () => ({ ok: false, reason: 'tip diverged from base on a main-touched file', hops: [] });
 const walkNever = async () => { throw new Error('walk must not run'); };
 
 test('run: a merge-from-base push on an acceptable commit keeps the label and passes', async () => {
@@ -526,7 +526,7 @@ test('run: a push that is not merge-from-base only removes the label and fails w
   const r = await g.run({ github, core, context: pushCtx(), walk: walkFail });
   assert.equal(r.state, 'failure');
   assert.deepEqual(calls.removed, ['review-acceptable']);
-  assert.match(calls.statuses[0].description, /PR and base changed the same files/);
+  assert.match(calls.statuses[0].description, /tip diverged from base on a main-touched file/);
 });
 
 test('run: a rebase or feature commit (single parent head, real walker) removes the label and fails', async () => {

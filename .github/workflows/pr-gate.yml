@@ -9,16 +9,16 @@
 #   bicep    - compiles every Infrastructure/**/*.bicep (no Azure login; .bicepparam needs deploy-time env, so it is not built)
 #
 # Merge-from-main tips (#1555): when the PR tip is a chain of pure merge-from-base commits (two parents, second parent on
-# main, no PR/base file overlap, merge delta equals the main side; .github/scripts/merge-only-tip.cjs), walking first
-# parents reaches a commit whose `gate` check-run (this workflow, GitHub Actions app) concluded success, AND every file
-# the merged-in main side touched is on the non-build allowlist (docs, markdown, .cursor, workflow scripts;
-# .github/scripts/pr-gate-detect.cjs), `build` is skipped entirely. Merged-in code, project, workflow or contract
-# changes still run restore/build/test (main's own CI does not cover PR + main together) but skip the episode-domain
-# coverage gate (`skip_coverage=true`) — the prior green gate already covered the PR's own tip. actionlint and bicep
-# always run. `gate` accepts a skipped `build` only when detect succeeded with skip_heavy=true
-# (.github/scripts/pr-gate-verdict.cjs, unit tested). Rebases, feature commits, evil/overlapping merges, a
-# red/cancelled/missing prior gate and API errors run the full build with coverage. github.event.before is not used
-# (unreliable on pull_request).
+# main, merge delta a subset of the main side, tip matches main on every main-touched path; .github/scripts/merge-only-tip.cjs),
+# walking first parents reaches a commit whose `gate` check-run (this workflow, GitHub Actions app) concluded success, AND
+# every file the merged-in main side touched is on the non-build allowlist (docs, markdown, .cursor, workflow scripts;
+# .github/scripts/pr-gate-detect.cjs), `build` is skipped entirely. Filename overlap with main is allowed when those
+# checks hold (stacked / cherry-pick tips). Merged-in code, project, workflow or contract changes still run
+# restore/build/test (main's own CI does not cover PR + main together) but skip the episode-domain coverage gate
+# (`skip_coverage=true`) — the prior green gate already covered the PR's own tip. actionlint and bicep always run.
+# `gate` accepts a skipped `build` only when detect succeeded with skip_heavy=true (.github/scripts/pr-gate-verdict.cjs,
+# unit tested). Rebases, feature commits, evil or divergent merges, a red/cancelled/missing prior gate and API errors
+# run the full build with coverage. github.event.before is not used (unreliable on pull_request).
 # Trust: on `pull_request` these scripts and this file come from the PR's own merge ref, so the skip decision is only
 # as strong as "gate is required on main" (docs/deployment.md § PR gate).
 #
