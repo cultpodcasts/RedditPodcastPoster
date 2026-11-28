@@ -27,9 +27,11 @@
 // on top of a commit whose latest trusted marker is `acceptable`. The walk follows first
 // parents, at most MAX_HOPS hops, and stops at the nearest commit with a trusted marker:
 // `acceptable` carries, `changes-requested` blocks. The label is kept in that case (no
-// human re-mark). Rebases, feature commits, overlapping or hand-edited merges, an
-// unverifiable listing or an API error do not carry: the label is removed on a push as
-// before (an API error keeps the label but fails the status, so a re-run can heal it).
+// human re-mark). Filename overlap with main is allowed when the tip absorbs main cleanly
+// (delta subset of the base side and tip matches main on every main-touched path). Rebases,
+// feature commits, evil or divergent merges, an unverifiable listing or an API error do not
+// carry: the label is removed on a push as before (an API error keeps the label but fails the
+// status, so a re-run can heal it).
 // The chain is recomputed from live PR state on every run; no extra marker is written.
 // After publishing the commit status, a non-success state fails the Actions job
 // (`core.setFailed`) so the check run is red when the status is red (#1563).
