@@ -53,6 +53,31 @@ public class PodcastIndexService(
         }
     }
 
+    public async Task<PodcastIndexPreviewResult> PreviewBacklogAsync(string podcastName, CancellationToken c)
+    {
+        try
+        {
+            logger.LogInformation(
+                "{method}: Preview podcast '{podcastName}' (backlog).",
+                nameof(PreviewBacklogAsync),
+                podcastName);
+            var response = await indexer.Preview(podcastName, CuratorIndexingContext.CreateBacklog());
+            var status = response.IndexStatus switch
+            {
+                IndexStatus.NotFound => PodcastIndexStatus.NotFound,
+                IndexStatus.Performed => PodcastIndexStatus.Ok,
+                IndexStatus.TimedOut => PodcastIndexStatus.TimedOut,
+                _ => PodcastIndexStatus.BadRequest
+            };
+            return new PodcastIndexPreviewResult(status, response);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{method}: Failed to preview podcast backlog.", nameof(PreviewBacklogAsync));
+            return new PodcastIndexPreviewResult(PodcastIndexStatus.Failed);
+        }
+    }
+
     private async Task<PodcastIndexResult> IndexPodcast(
         CancellationToken c,
         Func<Task<IndexResponse>> index)

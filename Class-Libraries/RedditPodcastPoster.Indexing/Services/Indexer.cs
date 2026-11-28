@@ -59,13 +59,98 @@ public class Indexer(
 
     public async Task<IndexResponse> Index(string podcastName, IndexingContext indexingContext)
     {
+        var (failure, podcastId) = await ResolvePodcastToIndex(podcastName);
+        if (failure.HasValue)
+        {
+            return new IndexResponse(failure.Value);
+        }
+
+        return await Index(podcastId!.Value, indexingContext);
+    }
+
+    /// <summary>
+    /// Dry run of <see cref="Index(string, IndexingContext)"/> (cultpodcasts/RedditPodcastPoster#1433): counts the
+    /// episodes an index would add. Statuses mirror an index (<c>NotFound</c>, <c>NotPerformed</c> for a removed or
+    /// not auto-indexed podcast, <c>TimedOut</c>) but there is no lease, so it is never <c>AlreadyRunning</c>.
+    /// </summary>
+    public async Task<IndexPreviewResponse> Preview(string podcastName, IndexingContext indexingContext)
+    {
+        var (failure, podcastId) = await ResolvePodcastToIndex(podcastName);
+        if (failure.HasValue)
+        {
+            return new IndexPreviewResponse(failure.Value);
+        }
+
+        var podcast = await podcastRepository.GetPodcast(podcastId!.Value);
+        if (podcast == null)
+        {
+            return new IndexPreviewResponse(IndexStatus.NotFound);
+        }
+
+        if (podcast.Removed == true)
+        {
+            logger.LogWarning("Podcast '{PodcastName}' with id '{PodcastId}' is removed and will not be previewed.",
+                podcast.Name,
+                podcast.Id);
+            return new IndexPreviewResponse(IndexStatus.NotPerformed);
+        }
+
+        var performAutoIndex = podcast.IndexAllEpisodes ||
+                               !string.IsNullOrWhiteSpace(podcast.EpisodeIncludeTitleRegex);
+        if (!performAutoIndex)
+        {
+            // An on-demand index of this podcast only enriches stored episodes; it adds none.
+            return new IndexPreviewResponse(IndexStatus.NotPerformed);
+        }
+
+        // Same short-episode choice as Index: shorts are skipped unless the podcast bypasses the check.
+        var previewContext = indexingContext with
+        {
+            SkipShortEpisodes = podcast.BypassShortEpisodeChecking != true
+        };
+
+        var budget = _budget.OnDemandBudget;
+        Task<IndexPreviewResult>? previewTask = null;
+        using var budgetCts = new CancellationTokenSource(budget, timeProvider);
+        try
+        {
+            using (PodcastRunScope.Enter(new PodcastRunScope(budgetCts.Token)))
+            {
+                previewTask = podcastUpdater.Preview(podcast, previewContext);
+            }
+
+            var preview = await previewTask.WaitAsync(budget + _budget.OnDemandAbandonGrace, timeProvider);
+            return new IndexPreviewResponse(IndexStatus.Performed, preview.NewEpisodeCount,
+                preview.IgnoredEpisodeCount);
+        }
+        catch (Exception ex) when (budgetCts.IsCancellationRequested &&
+                                   ex is OperationCanceledException or TimeoutException)
+        {
+            var abandoned = ex is TimeoutException;
+            logger.LogError(
+                BudgetExceededMessagePrefix +
+                " podcast-id='{PodcastId}' podcast-name='{PodcastName}' budget-seconds='{BudgetSeconds}' abandoned='{Abandoned}' dry-run='true'.",
+                podcast.Id, podcast.Name, (int) budget.TotalSeconds, abandoned);
+            if (abandoned && previewTask != null)
+            {
+                ObserveAbandonedUpdate(previewTask, podcast);
+                await DrainAbandonedUpdate(previewTask, _budget.OnDemandAbandonDrain, podcast);
+            }
+
+            return new IndexPreviewResponse(IndexStatus.TimedOut);
+        }
+    }
+
+    /// <summary>Resolves the single podcast an on-demand index of this name acts on, or why it cannot.</summary>
+    private async Task<(IndexStatus? Failure, Guid? PodcastId)> ResolvePodcastToIndex(string podcastName)
+    {
         var podcasts = await FindPodcastsByName(podcastName);
 
         if (!podcasts.Any())
         {
             logger.LogWarning(
                 "No podcast found for name '{PodcastName}'.", podcastName);
-            return new IndexResponse(IndexStatus.NotFound);
+            return (IndexStatus.NotFound, null);
         }
 
         var canIndex = podcasts.Where(x =>
@@ -79,12 +164,11 @@ public class Indexer(
             }
             else
             {
-                return new IndexResponse(IndexStatus.NotPerformed);
+                return (IndexStatus.NotPerformed, null);
             }
         }
 
-        var podcast = canIndex.Single();
-        return await Index(podcast.Id, indexingContext);
+        return (null, canIndex.Single().Id);
     }
 
     public async Task<IndexResponse> Index(Guid podcastId, IndexingContext indexingContext, bool forceIndex = false)
@@ -292,7 +376,7 @@ public class Indexer(
         }
     }
 
-    private void ObserveAbandonedUpdate(Task<IndexPodcastResult> updateTask, Podcast podcast)
+    private void ObserveAbandonedUpdate(Task updateTask, Podcast podcast)
     {
         updateTask.ContinueWith(task =>
             {

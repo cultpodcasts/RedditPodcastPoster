@@ -28,6 +28,9 @@ public class PodcastController(
     IMemoryProbeOrchestrator memoryProbeOrchestrator
 ) : MemoryProbedHttpBaseClass(clientPrincipalFactory, hostingOptions, memoryProbeOrchestrator, logger)
 {
+    /// <summary>Permission required for the backlog Index and its preview (admin, not curate).</summary>
+    public const string BacklogIndexRole = "admin";
+
     [Function("PodcastRename")]
     public Task<HttpResponseData> Rename(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "podcast/name/{podcastName}")]
@@ -62,8 +65,9 @@ public class PodcastController(
             ct);
 
     /// <summary>
-    /// Curator cold-start / backlog index: uses the far-past <c>ReleasedSince</c> floor so providers walk essentially the full catalogue.
-    /// Default hub Index stays on <see cref="Index"/>.
+    /// Admin-only cold-start / backlog index: uses the far-past <c>ReleasedSince</c> floor so providers walk essentially the full catalogue.
+    /// Default hub Index stays on <see cref="Index"/> (curator). Admin only because a full walk is expensive in provider quota
+    /// and writes the whole back catalogue (cultpodcasts/RedditPodcastPoster#1433).
     /// </summary>
     [Function("PodcastIndexBacklog")]
     public Task<HttpResponseData> IndexBacklog(
@@ -73,9 +77,27 @@ public class PodcastController(
         CancellationToken ct
     ) => HandleRequest(
             req,
-            ["curate"],
+            [BacklogIndexRole],
             PodcastRouteNameNormalizer.Normalize(podcastName),
             indexPodcastHandler.HandleBacklog,
+            Unauthorised,
+            ct);
+
+    /// <summary>
+    /// Admin-only dry run of <see cref="IndexBacklog"/>: counts the episodes it would add (short-episode and elimination
+    /// rules applied) without saving anything, so the admin can confirm first. A query, so GET (cultpodcasts/RedditPodcastPoster#1433).
+    /// </summary>
+    [Function("PodcastIndexBacklogPreview")]
+    public Task<HttpResponseData> PreviewIndexBacklog(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "podcast/index/{podcastName}/backlog/preview")]
+        HttpRequestData req,
+        string podcastName,
+        CancellationToken ct
+    ) => HandleRequest(
+            req,
+            [BacklogIndexRole],
+            PodcastRouteNameNormalizer.Normalize(podcastName),
+            indexPodcastHandler.HandleBacklogPreview,
             Unauthorised,
             ct);
 

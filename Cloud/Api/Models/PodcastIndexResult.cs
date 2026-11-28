@@ -21,3 +21,8 @@ public record PodcastIndexResult(
     PodcastIndexStatus Status,
     IndexResponse? IndexResponse = null,
     EntitySearchIndexerResponse? SearchIndexer = null);
+
+/// <summary>Outcome of the read-only backlog preview (cultpodcasts/RedditPodcastPoster#1433).</summary>
+public record PodcastIndexPreviewResult(
+    PodcastIndexStatus Status,
+    IndexPreviewResponse? Preview = null);
