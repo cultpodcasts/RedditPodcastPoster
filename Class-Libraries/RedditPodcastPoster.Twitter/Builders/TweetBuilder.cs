@@ -77,9 +77,11 @@ public class TweetBuilder(
             episodeHashtags = episodeHashtags.Union(podcastEpisode.Episode.HashTag.ToHashTags()).ToList();
         }
         var brandHashtagBody = NormalizeHashtagBody(_twitterOptions.HashTag);
-        if (!string.IsNullOrWhiteSpace(_twitterOptions.HashTag))
+        // Options HashTag may be "Cult" while stored tags are "#Cult" — same body; do not double-add.
+        if (brandHashtagBody is not null &&
+            !episodeHashtags.Any(x => IsSameHashtagBody(x.Tag, brandHashtagBody)))
         {
-            episodeHashtags.Add(new HashTag(_twitterOptions.HashTag, null));
+            episodeHashtags.Add(new HashTag(_twitterOptions.HashTag!, null));
         }
 
         var brandReserved = brandHashtagBody is not null ? 1 : 0;
@@ -99,7 +101,7 @@ public class TweetBuilder(
                 continue;
             }
 
-            if (!hashtagsAdded.Select(x => x.ToLowerInvariant()).Contains(hashtag.Tag.ToLowerInvariant()))
+            if (!HashtagBodyAlreadyUsed(hashtagsAdded, hashtag.Tag))
             {
                 // Multi-word enrichment tags: MatchingText holds the compacted permitted form
                 // ("Alpha Beta" → "#AlphaBeta"). Invalid tags (&, +, -) are filtered at accept
@@ -251,12 +253,15 @@ public class TweetBuilder(
         ICollection<string> hashtagsAdded,
         string? brandHashtagBody)
     {
+        // Distinct / "already used" by normalized body so "#Cult" and options "Cult" share one slot.
         var candidates = episodeHashtags
             .Where(x => x.MatchingText == null)
             .Select(x => x.Tag)
-            .Distinct()
-            .Where(x => !hashtagsAdded.Contains(x))
             .Where(HashtagText.IsReproducedAsIs)
+            .GroupBy(tag => NormalizeHashtagBody(tag), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Key is not null)
+            .Select(g => g.First())
+            .Where(tag => !HashtagBodyAlreadyUsed(hashtagsAdded, tag))
             .ToList();
 
         if (brandHashtagBody is null)
@@ -274,4 +279,10 @@ public class TweetBuilder(
 
     private static bool IsSameHashtagBody(string tag, string normalizedBody) =>
         string.Equals(NormalizeHashtagBody(tag), normalizedBody, StringComparison.OrdinalIgnoreCase);
+
+    private static bool HashtagBodyAlreadyUsed(IEnumerable<string> usedTags, string candidateTag)
+    {
+        var body = NormalizeHashtagBody(candidateTag);
+        return body is not null && usedTags.Any(t => IsSameHashtagBody(t, body));
+    }
 }

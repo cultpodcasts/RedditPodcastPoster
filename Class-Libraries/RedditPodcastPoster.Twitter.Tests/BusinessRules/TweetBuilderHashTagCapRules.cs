@@ -220,6 +220,154 @@ public class TweetBuilderHashTagCapRules
         tweet.Should().NotContain("#Spare");
     }
 
+    [Fact(DisplayName =
+        "TweetBuilder: when episode/podcast stored tag is #Cult and TwitterOptions.HashTag is Cult (same body, different # prefix), then BuildTweet emits one brand hashtag plus one subject end-line tag, because NormalizeHashtagBody treats them as one identity under MaxHashTags.")]
+    public async Task build_tweet_dedupes_hash_prefixed_brand_and_options_cult()
+    {
+        // Arrange — production twitter__HashTag is "Cult"; stored tags are usually "#Cult".
+        const string globalOptionHashTag = "Cult";
+        const string storedBrandTag = "#Cult";
+        const string subjectTag = "#Alpha";
+        const string surplusTag = "#Bravo";
+        const string title = "Synthetic briefing notes";
+        _mocker.Use(Options.Create(new TwitterOptions
+        {
+            ConsumerKey = "k",
+            ConsumerSecret = "s",
+            AccessToken = "t",
+            AccessTokenSecret = "ts",
+            HashTag = globalOptionHashTag,
+            WithEpisodeUrl = false
+        }));
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = null;
+            p.TwitterHandle = string.Empty;
+        });
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Subjects = [];
+            e.HashTag = $"{storedBrandTag} {subjectTag} {surplusTag}";
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        ArrangeSanitiserAndPostModel(podcast, title);
+        var sut = _mocker.CreateInstance<TweetBuilder>();
+
+        // Act
+        var tweet = await sut.BuildTweet(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        CountHashTags(tweet).Should().Be(TweetBuilder.MaxHashTags);
+        CountOccurrences(tweet, $"#{globalOptionHashTag}").Should().Be(1);
+        tweet.Should().Contain(subjectTag);
+        tweet.Should().NotContain(surplusTag);
+    }
+
+    [Fact(DisplayName =
+        "TweetBuilder: when the title is already enriched with the brand hashtag body and TwitterOptions.HashTag is the same body without a leading #, then BuildTweet does not add a second brand form on the end line, because NormalizeHashtagBody identity shares the MaxHashTags slot.")]
+    public async Task build_tweet_title_enriched_brand_does_not_repeat_on_end_line()
+    {
+        // Arrange
+        const string globalOptionHashTag = "Cult";
+        const string brandEnrichmentTag = "#Cult";
+        const string endTag = "Extra";
+        _mocker.Use(Options.Create(new TwitterOptions
+        {
+            ConsumerKey = "k",
+            ConsumerSecret = "s",
+            AccessToken = "t",
+            AccessTokenSecret = "ts",
+            HashTag = globalOptionHashTag,
+            WithEpisodeUrl = false
+        }));
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = null;
+            p.TwitterHandle = string.Empty;
+        });
+        var title = $"Synthetic {globalOptionHashTag} briefing";
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Subjects = [];
+            e.HashTag = $"#{endTag} #Spare";
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        _mocker.GetMock<IHashTagProvider>()
+            .Setup(x => x.GetHashTags(It.IsAny<List<string>>()))
+            .ReturnsAsync([new HashTag(brandEnrichmentTag, globalOptionHashTag)]);
+        ArrangeSanitiserAndPostModel(podcast, title);
+        var sut = _mocker.CreateInstance<TweetBuilder>();
+
+        // Act
+        var tweet = await sut.BuildTweet(new PodcastEpisode(podcast, episode), null);
+
+        // Assert — brand linked in title only; remaining slot may be unused or a subject, never a second #Cult.
+        CountOccurrences(tweet, $"#{globalOptionHashTag}").Should().Be(1);
+        tweet.Should().Contain($"#{globalOptionHashTag}");
+        CountHashTags(tweet).Should().BeLessThanOrEqualTo(TweetBuilder.MaxHashTags);
+    }
+
+    [Fact(DisplayName =
+        "TweetBuilder: when TwitterOptions.HashTag is set and two subject tags are title-enrichable, then BuildTweet links only the first subject in the title and puts the brand on the end line (total MaxHashTags), because brand reservation leaves one non-brand enrichment slot so the second subject is not linked.")]
+    public async Task build_tweet_brand_reserves_slot_so_second_title_enrichment_is_skipped()
+    {
+        // Arrange
+        const string firstSubject = "Watch";
+        const string secondSubject = "Other";
+        const string globalOptionHashTag = "Cult";
+        _mocker.Use(Options.Create(new TwitterOptions
+        {
+            ConsumerKey = "k",
+            ConsumerSecret = "s",
+            AccessToken = "t",
+            AccessTokenSecret = "ts",
+            HashTag = globalOptionHashTag,
+            WithEpisodeUrl = false
+        }));
+        var podcast = _fixture.CreatePodcast(p =>
+        {
+            p.HashTag = null;
+            p.EnrichmentHashTags = null;
+            p.TwitterHandle = string.Empty;
+        });
+        var title = $"Synthetic {firstSubject} {secondSubject} briefing";
+        var youTubeId = _fixture.CreateYouTubeId();
+        var episode = _fixture.CreateStoredEpisode(podcast, e =>
+        {
+            e.Title = title;
+            e.Subjects = [];
+            e.HashTag = null;
+            e.Guests = null;
+            e.Urls = new ServiceUrls { YouTube = new Uri($"https://youtu.be/{youTubeId}") };
+        });
+        _mocker.GetMock<IHashTagProvider>()
+            .Setup(x => x.GetHashTags(It.IsAny<List<string>>()))
+            .ReturnsAsync(
+            [
+                new HashTag(firstSubject, firstSubject),
+                new HashTag(secondSubject, secondSubject)
+            ]);
+        ArrangeSanitiserAndPostModel(podcast, title);
+        var sut = _mocker.CreateInstance<TweetBuilder>();
+
+        // Act
+        var tweet = await sut.BuildTweet(new PodcastEpisode(podcast, episode), null);
+
+        // Assert
+        CountHashTags(tweet).Should().Be(TweetBuilder.MaxHashTags);
+        tweet.Should().Contain($"#{firstSubject}");
+        tweet.Should().Contain($"#{globalOptionHashTag}");
+        tweet.Should().NotContain($"#{secondSubject}");
+    }
+
     private void ArrangeSanitiserAndPostModel(Podcast podcast, string title)
     {
         _mocker.GetMock<ITextSanitiser>()
@@ -257,4 +405,7 @@ public class TweetBuilderHashTagCapRules
 
     private static int CountHashTags(string tweet) =>
         Regex.Matches(tweet, @"#\w+").Count;
+
+    private static int CountOccurrences(string tweet, string token) =>
+        Regex.Matches(tweet, Regex.Escape(token)).Count;
 }
