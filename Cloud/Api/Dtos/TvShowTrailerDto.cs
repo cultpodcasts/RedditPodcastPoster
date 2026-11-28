@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
+using Api.Contracts;
 
 namespace Api.Dtos;
 
 /// <summary>A trailer on <see cref="TvShowDto"/>. <c>id</c> is the id of the episode it was attached from.</summary>
+[ExportContract]
 public sealed class TvShowTrailerDto
 {
     [JsonPropertyName("id")]
@@ -25,4 +27,3 @@ public sealed class TvShowTrailerDto
     [JsonPropertyName("duration")]
     public string Duration { get; set; } = string.Empty;
 }
-
