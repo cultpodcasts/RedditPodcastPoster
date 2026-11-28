@@ -8,15 +8,17 @@ using RedditPodcastPoster.Persistence.Abstractions.FileKeys;
 namespace RedditPodcastPoster.Persistence.FileKeys;
 
 /// <summary>
-/// Temporary <c>FileKeyClaims</c> container claim per file key (id = <c>filekey:{lowercased key}</c>,
-/// partition = id). Kept out of LookUps so permanent lookup docs are not mixed with short-lived leases.
+/// <c>FileKeyClaims</c> container uniqueness store per file key (id = <c>filekey:{lowercased key}</c>,
+/// partition = id). Kept out of LookUps. Uncommitted claims are short-lived leases; after
+/// <see cref="Acknowledge"/> they become permanent uniqueness records (<c>ttl: -1</c>) and growth with
+/// the catalogue is expected (ADR 0005 / #1307).
 /// <c>CreateItemAsync</c> fails with 409 when another owner holds it. The same owner may retry.
 /// Only the call that creates the document tracks it. A second process that sees the same owner's
 /// fresh uncommitted claim does not track it and does not replace <see cref="FileKeyClaim.ScopeId"/>,
 /// so disposing that process cannot delete the creator's key. The lease is adopted with If-Match only
 /// once the claim is past <see cref="FileKeyClaim.UncommittedLifetimeSeconds"/>. A save acknowledges the
-/// claim so it is kept. <see cref="ReleaseUnacknowledged"/> deletes only when the stored scope id still
-/// matches. An unacknowledged claim expires after a day if the process dies first.
+/// claim as committed permanent uniqueness. <see cref="ReleaseUnacknowledged"/> deletes only when the
+/// stored scope id still matches. An unacknowledged claim expires after a day if the process dies first.
 /// </summary>
 public sealed class FileKeyClaimStore(
     Container fileKeyClaimsContainer,
