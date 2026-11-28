@@ -30,15 +30,103 @@ public class TvShowRepository(
 
     public async Task Save(TvShow tvShow)
     {
+        // Create, or a full document that was not read-modify-written here. An existing show a caller has read
+        // and changed goes through Update, so this upsert cannot drop a trailer attached since that read.
         await tvShowsContainer.UpsertItemAsync(tvShow, new PartitionKey(tvShow.Id.ToString()));
         await fileKeyClaims.Acknowledge(tvShow.FileKey);
     }
+
+    public Task<TvShow?> Update(Guid id, Func<TvShow, bool> mutate) =>
+        TvShowDocumentUpdate.Apply(id, mutate, GetTvShowForUpdate, TryReplace);
 
     public Task<bool> PatchIndexerState(Guid tvShowId, CatalogueParentIndexerPatch patch) =>
         CatalogueParentIndexerPatchOperations.Apply(tvShowsContainer, tvShowId, patch);
 
     public Task<bool> RaiseLatestReleased(Guid tvShowId, DateTime latestReleased) =>
         CatalogueParentIndexerPatchOperations.RaiseLatestReleased(tvShowsContainer, tvShowId, latestReleased);
+
+    public async Task<IReadOnlyList<Guid>> GetTvShowIdsByTrailerId(Guid trailerId)
+    {
+        var query = new QueryDefinition(
+                "SELECT VALUE c.id FROM c WHERE EXISTS(SELECT VALUE t FROM t IN c.trailers WHERE t.id = @trailerId)")
+            .WithParameter("@trailerId", trailerId.ToString());
+
+        // TV shows are partitioned by show id. The trailer id is not that key, so the query must not set one.
+        var iterator = tvShowsContainer.GetItemQueryIterator<string>(
+            query,
+            requestOptions: new QueryRequestOptions());
+
+        var ids = new List<Guid>();
+        await foreach (var id in CatalogueFeed.Read(
+                           iterator,
+                           ex => logger.LogError(
+                               ex,
+                               "{method}: error finding TV shows holding trailer '{trailerId}'.",
+                               nameof(GetTvShowIdsByTrailerId),
+                               trailerId)))
+        {
+            if (Guid.TryParse(id, out var tvShowId))
+            {
+                ids.Add(tvShowId);
+            }
+        }
+
+        return ids;
+    }
+
+    public async Task<TvShowVersion?> GetTvShowForUpdate(Guid tvShowId)
+    {
+        try
+        {
+            var response = await tvShowsContainer.ReadItemAsync<TvShow>(
+                tvShowId.ToString(),
+                new PartitionKey(tvShowId.ToString()));
+            return new TvShowVersion(response.Resource, response.ETag);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> TryReplace(TvShow tvShow, string etag)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(etag);
+        try
+        {
+            await tvShowsContainer.ReplaceItemAsync(
+                tvShow,
+                tvShow.Id.ToString(),
+                new PartitionKey(tvShow.Id.ToString()),
+                new ItemRequestOptions { IfMatchEtag = etag });
+            await fileKeyClaims.Acknowledge(tvShow.FileKey);
+            return true;
+        }
+        catch (CosmosException ex) when (ex.StatusCode is System.Net.HttpStatusCode.PreconditionFailed
+                                             or System.Net.HttpStatusCode.NotFound)
+        {
+            logger.LogWarning(
+                "{method}: TV show '{tvShowId}' changed or was deleted since it was read ({status}).",
+                nameof(TryReplace), tvShow.Id, ex.StatusCode);
+            return false;
+        }
+    }
+
+    public async Task<bool> TryCreate(TvShow tvShow)
+    {
+        try
+        {
+            await tvShowsContainer.CreateItemAsync(tvShow, new PartitionKey(tvShow.Id.ToString()));
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            logger.LogInformation("{method}: TV show '{tvShowId}' already exists.", nameof(TryCreate), tvShow.Id);
+            return false;
+        }
+
+        await fileKeyClaims.Acknowledge(tvShow.FileKey);
+        return true;
+    }
 
     public async Task Delete(Guid tvShowId)
     {

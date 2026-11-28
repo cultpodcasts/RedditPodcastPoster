@@ -136,9 +136,10 @@ public static class TvShowMoveTarget
 
     /// <summary>
     /// Same confident-match fill as URL submit create. Ambiguous authority results are skipped so the
-    /// move still completes (no identity-choice UI on Move to TV); the curator can edit the show later.
+    /// move still completes (no identity-choice UI on Move to TV); the curator can edit the show later. Also used by
+    /// Attach as TV show trailer (RPP #1412) for a show it creates.
     /// </summary>
-    private static async Task TryFillNewShowIdentity(
+    public static async Task TryFillNewShowIdentity(
         TvShow show,
         ICatalogueIdentityEnricher identityEnricher,
         ILogger logger,

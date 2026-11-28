@@ -144,7 +144,7 @@ public class ParentEditPlaylistValidationRules
         result.Status.Should().Be(expected);
         result.Code.Should().Be(code);
         show.Indexing!.YouTubePlaylistId.Should().Be(playlistId);
-        _mocker.GetMock<ITvShowRepository>().Verify(r => r.Save(It.IsAny<TvShow>()), Times.Never);
+        _mocker.GetMock<ITvShowRepository>().Verify(r => r.TryReplace(It.IsAny<TvShow>(), It.IsAny<string>()), Times.Never);
         _mocker.GetMock<IYouTubePlaylistGuard>().Verify(g =>
             g.Check(playlistId, requestedPlaylist, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
     }

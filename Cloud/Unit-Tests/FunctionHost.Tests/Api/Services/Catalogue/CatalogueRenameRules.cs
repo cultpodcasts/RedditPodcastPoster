@@ -103,8 +103,14 @@ public class CatalogueRenameRules
         var shows = _mocker.GetMock<ITvShowRepository>();
         shows.Setup(r => r.GetTvShow(It.IsAny<Guid>()))
             .ReturnsAsync((Guid id) => _shows.SingleOrDefault(x => x.Id == id));
-        shows.Setup(r => r.Save(It.IsAny<TvShow>()))
-            .Callback<TvShow>(_ => _saveOrder.Add("parent")).Returns(Task.CompletedTask);
+        shows.Setup(r => r.Update(It.IsAny<Guid>(), It.IsAny<Func<TvShow, bool>>()))
+            .Returns<Guid, Func<TvShow, bool>>((id, mutate) =>
+            {
+                var show = _shows.Single(x => x.Id == id);
+                mutate(show);
+                _saveOrder.Add("parent");
+                return Task.FromResult<TvShow?>(show);
+            });
         var episodes = _mocker.GetMock<ITvShowEpisodeRepository>();
         episodes.Setup(r => r.GetByTvShowId(It.IsAny<Guid>()))
             .Returns((Guid id) => _episodes.Where(x => x.TvShowId == id).ToAsyncEnumerable());
@@ -311,6 +317,81 @@ public class CatalogueRenameRules
         saved!.Name.Should().Be(newName);
         saved.Trailers.Should().ContainSingle().Which.Id.Should().Be(trailer.Id);
         _mocker.GetMock<IFilmRepository>().Verify(r => r.Save(It.IsAny<Film>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
+        "Renaming a TV show keeps a trailer attached while the rename is in flight, because the show is re-read and replaced with its ETag and the episode row for that trailer is already deleted.")]
+    public async Task tv_show_rename_keeps_a_trailer_attached_concurrently()
+    {
+        // Arrange
+        var show = AddShow("Synthetic Drama");
+        AddEpisode(show);
+        var trailer = new TvShowTrailer
+        {
+            Id = _fixture.CreateGuid(),
+            Title = _fixture.CreateTitle(),
+            Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}"),
+            Length = _fixture.CreateDuration()
+        };
+        var newName = "Synthetic Drama Restored";
+        var stored = CopyShow(show);
+        var etag = "first";
+        TvShow? saved = null;
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.Update(show.Id, It.IsAny<Func<TvShow, bool>>()))
+            .Returns<Guid, Func<TvShow, bool>>((id, mutate) => TvShowDocumentUpdate.Apply(
+                id,
+                mutate,
+                _ => Task.FromResult<TvShowVersion?>(new TvShowVersion(CopyShow(stored), etag)),
+                (candidate, match) =>
+                {
+                    if (match != etag)
+                    {
+                        return Task.FromResult(false);
+                    }
+
+                    if (stored.Trailers is not { Count: > 0 })
+                    {
+                        stored = CopyShow(stored);
+                        stored.Trailers = [trailer];
+                        etag = "attached";
+                        return Task.FromResult(false);
+                    }
+
+                    stored = candidate;
+                    saved = candidate;
+                    etag = "saved";
+                    _saveOrder.Add("parent");
+                    return Task.FromResult(true);
+                }));
+
+        // Act
+        var result = await Service.RenameTvShow(
+            new CatalogueRenameCommand(show.Id.ToString(), newName), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(CatalogueRenameStatus.Ok);
+        saved.Should().NotBeNull();
+        saved!.Name.Should().Be(newName);
+        saved.Trailers.Should().ContainSingle().Which.Id.Should().Be(trailer.Id);
+        _mocker.GetMock<ITvShowRepository>().Verify(r => r.Save(It.IsAny<TvShow>()), Times.Never);
+    }
+
+    private static TvShow CopyShow(TvShow source)
+    {
+        var copy = new TvShow(source.Name) { Id = source.Id };
+        if (source.Trailers is not null)
+        {
+            copy.Trailers = source.Trailers.Select(trailer => new TvShowTrailer
+            {
+                Id = trailer.Id,
+                Title = trailer.Title,
+                Url = trailer.Url,
+                Length = trailer.Length
+            }).ToList();
+        }
+
+        return copy;
     }
 
     private static Film CopyFilm(Film source)

@@ -24,6 +24,7 @@ public class UrlMembershipLookup(
     INonPodcastServiceAdapterResolver nonPodcastServiceAdapterResolver,
     IOptions<SubmitContentTypesOptions> submitContentTypes,
     IFilmRepository films,
+    ITvShowRepository tvShows,
     ITvShowEpisodeRepository tvShowEpisodes,
     INewsReportRepository newsReports)
     : IUrlMembershipLookup
@@ -181,6 +182,16 @@ public class UrlMembershipLookup(
             return new CatalogueServiceUrlOwner(SubmitClassification.Film, null, film.Id);
         }
 
+        // A TV show holds the URL only as a trailer; its source episode row was deleted on attach (RPP #1412).
+        cancellationToken.ThrowIfCancellationRequested();
+        var trailerShow = await tvShows.GetBy(
+            PlayableServiceUrlFilters.TvShowHoldsTrailerUrl(
+                serviceKey, canonical, stored, spotifyId, appleId, youTubeId));
+        if (trailerShow != null)
+        {
+            return TvShowTrailerOwner(trailerShow);
+        }
+
         cancellationToken.ThrowIfCancellationRequested();
         var episode = await tvShowEpisodes.GetBy(
             PlayableServiceUrlFilters.HoldsServiceUrlOrYouTubeAlternate<TvShowEpisode>(
@@ -248,6 +259,17 @@ public class UrlMembershipLookup(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        var trailerShow = await tvShows.GetBy(AndIdNotIn(
+            PlayableServiceUrlFilters.TvShowHoldsTrailerUrl(
+                ServiceKeys.YouTube, canonical, stored, youTubeId: youTubeId),
+            except,
+            item => item.Id));
+        if (trailerShow != null)
+        {
+            return TvShowTrailerOwner(trailerShow);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
         var tvEpisode = await tvShowEpisodes.GetBy(AndIdNotIn(
             PlayableServiceUrlFilters.HoldsServiceUrlOrYouTubeAlternate<TvShowEpisode>(
                 ServiceKeys.YouTube, canonical, stored, youTubeId),
@@ -287,6 +309,13 @@ public class UrlMembershipLookup(
 
         return null;
     }
+
+    /// <summary>
+    /// A TV show that holds the URL as a trailer. The owner is the show (kind TvShowEpisode, the show's name and id as parent);
+    /// there is no TV episode, so there is no playable id, and a trailer always stops a submit.
+    /// </summary>
+    private static CatalogueServiceUrlOwner TvShowTrailerOwner(TvShow show) =>
+        new(SubmitClassification.TvShowEpisode, show.Name, PlayableId: null, ParentId: show.Id, IsTrailer: true);
 
     private Uri CanonicalStoredUrl(Uri url) =>
         nonPodcastServiceAdapterResolver.ForSubmit(url)?.CanonicalStoredUrl(url) ?? url;
