@@ -243,7 +243,8 @@ public sealed class PublicDatabaseKindsRules : IDisposable
 
     [Fact(DisplayName =
         "Public database: when two films share a file key, then the run fails naming the key and both films and says " +
-        "how to fix it, and writes no file at all, because a silent overwrite would swap one item's history for another's.")]
+        "to set a different stored file key in Cosmos (publisher never renames — ADR 0006 / #1041), and writes no " +
+        "file at all, because a silent overwrite would swap one item's history for another's.")]
     public async Task duplicate_file_keys_fail_before_anything_is_written()
     {
         // Arrange
@@ -261,7 +262,8 @@ public sealed class PublicDatabaseKindsRules : IDisposable
         message.Should().Contain(first.FileKey)
             .And.Contain($"'{first.Name}' (id {first.Id})")
             .And.Contain($"'{second.Name}' (id {second.Id})")
-            .And.Contain("different stored file key");
+            .And.Contain("different stored file key")
+            .And.Contain("never renames");
         _scenario.Files.Should().BeEmpty();
     }
 
