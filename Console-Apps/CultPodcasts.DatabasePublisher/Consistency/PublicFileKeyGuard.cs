@@ -8,6 +8,10 @@ namespace CultPodcasts.DatabasePublisher.Consistency;
 /// ignoring case; an id must belong to one live item only, because a file that moved is recognised by its id.
 /// Removed items are included in the key check: the podcast check always covered them, and a removed item can
 /// come back.
+/// <para>
+/// Film (and other) key collisions fail the run; the publisher never renames. Operators set a distinct stored
+/// <c>fileKey</c> in Cosmos (ADR 0006 / #1041). Do not add publish-time auto-suffixing.
+/// </para>
 /// </summary>
 public static class PublicFileKeyGuard
 {
