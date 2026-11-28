@@ -133,7 +133,11 @@ public static class RequestModelExtensions
         {
             ImdbId = request.ImdbId,
             TvdbId = request.TvdbId,
-            TmdbId = request.TmdbId
+            TmdbId = request.TmdbId,
+            Trailers = request.Trailers?
+                .Select(trailer => new Models.TvShowTrailerChange(trailer.Id, trailer.Title))
+                .ToArray(),
+            ExpectedTrailerIds = request.ExpectedTrailerIds
         }));
 
     public static Models.TvShowEpisodeChangeRequest ToModel(this TvShowEpisodeChangeRequest request) =>

@@ -104,5 +104,8 @@ public enum ModelType
     FilmTrailerClaim = 33,
 
     [JsonPropertyName(nameof(D1SearchReconcileWatermark))]
-    D1SearchReconcileWatermark = 34
+    D1SearchReconcileWatermark = 34,
+
+    [JsonPropertyName(nameof(TvShowTrailerClaim))]
+    TvShowTrailerClaim = 35
 }

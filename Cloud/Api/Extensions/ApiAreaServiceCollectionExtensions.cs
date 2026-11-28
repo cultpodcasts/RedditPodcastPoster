@@ -74,6 +74,8 @@ public static class ApiAreaServiceCollectionExtensions
             .AddScoped<IPostEpisodeFilmMoveHandler, PostEpisodeFilmMoveHandler>()
             .AddScoped<IEpisodeTrailerAttachService, EpisodeTrailerAttachService>()
             .AddScoped<IPostEpisodeTrailerAttachHandler, PostEpisodeTrailerAttachHandler>()
+            .AddScoped<IEpisodeTvShowTrailerAttachService, EpisodeTvShowTrailerAttachService>()
+            .AddScoped<IPostEpisodeTvShowTrailerAttachHandler, PostEpisodeTvShowTrailerAttachHandler>()
             .AddScoped<IYouTubeAlternateAttachService, YouTubeAlternateAttachService>()
             .AddScoped<IPostEpisodeYouTubeAlternateAttachHandler, PostEpisodeYouTubeAlternateAttachHandler>()
             .AddScoped<IEpisodeTvShowMoveService, EpisodeTvShowMoveService>()

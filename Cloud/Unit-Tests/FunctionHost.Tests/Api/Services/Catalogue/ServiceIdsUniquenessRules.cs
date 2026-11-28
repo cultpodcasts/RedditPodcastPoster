@@ -17,6 +17,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Xunit;
+using FunctionHost.Tests.Api.Services.TvShows;
 
 namespace FunctionHost.Tests.Api.Services.Catalogue;
 
@@ -59,9 +60,7 @@ public class ServiceIdsUniquenessRules
             .Callback<NewsOrganisation>(o => _savedOrganisation = o)
             .Returns(Task.CompletedTask);
         _mocker.GetMock<ITvShowRepository>()
-            .Setup(r => r.Save(It.IsAny<TvShow>()))
-            .Callback<TvShow>(s => _savedShow = s)
-            .Returns(Task.CompletedTask);
+            .SetupSaveViaReplace(s => _savedShow = s);
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.GetByNewsOrganisationId(It.IsAny<Guid>()))
             .Returns(() => _organisations.Count == 0
