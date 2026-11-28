@@ -16,4 +16,5 @@ public record TvShowUpdateResult(
     TvShowUpdateStatus Status,
     string? Message = null,
     IReadOnlyList<Guid>? ConflictingIds = null,
-    string? Code = null);
+    string? Code = null,
+    Guid[]? UnexpectedTrailerIds = null);

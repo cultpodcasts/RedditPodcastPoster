@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using RedditPodcastPoster.Models.Catalogue;
 using RedditPodcastPoster.Models.Films;
 using RedditPodcastPoster.Models.Podcasts;
+using RedditPodcastPoster.Models.TvShows;
 
 namespace RedditPodcastPoster.Persistence.Abstractions.Playables;
 
@@ -141,4 +142,71 @@ public static class PlayableServiceUrlFilters
                  (trailer.Services != null &&
                   (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl))));
     }
-}
+
+    /// <summary>
+    /// TV shows holding the URL as a trailer (RPP #1412). The same trailer match as
+    /// <see cref="FilmHoldsServiceOrTrailerUrl"/>: <c>trailers[].url</c> (playback),
+    /// <c>trailers[].services[{key}].url</c> (source-episode platform URLs), and <c>trailers[].ids</c> for the platform
+    /// of <paramref name="serviceKey"/> when the matching id is supplied. A TV show has no <c>services</c> or
+    /// <c>additionalYouTube</c> of its own, so those arms are absent. A trailer's source episode row is deleted on
+    /// attach, so without this match the same URL would be submitted or indexed again as a new episode.
+    /// </summary>
+    /// <remarks>
+    /// Keep the platform bodies in lockstep with <see cref="FilmHoldsServiceOrTrailerUrl"/>. Drift detectors:
+    /// <c>PlayableServiceUrlFilterTranslationRules</c> and <c>UrlMembershipLookupRules</c> Compile() paths.
+    /// </remarks>
+    public static Expression<Func<TvShow, bool>> TvShowHoldsTrailerUrl(
+        string serviceKey,
+        Uri url,
+        Uri storedUrl,
+        string? spotifyId = null,
+        long? appleId = null,
+        string? youTubeId = null)
+    {
+        if (serviceKey == ServiceKeys.Spotify && !string.IsNullOrWhiteSpace(spotifyId))
+        {
+            var id = spotifyId;
+            return show =>
+                show.Trailers != null &&
+                show.Trailers.Any(trailer =>
+                    trailer.Url == url ||
+                    trailer.Url == storedUrl ||
+                    (trailer.Ids != null && trailer.Ids.Spotify == id) ||
+                    (trailer.Services != null &&
+                     (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)));
+        }
+
+        if (serviceKey == ServiceKeys.Apple && appleId is > 0)
+        {
+            var id = appleId.Value;
+            return show =>
+                show.Trailers != null &&
+                show.Trailers.Any(trailer =>
+                    trailer.Url == url ||
+                    trailer.Url == storedUrl ||
+                    (trailer.Ids != null && trailer.Ids.Apple == id) ||
+                    (trailer.Services != null &&
+                     (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)));
+        }
+
+        if (serviceKey == ServiceKeys.YouTube && !string.IsNullOrWhiteSpace(youTubeId))
+        {
+            var id = youTubeId;
+            return show =>
+                show.Trailers != null &&
+                show.Trailers.Any(trailer =>
+                    trailer.Url == url ||
+                    trailer.Url == storedUrl ||
+                    (trailer.Ids != null && trailer.Ids.YouTube == id) ||
+                    (trailer.Services != null &&
+                     (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)));
+        }
+
+        return show =>
+            show.Trailers != null &&
+            show.Trailers.Any(trailer =>
+                trailer.Url == url ||
+                trailer.Url == storedUrl ||
+                (trailer.Services != null &&
+                 (trailer.Services[serviceKey].Url == url || trailer.Services[serviceKey].Url == storedUrl)));
+    }}

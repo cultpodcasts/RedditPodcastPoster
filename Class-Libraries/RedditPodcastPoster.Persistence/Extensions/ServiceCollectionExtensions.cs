@@ -137,6 +137,10 @@ public static class ServiceCollectionExtensions
                     new FilmTrailerClaimStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
                         s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FilmTrailerClaimStore>>()))
+                .AddSingleton<ITvShowTrailerClaimStore>(s =>
+                    new TvShowTrailerClaimStore(
+                        s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),
+                        s.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TvShowTrailerClaimStore>>()))
                 .AddSingleton<IParentIndexingLockStore>(s =>
                     new ParentIndexingLockStore(
                         s.GetRequiredService<ICosmosDbContainerFactory>().CreateLookUpsContainer(),

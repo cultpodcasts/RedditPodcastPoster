@@ -43,9 +43,9 @@ public class UrlSubmitter(
             // YouTube / Spotify / Apple URL there, and its episode row is gone. Re-submitting that URL must not
             // re-create the podcast episode (#1089). Same ownership rule as the indexer and discovery.
             var catalogueOwner = await catalogueOwnershipGuard.FindOwner(url, CancellationToken.None);
-            if (catalogueOwner != null && catalogueOwner.ContentKind == SubmitClassification.Film)
+            if (catalogueOwner is { AlwaysStopsSubmit: true })
             {
-                // Films (and their trailers) have no podcast-platform resubmit path, so a film owner always stops here.
+                // Films and trailers (film or TV show) have no podcast-platform resubmit path, so such an owner always stops here.
                 return CatalogueOwned(url, catalogueOwner);
             }
 

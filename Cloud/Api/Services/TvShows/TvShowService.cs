@@ -5,6 +5,7 @@ using Api.Services.Episodes;
 using Microsoft.Extensions.Logging;
 using RedditPodcastPoster.Catalogue.Identity;
 using RedditPodcastPoster.Models.Catalogue;
+using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.UrlSubmission.Services;
 
@@ -74,6 +75,20 @@ public class TvShowService(
                     out var idError))
             {
                 return new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, idError);
+            }
+
+            // The keep-list is checked against the stored show before anything is applied, so a 400 or 409 writes nothing.
+            // The save loop checks again against the show that wins the ETag race (a trailer attached in the gap).
+            if (!TvShowTrailerChangeApplier.TryValidate(show, request.Change.Trailers, out var trailerError))
+            {
+                return new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, trailerError);
+            }
+
+            if (request.Change.Trailers is not null &&
+                TvShowTrailerChangeApplier.TrailerIdsTheClientDidNotList(show, request.Change.ExpectedTrailerIds) is
+                    { Length: > 0 } unexpectedOnRead)
+            {
+                return StaleTrailers(show.Id, unexpectedOnRead);
             }
 
             CanonicalIdChangeApplier.Apply(
@@ -164,7 +179,10 @@ public class TvShowService(
                     show.Indexing.YouTubePlaylistOwnerChannelId = owner;
                 });
 
-            await tvShowRepository.Save(show);
+            if (await SaveKeepingAttachedTrailers(show, request.Change) is { } notSaved)
+            {
+                return notSaved;
+            }
 
             if (!request.Change.ChangesChildProjection)
             {
@@ -198,6 +216,84 @@ public class TvShowService(
             logger.LogError(ex, "{method}: Failed to update TV show '{id}'.", nameof(UpdateAsync), request.TvShowId);
             return new TvShowUpdateResult(TvShowUpdateStatus.Failed);
         }
+    }
+
+    private const string StaleTrailersMessage =
+        "The TV show's trailers changed after this edit was loaded. Close and reopen the show to edit its trailers.";
+
+    private const int MaxSaveAttempts = 3;
+
+    private TvShowUpdateResult StaleTrailers(Guid tvShowId, Guid[] unexpected)
+    {
+        logger.LogWarning(
+            "{method}: TV show '{tvShowId}' has {count} trailer(s) this edit did not list; not saved.",
+            nameof(StaleTrailers), tvShowId, unexpected.Length);
+        return new TvShowUpdateResult(
+            TvShowUpdateStatus.Conflict,
+            StaleTrailersMessage,
+            UnexpectedTrailerIds: unexpected);
+    }
+
+    /// <summary>
+    /// Saves <paramref name="show"/> (the edited copy) with an ETag-guarded replace against the stored show. Attach as
+    /// TV show trailer adds trailers to the show document while a curator has it open, and a plain upsert of the
+    /// earlier read would drop them. So the trailers (and the Indexer-owned <c>latestReleased</c>) always come from
+    /// the show that wins the ETag race:
+    /// <list type="bullet">
+    /// <item>A trailer keep-list is a 409 when that show holds a trailer id the client did not list, and a 400 when it
+    /// no longer holds a listed one; otherwise it is applied to that show's trailers.</item>
+    /// <item>Any other edit keeps the trailers already on that show.</item>
+    /// </list>
+    /// Null on success; otherwise the result to return (nothing saved).
+    /// </summary>
+    private async Task<TvShowUpdateResult?> SaveKeepingAttachedTrailers(TvShow show, TvShowChangeRequest change)
+    {
+        for (var attempt = 1; attempt <= MaxSaveAttempts; attempt++)
+        {
+            var latest = await tvShowRepository.GetTvShowForUpdate(show.Id);
+            if (latest is null)
+            {
+                logger.LogWarning("{method}: TV show '{tvShowId}' was deleted while it was edited.",
+                    nameof(SaveKeepingAttachedTrailers), show.Id);
+                return new TvShowUpdateResult(TvShowUpdateStatus.NotFound);
+            }
+
+            show.Trailers = latest.TvShow.Trailers;
+            if (change.Trailers is not null)
+            {
+                var unexpected = TvShowTrailerChangeApplier.TrailerIdsTheClientDidNotList(
+                    latest.TvShow, change.ExpectedTrailerIds);
+                if (unexpected.Length > 0)
+                {
+                    return StaleTrailers(show.Id, unexpected);
+                }
+
+                if (!TvShowTrailerChangeApplier.TryValidate(latest.TvShow, change.Trailers, out var error))
+                {
+                    return new TvShowUpdateResult(TvShowUpdateStatus.BadRequest, error);
+                }
+
+                TvShowTrailerChangeApplier.Apply(show, change.Trailers);
+            }
+
+            if (latest.TvShow.LatestReleased is { } stored && (show.LatestReleased is not { } edited || stored > edited))
+            {
+                show.LatestReleased = stored;
+            }
+
+            if (await tvShowRepository.TryReplace(show, latest.ETag))
+            {
+                return null;
+            }
+
+            logger.LogWarning(
+                "{method}: TV show '{tvShowId}' changed while it was saved (attempt {attempt} of {max}); re-reading.",
+                nameof(SaveKeepingAttachedTrailers), show.Id, attempt, MaxSaveAttempts);
+        }
+
+        logger.LogError("{method}: TV show '{tvShowId}' kept changing; edit not saved.",
+            nameof(SaveKeepingAttachedTrailers), show.Id);
+        return new TvShowUpdateResult(TvShowUpdateStatus.Failed);
     }
 
     /// <summary>
