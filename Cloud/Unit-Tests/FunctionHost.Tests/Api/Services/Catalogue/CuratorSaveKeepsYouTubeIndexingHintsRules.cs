@@ -13,6 +13,7 @@ using RedditPodcastPoster.Models.Podcasts;
 using RedditPodcastPoster.Models.TvShows;
 using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using Xunit;
+using FunctionHost.Tests.Api.Services.TvShows;
 
 namespace FunctionHost.Tests.Api.Services.Catalogue;
 
@@ -42,9 +43,7 @@ public class CuratorSaveKeepsYouTubeIndexingHintsRules
         _mocker.Use(NullLogger<NewsOrganisationService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<ITvShowRepository>()
-            .Setup(r => r.Save(It.IsAny<TvShow>()))
-            .Callback<TvShow>(show => _savedShow = show)
-            .Returns(Task.CompletedTask);
+            .SetupSaveViaReplace(show => _savedShow = show);
         _mocker.GetMock<INewsOrganisationRepository>()
             .Setup(r => r.Save(It.IsAny<NewsOrganisation>()))
             .Callback<NewsOrganisation>(organisation => _savedOrganisation = organisation)

@@ -13,4 +13,9 @@ public class TvShowDto : ServiceIdsDto
 
     [JsonPropertyName("tmdbId")]
     public int? TmdbId { get; set; }
+
+    /// <summary>Trailers attached from podcast episodes, in display order. Omitted when there are none.</summary>
+    [JsonPropertyName("trailers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TvShowTrailerDto[]? Trailers { get; set; }
 }

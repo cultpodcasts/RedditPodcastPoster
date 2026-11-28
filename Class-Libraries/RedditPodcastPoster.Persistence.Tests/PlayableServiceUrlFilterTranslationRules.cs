@@ -260,4 +260,67 @@ public class PlayableServiceUrlFilterTranslationRules
         newsSql.Should().Contain("[\"additionalYouTube\"]");
         newsSql.Should().Contain(videoId);
     }
+
+    [Fact(DisplayName =
+        "When TV shows are filtered by TvShowHoldsTrailerUrl for YouTube, then the Cosmos SQL matches only trailers[] by url or ids.youtube and never a show-level service link, because a TV show has no main service link and a trailer URL must still be recognised as already in the catalogue (RPP #1412).")]
+    public void tv_show_holds_trailer_url_for_youtube_matches_trailers_only()
+    {
+        // Arrange
+        var videoId = _fixture.CreateYouTubeId();
+        var pasted = new Uri($"https://youtu.be/{videoId}");
+        var stored = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        using var client = CreateClient();
+        var container = client.GetContainer("db", "tv-shows");
+
+        // Act
+        var sql = container.GetItemLinqQueryable<TvShow>()
+            .Where(PlayableServiceUrlFilters.TvShowHoldsTrailerUrl(
+                ServiceKeys.YouTube, pasted, stored, youTubeId: videoId))
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        sql.Should().Contain("[\"trailers\"]");
+        sql.Should().Contain("[\"url\"]");
+        sql.Should().Contain("[\"ids\"]");
+        sql.Should().Contain("[\"youtube\"]");
+        sql.Should().Contain(stored.ToString());
+        sql.Should().Contain(pasted.ToString());
+        sql.Should().Contain(videoId);
+        sql.Should().NotContain("root[\"services\"]");
+    }
+
+    [Fact(DisplayName =
+        "When TV shows are filtered by TvShowHoldsTrailerUrl for Spotify or Apple with an episode id, then the Cosmos SQL also matches trailers[].ids and trailers[].services url, because a YouTube-sourced trailer stores those so a Spotify or Apple re-find still matches (RPP #1412).")]
+    public void tv_show_holds_trailer_url_for_spotify_and_apple_matches_trailer_ids_and_services()
+    {
+        // Arrange
+        var spotifyId = _fixture.CreateSpotifyId();
+        var spotifyStored = new Uri($"https://open.spotify.com/episode/{spotifyId}");
+        var spotifyPasted = new Uri($"{spotifyStored}?si={_fixture.CreateGuid():N}");
+        var appleId = _fixture.CreateAppleId();
+        var applePath = $"/podcast/synthetic-show/id{_fixture.CreateAppleId()}?i={appleId}";
+        var appleStored = new Uri($"https://podcasts.apple.com{applePath}");
+        var applePasted = new Uri($"https://podcasts.apple.com/us{applePath}&uo=4");
+        using var client = CreateClient();
+        var container = client.GetContainer("db", "tv-shows");
+
+        // Act
+        var spotifySql = container.GetItemLinqQueryable<TvShow>()
+            .Where(PlayableServiceUrlFilters.TvShowHoldsTrailerUrl(
+                ServiceKeys.Spotify, spotifyPasted, spotifyStored, spotifyId: spotifyId))
+            .ToQueryDefinition()
+            .QueryText;
+        var appleSql = container.GetItemLinqQueryable<TvShow>()
+            .Where(PlayableServiceUrlFilters.TvShowHoldsTrailerUrl(
+                ServiceKeys.Apple, applePasted, appleStored, appleId: appleId))
+            .ToQueryDefinition()
+            .QueryText;
+
+        // Assert
+        spotifySql.Should().Contain("[\"services\"]").And.Contain("[\"spotify\"]").And.Contain(spotifyId);
+        appleSql.Should().Contain("[\"services\"]").And.Contain("[\"apple\"]").And.Contain(appleId.ToString());
+        spotifySql.Should().Contain("[\"trailers\"]").And.Contain("[\"ids\"]");
+        appleSql.Should().Contain("[\"trailers\"]").And.Contain("[\"ids\"]");
+    }
 }

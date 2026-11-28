@@ -1070,6 +1070,56 @@ public class CatalogueKindSubmitRules
     }
 
     [Fact(DisplayName =
+        "When submit fills missing identity ids on an existing TvShow, it writes them onto the freshly read show with an ETag-guarded update and never upserts the show it read earlier, so a trailer attached since that read is kept (RPP #1412).")]
+    public async Task existing_tv_show_identity_enrich_keeps_a_trailer_attached_since_the_read()
+    {
+        // Arrange
+        UseEnabledFlag();
+        var series = _fixture.CreateTitle();
+        var tmdbId = (int)(_fixture.CreateAppleId() % 1_000_000_000L) + 1;
+        var existing = new TvShow(series);
+        UseStoredShows(existing);
+        var trailer = new TvShowTrailer
+        {
+            Id = _fixture.CreateGuid(),
+            Title = _fixture.CreateTitle(),
+            Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}"),
+            Length = _fixture.CreateDuration()
+        };
+        var freshlyRead = new TvShow(series) { Id = existing.Id, Trailers = [trailer] };
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.ResolveTvShowEpisodeAsync(
+                It.IsAny<TvShow>(),
+                It.IsAny<string>(),
+                It.IsAny<CatalogueIdentityChoice>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CatalogueIdentityAdmission.Proceed(
+                null, new CatalogueAuthorityIds(null, tmdbId, null)));
+        _mocker.GetMock<ICatalogueIdentityEnricher>()
+            .Setup(x => x.ApplyMissing(It.IsAny<ITvCanonical>(), It.IsAny<CatalogueAuthorityIds?>()))
+            .Returns((ITvCanonical document, CatalogueAuthorityIds? ids) => ids?.FillMissing(document) ?? false);
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(x => x.Update(existing.Id, It.IsAny<Func<TvShow, bool>>()))
+            .Returns<Guid, Func<TvShow, bool>>((_, mutate) =>
+            {
+                mutate(freshlyRead);
+                return Task.FromResult<TvShow?>(freshlyRead);
+            });
+        var source = SeriesSource(TubiMovieUrl(), series);
+        var sut = _mocker.CreateInstance<CatalogueKindSubmitter>();
+
+        // Act
+        var result = await sut.TrySubmit(Categorised(source), TvOptions(source.Url!));
+
+        // Assert
+        result!.EpisodeResult.Should().Be(SubmitResultState.Created);
+        freshlyRead.TmdbId.Should().Be(tmdbId);
+        freshlyRead.Trailers.Should().ContainSingle().Which.Id.Should().Be(trailer.Id);
+        _mocker.GetMock<ITvShowRepository>().Verify(x => x.Save(It.IsAny<TvShow>()), Times.Never);
+    }
+
+    [Fact(DisplayName =
         "A Discovery+ episode whose OG show name differs from an existing sibling still attaches to that TvShow " +
         "when the Discovery+ show UUID matches a stored episode service URL, so siblings do not mint duplicate series (#1587).")]
     public async Task discoveryplus_episode_attaches_by_show_uuid_when_names_differ()

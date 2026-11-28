@@ -128,6 +128,22 @@ public class Processor(
                 showId);
         }
 
+        // Trailers live on the show document (RPP #1412). A source's trailers move onto the target before the source
+        // is deleted, so deleting it cannot lose them.
+        foreach (var source in sources)
+        {
+            foreach (var trailer in source.Trailers ?? [])
+            {
+                var alreadyOnTarget = target.HasTrailer(trailer.Id);
+                logger.LogWarning(
+                    alreadyOnTarget
+                        ? "  keep trailer '{trailerId}' '{title}': target '{targetId}' already holds it (source '{showId}' copy is dropped with the show)."
+                        : "  move trailer '{trailerId}' '{title}' from show '{showId}' to '{targetId}'.",
+                    trailer.Id, trailer.Title, alreadyOnTarget ? target.Id : source.Id,
+                    alreadyOnTarget ? source.Id : target.Id);
+            }
+        }
+
         foreach (var source in sources)
         {
             logger.LogWarning("  delete emptied show '{showId}' '{name}'.", source.Id, source.Name);
@@ -142,8 +158,26 @@ public class Processor(
 
         try
         {
-            target.FileKey = newFileKey;
-            await tvShowRepository.Save(target);
+            // ETag-guarded write of only the fields this tool owns, with the sources' trailers adopted. A trailer
+            // attached to the target since it was read is kept; a retry finds the sources' trailers already adopted.
+            var updatedTarget = await tvShowRepository.Update(target.Id, latest =>
+            {
+                latest.Name = targetName;
+                latest.FileKey = newFileKey;
+                foreach (var source in sources)
+                {
+                    latest.AdoptTrailersFrom(source);
+                }
+
+                return true;
+            });
+            if (updatedTarget is null)
+            {
+                logger.LogError("Target TV show '{id}' was deleted during the merge.", target.Id);
+                return 1;
+            }
+
+            target = updatedTarget;
 
             var searchDocs = new List<EpisodeSearchRecord>();
             foreach (var (oldShowId, episode) in toMove)
@@ -179,6 +213,13 @@ public class Processor(
                         "Source show '{showId}' still has {count} episode(s); not deleting the show.",
                         source.Id, remaining);
                     return 2;
+                }
+
+                // A trailer attached to the source since it was read must move too: the source is about to go.
+                var latestSource = await tvShowRepository.GetTvShow(source.Id);
+                if (latestSource?.Trailers is { Count: > 0 })
+                {
+                    await tvShowRepository.Update(target.Id, latest => latest.AdoptTrailersFrom(latestSource).Count > 0);
                 }
 
                 await tvShowRepository.Delete(source.Id);

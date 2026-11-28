@@ -21,6 +21,7 @@ public class EpisodeController(
     IDeleteEpisodeHandler deleteEpisodeHandler,
     IPostEpisodeFilmMoveHandler postEpisodeFilmMoveHandler,
     IPostEpisodeTrailerAttachHandler postEpisodeTrailerAttachHandler,
+    IPostEpisodeTvShowTrailerAttachHandler postEpisodeTvShowTrailerAttachHandler,
     IPostEpisodeYouTubeAlternateAttachHandler postEpisodeYouTubeAlternateAttachHandler,
     IPostEpisodeTvShowMoveHandler postEpisodeTvShowMoveHandler,
     IPostEpisodeNewsMoveHandler postEpisodeNewsMoveHandler,
@@ -38,6 +39,7 @@ public class EpisodeController(
     private const string? PodcastIdRoute = "episode/{podcastId:guid}/{episodeId:guid}";
     private const string? FilmMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/film";
     private const string? TrailerAttachRoute = "episode/{podcastId:guid}/{episodeId:guid}/trailer";
+    private const string? TvShowTrailerAttachRoute = "episode/{podcastId:guid}/{episodeId:guid}/tvshow-trailer";
     private const string? YouTubeAlternateAttachRoute = "episode/{podcastId:guid}/{episodeId:guid}/youtube-alternate";
     private const string? TvShowMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/tvshow";
     private const string? NewsMoveRoute = "episode/{podcastId:guid}/{episodeId:guid}/news";
@@ -311,6 +313,31 @@ public class EpisodeController(
             ["curate"],
             new EpisodeTrailerAttachCommand(podcastId, episodeId, request.ToModel()),
             postEpisodeTrailerAttachHandler.Handle,
+            Unauthorised,
+            ct);
+    }
+
+    /// <summary>
+    /// Attaches one podcast episode to a TV show as a trailer; the episode row is then deleted. Body: <c>tvShowId</c>,
+    /// or <c>createShow</c> with <c>tvShowName</c> (and optional <c>publisher</c>), plus an optional <c>title</c>.
+    /// </summary>
+    [Function("PodcastEpisodeAttachAsTvShowTrailer")]
+    public Task<HttpResponseData> AttachAsTvShowTrailer(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = TvShowTrailerAttachRoute)]
+        HttpRequestData req,
+        Guid podcastId,
+        Guid episodeId,
+        FunctionContext _,
+        [FromBody]
+        Dtos.EpisodeTvShowTrailerAttachRequest? request,
+        CancellationToken ct
+    )
+    {
+        return HandleRequest(
+            req,
+            ["curate"],
+            new EpisodeTvShowTrailerAttachCommand(podcastId, episodeId, request.ToModel()),
+            postEpisodeTvShowTrailerAttachHandler.Handle,
             Unauthorised,
             ct);
     }

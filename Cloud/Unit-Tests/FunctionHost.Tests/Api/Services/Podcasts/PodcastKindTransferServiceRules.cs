@@ -1112,6 +1112,66 @@ public class PodcastKindTransferServiceRules
         _mocker.GetMock<INewsOrganisationRepository>().Verify(r => r.Delete(It.IsAny<Guid>()), Times.Never);
     }
 
+    [Fact(DisplayName =
+        "A resumed transfer to a TV show replaces the stored show with its ETag and keeps every trailer on it, " +
+        "including one attached after the first read, because a full-document upsert would drop a trailer whose " +
+        "source episode row is already deleted.")]
+    public async Task resumed_tv_show_transfer_keeps_trailers_attached_since_the_read()
+    {
+        // Arrange
+        var podcast = _fixture.CreatePodcast();
+        _podcasts.Seed(podcast);
+        _episodes.Seed(_fixture.CreateStoredEpisodeWithYouTubeOnly(podcast));
+        var firstTrailer = CreateTrailer();
+        var laterTrailer = CreateTrailer();
+        var stored = new TvShow(podcast.Name) { Id = podcast.Id, Trailers = [firstTrailer] };
+        var etag = "first";
+        TvShow? replaced = null;
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.GetTvShow(podcast.Id))
+            .ReturnsAsync(() => stored);
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.GetTvShowForUpdate(podcast.Id))
+            .ReturnsAsync(() => new TvShowVersion(
+                new TvShow(stored.Name) { Id = stored.Id, Trailers = [.. stored.Trailers!] }, etag));
+        _mocker.GetMock<ITvShowRepository>()
+            .Setup(r => r.TryReplace(It.IsAny<TvShow>(), It.IsAny<string>()))
+            .ReturnsAsync((TvShow candidate, string match) =>
+            {
+                if (match == "first")
+                {
+                    stored = new TvShow(stored.Name) { Id = stored.Id, Trailers = [firstTrailer, laterTrailer] };
+                    etag = "second";
+                    return false;
+                }
+
+                replaced = candidate;
+                return true;
+            });
+        _locks.SeedMarker(
+            podcast.Id,
+            _now - PodcastKindTransferService.LockStaleAfter - TimeSpan.FromMinutes(1),
+            CatalogueParentKind.TvShow);
+
+        // Act
+        var result = await Transfer(podcast.Id, CatalogueParentKind.TvShow);
+
+        // Assert
+        result.Status.Should().Be(PodcastKindTransferStatus.Accepted);
+        replaced.Should().NotBeNull();
+        replaced!.Trailers.Should().NotBeNull();
+        replaced.Trailers!.Select(trailer => trailer.Id).Should().Equal(firstTrailer.Id, laterTrailer.Id);
+        _mocker.GetMock<ITvShowRepository>().Verify(r => r.Save(It.IsAny<TvShow>()), Times.Never);
+    }
+
+    private TvShowTrailer CreateTrailer() => new()
+    {
+        Id = _fixture.CreateGuid(),
+        Title = _fixture.CreateTitle(),
+        Url = new Uri($"https://www.youtube.com/watch?v={_fixture.CreateYouTubeId()}"),
+        Length = _fixture.CreateDuration()
+    };
+
     [Theory(DisplayName =
         "When deleting the source episodes fails part way, the podcast row stays and the marker is released, so " +
         "a retry resumes and completes the transfer with every source row gone, because the podcast is deleted last.")]
