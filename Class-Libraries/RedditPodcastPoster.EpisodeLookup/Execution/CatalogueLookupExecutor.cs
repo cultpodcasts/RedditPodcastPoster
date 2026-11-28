@@ -83,11 +83,13 @@ public sealed class CatalogueLookupExecutor(
             var page0Items = await run.ReadPages(
                 new CatalogueLookupStep(CatalogueLookupStrategy.NewestPages, PageCap: 1),
                 cancellationToken);
-            // Page 0 unreadable (guard / null): never skip — run the plan as today.
+            // Page 0 unreadable (guard / null): never skip — still run the plan, then clear/record.
+            string? newestId = null;
+            var showTotal = run.ReportedTotal ?? count;
             if (run.PagesRead > 0)
             {
-                var newestId = page0Items.Count > 0 ? source.GetId(page0Items[0]) : null;
-                var showTotal = run.ReportedTotal ?? count;
+                newestId = page0Items.Count > 0 ? source.GetId(page0Items[0]) : null;
+                showTotal = run.ReportedTotal ?? count;
                 var known = lookup.KnownMisses?.FirstOrDefault(m =>
                     m.EpisodeId == episodeId &&
                     string.Equals(m.Platform, source.Platform, StringComparison.Ordinal));
@@ -101,23 +103,44 @@ public sealed class CatalogueLookupExecutor(
                     Log(lookup, source, steps, StageSkippedUnchanged, count, run.PagesRead, tally);
                     return new CatalogueLookupResult<TItem>(null, StageSkippedUnchanged);
                 }
-
-                var fullResult = await RunPlan(lookup, source, run, steps, tally, count, reducer, cancellationToken);
-                if (fullResult.Match != null)
-                {
-                    lookupMisses.Clear(podcastId, episodeId, source.Platform);
-                }
-                else if (fullResult.Stage == StageMiss)
-                {
-                    lookupMisses.RecordMiss(
-                        podcastId, episodeId, source.Platform, newestId, showTotal, now);
-                }
-
-                return fullResult;
             }
+
+            var fullResult = await RunPlan(lookup, source, run, steps, tally, count, reducer, cancellationToken);
+            ApplyMissMemoryOutcome(
+                podcastId, episodeId, source.Platform, newestId, showTotal, fullResult);
+            return fullResult;
         }
 
         return await RunPlan(lookup, source, run, steps, tally, count, reducer, cancellationToken);
+    }
+
+    /// <summary>
+    /// After an Index plan finishes under miss memory: clear on match, record on miss (newest id may be null when
+    /// page 0 was unreadable — the skip gate already requires a non-null newest id).
+    /// </summary>
+    private void ApplyMissMemoryOutcome<TItem>(
+        Guid podcastId,
+        Guid episodeId,
+        string platform,
+        string? newestCatalogueId,
+        int? showTotal,
+        CatalogueLookupResult<TItem> result)
+        where TItem : class
+    {
+        if (result.Match != null)
+        {
+            lookupMisses.Clear(podcastId, episodeId, platform);
+        }
+        else if (result.Stage == StageMiss)
+        {
+            lookupMisses.RecordMiss(
+                podcastId,
+                episodeId,
+                platform,
+                newestCatalogueId,
+                showTotal,
+                timeProvider.GetUtcNow().UtcDateTime);
+        }
     }
 
     private async Task<CatalogueLookupResult<TItem>> RunPlan<TItem>(

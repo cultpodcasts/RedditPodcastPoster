@@ -362,6 +362,75 @@ public class CatalogueLookupMissMemoryRules
     }
 
     [Fact(DisplayName =
+        "When page 0 is unreadable and the plan still misses, Index miss memory records the attempt so LastFullAttemptUtc refreshes.")]
+    public async Task Unreadable_page0_miss_still_records()
+    {
+        // Arrange
+        var podcastId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var show = UnrelatedShow(600);
+        const int total = 600;
+        var source = new FakeSource(show, reportedTotal: total, failFromPage: 0);
+        var misses = new CatalogueLookupMisses();
+        var known = new EpisodeLookupMiss
+        {
+            EpisodeId = episodeId,
+            Platform = CataloguePlatforms.Spotify,
+            NewestCatalogueId = show[0].Id,
+            ShowTotal = total,
+            LastFullAttemptUtc = Now.AddHours(-1)
+        };
+
+        // Act
+        var result = await Sut(misses: misses).FindMatch(
+            IndexLookup(podcastId, episodeId, total, [known]), source);
+
+        // Assert
+        result.Stage.Should().Be(CatalogueLookupExecutor.StageMiss);
+        misses.TryGetChanges(podcastId, out var changes).Should().BeTrue();
+        changes.Should().ContainSingle(c =>
+            !c.Clear &&
+            c.EpisodeId == episodeId &&
+            c.Platform == CataloguePlatforms.Spotify &&
+            c.NewestCatalogueId == null &&
+            c.ShowTotal == total);
+    }
+
+    [Fact(DisplayName =
+        "When page 0 is unreadable and a later plan step matches, Index miss memory still clears the remembered miss.")]
+    public async Task Unreadable_page0_match_still_clears()
+    {
+        // Arrange — small show so Index plans full-show-read then title-search; page 0 fails, search hits.
+        var podcastId = _fixture.CreateGuid();
+        var episodeId = _fixture.CreateGuid();
+        var show = UnrelatedShow(10);
+        const int total = 10;
+        var hit = new Item(_fixture.CreateSpotifyId(), ProbeTitle, Now.Date.AddDays(-1));
+        var source = new FakeSource(show, reportedTotal: total, failFromPage: 0, searchHits: [hit]);
+        var misses = new CatalogueLookupMisses();
+        var known = new EpisodeLookupMiss
+        {
+            EpisodeId = episodeId,
+            Platform = CataloguePlatforms.Spotify,
+            NewestCatalogueId = show[0].Id,
+            ShowTotal = total,
+            LastFullAttemptUtc = Now.AddHours(-1)
+        };
+
+        // Act
+        var result = await Sut(misses: misses).FindMatch(
+            IndexLookup(podcastId, episodeId, total, [known]), source);
+
+        // Assert
+        result.Match.Should().NotBeNull();
+        misses.TryGetChanges(podcastId, out var changes).Should().BeTrue();
+        changes.Should().ContainSingle(c =>
+            c.EpisodeId == episodeId &&
+            c.Platform == CataloguePlatforms.Spotify &&
+            c.Clear);
+    }
+
+    [Fact(DisplayName =
         "A first Index miss records the catalogue fingerprint so the next pass can skip while it is unchanged.")]
     public async Task Miss_records_fingerprint()
     {

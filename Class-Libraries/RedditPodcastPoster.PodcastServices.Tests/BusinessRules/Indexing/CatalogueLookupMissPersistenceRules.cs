@@ -102,4 +102,57 @@ public class CatalogueLookupMissPersistenceRules
         saved.LookupMisses.Should().ContainSingle(m =>
             m.EpisodeId == episode.Id && m.Platform == CataloguePlatforms.Spotify && m.ShowTotal == 12);
     }
+
+    [Fact(DisplayName =
+        "A podcast keeps at most 50 remembered misses, preferring the newest LastFullAttemptUtc.")]
+    public async Task Caps_at_fifty_newest_by_last_full_attempt()
+    {
+        // Arrange
+        var harness = new PodcastUpdaterTestHarness();
+        var podcast = _fixture.CreateSpotifyPrimaryPodcast(_fixture.CreateSpotifyId());
+        const int seededMisses = 51;
+        var oldestAttempt = DomainTestFixture.UtcDaysAgo(seededMisses);
+        Guid? oldestEpisodeId = null;
+        var misses = new List<EpisodeLookupMiss>(seededMisses);
+        for (var i = 0; i < seededMisses; i++)
+        {
+            var episode = _fixture.CreateStoredEpisodeWithSpotifyOnly(podcast, release: InWindowRelease);
+            harness.EpisodeRepository.Seed(episode);
+            var attemptUtc = DomainTestFixture.UtcDaysAgo(seededMisses - i);
+            if (i == 0)
+            {
+                oldestEpisodeId = episode.Id;
+                oldestAttempt.Should().Be(attemptUtc);
+            }
+
+            misses.Add(new EpisodeLookupMiss
+            {
+                EpisodeId = episode.Id,
+                Platform = CataloguePlatforms.Spotify,
+                NewestCatalogueId = _fixture.CreateSpotifyId(),
+                ShowTotal = 10,
+                LastFullAttemptUtc = attemptUtc
+            });
+        }
+
+        podcast.LookupMisses = misses;
+        harness.PodcastRepository.Seed(podcast);
+        harness.EpisodeProvider
+            .Setup(x => x.GetEpisodes(
+                podcast,
+                It.IsAny<IEnumerable<Episode>>(),
+                It.IsAny<IndexingContext>()))
+            .ReturnsAsync([]);
+
+        // Act
+        await harness.Updater.Update(
+            podcast, enrichOnly: false, PodcastUpdaterTestHarness.DefaultIndexingContext(ReleasedSince));
+
+        // Assert
+        var saved = harness.PodcastRepository.SavedPodcasts.Should().ContainSingle().Subject;
+        saved.LookupMisses.Should().NotBeNull();
+        saved.LookupMisses!.Should().HaveCount(50);
+        saved.LookupMisses.Should().NotContain(m => m.EpisodeId == oldestEpisodeId);
+        saved.LookupMisses.Should().NotContain(m => m.LastFullAttemptUtc == oldestAttempt);
+    }
 }
