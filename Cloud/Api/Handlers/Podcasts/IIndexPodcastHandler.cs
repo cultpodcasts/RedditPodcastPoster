@@ -13,4 +13,9 @@ public interface IIndexPodcastHandler
         IHandlerContext ctx,
         string podcastName,
         CancellationToken c);
+
+    Task<HttpResponseData> HandleBacklogPreview(
+        IHandlerContext ctx,
+        string podcastName,
+        CancellationToken c);
 }
