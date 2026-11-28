@@ -9,6 +9,17 @@ public static class TvShowExtension
         {
             ImdbId = show.ImdbId,
             TvdbId = show.TvdbId,
-            TmdbId = show.TmdbId
+            TmdbId = show.TmdbId,
+            Trailers = show.Trailers is { Count: > 0 } trailers
+                ? trailers.Select(trailer => new TvShowTrailerDto
+                {
+                    Id = trailer.Id,
+                    Title = trailer.Title,
+                    Url = trailer.Url,
+                    Image = trailer.Image,
+                    Release = trailer.Release,
+                    Duration = CatalogueDtoMapping.FormatDuration(trailer.Length)
+                }).ToArray()
+                : null
         }.WithPublisherFields(show).WithServiceIds(show.Indexing);
 }

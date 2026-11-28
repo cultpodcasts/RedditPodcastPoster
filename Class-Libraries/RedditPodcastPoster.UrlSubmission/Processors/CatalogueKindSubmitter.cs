@@ -363,7 +363,17 @@ public class CatalogueKindSubmitter(
         await FillFromIdentity(episode, show);
         if (saveParent)
         {
-            await tvShows.Save(show);
+            if (creatingParent)
+            {
+                await tvShows.Save(show);
+            }
+            else
+            {
+                // An existing show is enriched on a freshly read copy (ETag-guarded), so a trailer attached since
+                // this request read the show is not dropped by a full-document upsert (RPP #1412).
+                var parentIds = identity.Admission.ParentIds;
+                await tvShows.Update(show.Id, latest => identityEnricher.ApplyMissing(latest, parentIds));
+            }
         }
 
         await tvShowEpisodes.Save(episode);

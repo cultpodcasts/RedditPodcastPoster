@@ -135,6 +135,20 @@ public class CatalogueShortIdRules
     }
 
     [Fact(DisplayName =
+        "A TV show page path is /tv/{name} with the name encoded like a playable slug and no short id, " +
+        "because the site addresses a TV show by name only.")]
+    public void tv_show_path_encodes_the_name_like_the_site()
+    {
+        // Arrange
+        const string name = "Director's Cut (1984)!*+?";
+
+        // Act
+        var path = CatalogueShortId.TvShowPath(name);
+
+        // Assert
+        path.Should().Be("/tv/Director's%20Cut%20(1984)!*%2B%3F");
+    }
+    [Fact(DisplayName =
         "ContentKind.Episode and the string name Episode both build /podcast with the same short id, " +
         "because the string overload only parses into the enum (route root is podcast, not Episode).")]
     public void episode_enum_and_string_paths_match()
