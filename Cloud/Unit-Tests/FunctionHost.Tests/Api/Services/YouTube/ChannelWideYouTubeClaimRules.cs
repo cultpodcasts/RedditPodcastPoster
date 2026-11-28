@@ -19,6 +19,7 @@ using RedditPodcastPoster.Persistence.Abstractions.Repositories;
 using RedditPodcastPoster.PodcastServices.YouTube.Playlist;
 using Xunit;
 using Podcast = RedditPodcastPoster.Models.Podcasts.Podcast;
+using FunctionHost.Tests.Api.Services.TvShows;
 
 namespace FunctionHost.Tests.Api.Services.YouTube;
 
@@ -88,9 +89,7 @@ public class ChannelWideYouTubeClaimRules
             .Callback<NewsOrganisation>(o => _savedOrganisation = o)
             .Returns(Task.CompletedTask);
         _mocker.GetMock<ITvShowRepository>()
-            .Setup(r => r.Save(It.IsAny<TvShow>()))
-            .Callback<TvShow>(s => _savedShow = s)
-            .Returns(Task.CompletedTask);
+            .SetupSaveViaReplace(s => _savedShow = s);
         _mocker.GetMock<INewsReportRepository>()
             .Setup(r => r.GetByNewsOrganisationId(It.IsAny<Guid>()))
             .Returns(AsyncEnumerable.Empty<NewsReport>());

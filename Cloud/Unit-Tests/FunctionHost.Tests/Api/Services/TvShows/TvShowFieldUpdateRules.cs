@@ -28,9 +28,7 @@ public class TvShowFieldUpdateRules
         _mocker.Use(NullLogger<TvShowService>.Instance);
         _mocker.Use(_search.Cleanup);
         _mocker.GetMock<ITvShowRepository>()
-            .Setup(r => r.Save(It.IsAny<TvShow>()))
-            .Callback<TvShow>(show => _saved = show)
-            .Returns(Task.CompletedTask);
+            .SetupSaveViaReplace(show => _saved = show);
         _mocker.GetMock<ITvShowEpisodeRepository>()
             .Setup(r => r.GetByTvShowId(It.IsAny<Guid>()))
             .Returns(() => _episodes.ToAsyncEnumerable());

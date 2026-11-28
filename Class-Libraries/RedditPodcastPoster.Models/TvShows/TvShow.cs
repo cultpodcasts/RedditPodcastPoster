@@ -44,6 +44,15 @@ public sealed class TvShow : Publisher, ITvCanonical, IHasYouTubeIndexingSetting
     public int? TmdbId { get; set; }
 
     /// <summary>
+    /// Trailers, teasers and clips of this show, in display order (RPP #1412). Omitted when there are none. Same
+    /// shape as <c>Film.trailers</c>. A trailer is not a TV episode: it has no search document and no episode page.
+    /// </summary>
+    [JsonPropertyName("trailers")]
+    [JsonPropertyOrder(153)]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<TvShowTrailer>? Trailers { get; set; }
+
+    /// <summary>
     /// Episode-discovery settings kept from the migrated podcast (JSON <c>indexing</c>). When
     /// <see cref="CatalogueIndexingSource.IsAutoIndexed"/>, the hourly indexer finds new playables.
     /// Omitted when unset.
@@ -52,6 +61,9 @@ public sealed class TvShow : Publisher, ITvCanonical, IHasYouTubeIndexingSetting
     [JsonPropertyOrder(300)]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CatalogueIndexingSource? Indexing { get; set; }
+
+    /// <summary>True when a trailer came from the episode with this id.</summary>
+    public bool HasTrailer(Guid episodeId) => Trailers?.Any(trailer => trailer.Id == episodeId) == true;
 
     /// <summary>The YouTube discovery settings and hints live on <see cref="Indexing"/>.</summary>
     [JsonIgnore]

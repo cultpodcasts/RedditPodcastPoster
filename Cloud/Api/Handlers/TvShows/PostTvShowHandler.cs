@@ -32,7 +32,13 @@ public class PostTvShowHandler(
                 await ctx.Json(HttpStatusCode.ServiceUnavailable,
                     new { message = result.Message, code = result.Code, retryable = true }, c),
             TvShowUpdateStatus.Conflict =>
-                await ctx.Conflict(new { message = result.Message, ids = result.ConflictingIds }, c),
+                await ctx.Conflict(
+                    new
+                    {
+                        message = result.Message,
+                        ids = result.ConflictingIds,
+                        unexpectedTrailerIds = result.UnexpectedTrailerIds ?? []
+                    }, c),
             TvShowUpdateStatus.Failed =>
                 await ctx.InternalError(ApiErrorResponse.Failure("Unable to update TV show"), c),
             _ => await LogAndFail(ctx, c)
