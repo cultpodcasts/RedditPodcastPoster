@@ -1289,7 +1289,7 @@ public class CatalogueParentIndexingRules
     {
         // Arrange
         var podcast = AutoIndexedYouTubePodcast();
-        podcast.SpotifyId = null;
+        podcast.SpotifyId = string.Empty;
         podcast.AppleId = null;
         var organisation = SeedOrganisation(podcast);
         _discovered = [_fixture.CreateYouTubeCatalogueEpisode(b =>
