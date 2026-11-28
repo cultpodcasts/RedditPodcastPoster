@@ -21,7 +21,8 @@ public interface IFileKeyClaimStore
     Task<FileKeyClaimResult> TryClaim(string fileKey, Guid ownerId, Guid scopeId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// The item with this key was saved. The claim is kept and is no longer released with the scope.
+    /// The item with this key was saved. Sets committed + never-expire TTL (<c>ttl: -1</c>) so the claim
+    /// is permanent uniqueness (ADR 0005) and is no longer released with the scope.
     /// A key this process did not claim is ignored, so an ordinary save does not read Cosmos.
     /// </summary>
     Task Acknowledge(string? fileKey, CancellationToken cancellationToken = default);

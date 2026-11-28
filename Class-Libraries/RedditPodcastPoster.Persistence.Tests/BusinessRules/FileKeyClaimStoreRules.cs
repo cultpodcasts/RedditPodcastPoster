@@ -134,7 +134,9 @@ public class FileKeyClaimStoreRules
     }
 
     [Fact(DisplayName =
-        "A second scope that observes the same owner's uncommitted claim and then ends leaves the document for the creating scope to acknowledge.")]
+        "When the creating scope acknowledges after a second scope observed the same uncommitted claim, the " +
+        "replace sets committed true and ttl -1 (permanent uniqueness — ADR 0005 / #1307), and neither scope " +
+        "deletes the document.")]
     public async Task second_scope_observing_an_uncommitted_claim_does_not_release_it()
     {
         // Arrange
