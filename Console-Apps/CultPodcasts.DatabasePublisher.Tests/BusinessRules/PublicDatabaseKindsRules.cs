@@ -262,7 +262,8 @@ public sealed class PublicDatabaseKindsRules : IDisposable
         message.Should().Contain(first.FileKey)
             .And.Contain($"'{first.Name}' (id {first.Id})")
             .And.Contain($"'{second.Name}' (id {second.Id})")
-            .And.Contain("different stored file key");
+            .And.Contain("different stored file key")
+            .And.Contain("never renames");
         _scenario.Files.Should().BeEmpty();
     }
 
