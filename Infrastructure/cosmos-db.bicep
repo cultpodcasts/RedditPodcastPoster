@@ -191,8 +191,9 @@ resource lookupContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/con
   }
 }
 
-// Short-lived file-key leases for concurrent creates. Opt-in TTL: uncommitted claims set `ttl`;
-// a committed claim uses -1 so it stays until an explicit delete (kind-transfer compensation).
+// File-key uniqueness (ADR 0005 / #1307). Opt-in TTL (defaultTtl -1): uncommitted leases set a 1d `ttl`;
+// committed claims use ttl -1 and accumulate forever (durable uniqueness). Explicit delete only for
+// compensation (e.g. kind-transfer) — not scheduled purge of committed rows.
 resource fileKeyClaimsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = {
   parent: database
   name: 'FileKeyClaims'

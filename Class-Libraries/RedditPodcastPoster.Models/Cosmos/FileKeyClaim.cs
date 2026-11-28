@@ -4,12 +4,18 @@ using RedditPodcastPoster.Models.Serialization;
 namespace RedditPodcastPoster.Models.Cosmos;
 
 /// <summary>
-/// Short-lived lease that a file key is taken, stored in the <c>FileKeyClaims</c> container (not LookUps).
-/// Id is <c>filekey:{lowercased key}</c>, partitioned by that id. Created with <c>CreateItemAsync</c>; a 409
-/// means another owner holds it. <see cref="ScopeId"/> is the allocator scope that may release an uncommitted
-/// marker. A save of the podcast, TV show, news organisation or film keeps the marker. A create that is never
-/// saved releases it when that scope still holds the lease. An abandoned marker (process killed before release
-/// or save) expires after <see cref="UncommittedLifetimeSeconds"/>.
+/// File-key uniqueness marker in the <c>FileKeyClaims</c> container (not LookUps). Id is
+/// <c>filekey:{lowercased key}</c>, partitioned by that id. Created with <c>CreateItemAsync</c>; a 409 means
+/// another owner holds it.
+/// <para>
+/// <b>Uncommitted</b> (before save): short-lived lease — <see cref="ScopeId"/> may release it; an abandoned
+/// marker expires after <see cref="UncommittedLifetimeSeconds"/>.
+/// </para>
+/// <para>
+/// <b>Committed</b> (after acknowledge on save): permanent uniqueness record (<c>ttl: -1</c>). Growth of
+/// committed rows with the catalogue is expected (ADR 0005 / #1307). Do not TTL-prune committed claims.
+/// Explicit delete remains only for compensation (e.g. kind-transfer key release).
+/// </para>
 /// </summary>
 public sealed class FileKeyClaim : IFileKeyed
 {
@@ -51,7 +57,10 @@ public sealed class FileKeyClaim : IFileKeyed
     [JsonPropertyOrder(10)]
     public Guid OwnerId { get; set; }
 
-    /// <summary>True once the item that owns this key has been saved.</summary>
+    /// <summary>
+    /// True once the item that owns this key has been saved. Committed claims are permanent uniqueness
+    /// markers (ttl -1); see ADR 0005.
+    /// </summary>
     [JsonPropertyName("committed")]
     [JsonPropertyOrder(11)]
     public bool Committed { get; set; }
@@ -69,7 +78,10 @@ public sealed class FileKeyClaim : IFileKeyed
     [JsonPropertyOrder(13)]
     public DateTime ClaimedUtc { get; set; }
 
-    /// <summary>Cosmos per-item TTL. A day until the save keeps the claim, then none.</summary>
+    /// <summary>
+    /// Cosmos per-item TTL. Uncommitted: <see cref="UncommittedLifetimeSeconds"/>. Committed: <c>-1</c>
+    /// (never expire — durable uniqueness; ADR 0005).
+    /// </summary>
     [JsonPropertyName("ttl")]
     [JsonPropertyOrder(14)]
     public int? TimeToLiveSeconds { get; set; }
