@@ -32,7 +32,13 @@ public class ContractWireRules
                 "EpisodeDtoPersonMatch",
                 "EpisodeIdsDto",
                 "EpisodeImagesDto",
+                "EpisodeTrailerAttachRequest",
+                "EpisodeTrailerAttachResponse",
+                "EpisodeTvShowTrailerAttachRequest",
+                "EpisodeTvShowTrailerAttachResponse",
                 "EpisodeUpdateResponse",
+                "FilmTrailerChangeRequest",
+                "FilmTrailerDto",
                 "PersonDto",
                 "PublicEpisodeDto",
                 "SearchIndexerState",
@@ -41,6 +47,10 @@ public class ContractWireRules
                 "ServiceUrlsDto",
                 "SubjectMatchDto",
                 "SubjectMatchSourceDto",
+                "SubmitUrlResponseIdentityCandidateBody",
+                "SubmitUrlResponseIdentityDecisionBody",
+                "TvShowTrailerChangeRequest",
+                "TvShowTrailerDto",
                 "YouTubeAlternateDto"
             };
 
@@ -273,8 +283,12 @@ public class ContractWireRules
             "export const SubjectMatchSourceDto = {\n  Title: \"Title\",\n  Description: \"Description\",\n  PodcastDefault: \"PodcastDefault\",\n} as const;\n");
         files[ContractPaths.TypeScript].Should().Contain(
             "export type SubjectMatchSourceDto = (typeof SubjectMatchSourceDto)[keyof typeof SubjectMatchSourceDto];");
-        files[ContractPaths.TypeScript].Should().NotContain("\n  source: string;\n");
-        files[ContractPaths.TypeScript].Should().Contain("\n  source: SubjectMatchSourceDto;\n");
+        var subjectMatchInterface = Regex.Match(
+            files[ContractPaths.TypeScript],
+            @"export interface SubjectMatchDto \{.*?\n\}", RegexOptions.Singleline).Value;
+        subjectMatchInterface.Should().NotBeEmpty();
+        subjectMatchInterface.Should().NotContain("\n  source: string;\n");
+        subjectMatchInterface.Should().Contain("\n  source: SubjectMatchSourceDto;\n");
         files[ContractPaths.Zod].Should().Contain("source: subjectMatchSourceDtoSchema,");
     }
 
@@ -368,6 +382,62 @@ public class ContractWireRules
 
         // Assert
         act.Should().Throw<NotSupportedException>().WithMessage("*SplitEnumProbe*");
+    }
+
+    [Fact(DisplayName =
+        "When a film or TV show trailer is written by the HTTP serializer, then release ends in Z, duration is a string, image and release are omitted when null, and property order matches the generated contract, because the curator PATCH and read models share that wire shape (#1602).")]
+    public void trailer_dtos_match_http_json()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+        var film = new FilmTrailerDto();
+        var show = new TvShowTrailerDto();
+        Populate(film, 0);
+        Populate(show, 0);
+        var bare = new FilmTrailerDto();
+
+        // Act
+        using var filmJson = JsonDocument.Parse(JsonSerializer.Serialize(film, _options));
+        using var showJson = JsonDocument.Parse(JsonSerializer.Serialize(show, _options));
+        using var bareJson = JsonDocument.Parse(JsonSerializer.Serialize(bare, _options));
+
+        // Assert
+        filmJson.RootElement.GetProperty("release").GetString().Should().MatchRegex(WireFormats.IsoDateTime);
+        showJson.RootElement.GetProperty("release").GetString().Should().MatchRegex(WireFormats.IsoDateTime);
+        filmJson.RootElement.GetProperty("duration").ValueKind.Should().Be(JsonValueKind.String);
+        bareJson.RootElement.TryGetProperty("image", out _).Should().BeFalse();
+        bareJson.RootElement.TryGetProperty("release", out _).Should().BeFalse();
+        bareJson.RootElement.GetProperty("url").ValueKind.Should().Be(JsonValueKind.Null);
+        AssertNullHandling(bareJson.RootElement, document.Types.Single(type => type.Name == "FilmTrailerDto"), bare);
+        AssertPropertyOrder(document.Types.Single(type => type.Name == "FilmTrailerDto"), film);
+        AssertPropertyOrder(document.Types.Single(type => type.Name == "TvShowTrailerDto"), show);
+    }
+
+    [Fact(DisplayName =
+        "When a trailer attach response is written by the HTTP serializer, then error, filmCreated, cancelled and identityDecision are omitted by default, filmId is written as null, and the contract marks them optional, because the website reads the outcome through that contract (#1602).")]
+    public void trailer_attach_response_matches_http_json()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+        var contract = document.Types.Single(type => type.Name == "EpisodeTrailerAttachResponse");
+        var empty = new EpisodeTrailerAttachResponse();
+        var tvEmpty = new EpisodeTvShowTrailerAttachResponse();
+
+        // Act
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(empty, _options));
+        using var tvJson = JsonDocument.Parse(JsonSerializer.Serialize(tvEmpty, _options));
+
+        // Assert
+        foreach (var omitted in new[] { "error", "filmCreated", "cancelled", "identityDecision" })
+        {
+            json.RootElement.TryGetProperty(omitted, out _).Should().BeFalse();
+            contract.Properties.Single(property => property.JsonName == omitted).Optional.Should().BeTrue();
+        }
+
+        json.RootElement.GetProperty("filmId").ValueKind.Should().Be(JsonValueKind.Null);
+        json.RootElement.GetProperty("failureIndexing").GetBoolean().Should().BeFalse();
+        tvJson.RootElement.TryGetProperty("showCreated", out _).Should().BeFalse();
+        AssertNullHandling(json.RootElement, contract, empty);
     }
 
     private void AssertNullHandling(JsonElement json, ContractType contract, object instance)

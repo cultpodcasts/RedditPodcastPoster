@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Api.Contracts;
 
 namespace Api.Dtos;
 
@@ -6,6 +7,7 @@ namespace Api.Dtos;
 /// Body of POST episode/{podcastId}/{episodeId}/tvshow-trailer: <c>tvShowId</c>, or <c>createShow</c> with
 /// <c>tvShowName</c> (and optional <c>publisher</c>), plus an optional trailer <c>title</c>.
 /// </summary>
+[ExportContract]
 public class EpisodeTvShowTrailerAttachRequest
 {
     [JsonPropertyName("tvShowId")]

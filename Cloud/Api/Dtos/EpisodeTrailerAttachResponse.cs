@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
+using Api.Contracts;
 
 namespace Api.Dtos;
 
 /// <summary>Command outcome for POST episode/{podcastId}/{episodeId}/trailer. The client GETs the film for its read model.</summary>
+[ExportContract]
 public sealed class EpisodeTrailerAttachResponse
 {
     [JsonPropertyName("filmId")]
