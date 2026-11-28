@@ -20,13 +20,14 @@
 #     (`changes-requested` instead of `acceptable` fails it).
 #   - Carry (#1555): a head with no Approve/marker of its own also passes when it is a
 #     chain of PURE merge-from-base commits (two parents, second parent on the base
-#     branch, no PR/base file overlap, merge delta equal to the base side;
-#     .github/scripts/merge-only-tip.cjs) on top of a commit whose latest trusted marker
-#     is `acceptable` (walked via first parents, at most 10 hops; a `changes-requested`
-#     marker on the way blocks it). The `review-acceptable` label is kept, so merging
-#     main in needs no human re-mark. Rebases, feature commits, overlapping or
-#     hand-edited merges and unverifiable listings do not carry. An API error during the
-#     walk fails the status but keeps the label, so a re-run can heal it.
+#     branch, merge delta a subset of the base side, tip matches main on every
+#     main-touched path; .github/scripts/merge-only-tip.cjs) on top of a commit whose
+#     latest trusted marker is `acceptable` (walked via first parents, at most 10 hops;
+#     a `changes-requested` marker on the way blocks it). Filename overlap with main is
+#     allowed when those checks hold, so stacked PRs can sync main without a re-mark.
+#     The `review-acceptable` label is kept. Rebases, feature commits, evil or divergent
+#     merges and unverifiable listings do not carry. An API error during the walk fails
+#     the status but keeps the label, so a re-run can heal it.
 # The label is removed on a new push (synchronize) unless it is carried, and on any run
 # where it is present without an acceptable Approve/marker for the head SHA and nothing
 # is carried.
