@@ -12,6 +12,7 @@ public sealed class TvShowTrailerChangeRequest
 
     /// <summary>Null or blank keeps the current title.</summary>
     [JsonPropertyName("title")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Title { get; set; }
 }
 

@@ -14,7 +14,20 @@ A type is a root when it has `[ExportContract]` (`Cloud/Api/Contracts/ExportCont
 
 That exports every public concrete class, struct and enum in that exact namespace (not child namespaces).
 
-The roots are `SearchIndexerState`, `EpisodeUpdateResponse`, `EpisodeDto`, `PublicEpisodeDto`, and the film and TV show trailer DTOs (#1602): `FilmTrailerDto`, `FilmTrailerChangeRequest`, `TvShowTrailerDto`, `TvShowTrailerChangeRequest`, `EpisodeTrailerAttachRequest` / `EpisodeTrailerAttachResponse` (film) and `EpisodeTvShowTrailerAttachRequest` / `EpisodeTvShowTrailerAttachResponse` (TV show). The film attach response pulls in `SubmitUrlResponse.IdentityDecisionBody` and `SubmitUrlResponse.IdentityCandidateBody` (exported as `SubmitUrlResponseIdentityDecisionBody` and `SubmitUrlResponseIdentityCandidateBody`). `PublicEpisodeDto` is the public `/public/episode/{id}` body the website bookmarks page reads (#1502). It carries the optional `imageRemoved` flag (#1500), which the curator `EpisodeDto` does not; its `ids` and `services` use the JSON-identical `EpisodeIdsDto` and `ServiceLinkDto`, so the public wire bytes are unchanged. Their closure (ids, urls, images, subjects, people, service links, `ServiceDto`, `ApprovalStatusDto`, and the nested guest-match types) is included with them. <!-- pragma: allowlist secret -->
+The roots are `SearchIndexerState`, `EpisodeUpdateResponse`, `EpisodeDto`, `PublicEpisodeDto`, and the film and TV show trailer DTOs (#1602).
+
+The trailer roots are:
+
+- `FilmTrailerDto` and `FilmTrailerChangeRequest`
+- `TvShowTrailerDto` and `TvShowTrailerChangeRequest`
+- `EpisodeTrailerAttachRequest` and `EpisodeTrailerAttachResponse` (film)
+- `EpisodeTvShowTrailerAttachRequest` and `EpisodeTvShowTrailerAttachResponse` (TV show)
+
+A request DTO property the client may omit needs `[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]` (or `WhenWritingDefault`) so the generated Zod key is `.optional()`. A nullable CLR type alone is not enough: it generates a required key that must be sent as `null`, and the strict Zod object rejects a body that leaves the key out. `ContractWireRules` pins the omittable keys of the four trailer request DTOs.
+
+The film attach response pulls in `SubmitUrlResponse.IdentityDecisionBody` and `SubmitUrlResponse.IdentityCandidateBody` (exported as `SubmitUrlResponseIdentityDecisionBody` and `SubmitUrlResponseIdentityCandidateBody`).
+
+`PublicEpisodeDto` is the public `/public/episode/{id}` body the website bookmarks page reads (#1502). It carries the optional `imageRemoved` flag (#1500), which the curator `EpisodeDto` does not; its `ids` and `services` use the JSON-identical `EpisodeIdsDto` and `ServiceLinkDto`, so the public wire bytes are unchanged. Their closure (ids, urls, images, subjects, people, service links, `ServiceDto`, `ApprovalStatusDto`, and the nested guest-match types) is included with them. <!-- pragma: allowlist secret -->
 
 ## Why a build target, not Tapper or TypeGen
 

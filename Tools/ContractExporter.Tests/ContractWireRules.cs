@@ -440,8 +440,88 @@ public class ContractWireRules
         AssertNullHandling(json.RootElement, contract, empty);
     }
 
+    [Theory(DisplayName =
+        "When a trailer request DTO is built into the contract, then exactly the keys a client may omit are optional in the contract, TypeScript and Zod and the remaining keys stay required, and a default instance serializes only the required keys, because nullable is not optional and only JsonIgnore omits a key (#1602).")]
+    [InlineData(nameof(EpisodeTrailerAttachRequest), "filmId", "title", "createFilm", "filmName", "identityDecision", "selectedIdentityKey")]
+    [InlineData(nameof(EpisodeTvShowTrailerAttachRequest), "tvShowId", "tvShowName", "createShow", "publisher", "title")]
+    [InlineData(nameof(FilmTrailerChangeRequest), "title")]
+    [InlineData(nameof(TvShowTrailerChangeRequest), "title")]
+    public void trailer_request_dtos_mark_omittable_keys_optional(string typeName, params string[] optionalKeys)
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+        var contract = document.Types.Single(type => type.Name == typeName);
+        var instance = Activator.CreateInstance(typeof(EpisodeTrailerAttachRequest).Assembly.GetType($"Api.Dtos.{typeName}", true)!)!;
+        var requiredKeys = contract.Properties.Select(property => property.JsonName).Except(optionalKeys).ToArray();
+
+        // Act
+        var files = ContractText.Render(document).ToDictionary(file => file.RelativePath, file => file.Contents);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(instance, _options));
+
+        // Assert
+        contract.Properties.Where(property => property.Optional).Select(property => property.JsonName)
+            .Should().BeEquivalentTo(optionalKeys);
+        optionalKeys.Should().OnlyContain(key => contract.Properties.Any(property => property.JsonName == key));
+        foreach (var key in optionalKeys)
+        {
+            files[ContractPaths.TypeScript].Should().MatchRegex($@"\n  {key}\?: ");
+            files[ContractPaths.Zod].Should().MatchRegex($@"\n  {key}: [^\n]*\.optional\(\),");
+        }
+
+        foreach (var key in requiredKeys)
+        {
+            files[ContractPaths.Zod].Should().NotMatchRegex($@"\n  {key}: [^\n]*\.optional\(\),");
+        }
+
+        json.RootElement.EnumerateObject().Select(property => property.Name).Should().BeEquivalentTo(requiredKeys);
+        AssertNullHandling(json.RootElement, contract, instance);
+    }
+
+    [Fact(DisplayName =
+        "When a trailer attach request omits every key but the ones its flow needs, then the contract accepts the body, because the generated Zod is strict and the Api accepts a film by id, a created film by name, a show by id and a created show by name without the other keys (#1602).")]
+    public void trailer_attach_request_flows_satisfy_the_contract()
+    {
+        // Arrange
+        var document = ContractGraph.Build(_options);
+        var filmId = _fixture.Create<Guid>();
+        var tvShowId = _fixture.Create<Guid>();
+        var name = _fixture.Create<string>();
+        var bodies = new (string Type, object Request)[]
+        {
+            (nameof(EpisodeTrailerAttachRequest), new EpisodeTrailerAttachRequest { FilmId = filmId }),
+            (nameof(EpisodeTrailerAttachRequest), new EpisodeTrailerAttachRequest { CreateFilm = true, FilmName = name }),
+            (nameof(EpisodeTvShowTrailerAttachRequest), new EpisodeTvShowTrailerAttachRequest { TvShowId = tvShowId }),
+            (nameof(EpisodeTvShowTrailerAttachRequest),
+                new EpisodeTvShowTrailerAttachRequest { CreateShow = true, TvShowName = name }),
+            (nameof(FilmTrailerChangeRequest), new FilmTrailerChangeRequest { Id = filmId }),
+            (nameof(TvShowTrailerChangeRequest), new TvShowTrailerChangeRequest { Id = tvShowId })
+        };
+
+        // Act
+        var written = bodies
+            .Select(body => (body.Type, Json: JsonSerializer.SerializeToElement(body.Request, _options)))
+            .ToArray();
+
+        // Assert
+        foreach (var (typeName, element) in written)
+        {
+            var contract = document.Types.Single(type => type.Name == typeName);
+            var keys = element.EnumerateObject().Select(property => property.Name).ToArray();
+            contract.Properties.Where(property => !property.Optional).Select(property => property.JsonName)
+                .Should().BeSubsetOf(keys, "{0} must carry every required key", typeName);
+            keys.Should().BeSubsetOf(contract.Properties.Select(property => property.JsonName),
+                "the generated Zod object is strict");
+        }
+
+        written[0].Json.TryGetProperty("createFilm", out _).Should().BeFalse();
+        written[1].Json.TryGetProperty("filmId", out _).Should().BeFalse();
+        written[2].Json.TryGetProperty("createShow", out _).Should().BeFalse();
+        written[3].Json.TryGetProperty("tvShowId", out _).Should().BeFalse();
+    }
+
     private void AssertNullHandling(JsonElement json, ContractType contract, object instance)
     {
+        var nullProperties = 0;
         foreach (var property in contract.Properties)
         {
             var value = ClrProperty(instance.GetType(), property.JsonName).GetValue(instance);
@@ -450,6 +530,7 @@ public class ContractWireRules
                 continue;
             }
 
+            nullProperties++;
             var present = json.TryGetProperty(property.JsonName, out var element);
             if (property.Optional)
             {
@@ -462,6 +543,8 @@ public class ContractWireRules
                 element.ValueKind.Should().Be(JsonValueKind.Null);
             }
         }
+
+        nullProperties.Should().BeGreaterThan(0, "an instance with no null property would make this check pass without testing anything");
     }
 
     private void AssertPropertyOrder(ContractType contract, object instance)
