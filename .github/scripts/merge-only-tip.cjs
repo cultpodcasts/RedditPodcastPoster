@@ -8,12 +8,16 @@
 //   1. exactly two parents: P1 (the PR side) and P2 (the base side), in that order (GitHub's
 //      "Update branch" button and `git merge origin/main` both put the PR branch first);
 //   2. P2 is on the base branch (compare base...P2 is `behind` or `identical`);
-//   3. the PR side (merge-base..P1) and the base side (merge-base..P2) touch no file in
-//      common, so the merge was textually clean and needed no hand resolution;
-//   4. the merge delta (P1..M) is exactly the base side (merge-base..P2): same files, same
-//      status, same resulting blob SHAs. Anything extra (an "evil merge") or missing fails;
+//   3. the merge delta (P1..M) is a subset of the base side (merge-base..P2): every newly
+//      introduced file key (status, path, blob) appears on the base side. Extras or tampered
+//      blobs fail (evil merge). A subset (not exact equality) allows stacked / cherry-pick
+//      tips that already held some of main's blobs before the merge;
+//   4. the tip honours main on every base-touched path: compare P2..M must not touch any path
+//      the base side changed (auto-merged divergent hunks and dropped main changes fail);
 //   5. no compare listing was truncated (GitHub returns at most 300 files per compare, on
 //      page 1 only, and does not page them), so a hidden file can never ride along.
+// Filename overlap between PR and base sides is allowed when (3) and (4) hold — that is how
+// stacked PRs sync main without a human re-mark.
 // Known residual: compare entries carry no file mode or type, so a merge that only flips a mode
 // (100644 -> 100755) or swaps a file for a symlink with the SAME blob, on a file the base side also
 // changed, has an identical key and passes. Blob content is still verified. Accepted: closing it
@@ -68,6 +72,13 @@ function deltaMatchesBaseSide(deltaFiles, baseFiles) {
   return a.length === b.length && a.every((k, i) => k === b[i]);
 }
 
+// True when every delta file key appears on the base side (evil extras / tampered blobs fail;
+// a proper subset is allowed when the PR tip already held some of main's content).
+function deltaSubsetOfBaseSide(deltaFiles, baseFiles) {
+  const base = new Set(fileKeys(baseFiles));
+  return fileKeys(deltaFiles).every((k) => base.has(k));
+}
+
 // All files of a compare, or `truncated: true` when the listing may be incomplete: it reached
 // GitHub's 300 file cap (a single request, since files are not paged), or it has no files array
 // although the compare is not `identical`. Fails closed: an unknown listing is never complete.
@@ -99,16 +110,16 @@ async function assessMergeOnlyHop({ github, owner, repo, baseRef, sha }) {
   }
 
   const baseSide = await listCompareFiles(github, owner, repo, `${first}...${second}`);
-  const prSide = await listCompareFiles(github, owner, repo, `${second}...${first}`);
   const delta = await listCompareFiles(github, owner, repo, `${first}...${sha}`);
-  if (baseSide.truncated || prSide.truncated || delta.truncated) {
+  const tipVsBase = await listCompareFiles(github, owner, repo, `${second}...${sha}`);
+  if (baseSide.truncated || delta.truncated || tipVsBase.truncated) {
     return notMergeOnly('file listing truncated; cannot verify the merge');
   }
-  if (filesOverlap(prSide.files, baseSide.files)) {
-    return notMergeOnly('PR and base changed the same files');
-  }
-  if (!deltaMatchesBaseSide(delta.files, baseSide.files)) {
+  if (!deltaSubsetOfBaseSide(delta.files, baseSide.files)) {
     return notMergeOnly('merge changes differ from the base side');
+  }
+  if (filesOverlap(tipVsBase.files, baseSide.files)) {
+    return notMergeOnly('tip diverged from base on a main-touched file');
   }
   return {
     ok: true, firstParent: first, secondParent: second, files: delta.files.length,
@@ -147,5 +158,5 @@ async function walkMergeOnlyChain({ github, owner, repo, baseRef, headSha, class
 
 module.exports = {
   MAX_HOPS, COMPARE_FILE_CAP, touchedPaths, filesOverlap, fileKeys,
-  deltaMatchesBaseSide, listCompareFiles, assessMergeOnlyHop, walkMergeOnlyChain,
+  deltaMatchesBaseSide, deltaSubsetOfBaseSide, listCompareFiles, assessMergeOnlyHop, walkMergeOnlyChain,
 };
