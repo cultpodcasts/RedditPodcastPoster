@@ -148,7 +148,7 @@ public class PodcastUpdaterPreviewRules
     }
 
     [Fact(DisplayName =
-        "Previewing a backlog index does not count an episode the elimination-terms filter removes, because the real index removes it before saving.")]
+        "Previewing a backlog index does not count an episode the elimination-terms filter removes, because the real index saves it flagged Removed, so it is not an episode the curator would review.")]
     public async Task preview_excludes_episodes_removed_by_the_elimination_terms_filter()
     {
         // Arrange
