@@ -18,4 +18,7 @@ public record FindAppleEpisodeRequest(
     string? Language = null,
     int? ShowEpisodeCount = null,
     DateTime? YouTubePublished = null,
-    string? DescriptionRegex = null);
+    string? DescriptionRegex = null,
+    Guid? PodcastId = null,
+    Guid? EpisodeId = null,
+    IReadOnlyList<EpisodeLookupMiss>? KnownMisses = null);

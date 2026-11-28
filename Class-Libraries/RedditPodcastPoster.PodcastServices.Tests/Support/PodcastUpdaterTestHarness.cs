@@ -74,6 +74,7 @@ internal sealed class PodcastUpdaterTestHarness
             YouTubeQuotaUsageTracker.Object,
             HeroEpisodePromoter.Object,
             ShowEpisodeCounts,
+            LookupMisses,
             UrlMembershipLookup.Object,
             TvShows.Object,
             NewsOrganisations.Object,
@@ -106,6 +107,8 @@ internal sealed class PodcastUpdaterTestHarness
     };
 
     public CatalogueShowEpisodeCounts ShowEpisodeCounts { get; } = new();
+
+    public CatalogueLookupMisses LookupMisses { get; } = new();
 
     public SaveCallRecorder SaveCallRecorder { get; }
 

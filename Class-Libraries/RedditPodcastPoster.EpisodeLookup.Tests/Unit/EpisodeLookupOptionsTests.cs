@@ -28,6 +28,8 @@ public class EpisodeLookupOptionsTests
         options.AppleBoundedWalkPages.Should().Be(5);
         options.RequestTimeout.Should().Be(TimeSpan.FromSeconds(10));
         options.FullShowReadBudget.Should().Be(TimeSpan.FromSeconds(20));
+        options.MissMemory.MissMemoryEnabled.Should().BeTrue();
+        options.MissMemory.MissRetryAfter.Should().Be(TimeSpan.FromHours(24));
     }
 
     [Theory(DisplayName = "Out-of-range values are invalid.")]

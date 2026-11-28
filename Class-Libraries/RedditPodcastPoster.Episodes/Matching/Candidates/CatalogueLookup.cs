@@ -40,6 +40,21 @@ public sealed record CatalogueLookup(
     public DateTime? YouTubePublished { get; init; }
 
     /// <summary>
+    /// Podcast id for Index miss memory (#1558). Required with <see cref="EpisodeId"/> to record or clear a miss.
+    /// </summary>
+    public Guid? PodcastId { get; init; }
+
+    /// <summary>
+    /// Episode id for Index miss memory (#1558). Submit/discovery/enrich leave this null so misses are never skipped.
+    /// </summary>
+    public Guid? EpisodeId { get; init; }
+
+    /// <summary>
+    /// Remembered Index misses from <see cref="Podcast.LookupMisses"/> for the fingerprint skip check (#1558).
+    /// </summary>
+    public IReadOnlyList<EpisodeLookupMiss>? KnownMisses { get; init; }
+
+    /// <summary>
     /// Duration-aware matching applies when the probe has a length and comes from YouTube
     /// (YouTube release authority or YouTube-discovered enrichment), because YouTube and audio releases
     /// lag each other and titles are often edited. Otherwise audio-to-audio lookups match by release date.

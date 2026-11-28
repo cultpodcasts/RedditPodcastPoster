@@ -9,7 +9,7 @@ business-rules test first** (in `RedditPodcastPoster.EpisodeLookup.BusinessRules
 
 | Use case (`EpisodeLookupFlow`) | Entry point | Callers |
 |---|---|---|
-| `Index` | `EpisodeLookupUseCases.ForIndex` | `PodcastUpdater.Update`: Cloud Indexer, Api `PodcastIndexService`, Index CLI. No show id → skip (`stage='skipped-no-show'`, no title search). Small-show full read is time-budgeted with title-search fallback (same as other flows) |
+| `Index` | `EpisodeLookupUseCases.ForIndex` | `PodcastUpdater.Update`: Cloud Indexer, Api `PodcastIndexService`, Index CLI. No show id → skip (`stage='skipped-no-show'`, no title search). Small-show full read is time-budgeted with title-search fallback (same as other flows). Miss memory (#1558): unchanged catalogue fingerprint → `stage='skipped-unchanged'` (Submit/Discovery/Enrich never skip) |
 | `Submit` (default) | `EpisodeLookupUseCases.ForSubmit` / unmarked context | URL submission (`UrlSubmission` `PodcastService`), `SpotifyUrlCategoriser`, `AppleUrlCategoriser`, ImageUpdater |
 | `Discovery` | `EpisodeLookupUseCases.ForDiscovery` | Discovery `SpotifyEnricher`, `AppleEnricher` |
 | `Enrich` | `EpisodeLookupUseCases.ForEnrich` | `EnrichExistingEpisodesFromPodcastServices` CLI |
@@ -33,12 +33,14 @@ They contain no strategy logic.
 4. The executor runs the steps (pages read once and reused, ids tried once, each read bounded by date and/or cap)
    and logs one line per lookup:
    `Catalogue episode lookup: platform=… flow=… plan=… stage=… show-episodes=… pages-read=… candidates=… classified=… classify-ms=…`
-   (`stage` is the strategy that found the episode, `miss`, or `skipped-no-show`; `candidates` is what the executor handed
+   (`stage` is the strategy that found the episode, `miss`, `skipped-no-show`, or `skipped-unchanged`; `candidates` is what the executor handed
    the subject classifier, summed over steps; `classified` is how many were handed to subject/guest classification — all of
    them when enriching a YouTube-discovered episode, none otherwise; the classifier may serve some from its per-scope memo;
    `classify-ms` is the time spent inside `ClassifyAsync`, measured with the injected `TimeProvider`, and includes the
    ignore-list lookup for `classified=0` lookups; the line is not logged if the classifier throws).
    The three trailing fields are the measure for #1557: they show how much of a slow `enrich` is classification.
+   Index miss memory (#1558) records/clears `Podcast.lookupMisses` via `ICatalogueLookupMisses` (fingerprint = newest
+   page-0 id + show total; retry window `missMemory.missRetryAfter`, default 24 h).
 5. Every HTTP call is wrapped by `CatalogueRequestGuard` (`RequestTimeout`, default 10 s); when it fires it logs
    `Catalogue request timeout guard fired:` and the lookup moves on (clean miss, never an exception).
 
@@ -54,8 +56,9 @@ They contain no strategy logic.
 
 Options (`episodeLookup`): `FullShowReadMaxEpisodes` 200, `FullShowReadMaxPages` 20, `RecentWindow` 14 d, `IndexMaxPages` 20,
 `SpotifyBoundedWalkPages` 4, `AppleBoundedWalkPages` 5, `RequestTimeout` 10 s, `FullShowReadBudget` 20 s (all flows,
-including Index enrich — without it, Index walks of ~135–179 episode shows hit the hourly podcast 60 s backstop).
-Show pages and candidate subjects are scoped, so one apply/submit batch reads and classifies a show once
+including Index enrich — without it, Index walks of ~135–179 episode shows hit the hourly podcast 60 s backstop),
+`missMemory.missMemoryEnabled` true, `missMemory.missRetryAfter` 24 h.
+Show pages, candidate subjects and Index miss mutations are scoped, so one apply/submit batch reads and classifies a show once
 (submission `4a7d8838`, see `docs/catalogue-pagination.md`).
 
 Use the App Insights `Catalogue episode lookup:` lines (group by `flow`, `stage`, `pages-read`) to tune with data.

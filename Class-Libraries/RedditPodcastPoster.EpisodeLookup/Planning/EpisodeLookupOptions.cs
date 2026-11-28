@@ -49,9 +49,13 @@ public sealed class EpisodeLookupOptions
     /// <summary>Per-request timeout guard for Spotify and Apple catalogue calls, the same in every flow (default 10 s).</summary>
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
+    /// <summary>Index-flow miss memory (#1558). Bound from <c>episodeLookup:missMemory</c>.</summary>
+    public LookupEpisodeMissOptions MissMemory { get; set; } = new();
+
     public const string ValidationMessage =
         "episodeLookup: FullShowReadMaxEpisodes must be 0..1000, FullShowReadMaxPages 1..100, RecentWindow > 0, IndexMaxPages 1..100, " +
-        "SpotifyBoundedWalkPages and AppleBoundedWalkPages 1..20, RequestTimeout 1..120 seconds, FullShowReadBudget 1..300 seconds.";
+        "SpotifyBoundedWalkPages and AppleBoundedWalkPages 1..20, RequestTimeout 1..120 seconds, FullShowReadBudget 1..300 seconds, " +
+        "MissMemory.MissRetryAfter 1 second..7 days.";
 
     public static bool IsValid(EpisodeLookupOptions options) =>
         options.FullShowReadMaxEpisodes is >= 0 and <= 1000 &&
@@ -61,7 +65,8 @@ public sealed class EpisodeLookupOptions
         options.SpotifyBoundedWalkPages is >= 1 and <= 20 &&
         options.AppleBoundedWalkPages is >= 1 and <= 20 &&
         options.RequestTimeout >= TimeSpan.FromSeconds(1) && options.RequestTimeout <= TimeSpan.FromSeconds(120) &&
-        options.FullShowReadBudget >= TimeSpan.FromSeconds(1) && options.FullShowReadBudget <= TimeSpan.FromSeconds(300);
+        options.FullShowReadBudget >= TimeSpan.FromSeconds(1) && options.FullShowReadBudget <= TimeSpan.FromSeconds(300) &&
+        LookupEpisodeMissOptions.IsValid(options.MissMemory);
 
     /// <summary>Bounded-walk cap for <paramref name="platform"/> (<see cref="CataloguePlatforms"/>); 1 for an unknown platform.</summary>
     public int BoundedWalkPagesFor(string platform) => platform switch

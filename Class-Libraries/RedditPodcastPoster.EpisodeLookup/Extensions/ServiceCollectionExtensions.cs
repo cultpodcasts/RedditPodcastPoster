@@ -18,8 +18,10 @@ public static class ServiceCollectionExtensions
         {
             services.TryAddSingleton<IEpisodeLookupPlanner, EpisodeLookupPlanner>();
             services.TryAddSingleton<ICatalogueRequestGuard, CatalogueRequestGuard>();
-            // Scoped: the subject classifier (RedditPodcastPoster.Subjects) and per-scope observed show counts.
+            // Scoped: the subject classifier (RedditPodcastPoster.Subjects), per-scope observed show counts,
+            // and Index miss memory applied onto Podcast.LookupMisses at the end of the pass.
             services.TryAddScoped<ICatalogueShowEpisodeCounts, CatalogueShowEpisodeCounts>();
+            services.TryAddScoped<ICatalogueLookupMisses, CatalogueLookupMisses>();
             services.TryAddScoped<ICatalogueLookupExecutor, CatalogueLookupExecutor>();
             services.TryAddScoped<ICatalogueSubjectClassifier, NoCatalogueSubjectClassifier>();
             services.TryAddSingleton(TimeProvider.System);
